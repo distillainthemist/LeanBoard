@@ -119,6 +119,27 @@ Term store section for the Organisation set:
   not renames, adds or deletes of the structure — those belong to the
   Organisation editor and the sync, or the two sources would fight.
 
+### Status — the manager BUILT 2026-10-12 (dev, unreleased)
+
+`docs/termManager.ts` (the sheet), `docs/termManagerModel.ts` (pure,
+tested: `labelsByLanguage`, `composeLabels`, `buildTree`,
+`visibleIds`), `sp.ts` (`fetchTermStoreLanguages`, `fetchTermDetail`,
+`patchTerm`, `deleteTerm`). Opened from "Manage terms…" under each
+card in Settings → Documents → Term sets & colours and beside the
+Organisation term set in the Term store section (structure locked
+there). Tree: top level open, chevrons, a collapsed row's child count,
+a search that shows hits in their branch. Term: a card per working
+language (default label — the rename, kept on the GUID — and synonym
+chips with an Enter-to-add box), the default-language description, the
+id with Copy, "Count usage" (search over the columns reading the set,
+bounded to the exposed libraries), Save term (one PATCH of labels +
+descriptions; the walk cache invalidated; the tree re-labelled down
+the branch), ＋ Add child / ＋ Add top-level term (a prompt, created in
+the default language), Delete… (enabled only with no children and a
+counted usage of zero; the confirm names the index's lag). Ben's
+check: open a set, rename a term, add a synonym, save; see the register
+filter read the new label after a reload.
+
 ### Which sets sync, and which the manager owns
 
 Sync applies only where the app holds a master list: the

@@ -594,6 +594,22 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
     return p;
   };
 
+  /** Open the term manager for a set: the columns reading it feed the
+   *  usage count; the exposed libraries bound the search. */
+  const openManager = async (setId: string, setName: string) => {
+    const { openTermManager } = await import("./termManager");
+    openTermManager({
+      site: app.siteUrl,
+      setId,
+      setName,
+      structureLocked: setId !== "" && setId === app.orgSetId,
+      columnsUsingSet: dictionary().columns.filter((c) => c.termSetId === setId).map((c) => c.internal),
+      listIds: exposed.filter((l) => l.libType !== "template" && l.libType !== "ingestion").map((l) => l.listId),
+      onChanged: () => {
+        termsBySet.delete(setId);
+      },
+    });
+  };
   const paletteCard = (key: string, setId: string, cols: SiteColumn[]): HTMLElement => {
     const box = el("div", "app-docs-palcard");
     const head = el("button", "app-docs-palhead") as HTMLButtonElement;
@@ -710,7 +726,17 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
       }
     };
 
-    box.append(head, rows);
+    // the term manager (2026-10-12): the set's terms, synonyms and
+    // translations, a sheet of its own; the Organisation set's structure
+    // is locked there (the sync owns it)
+    const manage = el("button", "app-link app-docs-palmanage", "Manage terms…") as HTMLButtonElement;
+    manage.type = "button";
+    manage.title = "View the hierarchy; edit labels, synonyms, translations and descriptions";
+    manage.addEventListener("click", (e) => {
+      e.stopPropagation();
+      void openManager(setId, name);
+    });
+    box.append(head, manage, rows);
     return box;
   };
 
@@ -1046,7 +1072,16 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
   const groupRow = el("div", "app-docs-siterow");
   groupRow.append(groupSel, loadGroups);
   body.appendChild(field("Term group", groupRow));
-  body.appendChild(field("Organisation term set", setSel));
+  const orgSetRow = el("div", "app-docs-siterow");
+  const manageOrg = el("button", "app-btn", "Manage terms…") as HTMLButtonElement;
+  manageOrg.type = "button";
+  manageOrg.title = "Synonyms, translations and descriptions of the organisation's terms (the structure comes from Settings → Organisation and the sync)";
+  manageOrg.addEventListener("click", () => {
+    if (app.orgSetId === "") return;
+    void openManager(app.orgSetId, app.orgSetName || "Organisation");
+  });
+  orgSetRow.append(setSel, manageOrg);
+  body.appendChild(field("Organisation term set", orgSetRow));
 
   const companyLevel = el("input", "") as HTMLInputElement;
   companyLevel.type = "checkbox";

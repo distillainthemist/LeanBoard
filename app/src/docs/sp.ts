@@ -718,6 +718,45 @@ export function fetchTermStoreLanguage(site: string): Promise<SpResult> {
   });
 }
 
+// ---- term manager (2026-10-12, term-store-proposal-2026-10.md §3) ------
+
+/** The store's working languages: the manager offers a row per language
+ *  the store is configured with, never one it invents. */
+export function fetchTermStoreLanguages(site: string): Promise<SpResult> {
+  return spRequest(site, "GET", "_api/v2.1/termStore?$select=defaultLanguageTag,languageTags", {
+    headers: { Accept: "application/json" },
+  });
+}
+
+/** One term with its labels AND descriptions — what the manager edits. */
+export function fetchTermDetail(site: string, setId: string, termId: string): Promise<SpResult> {
+  return spRequest(site, "GET", `_api/v2.1/termStore/sets/${setId}/terms/${termId}?$select=id,labels,descriptions`, {
+    headers: { Accept: "application/json" },
+  });
+}
+
+/** Replace a term's labels and descriptions in one PATCH (the GUID, and
+ *  so every tag, is kept). The caller composes the full collections. */
+export function patchTerm(
+  site: string,
+  setId: string,
+  termId: string,
+  body: { labels: { languageTag: string; name: string; isDefault: boolean }[]; descriptions?: { languageTag: string; description: string }[] }
+): Promise<SpResult> {
+  return spRequest(site, "PATCH", `_api/v2.1/termStore/sets/${setId}/terms/${termId}`, {
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+/** Delete a term — the manager offers it only for a term with no
+ *  children and no tagged document (a search count of zero). */
+export function deleteTerm(site: string, setId: string, termId: string): Promise<SpResult> {
+  return spRequest(site, "DELETE", `_api/v2.1/termStore/sets/${setId}/terms/${termId}`, {
+    headers: { Accept: "application/json" },
+  });
+}
+
 /** One term with its FULL label collection — read before a rename so
  *  synonyms and other-language labels survive the PATCH (labels is
  *  replaced whole, not merged). */

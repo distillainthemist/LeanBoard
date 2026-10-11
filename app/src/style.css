@@ -4513,3 +4513,27 @@ input.app-vg-in.app-vg-folded { background: #fff7e0; }
 /* one scroll: the dialog body scrolls, never a box inside it */
 .app-ing-defaults { display: flex; flex-direction: column; gap: 8px; }
 .app-ing-onefield { display: flex; flex-direction: column; gap: 8px; }
+
+/* ---- the term manager (2026-10-12): tree left, term right ---- */
+.app-tm-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(260px, 380px) minmax(0, 1fr); gap: 0; }
+.app-tm-tree { border-right: 1px solid #eceae5; display: flex; flex-direction: column; min-height: 0; padding: 12px; gap: 8px; }
+.app-tm-search { width: 100%; min-height: 36px; }
+.app-tm-list { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; }
+.app-tm-row { display: flex; align-items: center; gap: 4px; min-height: 32px; border-radius: 6px; padding-right: 8px; }
+.app-tm-row:hover { background: #faf9f7; }
+.app-tm-row-on { background: #e8effd; }
+.app-tm-row-on:hover { background: #e8effd; }
+.app-tm-name { font-size: 13px; text-decoration: none; padding: 4px 6px; min-height: 30px; text-align: left; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app-tm-name:hover { text-decoration: none; color: var(--app-accent); }
+.app-tm-term { min-height: 0; overflow: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 10px; }
+.app-tm-title { font-size: 17px; }
+.app-tm-langs { display: flex; flex-direction: column; gap: 12px; }
+.app-tm-lang { display: flex; flex-direction: column; gap: 5px; padding: 10px 12px; border: 1px solid #eceae5; border-radius: 8px; background: #faf9f7; }
+.app-tm-lang .app-input { width: 100%; box-sizing: border-box; }
+.app-tm-chips { align-items: center; }
+.app-tm-synin { width: 200px; flex: 0 1 200px; min-height: 32px; font-size: 12.5px; }
+.app-tm-idrow, .app-tm-userow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.app-tm-bar { display: flex; gap: 8px; align-items: center; padding-top: 6px; }
+.app-tm-bar .app-btn-danger { margin-left: auto; }
+.app-docs-palmanage { align-self: flex-start; font-size: 12.5px; padding: 2px 10px 6px; }
+@media (max-width: 899px) { .app-tm-body { grid-template-columns: 1fr; grid-template-rows: 40% 1fr; } .app-tm-tree { border-right: none; border-bottom: 1px solid #eceae5; } }
