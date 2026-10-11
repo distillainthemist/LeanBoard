@@ -228,8 +228,8 @@ On a desktop.
 6. **Register** — after a rename, reload the register: the filter and
    the chips read the new label; colours keyed to the id hold.
 7. **Colour in the manager** — pick a colour and a glyph on a term;
-   the tree row shows the dot; Settings' save bar lights; after Save
-   the register's chip wears it. The set's card in Term sets & colours
+   the tree row shows the dot and the line reads "Saved."; the
+   register's chip wears it on its next load (no Settings save needed). The set's card in Term sets & colours
    is one line with the count.
 8. **Rename journal** — Settings → Organisation: rename a department,
    Save; Settings → Documents → Term store shows "The organisation

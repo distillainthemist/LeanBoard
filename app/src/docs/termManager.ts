@@ -54,7 +54,8 @@ export interface TermManagerOpts {
     states: { key: string; label: string; color: string }[];
     entries: Record<string, { color: string; glyph: string; label?: string }>;
     glyphFor: (label: string) => string;
-    onChange: (termId: string, label: string, entry: { color: string; glyph: string } | null) => void;
+    /** Persists at once; resolves when written, rejects with the reason. */
+    onChange: (termId: string, label: string, entry: { color: string; glyph: string } | null) => Promise<void>;
   };
 }
 
@@ -302,17 +303,22 @@ export function openTermManager(o: TermManagerOpts): () => void {
         glyph.placeholder = pal.glyphFor(nodeLabel(node)) || "—";
         glyph.value = pal.entries[node.id]?.glyph ?? "";
         glyph.title = "Shown before the value; blank uses the built-in match";
+        const saved = el("span", "app-field-hint", "");
         const write = () => {
           const label = nodeLabel(node);
-          if (pick.value === "" && glyph.value.trim() === "") pal.onChange(node.id, label, null);
-          else pal.onChange(node.id, label, { color: pick.value, glyph: glyph.value.trim() });
+          const entry = pick.value === "" && glyph.value.trim() === "" ? null : { color: pick.value, glyph: glyph.value.trim() };
+          saved.textContent = "Saving…";
+          pal.onChange(node.id, label, entry).then(
+            () => (saved.textContent = "Saved."),
+            (e) => (saved.textContent = `Not saved: ${e instanceof Error ? e.message : String(e)}`)
+          );
           paintSwatch();
           paintTree();
         };
         pick.addEventListener("change", write);
         glyph.addEventListener("input", write);
         const line = el("div", "app-tm-colourline");
-        line.append(pick, swatch, glyph, el("span", "app-field-hint", "Saved with Settings → Save."));
+        line.append(pick, swatch, glyph, saved);
         colourRow.appendChild(line);
         right.appendChild(colourRow);
       }

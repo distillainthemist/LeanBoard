@@ -616,11 +616,24 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
             states: palettes.states.map((p) => ({ key: p.key, label: p.label, color: p.color })),
             entries: pal.entries,
             glyphFor: statusGlyph,
+            // a colour set in the manager is SAVED at once (Ben, 2026-10-12:
+            // "I can see us missing this step") — a short debounce, so a
+            // glyph typed letter by letter is one write
             onChange: (termId, label, entry) => {
               if (entry === null) delete pal.entries[termId];
               else pal.entries[termId] = { color: entry.color, glyph: entry.glyph, label };
-              ctx.markDirty();
               repaintPaletteCounts();
+              if (paletteSaveTimer) clearTimeout(paletteSaveTimer);
+              return new Promise<void>((resolve, reject) => {
+                paletteSaveTimer = setTimeout(() => {
+                  saveAppDocsConfig(app)
+                    .then(() => {
+                      invalidateDocsCache();
+                      resolve();
+                    })
+                    .catch(reject);
+                }, 400);
+              });
             },
           }
         : undefined,
@@ -629,6 +642,7 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
   /** The one-line cards re-read their "n values coloured" after the
    *  manager changes a colour. */
   let repaintPaletteCounts: () => void = () => {};
+  let paletteSaveTimer: ReturnType<typeof setTimeout> | null = null;
   const paletteCard = (key: string, setId: string, cols: SiteColumn[]): HTMLElement => {
     const box = el("div", "app-docs-palcard");
     const head = el("button", "app-docs-palhead") as HTMLButtonElement;
