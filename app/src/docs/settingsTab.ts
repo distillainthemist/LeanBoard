@@ -542,17 +542,12 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
   // One palette per TERM SET, not per library: the same set used by three
   // libraries had three colour maps free to disagree, and they were keyed
   // by label, so renaming a term detached its colour silently.
-  body.appendChild(section("Term sets & colours"));
-  body.appendChild(
-    note(
-      "A colour and a glyph per value, set once for the term set — every library " +
-        "using that set follows. Colours come from Branding's state palette, so a " +
-        "document status and a board status of the same name look alike. The glyph " +
-        "carries as much as the colour: status has to read without relying on colour."
-    )
+  // the term-set tiles live INSIDE the Term store section (Ben,
+  // 2026-10-12: one section — the store, the synced sets, then the sets)
+  const palNote = note(
+    "Each set's terms, synonyms, translations and colours are managed in its tile. Colours come from Branding's state palette, so a document status and a board status of the same name look alike; the glyph carries as much as the colour."
   );
   const palBox = el("div", "");
-  body.appendChild(palBox);
 
   /** Live schema by internal name, filled by the dictionary pass — it is
    *  what tells a Choice column from a taxonomy one. */
@@ -1026,11 +1021,13 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
   body.appendChild(section("Term store"));
   body.appendChild(
     note(
-      "Managed columns read their values from term sets under one group. The " +
-        "Organisation set should mirror LeanBoard's organisation — the report below " +
-        "shows any drift (read-only; nothing is changed)."
+      "Managed columns read their values from term sets under one group. The sets " +
+        "LeanBoard mirrors from its own data (the organisation; the process areas to come) " +
+        "are chosen here and synced below; every set is managed from its tile."
     )
   );
+  const termStoreHost = el("div", "app-docs-termstore");
+  body.appendChild(termStoreHost);
   const groupSel = el("select", "app-input") as HTMLSelectElement;
   const setSel = el("select", "app-input") as HTMLSelectElement;
   const seedOption = (sel: HTMLSelectElement, id: string, name: string) => {
@@ -1125,13 +1122,13 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
   // Organisation editor wait here for a sync
   if (app.orgRenames.length > 0) {
     const n = app.orgRenames.length;
-    body.appendChild(
+    termStoreHost.appendChild(
       el("div", "app-docs-health app-docs-health-warn app-docs-syncnow", `The organisation changed since the last sync — ${n} rename${n === 1 ? "" : "s"} recorded (${app.orgRenames.map((r) => `${r.from[r.from.length - 1]} → ${r.to[r.to.length - 1]}`).join(", ")}). Load the drift report and apply: the terms are renamed in place, tags survive.`)
     );
   }
   const groupRow = el("div", "app-docs-siterow");
   groupRow.append(groupSel, loadGroups);
-  body.appendChild(field("Term group", groupRow));
+  termStoreHost.appendChild(field("Term group", groupRow));
   const orgSetRow = el("div", "app-docs-siterow");
   const manageOrg = el("button", "app-btn", "Manage terms…") as HTMLButtonElement;
   manageOrg.type = "button";
@@ -1141,7 +1138,9 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
     void openManager(app.orgSetId, app.orgSetName || "Organisation");
   });
   orgSetRow.append(setSel, manageOrg);
-  body.appendChild(field("Organisation term set", orgSetRow));
+  termStoreHost.appendChild(field("Organisation term set", orgSetRow));
+  // the sets themselves, as tiles
+  termStoreHost.append(el("div", "app-section", "Term sets"), palNote, palBox);
 
   const companyLevel = el("input", "") as HTMLInputElement;
   companyLevel.type = "checkbox";
@@ -1428,7 +1427,7 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
     healthBox.appendChild(list);
   };
 
-  body.appendChild(companyWrap);
+  termStoreHost.append(el("div", "app-section", "Organisation sync"), companyWrap);
 
   const driftBtn = el("button", "app-btn", "Load drift report") as HTMLButtonElement;
   // Does search filtering by organisation term WORK in this tenant?
@@ -1440,9 +1439,9 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
   const diagBtn = el("button", "app-btn", "Test search filtering") as HTMLButtonElement;
   const btnRow = el("div", "app-docs-siterow");
   btnRow.append(driftBtn, diagBtn);
-  body.appendChild(btnRow);
+  termStoreHost.appendChild(btnRow);
   const driftBox = el("div", "");
-  body.appendChild(driftBox);
+  termStoreHost.appendChild(driftBox);
   diagBtn.addEventListener("click", () => {
     void (async () => {
       clear(driftBox);

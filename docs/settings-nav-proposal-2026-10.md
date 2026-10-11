@@ -14,7 +14,7 @@ switches. Sub-headings per tab, counted from the code:
 
 | Tab | Sections | Heading idiom |
 |---|---|---|
-| Documents | 11 — SharePoint connection · Document columns · Term sets & colours · Libraries · Term store · Lifecycle · Review cadence · Health · Tags · Default filters · Write access | `.app-section` |
+| Documents | 11 — SharePoint connection · Document columns · Libraries · Term store (the group, the synced sets, the term-set tiles, the Organisation sync — merged 2026-10-12) · Lifecycle · Review cadence · Health · Tags · Default filters · Write access · Move road | `settingsSection` |
 | Priorities | 2 — Strategic pillars · Period & roll-up rule (vision statements removed 2026-10-08; cascade customisation moved to Organisation; super-admin only) | `h3.app-pr-h3` + note |
 | Site cadence | 3 — Site settings · Shift roster patterns · Protected times | `.app-section` |
 | My profile | 3 — the profile fields · Access diagnostics · Notification probe | `.app-section` |
