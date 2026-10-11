@@ -840,9 +840,14 @@ Key concepts (details: [leanboard-standard-documents-plan.md](leanboard-standard
   a sheet per term set (`docs/termManager.ts`) over the v2.1 term-store
   endpoints — tree, labels per working language (default + synonyms,
   translations), descriptions, a search-based usage count, create,
-  rename on the GUID, delete only when unused; the Organisation set's
-  structure is locked to the sync. Next: the rename journal + term
-  binding, the process model and its synced set (proposal §2, §6).
+  rename on the GUID, delete only when unused, and each term's colour
+  and glyph (the palette entries, saved with Settings); the
+  Organisation set's structure is locked to the sync. **The sync is
+  exact where it can be** (2026-10-12): the Organisation editor
+  journals renames into the documents configuration
+  (`docs/orgJournal.ts`), every sync binds app paths to term ids
+  (`termBindings`), and `orgSyncPlan` reads both before it infers from
+  labels. Next: the process model and its synced set (proposal §6).
 - **Document ingestion** (2026-10-08, [document-ingestion-proposal-2026-10.md](document-ingestion-proposal-2026-10.md)).
   A site's bulk-drop library (type "ingestion", never in the register)
   holds one folder per task (`ben_ltkingestiontask`: destination,

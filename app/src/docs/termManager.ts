@@ -47,6 +47,15 @@ export interface TermManagerOpts {
   listIds: string[];
   /** Called after any write, so the caller can repaint its own lists. */
   onChanged?: () => void;
+  /** Colours (Ben, 2026-10-12: set here, not in a separate section):
+   *  the site state palette, this set's entries by term id, the built-in
+   *  glyph for a label, and where a change goes (the caller saves). */
+  palette?: {
+    states: { key: string; label: string; color: string }[];
+    entries: Record<string, { color: string; glyph: string; label?: string }>;
+    glyphFor: (label: string) => string;
+    onChange: (termId: string, label: string, entry: { color: string; glyph: string } | null) => void;
+  };
 }
 
 export function openTermManager(o: TermManagerOpts): () => void {
@@ -156,6 +165,13 @@ export function openTermManager(o: TermManagerOpts): () => void {
           const name = btn(nodeLabel(n), "app-link app-tm-name");
           name.addEventListener("click", () => void select(n.id));
           row.append(toggle, name);
+          const colourKey = o.palette?.entries[n.id]?.color ?? "";
+          if (colourKey !== "") {
+            const dot = el("span", "app-tm-dot");
+            dot.style.background = o.palette?.states.find((p) => p.key === colourKey)?.color ?? "transparent";
+            dot.title = o.palette?.states.find((p) => p.key === colourKey)?.label ?? "";
+            row.appendChild(dot);
+          }
           if (kids.length > 0 && !open) row.appendChild(el("span", "app-org-summary", `${kids.length}`));
           list.appendChild(row);
           if (open) walkDown(n.id);
@@ -260,6 +276,46 @@ export function openTermManager(o: TermManagerOpts): () => void {
       desc.value = descriptions.get(defaultLang) ?? "";
       desc.addEventListener("input", markDirty);
       right.append(descCap, desc);
+      // colour and glyph (the register's chips and the cards' states key
+      // on the term id, so a rename keeps them)
+      if (o.palette) {
+        const pal = o.palette;
+        const colourRow = el("div", "app-tm-colourrow");
+        colourRow.appendChild(el("div", "app-field-label", "Colour"));
+        const pick = el("select", "app-input app-tm-colourpick") as HTMLSelectElement;
+        const none = el("option", "", "— no colour —") as HTMLOptionElement;
+        none.value = "";
+        pick.appendChild(none);
+        for (const p of pal.states) {
+          const opt = el("option", "", p.label) as HTMLOptionElement;
+          opt.value = p.key;
+          pick.appendChild(opt);
+        }
+        pick.value = pal.entries[node.id]?.color ?? "";
+        const swatch = el("span", "app-docs-statusswatch");
+        const paintSwatch = () => {
+          swatch.style.background = pal.states.find((p) => p.key === pick.value)?.color ?? "transparent";
+        };
+        paintSwatch();
+        const glyph = el("input", "app-input app-docs-palglyph") as HTMLInputElement;
+        glyph.maxLength = 2;
+        glyph.placeholder = pal.glyphFor(nodeLabel(node)) || "—";
+        glyph.value = pal.entries[node.id]?.glyph ?? "";
+        glyph.title = "Shown before the value; blank uses the built-in match";
+        const write = () => {
+          const label = nodeLabel(node);
+          if (pick.value === "" && glyph.value.trim() === "") pal.onChange(node.id, label, null);
+          else pal.onChange(node.id, label, { color: pick.value, glyph: glyph.value.trim() });
+          paintSwatch();
+          paintTree();
+        };
+        pick.addEventListener("change", write);
+        glyph.addEventListener("input", write);
+        const line = el("div", "app-tm-colourline");
+        line.append(pick, swatch, glyph, el("span", "app-field-hint", "Saved with Settings → Save."));
+        colourRow.appendChild(line);
+        right.appendChild(colourRow);
+      }
       // the id — colours and filters key on it
       const idRow = el("div", "app-tm-idrow");
       idRow.appendChild(el("span", "app-field-hint", `Term id ${node.id}`));

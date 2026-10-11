@@ -2169,6 +2169,8 @@ async function renderOrg(
       if (!(await guardLeave())) return;
       await renameSiteRow(site, name); // the owners column travels with the row
       await renameBoardsSite(site, name);
+      // the Organisation term set learns of it at the next sync (journal)
+      await import("../docs/orgJournal").then((m) => m.journalOrgRenames([{ from: [site], to: [name] }])).catch(() => undefined);
       for (const p of await listPeople(true)) {
         if (p.site === site) await upsertPerson({ ...p, site: name });
       }
@@ -2693,6 +2695,14 @@ async function renderOrg(
           await renameBoardsDepartment(rn.site, rn.oldName, rn.newName);
         }
       }
+      // the Organisation term set learns of these at the next sync (journal)
+      await import("../docs/orgJournal")
+        .then((m) =>
+          m.journalOrgRenames(
+            pendingRenames.map((rn) => (rn.kind === "dept" ? { from: [rn.site, rn.oldName], to: [rn.site, rn.newName] } : { from: [rn.site, rn.department, rn.oldName], to: [rn.site, rn.department, rn.newName] }))
+          )
+        )
+        .catch(() => undefined);
       pendingRenames.length = 0;
     }
     touched.clear();

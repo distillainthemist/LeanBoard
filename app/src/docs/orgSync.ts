@@ -4,7 +4,7 @@
 // the transport measurement, so nothing here may fail silently. Nothing
 // is ever deleted.
 
-import { OrgSyncPlan } from "./model";
+import { OrgSyncPlan, pathKey } from "./model";
 import {
   TermNode,
   createTerm,
@@ -16,7 +16,9 @@ import {
 
 const norm = (p: string[]) => p.map((s) => s.trim().toLowerCase()).join("¦");
 
-/** Runs the plan. Returns the number of steps that FAILED (0 = clean). */
+/** Runs the plan. Returns the number of steps that FAILED (0 = clean)
+ *  and the BINDINGS the run established — app path key → term id for
+ *  every match, rename and create that landed (term-store-proposal §2). */
 export async function executeOrgSync(opts: {
   site: string;
   setId: string;
@@ -25,9 +27,11 @@ export async function executeOrgSync(opts: {
   termNodes: TermNode[];
   termOffset: number;
   log: (line: string) => void;
-}): Promise<number> {
+}): Promise<{ failed: number; bindings: Record<string, string> }> {
   const { site, setId, plan, termNodes, termOffset, log } = opts;
   let failed = 0;
+  const bindings: Record<string, string> = {};
+  for (const m of plan.matches) bindings[pathKey(m.path)] = m.id;
 
   const langRes = await fetchTermStoreLanguage(site);
   const lang =
@@ -72,6 +76,7 @@ export async function executeOrgSync(opts: {
     }
     const res = await patchTermLabels(site, setId, r.id, next);
     if (res.ok) {
+      bindings[pathKey(r.to)] = r.id;
       log(`OK — renamed ${label} (term kept its id; tags and mappings survive).`);
     } else {
       failed++;
@@ -91,6 +96,7 @@ export async function executeOrgSync(opts: {
     const newId = ((res.data ?? {}) as { id?: unknown }).id;
     if (res.ok && typeof newId === "string" && newId !== "") {
       ids.set(norm(path), newId);
+      bindings[pathKey(path)] = newId;
       log(`OK — created ${label}.`);
     } else {
       failed++;
@@ -104,5 +110,5 @@ export async function executeOrgSync(opts: {
 
   // the walk cache now describes the old tree
   invalidateTermPaths();
-  return failed;
+  return { failed, bindings };
 }

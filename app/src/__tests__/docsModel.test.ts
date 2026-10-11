@@ -79,6 +79,8 @@ describe("app docs config", () => {
       stagingLibrary: "DMS-Upload",
       sites: {},
     defaultOrgFilter: {},
+    orgRenames: [],
+    termBindings: {},
     });
     expect(parseAppDocsConfig(raw).siteUrl).toBe("https://x.sharepoint.com/sites/Dev");
     // the 5G groups round-trip beside the controllers group
@@ -507,6 +509,29 @@ describe("org sync plan", () => {
     { site: "Bell Bay", departments: [{ department: "Casting", areas: ["Line 1"] }] },
   ];
   const term = (id: string, ...labels: string[]) => ({ id, labels });
+
+  it("renames exactly from the journal and by binding, where labels alone would guess", () => {
+    // two siblings renamed at once: no inference possible
+    const app = [{ site: "Bell Bay", departments: [{ department: "Casthouse", areas: [] }, { department: "Anode Plant", areas: [] }] }];
+    const terms = [term("a", "Bell Bay"), term("b", "Bell Bay", "Casting"), term("c", "Bell Bay", "Anodes")];
+    const blind = orgSyncPlan(orgTreePaths(app), terms);
+    expect(blind.renames).toEqual([]);
+    expect(blind.creates.length).toBe(2);
+    const journaled = orgSyncPlan(orgTreePaths(app), terms, 0, {
+      renames: [{ from: ["Bell Bay", "Casting"], to: ["Bell Bay", "Casthouse"] }, { from: ["Bell Bay", "Anodes"], to: ["Bell Bay", "Anode Plant"] }],
+    });
+    expect(journaled.renames.map((r) => [r.id, r.to[1]])).toEqual([["b", "Casthouse"], ["c", "Anode Plant"]]);
+    expect(journaled.creates).toEqual([]);
+    expect(journaled.orphans).toEqual([]);
+    // a binding: the node knows its term; the label differs → rename, and
+    // the children re-key under the new label
+    const bound = orgSyncPlan(orgTreePaths([{ site: "Bell Bay", departments: [{ department: "Casthouse", areas: ["Line 1"] }] }]), [term("a", "Bell Bay"), term("b", "Bell Bay", "Casting"), term("d", "Bell Bay", "Casting", "Line 1")], 0, {
+      bindings: { "bell bay¦casthouse": "b" },
+    });
+    expect(bound.renames).toEqual([{ id: "b", from: ["Bell Bay", "Casting"], to: ["Bell Bay", "Casthouse"] }]);
+    expect(bound.creates).toEqual([]);
+    expect(bound.matches.map((m) => m.id).sort()).toEqual(["a", "d"]);
+  });
 
   it("is empty when the trees agree (idempotent by construction)", () => {
     const plan = orgSyncPlan(orgTreePaths(APP), [
@@ -2088,5 +2113,16 @@ describe("Part II column model", () => {
       })
     );
     expect(messy.sites["https://x/sites/d"].cadence).toEqual({ "t-c": 9 });
+  });
+});
+
+describe("orgRenames / termBindings in the docs config", () => {
+  it("round-trip through the codec and drop rubbish", () => {
+    const cfg = parseAppDocsConfig(JSON.stringify({ orgRenames: [{ from: ["A"], to: ["B"], at: "t" }, { from: [], to: ["x"] }], termBindings: { s1: { "a¦b": "id1", bad: 3 }, s2: {} } }));
+    expect(cfg.orgRenames).toEqual([{ from: ["A"], to: ["B"], at: "t" }]);
+    expect(cfg.termBindings).toEqual({ s1: { "a¦b": "id1" } });
+    const back = parseAppDocsConfig(serializeAppDocsConfig(cfg));
+    expect(back.orgRenames).toEqual(cfg.orgRenames);
+    expect(back.termBindings).toEqual(cfg.termBindings);
   });
 });

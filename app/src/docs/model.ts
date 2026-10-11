@@ -837,6 +837,16 @@ export interface AppDocsConfig {
    *  corporate/functional branches it sees by default). Rename-proof
    *  by id; absent site falls back to name-matching. */
   defaultOrgFilter: Record<string, string[]>;
+  /** The rename JOURNAL (term-store-proposal §2, 2026-10-12): every
+   *  site / department / area rename the Organisation editor saved
+   *  since the last sync, as label paths. The drift report treats an
+   *  entry as exact evidence of a term rename; applying clears it. */
+  orgRenames: { from: string[]; to: string[]; at: string }[];
+  /** The term BINDING per synced set: app path key → term id, written
+   *  by every sync for what it matched, renamed and created. The
+   *  comparison is by id first, label second — a bound node whose label
+   *  differs from its term's is a rename by definition. */
+  termBindings: Record<string, Record<string, string>>;
   /** The upload STAGING library's title (5H2) — bytes cannot cross the
    *  connector, so uploads happen in SharePoint's own UI here, and the
    *  app copies server-side into the target. Never exposed in the nav;
@@ -876,6 +886,8 @@ export function emptyAppDocsConfig(): AppDocsConfig {
     editorsGroupName: "",
     spEditorsGroup: "",
     defaultOrgFilter: {},
+    orgRenames: [],
+    termBindings: {},
     stagingLibrary: "",
     sites: {},
   };
@@ -961,6 +973,20 @@ export function parseAppDocsConfig(raw: string | null | undefined): AppDocsConfi
     out.editorsGroupId = asStr(o.editorsGroupId);
     out.editorsGroupName = asStr(o.editorsGroupName);
     out.spEditorsGroup = asStr(o.spEditorsGroup);
+    const jr = Array.isArray(o.orgRenames) ? (o.orgRenames as unknown[]) : [];
+    for (const e of jr) {
+      const x = (e ?? {}) as { from?: unknown; to?: unknown; at?: unknown };
+      const from = Array.isArray(x.from) ? x.from.map(asStr).filter((s) => s !== "") : [];
+      const to = Array.isArray(x.to) ? x.to.map(asStr).filter((s) => s !== "") : [];
+      if (from.length > 0 && to.length > 0) out.orgRenames.push({ from, to, at: asStr(x.at) });
+    }
+    const tb = (o.termBindings ?? {}) as Record<string, unknown>;
+    for (const [setId, m] of Object.entries(tb)) {
+      if (!m || typeof m !== "object") continue;
+      const clean: Record<string, string> = {};
+      for (const [k, v] of Object.entries(m as Record<string, unknown>)) if (typeof v === "string" && v !== "" && k !== "") clean[k] = v;
+      if (Object.keys(clean).length > 0) out.termBindings[setId] = clean;
+    }
     const dof = (o.defaultOrgFilter ?? {}) as Record<string, unknown>;
     for (const [site, ids] of Object.entries(dof)) {
       if (!Array.isArray(ids)) continue;
@@ -1123,6 +1149,8 @@ export function serializeAppDocsConfig(cfg: AppDocsConfig): string {
   if (cfg.editorsGroupName !== "") o.editorsGroupName = cfg.editorsGroupName;
   if (cfg.spEditorsGroup !== "") o.spEditorsGroup = cfg.spEditorsGroup;
   if (Object.keys(cfg.defaultOrgFilter).length > 0) o.defaultOrgFilter = cfg.defaultOrgFilter;
+  if (cfg.orgRenames.length > 0) o.orgRenames = cfg.orgRenames;
+  if (Object.keys(cfg.termBindings).length > 0) o.termBindings = cfg.termBindings;
   if (cfg.stagingLibrary !== "") o.stagingLibrary = cfg.stagingLibrary;
   const sites: Record<string, unknown> = {};
   for (const [key, dict] of Object.entries(cfg.sites)) {
@@ -2985,9 +3013,23 @@ export function tallyByOwner(docs: ControlDoc[]): { owner: string; count: number
 // every tag and mapping alive where a delete-and-recreate would orphan
 // them. Terms with no app counterpart are reported and left alone.
 
+/** The one key for a label path: case-insensitive, trimmed. */
+export const pathKey = (p: string[]): string => p.map((s) => s.trim().toLowerCase()).join("¦");
+
+/** What the planner may KNOW beyond labels (term-store-proposal §2):
+ *  the rename journal and the term binding of the set. */
+export interface OrgSyncEvidence {
+  renames?: { from: string[]; to: string[] }[];
+  /** app path key → term id */
+  bindings?: Record<string, string>;
+}
+
 export interface OrgSyncPlan {
   /** App paths absent from the term set, parent-first — the create order. */
   creates: string[][];
+  /** App paths that matched a term as they stand (by id or by label) —
+   *  what the sync binds. */
+  matches: { path: string[]; id: string }[];
   /** In-place label changes: the term keeps its GUID, tags survive. */
   renames: { id: string; from: string[]; to: string[] }[];
   /** Term-set-only paths — never touched, listed so nothing is silent. */
@@ -3008,9 +3050,10 @@ export interface OrgSyncPlan {
 export function orgSyncPlan(
   appPaths: string[][],
   termNodes: { id: string; labels: string[] }[],
-  termOffset = 0
+  termOffset = 0,
+  evidence: OrgSyncEvidence = {}
 ): OrgSyncPlan {
-  const norm = (p: string[]) => p.map((s) => s.trim().toLowerCase()).join("¦");
+  const norm = pathKey;
   if (termOffset > 0) {
     const roots = new Set(
       termNodes.filter((n) => n.labels.length === 1).map((n) => norm(n.labels))
@@ -3018,6 +3061,7 @@ export function orgSyncPlan(
     if (roots.size !== 1) {
       return {
         creates: [],
+        matches: [],
         renames: [],
         orphans: [],
         matched: 0,
@@ -3036,16 +3080,67 @@ export function orgSyncPlan(
   const parentKey = (p: string[]) => norm(p.slice(0, -1));
   const maxDepth = Math.max(0, ...appPaths.map((p) => p.length));
   const creates: string[][] = [];
+  const matches: OrgSyncPlan["matches"] = [];
   const renames: OrgSyncPlan["renames"] = [];
   let matched = 0;
+  /** A renamed term's descendants now live under the new label — re-key
+   *  them so deeper levels compare against the FUTURE tree. */
+  const rekeyUnder = (fromPath: string[], toPath: string[]) => {
+    const oldPrefix = `${norm(fromPath)}¦`;
+    const rekeyed: [string, { id: string; labels: string[] }][] = [];
+    for (const [k, v] of terms) {
+      if (!k.startsWith(oldPrefix)) continue;
+      terms.delete(k);
+      const labels = [...toPath, ...v.labels.slice(toPath.length)];
+      rekeyed.push([norm(labels), { id: v.id, labels }]);
+    }
+    for (const [k, v] of rekeyed) terms.set(k, v);
+  };
+  // ---- evidence first (term-store-proposal §2): exact, never inferred
+  const claimed = new Set<string>();
+  const byId = new Map<string, string>(); // term id → current key
+  for (const [k, v] of terms) byId.set(v.id, k);
+  // 1. bindings: a bound node whose term still exists matches by ID; a
+  //    different label is a rename by definition
+  for (const p of [...appPaths].sort((a, b) => a.length - b.length)) {
+    const id = evidence.bindings?.[norm(p)];
+    if (!id) continue;
+    const curKey = byId.get(id);
+    if (curKey === undefined || !terms.has(curKey)) continue; // the term is gone: fall through to labels
+    const t = terms.get(curKey)!;
+    claimed.add(norm(p));
+    terms.delete(curKey);
+    if (curKey === norm(p)) {
+      matched++;
+      matches.push({ path: p, id });
+    } else {
+      renames.push({ id, from: t.labels, to: p });
+      rekeyUnder(t.labels, p);
+      for (const [k2, v2] of terms) byId.set(v2.id, k2);
+    }
+  }
+  // 2. the journal: a recorded rename names the term at FROM exactly
+  for (const r of evidence.renames ?? []) {
+    const fromKey = norm(r.from);
+    const toKey = norm(r.to);
+    const t = terms.get(fromKey);
+    if (!t || claimed.has(toKey) || !appPaths.some((p) => norm(p) === toKey)) continue;
+    claimed.add(toKey);
+    terms.delete(fromKey);
+    renames.push({ id: t.id, from: t.labels, to: r.to });
+    rekeyUnder(t.labels, r.to);
+  }
   for (let depth = 1; depth <= maxDepth; depth++) {
     // claim exact matches first, so a spare term is genuinely spare
     const missing: string[][] = [];
     for (const p of appPaths.filter((q) => q.length === depth)) {
       const key = norm(p);
-      if (terms.has(key)) {
+      if (claimed.has(key)) continue;
+      const hit = terms.get(key);
+      if (hit) {
         terms.delete(key);
         matched++;
+        matches.push({ path: p, id: hit.id });
       } else {
         missing.push(p);
       }
@@ -3068,17 +3163,7 @@ export function orgSyncPlan(
         const to = apps[0];
         renames.push({ id: t.id, from: t.labels, to });
         terms.delete(norm(t.labels));
-        // descendants of a renamed term now live under the new label —
-        // re-key them so deeper levels compare against the FUTURE tree
-        const oldPrefix = `${norm(t.labels)}¦`;
-        const rekeyed: [string, { id: string; labels: string[] }][] = [];
-        for (const [k, v] of terms) {
-          if (!k.startsWith(oldPrefix)) continue;
-          terms.delete(k);
-          const labels = [...to, ...v.labels.slice(to.length)];
-          rekeyed.push([norm(labels), { id: v.id, labels }]);
-        }
-        for (const [k, v] of rekeyed) terms.set(k, v);
+        rekeyUnder(t.labels, to);
       } else {
         creates.push(...apps);
       }
@@ -3086,6 +3171,7 @@ export function orgSyncPlan(
   }
   return {
     creates,
+    matches,
     renames,
     orphans: [...terms.values()].map((t) => t.labels),
     matched,

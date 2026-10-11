@@ -227,10 +227,22 @@ On a desktop.
    no Add / Delete.
 6. **Register** — after a rename, reload the register: the filter and
    the chips read the new label; colours keyed to the id hold.
+7. **Colour in the manager** — pick a colour and a glyph on a term;
+   the tree row shows the dot; Settings' save bar lights; after Save
+   the register's chip wears it. The set's card in Term sets & colours
+   is one line with the count.
+8. **Rename journal** — Settings → Organisation: rename a department,
+   Save; Settings → Documents → Term store shows "The organisation
+   changed since the last sync — 1 rename recorded (Old → New)"; Load
+   drift report lists the rename as exact (not a create + orphan);
+   Apply; the warning is gone and the term kept its id (Manage terms
+   shows the new name on the same id).
+9. **Binding** — rename TWO sibling departments before any sync, Save,
+   then drift report: both read as renames, nothing to create.
 
 | Item | Outcome |
 |---|---|
-| 1–6 | _Ben's pass pending_ |
+| 1–9 | _Ben's pass pending_ |
 
 ## Document ingestion pass — after v0.68.0 (2026-10-08, dev)
 

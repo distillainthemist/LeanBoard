@@ -69,6 +69,36 @@ journal anyway. Recommendation: journal + binding, with a one-line
 "Organisation changed since the last sync — Sync now" prompt in
 Settings → Documents so the sync is never forgotten.
 
+### Status — BUILT 2026-10-12 (dev, unreleased)
+
+- `AppDocsConfig.orgRenames` (the journal) and `termBindings[setId]`
+  (path key → term id), parsed and serialised; `pathKey` is the one
+  key.
+- `docs/orgJournal.ts` `journalOrgRenames`: the Organisation editor
+  calls it (dynamic import) after a site rename and after the save
+  that commits department / area renames; a second rename of the same
+  node collapses onto the first (the term is still at the original
+  label until a sync).
+- `orgSyncPlan(…, evidence)`: bindings first (a bound node whose term
+  still exists matches by id; a different label is an exact rename,
+  children re-keyed), then the journal (the term at FROM renamed to
+  TO), then the label inference for the rest; `plan.matches` lists
+  what matched by id or label. Tested: two siblings renamed at once —
+  blind = two creates and two orphans; journaled = two exact renames;
+  bound = one exact rename with the child re-keyed.
+- `executeOrgSync` returns `{ failed, bindings }`; the drift report
+  writes them into `termBindings`, drops the journal entries that
+  landed, and saves the configuration at once. The Term store section
+  shows a warning line while renames wait: "The organisation changed
+  since the last sync — n renames recorded (Casting → Casthouse)…".
+- **Colours moved into the manager** (Ben, 2026-10-12: "better
+  integrated"): the term panel carries Colour (the site state palette)
+  and Glyph, written to the set's palette entries and saved with the
+  Settings bar like every palette change; the tree shows a dot in the
+  term's colour. A term set's card in "Term sets & colours" is now one
+  line — name, "n values coloured", "Manage terms & colours…" — while
+  Choice columns (no terms) keep their value rows.
+
 ## 3. Question 2 — the term-set manager (the popup)
 
 ### What the API allows (web-checked 2026-10-12)

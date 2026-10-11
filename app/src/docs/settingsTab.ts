@@ -596,8 +596,9 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
 
   /** Open the term manager for a set: the columns reading it feed the
    *  usage count; the exposed libraries bound the search. */
-  const openManager = async (setId: string, setName: string) => {
+  const openManager = async (setId: string, setName: string, paletteKey = setId) => {
     const { openTermManager } = await import("./termManager");
+    const pal = paletteKey !== "" ? paletteAt(paletteKey) : null;
     openTermManager({
       site: app.siteUrl,
       setId,
@@ -608,8 +609,26 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
       onChanged: () => {
         termsBySet.delete(setId);
       },
+      // colours: the site state palette, this set's entries, saved with
+      // the settings bar like every palette change
+      palette: pal
+        ? {
+            states: palettes.states.map((p) => ({ key: p.key, label: p.label, color: p.color })),
+            entries: pal.entries,
+            glyphFor: statusGlyph,
+            onChange: (termId, label, entry) => {
+              if (entry === null) delete pal.entries[termId];
+              else pal.entries[termId] = { color: entry.color, glyph: entry.glyph, label };
+              ctx.markDirty();
+              repaintPaletteCounts();
+            },
+          }
+        : undefined,
     });
   };
+  /** The one-line cards re-read their "n values coloured" after the
+   *  manager changes a colour. */
+  let repaintPaletteCounts: () => void = () => {};
   const paletteCard = (key: string, setId: string, cols: SiteColumn[]): HTMLElement => {
     const box = el("div", "app-docs-palcard");
     const head = el("button", "app-docs-palhead") as HTMLButtonElement;
@@ -623,6 +642,11 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
       count.textContent = n === 0 ? "no colours set" : `${n} value${n === 1 ? "" : "s"} coloured`;
     };
     paintCount();
+    const prevRepaint = repaintPaletteCounts;
+    repaintPaletteCounts = () => {
+      prevRepaint();
+      paintCount();
+    };
     head.append(caret, el("span", "app-docs-palname", name), count);
     const rows = el("div", "app-docs-palbody");
     rows.style.display = "none";
@@ -729,13 +753,22 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
     // the term manager (2026-10-12): the set's terms, synonyms and
     // translations, a sheet of its own; the Organisation set's structure
     // is locked there (the sync owns it)
-    const manage = el("button", "app-link app-docs-palmanage", "Manage terms…") as HTMLButtonElement;
+    const manage = el("button", "app-link app-docs-palmanage", "Manage terms & colours…") as HTMLButtonElement;
     manage.type = "button";
-    manage.title = "View the hierarchy; edit labels, synonyms, translations and descriptions";
+    manage.title = "The hierarchy, labels, synonyms, translations, descriptions — and each term's colour";
     manage.addEventListener("click", (e) => {
       e.stopPropagation();
-      void openManager(setId, name);
+      void openManager(setId, name, key);
     });
+    // a term set's colours are set per term in the manager (Ben,
+    // 2026-10-12: one place); the card stays a one-line summary. Choice
+    // columns have no terms, so their value rows stay here.
+    if (setId !== "") {
+      head.disabled = true;
+      caret.textContent = "";
+      box.append(head, manage);
+      return box;
+    }
     box.append(head, manage, rows);
     return box;
   };
@@ -1069,6 +1102,14 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
       setSel.value === "" ? "" : (setSel.selectedOptions[0]?.textContent ?? "");
     ctx.markDirty();
   });
+  // the journal's prompt (term-store-proposal §2): renames saved in the
+  // Organisation editor wait here for a sync
+  if (app.orgRenames.length > 0) {
+    const n = app.orgRenames.length;
+    body.appendChild(
+      el("div", "app-docs-health app-docs-health-warn app-docs-syncnow", `The organisation changed since the last sync — ${n} rename${n === 1 ? "" : "s"} recorded (${app.orgRenames.map((r) => `${r.from[r.from.length - 1]} → ${r.to[r.to.length - 1]}`).join(", ")}). Load the drift report and apply: the terms are renamed in place, tags survive.`)
+    );
+  }
   const groupRow = el("div", "app-docs-siterow");
   groupRow.append(groupSel, loadGroups);
   body.appendChild(field("Term group", groupRow));
@@ -1456,7 +1497,10 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
       const offset = companyLevel.checked ? 1 : 0;
       // the report IS the sync plan (5F): what a sync would create and
       // rename, and what it deliberately leaves alone
-      const plan = orgSyncPlan(orgTreePaths(parseOrgTree(orgRaw)), nodes, offset);
+      const plan = orgSyncPlan(orgTreePaths(parseOrgTree(orgRaw)), nodes, offset, {
+        renames: app.orgRenames,
+        bindings: app.termBindings[app.orgSetId] ?? {},
+      });
       if (plan.error !== "") {
         driftBox.appendChild(note(`Cannot compare: ${plan.error}.`));
         return;
@@ -1499,10 +1543,11 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
         if (items.length > 50) ul.appendChild(el("li", "", `… and ${items.length - 50} more`));
         driftBox.appendChild(ul);
       };
+      const bound = Object.keys(app.termBindings[app.orgSetId] ?? {}).length;
       driftBox.appendChild(
         note(
-          `${plan.matched} matched. Alignment is by name; a rename is proposed only when ` +
-            "it is unambiguous, and the sync NEVER deletes terms."
+          `${plan.matched} matched${bound > 0 ? ` (${bound} bound by id from earlier syncs)` : ""}. ` +
+            `Recorded renames and bound terms are exact; otherwise alignment is by name and a rename is proposed only when it is unambiguous. The sync NEVER deletes terms.`
         )
       );
       list("To create in the term set", plan.creates.map((p) => p.join(" › ")));
@@ -1540,7 +1585,7 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
           applyBtn.disabled = true;
           applyBtn.textContent = "Syncing…";
           clear(logBox);
-          const failed = await executeOrgSync({
+          const { failed, bindings } = await executeOrgSync({
             site: app.siteUrl,
             setId: app.orgSetId,
             plan,
@@ -1548,6 +1593,11 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
             termOffset: offset,
             log: (line) => logBox.appendChild(el("div", "app-field-hint", line)),
           });
+          // what landed is now bound by id; the journal entries that
+          // became renames are spent (a failed one stays for the retry)
+          app.termBindings[app.orgSetId] = { ...(app.termBindings[app.orgSetId] ?? {}), ...bindings };
+          app.orgRenames = app.orgRenames.filter((r) => bindings[r.to.map((s) => s.trim().toLowerCase()).join("¦")] === undefined);
+          await saveAppDocsConfig(app).catch(() => undefined);
           // one shot per plan: a re-run after a PARTIAL failure would
           // re-create the terms that DID land — reload the report instead,
           // and the fresh plan carries only what is still missing
