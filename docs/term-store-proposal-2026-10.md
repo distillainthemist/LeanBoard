@@ -202,18 +202,49 @@ from the existing "Management process" column.
   by-process view. Each surface adds one optional field and one
   filter; nothing is required anywhere.
 
+### Site-specific names (Ben, 2026-10-12: "Casting" at large, "Casthouse" at one site)
+
+The term store cannot say WHICH site calls a process what: a synonym is
+a non-default label on the term, global to the store. So the site
+scoping is the app's, and the term store receives the consequence:
+
+- **A node carries local names per site**: `ben_aliasesjson` on the
+  process node — `{ "<site>": "Casthouse" }` — edited in Settings →
+  Processes ("Local names…" on a node: a text box per site that is
+  assigned this process type). No extra table.
+- **One display rule, `processLabel(node, site)`**: the site's local
+  name when the surface has a site in scope (a ritual, an initiative,
+  a value driver, a document, the picker on that site), the general
+  name otherwise (cross-site filters, the Processes tab itself), and
+  the other name as the hover — "Casthouse (Casting)". Pure, tested,
+  used by every consumer; no surface carries its own copy.
+- **The sync pushes every local name as a SYNONYM** of the term
+  (labels with `isDefault: false` in the store's language), so the
+  SharePoint picker suggests "Casthouse", search finds it, and the
+  register's filter matches it; the default label stays the general
+  name. The planner diffs the synonym set as it diffs labels — adds
+  and removes only the app's own aliases, never a synonym someone
+  typed in the term store by hand (the binding records which synonyms
+  the app owns).
+- **The register's Process area column** shows the general name (the
+  term's default label is what SharePoint returns); in a single-site
+  view the cell adds the local name beside it, from the model.
+- **Renaming a local name is not a term rename**: it is one synonym
+  out, one in; the journal is for default labels only.
+
 ### Order and effort
 
 1. **The term manager** (§3) — three days; independent of the model,
    and useful at once for every existing set.
 2. **Renames** (§2: journal + binding + ID-first planner + Sync now) —
    one day; the same machinery the process set will use.
-3. **The process model** — schema, Settings → Processes, the site's
-   type, the picker: two days.
+3. **The process model** — schema, Settings → Processes with local
+   names, the site's type, the picker and `processLabel`: two and a
+   half days.
 4. **Process on rituals, initiatives, value drivers, and their
    filters** — two days.
 5. **The Process area term set**: `syncedSets`, the site column, the
    register filter: one and a half days.
 
-About nine and a half days in all, in two or three releases; steps 3–5
+About ten days in all, in two or three releases; steps 3–5
 are one solution-carrying release.
