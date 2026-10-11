@@ -142,6 +142,26 @@ planned.
 - `syncedSets` generalisation: half a day, only when a second
   app-master set exists.
 
-## 5. Decisions — with Ben
+## 5. Decisions — with Ben (2026-10-12)
 
-(filled in as they are taken)
+1. **Renames: journal + binding, with a "Sync now" prompt** — no live
+   push from the Organisation editor.
+2. **Languages: the term store's working languages** — a row per
+   language the store is configured with; none invented.
+3. **Delete: only a term with zero usage** (a search count on the term
+   id), with a confirm; otherwise the manager renames, adds and
+   annotates.
+4. **Process area: the app WILL hold a process-area model** that syncs
+   to its term set with the same journal + binding + plan machinery
+   (`syncedSets`). The shape of that model, where it is edited and
+   what else in the app reads it are the next decisions (§6).
+
+## 6. The process-area model — open
+
+What the organisation tree is to sites, departments and areas, the
+process-area model is to the management system: a hierarchy the app
+owns, edited in Settings, synced to the "Management process" term set,
+and read by whatever surfaces classify work by process. To be decided:
+the levels (one, two or three), the settings home, and the consumers
+beyond document tagging (rituals, initiatives, value drivers, the
+register's filters).
