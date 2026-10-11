@@ -12,7 +12,7 @@
 
 import { Office365OutlookService } from "../generated/services/Office365OutlookService";
 import { MicrosoftTeamsService } from "../generated/services/MicrosoftTeamsService";
-import { NotifyRecipient, notifyCard, notifyChatHtml, notifyEmailHtml } from "./notifyModel";
+import { NotifyQuote, NotifyRecipient, notifyCard, notifyChatHtml, notifyEmailHtml } from "./notifyModel";
 
 interface OpResult {
   success?: boolean;
@@ -67,7 +67,9 @@ export async function sendNotifyTeams(
   recipients: NotifyRecipient[],
   subject: string,
   message: string,
-  link: string
+  link: string,
+  /** The recipient's own words quoted under the message (an issue's description). */
+  quote?: NotifyQuote
 ): Promise<NotifySendOutcome> {
   let chatId = "";
   try {
@@ -89,7 +91,7 @@ export async function sendNotifyTeams(
   // the card first (Ben, 2026-08-08) — richer in Teams, with an Open
   // button; its body shape is dynamic in the swagger, so both plausible
   // carriages are tried and a refusal falls through to plain text
-  const card = notifyCard(subject, message, link);
+  const card = notifyCard(subject, message, link, quote);
   for (const messageBody of [JSON.stringify(card), card as unknown]) {
     try {
       const r = (await MicrosoftTeamsService.PostCardToConversation(
@@ -105,7 +107,7 @@ export async function sendNotifyTeams(
   for (const location of ["Group chat", "Chat"]) {
     try {
       const r = (await MicrosoftTeamsService.PostMessageToConversation(
-        { recipient: chatId, messageBody: notifyChatHtml(message, link) },
+        { recipient: chatId, messageBody: notifyChatHtml(message, link, quote) },
         "User",
         location
       )) as OpResult;

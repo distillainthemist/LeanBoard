@@ -124,7 +124,13 @@ export async function renderIssuesAdmin(body: HTMLElement): Promise<void> {
       areaSel.appendChild(o);
     }
   }
-  filters.append(statusSel, kindSel, areaSel);
+  // a refresh re-reads the list (Ben, 2026-10-12: a resolved issue
+  // stayed in the Open list until the tab was left and re-entered)
+  const refreshBtn = el("button", "app-btn", "↻ Refresh") as HTMLButtonElement;
+  refreshBtn.type = "button";
+  refreshBtn.title = "Re-read the issues";
+  refreshBtn.addEventListener("click", () => void paint());
+  filters.append(statusSel, kindSel, areaSel, refreshBtn);
   body.appendChild(filters);
 
   // ---- selection → export to PDF (2026-10-06) ----------------------------
@@ -218,7 +224,10 @@ export async function renderIssuesAdmin(body: HTMLElement): Promise<void> {
         [{ email, name: issue.ben_reportername || email }],
         `About your report: ${issue.ben_name ?? ""}`,
         text,
-        appLinkUrl()
+        appLinkUrl(),
+        // the reporter's own description rides along, so the card reads
+        // on its own without opening LeanBoard (Ben, 2026-10-12)
+        { label: "Your report", text: (issue.ben_description ?? "").trim() || (issue.ben_name ?? "") }
       );
       return r.error;
     } catch (e) {
@@ -469,6 +478,9 @@ export async function renderIssuesAdmin(body: HTMLElement): Promise<void> {
       clear(host);
       await paintDetail(host, issue);
     };
+    /** A status change can move the issue out of the list's filter:
+     *  repaint the LIST, not only this detail (Ben, 2026-10-12). */
+    const refreshList = () => void paint();
 
     // status — declining routes through the message prompt
     const statusPick = el("select", "app-input app-issad-ctl") as HTMLSelectElement;
@@ -484,7 +496,7 @@ export async function renderIssuesAdmin(body: HTMLElement): Promise<void> {
       const to = statusPick.value;
       if (to === issue.ben_status) return;
       if (to === "declined") {
-        openDecline(id, issue, () => void refresh());
+        openDecline(id, issue, () => refreshList());
         statusPick.value = issue.ben_status ?? "new"; // the dialog decides
         return;
       }
@@ -493,7 +505,7 @@ export async function renderIssuesAdmin(body: HTMLElement): Promise<void> {
           const r = await Ben_ltkissuesService.update(id, { ben_status: to });
           if (r.success === false) throw new Error(r.error?.message ?? "refused");
           await writeMessage(id, `Status → ${STATUS_WORDS[to] ?? to}`, "reporter");
-          await refresh();
+          refreshList();
         } catch (e) {
           fail("The status change was refused", e);
         }

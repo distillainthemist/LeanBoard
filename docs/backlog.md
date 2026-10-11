@@ -317,7 +317,12 @@ the test script.
   poster pass (v0.67.0), the Initiative links pass (v0.68.0, nine
   items), the Document ingestion pass.
 
-## Issues — open items (2026-10-06)
+## Issues — open items (2026-10-06, updated 2026-10-12)
+
+- 2026-10-12: a status change repaints the LIST (a resolved issue
+  left the Open list at once instead of on the next visit); a ↻
+  Refresh on the filter row; every reporter-facing Teams card quotes
+  the reporter's own description under the message ("Your report").
 
 - **Non-image attachments** in the PDF export are noted by name and
   size, not embedded (the writer speaks JPEG only). A PDF or text

@@ -168,6 +168,16 @@ describe("message rendering", () => {
     expect(card.actions[0]).toMatchObject({ type: "Action.OpenUrl", url: LINK });
   });
 
+  it("quotes the recipient's own words under the message, in the card and the fallback", () => {
+    const card = notifyCard("Subject", "Fixed in v0.70", LINK, { label: "Your report", text: "The grid <lost> my edit" }) as { body: { type: string; items?: { text: string }[] }[] };
+    const box = card.body[2];
+    expect(box.type).toBe("Container");
+    expect(box.items?.map((i) => i.text)).toEqual(["Your report", "The grid <lost> my edit"]);
+    const html = notifyEmailHtml("Fixed in v0.70", LINK, { label: "Your report", text: "The grid <lost> my edit" });
+    expect(html).toContain("<blockquote>The grid &lt;lost&gt; my edit</blockquote>");
+    expect((notifyCard("S", "M", LINK, { label: "Your report", text: "  " }) as { body: unknown[] }).body.length).toBe(2);
+  });
+
   it("escapeHtml covers the four", () => {
     expect(escapeHtml('<a href="x">&</a>')).toBe("&lt;a href=&quot;x&quot;&gt;&amp;&lt;/a&gt;");
   });

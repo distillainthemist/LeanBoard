@@ -198,12 +198,21 @@ export const escapeHtml = (s: string): string =>
 /** The email body: the (possibly edited) text as paragraphs, then the
  *  work link — plain HTML, no card (Outlook actionable messages need
  *  per-sender registration with Microsoft; not worth the yoke). */
-export function notifyEmailHtml(message: string, link: string): string {
+export function notifyEmailHtml(message: string, link: string, quote?: NotifyQuote): string {
   const paras = message
     .split(/\n{2,}/)
     .map((p) => `<p>${escapeHtml(p).replace(/\n/g, "<br>")}</p>`)
     .join("");
-  return `${paras}<p><a href="${escapeHtml(link)}">Open the document in LeanBoard</a></p>`;
+  const quoted = quote && quote.text.trim() !== "" ? `<p><b>${escapeHtml(quote.label)}</b></p><blockquote>${escapeHtml(quote.text).replace(/\n/g, "<br>")}</blockquote>` : "";
+  return `${paras}${quoted}<p><a href="${escapeHtml(link)}">Open the document in LeanBoard</a></p>`;
+}
+
+/** Something of the recipient's own quoted under the message — the
+ *  report a reply is about (Ben, 2026-10-12: "include their description
+ *  of the problem in the Teams card"). */
+export interface NotifyQuote {
+  label: string;
+  text: string;
 }
 
 /** The Teams fallback body when the card is refused: same content as
@@ -212,7 +221,21 @@ export const notifyChatHtml = notifyEmailHtml;
 
 /** The Adaptive Card (Ben, 2026-08-08): title + message + an Open
  *  button. Schema 1.2 — the floor every Teams client renders. */
-export function notifyCard(subject: string, message: string, link: string): object {
+export function notifyCard(subject: string, message: string, link: string, quote?: NotifyQuote): object {
+  const quoted =
+    quote && quote.text.trim() !== ""
+      ? [
+          {
+            type: "Container",
+            style: "emphasis",
+            spacing: "Medium",
+            items: [
+              { type: "TextBlock", text: quote.label, weight: "Bolder", size: "Small", isSubtle: true, wrap: true },
+              { type: "TextBlock", text: quote.text.slice(0, 1500), wrap: true, isSubtle: true },
+            ],
+          },
+        ]
+      : [];
   return {
     type: "AdaptiveCard",
     $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
@@ -220,6 +243,7 @@ export function notifyCard(subject: string, message: string, link: string): obje
     body: [
       { type: "TextBlock", text: subject, weight: "Bolder", size: "Medium", wrap: true },
       { type: "TextBlock", text: message, wrap: true },
+      ...quoted,
     ],
     actions: [{ type: "Action.OpenUrl", title: "Open in LeanBoard", url: link }],
   };
