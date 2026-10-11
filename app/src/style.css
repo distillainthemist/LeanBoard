@@ -1784,6 +1784,13 @@ input[type="color"].app-color:disabled { opacity: 0.4; cursor: default; }
 .app-docs-fdate { width: 148px; min-height: 34px; }
 /* term set palettes (C2): one collapsible card per set */
 .app-docs-palcard { border: 1px solid #e5e5e5; border-radius: 6px; margin-bottom: 8px; background: #fff; }
+/* term sets as tiles (2026-10-12): the name and ✎, the tile is the button */
+.app-docs-settiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; margin-bottom: 12px; }
+.app-docs-settile { display: flex; align-items: center; justify-content: space-between; gap: 10px; font: inherit; font-size: 13.5px; font-weight: 600; color: #26241f; text-align: left; background: #fff; border: 1px solid #e4dfd6; border-radius: 10px; padding: 12px 14px; min-height: 48px; cursor: pointer; }
+.app-docs-settile:hover { border-color: var(--app-accent); }
+.app-docs-settile-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app-docs-settile-edit { flex: none; color: #6d675c; font-size: 14px; }
+.app-docs-settile:hover .app-docs-settile-edit { color: var(--app-accent); }
 .app-docs-palhead {
   display: flex;
   align-items: center;

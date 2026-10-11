@@ -774,14 +774,17 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
       e.stopPropagation();
       void openManager(setId, name, key);
     });
-    // a term set's colours are set per term in the manager (Ben,
-    // 2026-10-12: one place); the card stays a one-line summary. Choice
-    // columns have no terms, so their value rows stay here.
+    // a term set is a TILE (Ben, 2026-10-12: "a simple tile with a little
+    // edit symbol"): its name and ✎, the whole tile opening the manager,
+    // where its terms and colours live. Choice columns have no terms,
+    // so their value rows stay as cards below.
     if (setId !== "") {
-      head.disabled = true;
-      caret.textContent = "";
-      box.append(head, manage);
-      return box;
+      const tile = el("button", "app-docs-settile") as HTMLButtonElement;
+      tile.type = "button";
+      tile.title = `Manage ${name}: terms, synonyms, translations, colours`;
+      tile.append(el("span", "app-docs-settile-name", name), el("span", "app-docs-settile-edit", "✎"));
+      tile.addEventListener("click", () => void openManager(setId, name, key));
+      return tile;
     }
     box.append(head, manage, rows);
     return box;
@@ -805,7 +808,9 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
       );
       return;
     }
-    for (const s of sets) palBox.appendChild(paletteCard(s.key, s.setId, s.columns));
+    const tiles = el("div", "app-docs-settiles");
+    for (const s of sets) tiles.appendChild(paletteCard(s.key, s.setId, s.columns));
+    palBox.appendChild(tiles);
     for (const c of choiceCols) {
       palBox.appendChild(paletteCard(paletteKeyFor("", c.internal), "", [c]));
     }
