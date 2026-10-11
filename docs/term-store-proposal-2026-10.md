@@ -156,12 +156,64 @@ planned.
    (`syncedSets`). The shape of that model, where it is edited and
    what else in the app reads it are the next decisions (§6).
 
-## 6. The process-area model — open
+## 6. The process model (Ben's shape, 2026-10-12)
 
-What the organisation tree is to sites, departments and areas, the
-process-area model is to the management system: a hierarchy the app
-owns, edited in Settings, synced to the "Management process" term set,
-and read by whatever surfaces classify work by process. To be decided:
-the levels (one, two or three), the settings home, and the consumers
-beyond document tagging (rituals, initiatives, value drivers, the
-register's filters).
+Ben: three levels — area › process › sub-process; its own Settings
+tab, "Processes"; PROCESS TYPES (Mine, Refinery, Smelter…) managed
+there, and on the Organisation page a process type is assigned; read
+by the register's filters and views, rituals, initiatives and value
+drivers, the association always optional; "process area" is separate
+from the existing "Management process" column.
+
+### The model
+
+- **A process type is a named hierarchy.** Mine, Refinery, Smelter —
+  each carries its own tree of area › process › sub-process. A SITE is
+  assigned one type (assumption: per site, on the Organisation site
+  card beside its hub tabs and cascade settings; a department-level
+  override only if a site ever runs two kinds of plant). A site's
+  processes are its type's tree.
+- **Storage: one table, `ben_ltkprocessnode`** — a row per node at
+  every level, `ben_nodeid` (stable id), `ben_parentid`, `ben_level`
+  (0 type · 1 area · 2 process · 3 sub-process), `ben_name`,
+  `ben_order`, `ben_termid` (the binding), `ben_isarchived`. Archive,
+  never delete, once anything references a node. Queryable for Power
+  BI, stable ids for references, no JSON blob to outgrow.
+- **References**: `ben_processnodeid` (text, the node id) on boards
+  (rituals), initiatives and value drivers; `ben_processtype` on the
+  site row. All optional. Solution-carrying release.
+- **One picker** (`processPicker`): type (fixed by the site) › area ›
+  process › sub-process as cascading selects, any level may be the
+  leaf ("Production" alone is a valid association), "—" clears.
+- **Settings → Processes** (super admins): a type strip (＋ New type,
+  rename, archive) and the tree editor in the Organisation page's
+  collapsible-row idiom: add, rename, reorder, archive at each level;
+  a rename journals (§2) for the sync.
+- **The term set**: a NEW "Process area" set (bound in Settings →
+  Documents → Term store beside the Organisation set — `syncedSets`
+  replaces the single `orgSetId`), four levels mirroring type › area ›
+  process › sub-process; a new site column "Process area" (role
+  `processArea`) on the controlled libraries, distinct from Management
+  process. Journal + binding + plan as for the organisation.
+- **Consumers**: the register's Process area filter understands the
+  hierarchy (a parent includes its children — the B1 subtree rule);
+  Cadence filters rituals by process; the Improvement tab filters and
+  groups initiatives by process; the value driver tree offers a
+  by-process view. Each surface adds one optional field and one
+  filter; nothing is required anywhere.
+
+### Order and effort
+
+1. **The term manager** (§3) — three days; independent of the model,
+   and useful at once for every existing set.
+2. **Renames** (§2: journal + binding + ID-first planner + Sync now) —
+   one day; the same machinery the process set will use.
+3. **The process model** — schema, Settings → Processes, the site's
+   type, the picker: two days.
+4. **Process on rituals, initiatives, value drivers, and their
+   filters** — two days.
+5. **The Process area term set**: `syncedSets`, the site column, the
+   register filter: one and a half days.
+
+About nine and a half days in all, in two or three releases; steps 3–5
+are one solution-carrying release.
