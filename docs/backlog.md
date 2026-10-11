@@ -286,6 +286,15 @@ user-feedback-test-script-2026-10.md. Released v0.65.0 / v0.65.1.
   confirms named views hold on v0.63+).
 - **Translation** (report 48): a strategy question, parked.
 
+## Term store & processes — the plan (2026-10-12)
+
+term-store-proposal-2026-10.md. Step 1 (the term manager) BUILT
+2026-10-12; next: 2 the rename journal + term binding + ID-first
+planner + "Sync now"; 3 the process model (types, three levels, local
+names, one table — solution-carrying); 4 process on rituals,
+initiatives, value drivers and their filters; 5 the Process area term
+set via `syncedSets`.
+
 ## Document ingestion — open items (2026-10-09)
 
 Built on dev after v0.68.0, unreleased; the next release is

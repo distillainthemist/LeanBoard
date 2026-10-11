@@ -209,6 +209,29 @@ On a desktop.
 |---|---|
 | 1–10 | _Ben's pass pending_ |
 
+## Term manager pass — after v0.69.0 (2026-10-12, dev)
+
+1. **Open** — Settings → Documents → Term sets & colours → "Manage
+   terms…" under a card: the sheet lists the set's terms as a tree;
+   the head says how many terms and which languages.
+2. **Find** — type in "Find a term…": hits show inside their branch;
+   clear it and the tree returns.
+3. **Edit** — pick a term: a card per language; change the default
+   label, add a synonym (Enter), a description; Save term; the tree
+   shows the new name; Discard-on-close asks when unsaved.
+4. **Usage and delete** — Count usage reads a number; Delete… is
+   greyed while the count is unknown or above zero, or while the term
+   has children; a new child term via ＋ Add child, then delete it.
+5. **Organisation set** — "Manage terms…" beside the Organisation term
+   set: the default label is read-only, synonyms and translations edit,
+   no Add / Delete.
+6. **Register** — after a rename, reload the register: the filter and
+   the chips read the new label; colours keyed to the id hold.
+
+| Item | Outcome |
+|---|---|
+| 1–6 | _Ben's pass pending_ |
+
 ## Document ingestion pass — after v0.68.0 (2026-10-08, dev)
 
 Needs the ingestion library set up (document-ingestion-proposal §8).

@@ -836,6 +836,13 @@ Key concepts (details: [leanboard-standard-documents-plan.md](leanboard-standard
   width, and a pane already hidden by the B5 pref would never re-fire
   on its own. `app/docs-phone.html` renders the real cells at 375px.
 
+- **The term manager** (2026-10-12, [term-store-proposal-2026-10.md](term-store-proposal-2026-10.md)):
+  a sheet per term set (`docs/termManager.ts`) over the v2.1 term-store
+  endpoints — tree, labels per working language (default + synonyms,
+  translations), descriptions, a search-based usage count, create,
+  rename on the GUID, delete only when unused; the Organisation set's
+  structure is locked to the sync. Next: the rename journal + term
+  binding, the process model and its synced set (proposal §2, §6).
 - **Document ingestion** (2026-10-08, [document-ingestion-proposal-2026-10.md](document-ingestion-proposal-2026-10.md)).
   A site's bulk-drop library (type "ingestion", never in the register)
   holds one folder per task (`ben_ltkingestiontask`: destination,
