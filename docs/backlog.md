@@ -320,6 +320,15 @@ the test script.
   want to re-read old logs.
 - **Re-ingesting an existing document** is refused by design (name /
   document-ID collision); the road is the document's own lifecycle.
+- **Register load timing** (Ben, 2026-10-12: "the document tab has
+  become slower"): no change touched the list load path, so the
+  register's status line now ends with a timing readout per load —
+  "loaded in 2.1 s · feed 1.8 s ×2 · count 120 ms" (hover for the
+  call-by-call list; a throttled call reads "refused"). Read it on a
+  slow load before chasing a cause: a long feed with few calls is
+  SharePoint (library growth or a throttle after an ingestion burst);
+  a term walk is the filter pane after a term-store edit emptied the
+  cache, once per session.
 
 ## Initiative links — open items (2026-10-08)
 

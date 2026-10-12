@@ -26,6 +26,7 @@ import {
   searchPage,
   tileThumbFor,
 } from "./data";
+import { now as tnow, summarizeTimings, timingsSince } from "./timing";
 import { DocList, ListColumn, mountDocList } from "./listView";
 import { mountDocTiles } from "./docsTiles";
 import {
@@ -3613,6 +3614,10 @@ export function mountDocs(
       });
     };
     let lastTotal: number | null = null;
+    /** The last load's timing readout (Ben, 2026-10-12): where the
+     *  seconds went, on the status line; call-by-call in its tooltip. */
+    let loadNote = "";
+    let loadDetail = "";
     let viewMode: "list" | "tiles" = uiState.viewMode === "tiles" ? "tiles" : "list";
     let density: "comfortable" | "compact" =
       uiState.density === "compact" ? "compact" : "comfortable";
@@ -4190,17 +4195,19 @@ export function mountDocs(
 
     const paintStatus = (total: number | null, error: string) => {
       lastTotal = total;
+      const timed = loadNote === "" ? "" : ` · ${loadNote}`;
+      status.title = loadDetail;
       if (error !== "") {
-        status.textContent = `Something refused: ${error}`;
+        status.textContent = `Something refused: ${error}${timed}`;
         return;
       }
       const n = list.count();
       if (n === 0) {
         // an empty answer names the way out rather than dead-ending
         status.textContent =
-          filters.length > 0 || query.trim() !== ""
+          (filters.length > 0 || query.trim() !== ""
             ? "No documents match — clear filters or change the search."
-            : "No documents here yet.";
+            : "No documents here yet.") + timed;
         return;
       }
       const docs = (k: number) => `${k} document${k === 1 ? "" : "s"}`;
@@ -4230,7 +4237,9 @@ export function mountDocs(
             // 2026-08-08: the header climbed as you scrolled)
             done
             ? `${docs(n)}${suffix}`
-            : `${docs(n)} so far`) + note;
+            : `${docs(n)} so far`) +
+        note +
+        timed;
     };
 
     /**
@@ -4338,6 +4347,7 @@ export function mountDocs(
       }
       inFlight = true;
       const gen = reset ? ++generation : generation;
+      const t0 = tnow();
       // ---- the instant first paint (slow-wifi work, 2026-08-14) --------
       // The org tree's own pattern applied to rows: the LAST session's
       // first page paints immediately while the live rows refresh in the
@@ -4589,6 +4599,13 @@ export function mountDocs(
           if (!serverSorted()) list.setRows(clientSorted(list.rows()));
         }
         done = feeds.every((f) => f.done && f.buf.length === 0);
+        // the readout: this load's calls (feed pages, counts, the search
+        // index, any term walk) and the wall time to these rows
+        {
+          const sum = summarizeTimings(timingsSince(t0), tnow() - t0, { paintedFromCache });
+          loadNote = sum.line;
+          loadDetail = sum.detail;
+        }
         paintStatus(knownTotal, feedError);
         if (reset) {
           // the count follows the rows, never competes with them (A)

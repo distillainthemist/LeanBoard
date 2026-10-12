@@ -345,10 +345,14 @@ Needs the ingestion library set up (document-ingestion-proposal §8).
 7. **Cancel** — Edit task… → Cancel task… (controllers): the confirm
    names the files; the folder and its files go to the site recycle
    bin; the task leaves the Ingestion tasks button and the sheet closes.
+8. **Timing readout** (2026-10-12) — the register's status line ends
+   with "loaded in … · feed … ×n" after every load (browse, search,
+   scroll-paging, a filter); hover reads each call; a slow load names
+   where the time went.
 
 | Item | Outcome |
 |---|---|
-| 1–7 | _Ben's pass pending_ |
+| 1–8 | _Ben's pass pending_ |
 
 ## Initiative links pass — after v0.67.0 (2026-10-08)
 

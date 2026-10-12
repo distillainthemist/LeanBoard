@@ -15,6 +15,7 @@ import { getClient } from "@microsoft/power-apps/data";
 import { dataSourcesInfo } from "../../.power/schemas/appschemas/dataSourcesInfo";
 import { termTreeOrder } from "./rows";
 import { bytesToBase64, spQuote } from "./model";
+import { kindOfUri, markTiming, now as tnow } from "./timing";
 
 // the import is for side effect typing only — the data source must exist
 // in the app for the connection to be present at runtime
@@ -67,6 +68,11 @@ export async function spRequest(
 ): Promise<SpResult> {
   declare();
   const client = getClient(dataSourcesInfo);
+  // every round trip marks what it was for and how long it took — the
+  // register's status line reads the marks made during its load
+  const kind = kindOfUri(uri);
+  const t0 = tnow();
+  const note = kind === "feed" || kind === "count" ? (uri.match(/guid'([^']+)'/)?.[1] ?? "").slice(0, 8) : "";
   try {
     const r = (await client.executeAsync<object, unknown>({
       connectorOperation: {
@@ -99,11 +105,14 @@ export async function spRequest(
       // the status line clips long errors — the console keeps the whole
       // thing for diagnosis (connector errors nest the SP odata.error)
       console.error("[docs] SharePoint request failed", method, uri, r.error);
+      markTiming(kind, t0, note, true);
       return { ok: false, status: summarizeError(r.error), data: r.error ?? null };
     }
+    markTiming(kind, t0, note);
     return { ok: true, status: "", data: (r as { data?: unknown })?.data ?? null };
   } catch (e) {
     console.error("[docs] SharePoint request threw", method, uri, e);
+    markTiming(kind, t0, note, true);
     return { ok: false, status: String(e), data: null };
   }
 }
@@ -887,7 +896,12 @@ export function fetchTermPaths(
   const key = `${site}|${setId}|${maxDepth}`;
   let hit = termCache.get(key);
   if (hit === undefined) {
-    hit = walkTermSet(site, setId, maxDepth, maxRequests);
+    const t0 = tnow();
+    hit = walkTermSet(site, setId, maxDepth, maxRequests).then((r) => {
+      // the walk as a whole, on top of its per-level calls
+      markTiming("term walk", t0, `${setId.slice(0, 8)} ${r.nodes.length} terms`, r.error !== "");
+      return r;
+    });
     // a failed or empty walk must not stick as the cached answer
     hit.then(
       (r) => {
