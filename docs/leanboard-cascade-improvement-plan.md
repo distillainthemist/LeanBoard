@@ -1455,6 +1455,9 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-10-13 — released as v0.72.1** (app-only): the term-sync
+  hardening below (walk budget, partial-walk refusal, shape guard,
+  stray-term removal, the owed line).
 - **2026-10-13 (after v0.72.0, dev)**: production's first term sync
   found three faults — the term walk's 120-request budget cut a
   production-sized Organisation set short (now 6000, in chunks of 16

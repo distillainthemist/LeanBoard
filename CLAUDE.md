@@ -351,8 +351,9 @@ Version lives in the tag alone — nothing is stamped into files.
   readout for super admins, pinned dialog footers) and v0.72.0
   (2026-10-12: the Documents open fix — no paging before the first
   load, cached status vocabulary — the term-set cutover tools and
-  write-through) are app-only. Prod imports the managed solution
-  FIRST. LESSON (2026-10-13, production's first sync): a sync must
+  write-through) and v0.72.1 (2026-10-13: term-sync hardening) are
+  app-only. Prod imports the managed solution FIRST. LESSON
+  (2026-10-13, production's first sync): a sync must
   never run from a walk it cannot trust (budget-cut OR any failed
   children request), and the Organisation set's company-level offset
   must be CHECKED against the set's top level before planning — run
