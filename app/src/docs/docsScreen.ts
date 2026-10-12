@@ -2457,7 +2457,7 @@ export function mountDocs(
           filters.push(filterFromPicks(col, picks, nodes));
           paintTreeSelection();
           paintChips();
-          void load(true);
+          void load(true, "view term filter");
         }
       });
     }
@@ -3098,7 +3098,7 @@ export function mountDocs(
       filters.push(filterFromPicks(statusInternal, picked, nodes));
       paintTreeSelection();
       paintChips();
-      void load(true);
+      void load(true, "approved default");
       return true;
     };
 
@@ -3695,7 +3695,7 @@ export function mountDocs(
                 buildRegister();
                 // B2: name and Modified sort on the server (a reload);
                 // any other column sorts what is loaded, in place
-                if (serverSorted()) void load(true);
+                if (serverSorted()) void load(true, "sort");
                 else {
                   list.setRows(clientSorted(list.rows()));
                   paintStatus(lastTotal, "");
@@ -4338,11 +4338,13 @@ export function mountDocs(
       inFlight = false;
       if (pendingReset && !dead) {
         pendingReset = false;
-        void load(true);
+        void load(true, "replayed reset");
       }
     };
 
-    const load = async (reset: boolean) => {
+    /** `why` names the caller on the timing readout (Ben, 2026-10-12:
+     *  a second load on every open — which one?). */
+    const load = async (reset: boolean, why = ""): Promise<void> => {
       if (inFlight) {
         if (reset) pendingReset = true;
         return;
@@ -4631,7 +4633,8 @@ export function mountDocs(
           const sum = summarizeTimings(timingsSince(since), tnow() - since, { paintedFromCache, sinceOpen });
           firstLoadTimed = true;
           if (sinceOpen) openedIn = sum.total;
-          visitLoads.push(`Load ${visitLoads.length + 1}${sinceOpen ? " (from opening)" : ""}: ${sum.line}\n${sum.detail}`);
+          const startedAt = `${reset ? "reset" : "next page"}${why !== "" ? `, ${why}` : ""}, started ${((t0 - openedAt) / 1000).toFixed(1)} s after opening, ${list.count()} rows after`;
+          visitLoads.push(`Load ${visitLoads.length + 1} (${startedAt}): ${sum.line}\n${sum.detail}`);
           if (visitLoads.length > 8) visitLoads.shift();
           loadNote = sinceOpen ? sum.line : `${sum.line} · opened in ${openedIn}`;
           loadDetail = visitLoads.join("\n\n");
@@ -4655,13 +4658,13 @@ export function mountDocs(
       list.setLoading(false);
       finish();
     };
-    const loadMore = () => load(false);
+    const loadMore = () => load(false, "scroll");
 
     let debounce: ReturnType<typeof setTimeout> | null = null;
     search.addEventListener("input", () => {
       query = search.value;
       if (debounce !== null) clearTimeout(debounce);
-      debounce = setTimeout(() => void load(true), 300);
+      debounce = setTimeout(() => void load(true, "search"), 300);
     });
 
     // ---- share + register export ---------------------------------------
@@ -5123,7 +5126,7 @@ export function mountDocs(
       // and obsolete standards (Ben, 2026-08-08: 13 at launch, 9 on
       // opening the panel). One vocabulary, one number.
       refreshTasksBadge();
-      if (!(wantsApprovedDefault && seedApprovedFilter())) void load(true);
+      if (!(wantsApprovedDefault && seedApprovedFilter())) void load(true, "open");
       if (workDoc !== "") void openWorkDoc(workDoc);
     });
   })();
