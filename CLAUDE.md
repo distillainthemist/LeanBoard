@@ -236,6 +236,20 @@ Version lives in the tag alone — nothing is stamped into files.
   and do not host a dialog under a `transform`ed ancestor (it traps
   position: fixed). **A dialog body scrolls once:** never give a box
   inside it its own max-height + overflow (the "clunky sub-scroll").
+- **A term-store synonym is global; site scoping is the app's.** A
+  label on a term applies everywhere in the store, so "what Bell Bay
+  calls Casting" cannot live there. The process node carries local
+  names per site (`aliases`), `processLabel(node, site)` is the ONE
+  display rule, and the sync pushes the names up as synonyms — added,
+  never removed (2026-10-12). Likewise a term set's tiles list the
+  GROUP's sets by their store names, not the columns that read them:
+  a set no column reads yet must still have its tile.
+- **Eight files in flight, not more.** The SharePoint connector allows
+  ~600 calls a minute per connection; an ingestion run makes ~8 calls
+  per file, so `IN_FLIGHT = 8` sits under the line and a throttled
+  call fails the file rather than queuing it (2026-10-09). Writes on a
+  library with no check-out rule go straight in (two calls, not four)
+  and fall back to the bracket on a "checked out" refusal.
 - **A SharePoint MOVE between libraries carries the moderation state.**
   `MoveFileByPath` into a content-approval library landed checked in
   and APPROVED, reader-visible before any metadata was set, with the
