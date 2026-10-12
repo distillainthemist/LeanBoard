@@ -372,3 +372,85 @@ scoping is the app's, and the term store receives the consequence:
 
 About ten days in all, in two or three releases; steps 3–5
 are one solution-carrying release.
+
+## 7. A full alignment — proposals (Ben, 2026-10-12)
+
+The two sync roads (Organisation sync, Process area sync) are
+ADDITIVE by design: they create what is missing, rename in place on
+evidence or the one unambiguous case, bind, and list the rest as
+"in the term set only (left alone)". That is right for a set that
+started from the app. It is not a FULL alignment for a set that
+existed first (production's hand-made terms), nor after a node is
+re-parented, nor for documents still tagged with a term the app no
+longer has. Four proposals, in the order worth building:
+
+### 7.1 Reconcile the orphans (the real "force")
+
+The drift report's "left alone" list becomes a decision per orphan:
+
+- **"This is …"** — pair the orphan with an app node that the plan
+  would otherwise CREATE. The term is renamed in place (GUID kept,
+  tags and stage mappings survive), bound, and the create drops out
+  of the plan. This is the admin resolving what the planner refuses
+  to guess (two siblings renamed at once; a set made by hand).
+- **"Retire"** — deprecate the term (to probe: `isDeprecated` on the
+  v2.1 term, as the move probe was done; the fallback is a
+  "(retired)" suffix). A deprecated term keeps existing tags readable
+  and stops new tagging; nothing is deleted while a document carries
+  it.
+- **"Leave"** — today's behaviour, explicit.
+
+Pairings are remembered as bindings, so the next report is clean.
+A re-parented node cannot be moved (the API has no move, §3): the
+report says so and offers "This is …" against the NEW path, which
+renames the term's label but leaves it under the old parent — the
+honest limit — or Retire + create, with 7.2 to carry the documents.
+Effort: one and a half days (plan + UI + bindings + the probe).
+
+### 7.2 Carry the documents
+
+A "Documents tagged with retired terms" sweep per library: the
+register's own feed filtered by the retired term's label, each hit
+re-tagged with the paired term through the bracketed write the
+ingestion run uses (one bracket per file, eight in flight, the
+progress bar). Without this, Retire is a label; with it, the
+alignment reaches the documents. Effort: one day; reuses
+`writeValues` and the ingestion pool.
+
+### 7.3 Verify, then align in one click
+
+Settings → Documents gets **"Align term sets"**: runs the Organisation
+plan, then the Process area plan, applies both, re-walks both sets
+and reports "aligned" or lists exactly what still differs (an orphan
+awaiting a 7.1 decision, a failed write). The Term store warning line
+("the organisation changed since the last sync") grows a second
+trigger: a process node renamed or archived. Half a day. This is the
+"force a full sync" button; 7.1 is what makes it finish clean.
+
+### 7.4 Rebuild a set (onboarding only)
+
+For a site with NO tagged documents (a new production site before
+go-live), a guarded "Rebuild from the app" — delete every term, then
+create the full tree and bind — is the fastest exact alignment. The
+guard counts tagged documents through the register's feed and refuses
+above zero, because a rebuild orphans every tag. Half a day. Not a
+day-two tool; worth having for the next site.
+
+### Not proposed
+
+- **Deleting orphans** on sync — a term carrying tags must not go;
+  Retire covers it.
+- **Pushing the app's ORDER** as the set's custom sort — the store
+  sorts alphabetically unless told otherwise and no one reads the term
+  picker's order; skip unless the register's filter pane needs it.
+- **The app reading the term set as master** — the direction is fixed
+  (§1): the app owns names; the set mirrors.
+
+### Recommendation
+
+Build 7.3 and 7.1 together (two days): the one-click align with the
+orphan decisions it needs to finish clean. Add 7.2 when the first
+Retire is wanted on a site with documents. Keep 7.4 for the next
+site's go-live. Open with Ben: whether Retire should deprecate (probe
+first) or suffix; whether 7.2 should run unattended or show each
+document.
