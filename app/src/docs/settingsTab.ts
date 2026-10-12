@@ -1743,7 +1743,10 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
         const coNames = new Set((await companies().catch(() => [] as string[])).map((c) => c.trim().toLowerCase()));
         const siteNames = new Set(orgTreePaths(parseOrgTree(orgRaw)).filter((p) => p.length === 1).map((p) => p[0].trim().toLowerCase()));
         const strays = nodes.filter((n) => n.labels.length === 1 && !coNames.has(n.labels[0].trim().toLowerCase()) && siteNames.has(n.labels[0].trim().toLowerCase()));
-        if (offset === 1 && strays.length > 0) {
+        const hasCompanyTop = nodes.some((n) => n.labels.length === 1 && coNames.has(n.labels[0].trim().toLowerCase()));
+        // offered whichever way the box is set: a top level that mixes the
+        // company with sites is wrong either way
+        if (strays.length > 0 && (offset === 1 || hasCompanyTop)) {
           const under = (top: TermNode) => nodes.filter((n) => n.labels[0] === top.labels[0]);
           const all = strays.flatMap(under);
           const box = el("div", "app-docs-alignset");

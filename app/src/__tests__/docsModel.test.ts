@@ -2190,6 +2190,8 @@ describe("orgSetShapeProblem (the company-level guard)", () => {
     expect(orgSetShapeProblem(["Bell Bay", "Boyne"], sites, cos, 1)).toMatch(/untick/);
     // sites created beside the company: the report offers the removal
     expect(orgSetShapeProblem(["Rio Tinto Aluminium", "Bell Bay"], sites, cos, 1)).toMatch(/beside the company/);
+    // the same mixed top level with the box unticked is flagged too
+    expect(orgSetShapeProblem(["Rio Tinto Aluminium", "Bell Bay"], sites, cos, 0)).toMatch(/starts at COMPANY level.*Bell Bay/);
     // an empty set has no shape yet; unknown labels are not judged
     expect(orgSetShapeProblem([], sites, cos, 0)).toBe("");
     expect(orgSetShapeProblem(["Something else"], sites, cos, 0)).toBe("");
