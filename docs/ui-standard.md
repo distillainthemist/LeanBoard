@@ -505,6 +505,77 @@ dividers. No priority statement here — the card above names it.
   rounded rows, ⠿ drag handle, red `×` (`.app-org-x`), input + `＋`
   adder row (`.app-org-row`). Owner chips = `.app-owner`.
 
+## 6b. Sheets, grids and the term / process surfaces (2026-10-09 → 12)
+
+- **The full-screen sheet** (`.app-ing-sheet`: the ingestion task, the
+  term manager): the viewer's overlay idiom at `calc(100vw - 32px)` ×
+  `calc(100vh - 32px)`; the head carries the name with a SMALL status
+  chip beside it (`.app-ing-titlerow`), the meta line beneath, the
+  task-level buttons at the right before ✕ (`.app-ing-headactions`:
+  Open folder, Edit, Close, Run — the one solid primary is the act);
+  the body's action row holds the file work with Refresh and Save at
+  the FAR right. Esc closes unless a popover or dialog is open; with
+  drafts it asks.
+- **The editable grid** (`.app-ing-grid`): one row per file, every
+  column the destination type offers in the dictionary's order, ✱ on
+  required heads; the Document column (select box, dirty dot, type
+  chip, name, readiness glyph) frozen left, the header frozen top;
+  vertical hairlines; a control's own 8px padding aligns its text
+  under the head; choice / date / single-line text edit IN the cell
+  (Tab across, Enter down, Esc reverts), terms / people / notes
+  through a POPOVER carrying the form editor (`.app-ing-pop`); a
+  draft tints the cell amber and dots the row; "Save changes (n
+  files)" writes each touched file once, Discard reverts; the fill
+  HANDLE (`.app-ing-fillhandle`, the accent square on hover) drags a
+  value down the column into the draft; "Fit to width" packs every
+  column into the pane (`.app-ing-grid-fit`, compact type, the frozen
+  column relaxes) and reads "Normal width" while on; a filter box and
+  sortable heads (▲ ▼, blanks last, numbers and dates as such).
+- **The readiness glyph** (`.app-ing-readymark`): ✓ green / ⚠ amber
+  at the end of the frozen cell, with the APP'S OWN tooltip
+  (`.app-ing-tip` on hover, focus or click — a `title` shows only the
+  ? cursor in the player). Never a right-frozen column.
+- **Progress** (`.app-ing-progress`): a 6px accent bar under the status
+  line with "Saving 3 of 12 · about 40 s left — file", the estimate
+  from the pace so far after the second file.
+- **The term manager** (`.app-tm-*`): a sheet split tree-left (380px:
+  search, collapsible rows with the Organisation page's chevron and
+  count, the selected row tinted, a colour dot after the name) and
+  term-right (a card per working language: the default label and
+  synonym chips with an Enter-to-add box; the description; Colour +
+  Glyph saving at once; the id with Copy; Count usage; Save term;
+  ＋ Add child; Delete… greyed until unused). A synced set locks its
+  structure: the default label read-only, no add or delete, a note
+  saying where the structure lives.
+- **Term sets as tiles** (`.app-docs-settile`): the group's sets in the
+  term store's order and names, a sub-line saying "Organisation set" /
+  "Process area set" / "read by Approval Status" / "no column reads
+  it yet", ✎ at the right; the whole tile opens the manager. Choice
+  columns keep their value rows beneath. All inside ONE "Term store"
+  section: group → synced sets → tiles → the syncs.
+- **Settings → Process** (`.app-proc-*`): the type strip (`.app-site-
+  tab` chips, ＋ New type…), then the Organisation page's cards within
+  cards — an area is a `.app-dept-card`, a process a tinted sub-card
+  inside it, a sub-process an `.app-area-row`; ⠿ drag reorders within
+  a level; the adder (input + ＋, Enter adds) sits INSIDE each level at
+  its indent; ✎ rename, "Local names…", × archive (never delete). A
+  site admin sees their site's type with no strip, handles, adders or
+  ×, and "Local name…" opens their site's box only.
+- **The process picker** (`shared/ui/processPicker.ts`,
+  `.ltk-procpick`): area › process › sub-process as cascading selects
+  under the site's type, "— any … —" clears to the parent, a chosen
+  archived node still shows; the same control in the app's forms
+  (`app-input`) and the MeetingWizard (`ltk-mw-input`). Filters use
+  the FLAT indented list (`flatProcessOptions`) in one select; a pick
+  includes its subtree. The driver tree DIMS (`.app-vd-dim`) rather
+  than hides outside a chosen process, so the links hold.
+- **Local names read through one rule** (`processLabel(node, site)`):
+  the site's name where a site is in scope, the general name
+  otherwise, "Casthouse (Casting)" where both are wanted.
+- **The settings tab strip** compacts under 1440px and WRAPS under
+  1180px (`.app-settings-tabs { flex-wrap: wrap }`) — never a sideways
+  scroll; View as stays pinned at the right.
+
 ## 7. Known drift log (fix on sight)
 
 - ~~Improvement tab/tiles hard-coded RAG hexes~~ — fixed 2026-08-20

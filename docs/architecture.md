@@ -1101,6 +1101,9 @@ no ad-hoc credential handling.
 | Phone layouts — the review, tranches M1–M5, card follow-ups | [mobile-review-2026-10.md](mobile-review-2026-10.md) |
 | Settings in-page navigation — options and the built strip | [settings-nav-proposal-2026-10.md](settings-nav-proposal-2026-10.md) |
 | Initiative documentation links and the walk on initiative boards — proposal | [initiative-links-proposal-2026-10.md](initiative-links-proposal-2026-10.md) |
+| The initiative header form (grouped, one module for create and edit) | [edit-details-proposal-2026-10.md](edit-details-proposal-2026-10.md) |
+| Document ingestion — decisions, the move probe, the grid | [document-ingestion-proposal-2026-10.md](document-ingestion-proposal-2026-10.md) |
+| Term store manager, the exact Organisation sync, the process model and its term set | [term-store-proposal-2026-10.md](term-store-proposal-2026-10.md) |
 | Capture rollup (Flag column, cross-board capture rows) | [leanboard-capture-rollup-plan.md](leanboard-capture-rollup-plan.md) |
 | Canvas card, design mode, Canvas rollup | [leanboard-canvas-card-plan.md](leanboard-canvas-card-plan.md) |
 | Power BI embed prerequisites (browser policy) | [deployment-cookbook.md](deployment-cookbook.md) |
