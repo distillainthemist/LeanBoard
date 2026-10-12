@@ -169,6 +169,14 @@ export function mountDocs(
   // the visit's first load reads its clock from here (timing readout)
   const openedAt = tnow();
   let firstLoadTimed = false;
+  /** The first load's wall time from opening — stays on the status
+   *  line for the visit, since a second load on open (the approved
+   *  default, a view's term filters) would otherwise overwrite it
+   *  (Ben, 2026-10-12: "appears but disappears"). */
+  let openedIn = "";
+  /** Every load of the visit, line + calls, for the tooltip: how many
+   *  loads an open costs is itself part of the answer. */
+  const visitLoads: string[] = [];
   // document-level listeners this mount registers (Cmd/K, menu close) —
   // run on the returned cleanup AND on in-place remounts, or every
   // library click would stack another global listener
@@ -4618,14 +4626,15 @@ export function mountDocs(
         // the readout: this load's calls (feed pages, counts, the search
         // index, any term walk) and the wall time to these rows
         {
-          const since = firstLoadTimed ? t0 : openedAt;
-          const sum = summarizeTimings(timingsSince(since), tnow() - since, {
-            paintedFromCache,
-            sinceOpen: !firstLoadTimed,
-          });
+          const sinceOpen = !firstLoadTimed;
+          const since = sinceOpen ? openedAt : t0;
+          const sum = summarizeTimings(timingsSince(since), tnow() - since, { paintedFromCache, sinceOpen });
           firstLoadTimed = true;
-          loadNote = sum.line;
-          loadDetail = sum.detail;
+          if (sinceOpen) openedIn = sum.total;
+          visitLoads.push(`Load ${visitLoads.length + 1}${sinceOpen ? " (from opening)" : ""}: ${sum.line}\n${sum.detail}`);
+          if (visitLoads.length > 8) visitLoads.shift();
+          loadNote = sinceOpen ? sum.line : `${sum.line} · opened in ${openedIn}`;
+          loadDetail = visitLoads.join("\n\n");
         }
         paintStatus(knownTotal, feedError);
         if (reset) {

@@ -56,6 +56,8 @@ export interface TimingSummary {
   line: string;
   /** One call per line for the tooltip. */
   detail: string;
+  /** The load's wall time, formatted ("3.4 s"). */
+  total: string;
 }
 
 /** The readout for one load: the whole load's wall time, then each kind
@@ -100,5 +102,5 @@ export function summarizeTimings(
   const detail = loaded
     .map((m) => `${label[m.kind]}${m.note !== "" ? ` ${m.note}` : ""}: ${secs(m.ms)}${m.failed ? " (refused)" : ""}`)
     .join("\n");
-  return { line: parts.join(" · "), detail };
+  return { line: parts.join(" · "), detail, total: secs(totalMs) };
 }
