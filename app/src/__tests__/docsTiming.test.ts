@@ -42,6 +42,11 @@ describe("docs timing readout", () => {
     expect(s.line).toBe("loaded in 1.5 s · feed 800 ms · term walk 520 ms · first paint from cache");
   });
 
+  it("clocks a visit's first load from the tab opening", () => {
+    const s = summarizeTimings([mark("app", 600, "documents config"), mark("feed", 900)], 1800, { sinceOpen: true });
+    expect(s.line).toBe("1.8 s after opening · feed 900 ms · app data 600 ms");
+  });
+
   it("keeps only the marks started after a load began", () => {
     const before = now();
     markTiming("other", before - 50, "old");

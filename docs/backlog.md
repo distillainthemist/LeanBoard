@@ -322,9 +322,14 @@ the test script.
   document-ID collision); the road is the document's own lifecycle.
 - **Register load timing** (Ben, 2026-10-12: "the document tab has
   become slower"): no change touched the list load path, so the
-  register's status line now ends with a timing readout per load —
-  "loaded in 2.1 s · feed 1.8 s ×2 · count 120 ms" (hover for the
-  call-by-call list; a throttled call reads "refused"). Read it on a
+  register's status line (SUPER ADMINS only) now ends with a timing
+  readout per load — "loaded in 2.1 s · feed 1.8 s ×2 · count 120 ms",
+  the visit's first load clocked from the tab opening ("3.4 s after
+  opening · feed … · app data …") so the config read and the pre-list
+  work show (hover for the call-by-call list; a throttled call reads
+  "refused"). Ben's first two readouts (2026-10-12): 477 ms and 595 ms
+  to rows, feeds of ~500 ms per library in parallel — the list query
+  is not where the time goes. Read it on a
   slow load before chasing a cause: a long feed with few calls is
   SharePoint (library growth or a throttle after an ingestion burst);
   a term walk is the filter pane after a term-store edit emptied the

@@ -6,7 +6,7 @@
 // counts, the search index, or a term-store walk. SDK-free on purpose so
 // the summary is testable.
 
-export type TimingKind = "feed" | "search" | "count" | "term" | "term walk" | "other";
+export type TimingKind = "feed" | "search" | "count" | "app" | "term" | "term walk" | "other";
 
 export interface TimingMark {
   kind: TimingKind;
@@ -65,18 +65,24 @@ export interface TimingSummary {
 export function summarizeTimings(
   loaded: TimingMark[],
   totalMs: number,
-  opts: { paintedFromCache?: boolean; termsFromCache?: boolean } = {}
+  opts: { paintedFromCache?: boolean; termsFromCache?: boolean; sinceOpen?: boolean } = {}
 ): TimingSummary {
-  const order: TimingKind[] = ["feed", "search", "count", "term walk", "term", "other"];
+  const order: TimingKind[] = ["feed", "search", "count", "app", "term walk", "term", "other"];
   const label: Record<TimingKind, string> = {
     feed: "feed",
     search: "search",
     count: "count",
+    app: "app data",
     "term walk": "term walk",
     term: "term store",
     other: "other",
   };
-  const parts: string[] = [`loaded in ${secs(totalMs)}`];
+  // the FIRST load of a visit clocks from the tab opening, so the
+  // config read, task sweep and filter-pane walks that run before the
+  // list query show up — the register felt slow before the feed began
+  const parts: string[] = [
+    opts.sinceOpen === true ? `${secs(totalMs)} after opening` : `loaded in ${secs(totalMs)}`,
+  ];
   // the term store's own calls ride inside a walk — count the walk once
   const walked = loaded.some((m) => m.kind === "term walk");
   for (const kind of order) {

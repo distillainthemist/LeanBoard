@@ -26,7 +26,7 @@ import {
   searchPage,
   tileThumbFor,
 } from "./data";
-import { now as tnow, summarizeTimings, timingsSince } from "./timing";
+import { markTiming, now as tnow, summarizeTimings, timingsSince } from "./timing";
 import { DocList, ListColumn, mountDocList } from "./listView";
 import { mountDocTiles } from "./docsTiles";
 import {
@@ -166,6 +166,9 @@ export function mountDocs(
   parent.appendChild(wrap);
   const stopLoading = showLoading(wrap);
   let dead = false;
+  // the visit's first load reads its clock from here (timing readout)
+  const openedAt = tnow();
+  let firstLoadTimed = false;
   // document-level listeners this mount registers (Cmd/K, menu close) —
   // run on the returned cleanup AND on in-place remounts, or every
   // library click would stack another global listener
@@ -189,7 +192,9 @@ export function mountDocs(
     let cfg: Awaited<ReturnType<typeof docsConfig>>;
     let palettes: Awaited<ReturnType<typeof appPalettes>>;
     try {
+      const tCfg = tnow();
       [cfg, palettes] = await Promise.all([docsConfig(), appPalettes()]);
+      markTiming("app", tCfg, "documents config");
     } catch (e) {
       stopLoading();
       if (dead) return;
@@ -468,6 +473,17 @@ export function mountDocs(
       );
     }
     const docAdmin = () => meIsController;
+    /** The timing readout on the status line is a diagnostic for super
+     *  admins (Ben, 2026-10-12) — everyone else reads the plain count. */
+    let meIsSuper = false;
+    if (whoId !== "") {
+      void viewerPerson(whoId).then(
+        (p) => {
+          meIsSuper = p?.role === "superadmin";
+        },
+        () => {}
+      );
+    }
     /** The status set's terms, id + real-cased label — filled by
      *  readStatusTerms; what termForStage resolves a write against. */
     const statusTermList: { id: string; label: string }[] = [];
@@ -4195,8 +4211,8 @@ export function mountDocs(
 
     const paintStatus = (total: number | null, error: string) => {
       lastTotal = total;
-      const timed = loadNote === "" ? "" : ` · ${loadNote}`;
-      status.title = loadDetail;
+      const timed = loadNote === "" || !meIsSuper ? "" : ` · ${loadNote}`;
+      status.title = meIsSuper ? loadDetail : "";
       if (error !== "") {
         status.textContent = `Something refused: ${error}${timed}`;
         return;
@@ -4602,7 +4618,12 @@ export function mountDocs(
         // the readout: this load's calls (feed pages, counts, the search
         // index, any term walk) and the wall time to these rows
         {
-          const sum = summarizeTimings(timingsSince(t0), tnow() - t0, { paintedFromCache });
+          const since = firstLoadTimed ? t0 : openedAt;
+          const sum = summarizeTimings(timingsSince(since), tnow() - since, {
+            paintedFromCache,
+            sinceOpen: !firstLoadTimed,
+          });
+          firstLoadTimed = true;
           loadNote = sum.line;
           loadDetail = sum.detail;
         }
