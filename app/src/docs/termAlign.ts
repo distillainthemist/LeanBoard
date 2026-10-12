@@ -163,54 +163,86 @@ export async function retireTerm(site: string, setId: string, termId: string, la
   return "failed";
 }
 
-/** The decision rows under "In the term set only": a select per orphan —
- *  Leave, Retire, or "This is …" for each sibling create. */
+/** The decision rows under "In the term set only": one hairline row
+ *  per term — the path (parents muted), then Leave · Retire pills and,
+ *  where a sibling create exists, a "This is …" select. A header offers
+ *  the same decision for every row at once (a hand-made set is many). */
 export function renderOrphanDecisions(host: HTMLElement, plan: OrgSyncPlan, decisions: Map<string, OrphanDecision>, onChange: () => void): void {
   clear(host);
   const n = plan.orphanTerms.length;
-  host.appendChild(el("div", "app-field-label", `In the term set only (${n})`));
+  const head = el("div", "app-docs-orphanhead");
+  head.appendChild(el("div", "app-field-label", `In the term set only (${n})`));
+  host.appendChild(head);
   if (n === 0) {
     host.appendChild(el("div", "app-field-hint", "none"));
     return;
   }
-  host.appendChild(el("div", "app-field-hint", "The app does not know these. Leave them, retire them (deprecated, tags stay readable), or say which app node a term IS — it is then renamed in place and bound, and the create drops out. A term can only be paired with a sibling: the API cannot move a term between parents."));
-  const ul = el("ul", "app-docs-driftlist app-docs-decisions");
-  for (const t of plan.orphanTerms.slice(0, 80)) {
-    const li = el("li", "app-docs-decision");
-    li.appendChild(el("span", "app-docs-decisionlabel", t.labels.join(" › ")));
-    const sel = el("select", "app-input app-docs-decisionsel") as HTMLSelectElement;
-    const add = (value: string, label: string) => {
-      const o = el("option", "", label) as HTMLOptionElement;
-      o.value = value;
-      sel.appendChild(o);
-    };
-    add("leave", "Leave");
-    add("retire", "Retire");
+  host.appendChild(el("div", "app-field-hint", "The app does not know these. Leave them, retire them (deprecated — tags stay readable, nothing new can pick them), or say which app node a term IS: it is then renamed in place and bound, and the create drops out. Pairing is offered for siblings only — the API cannot move a term between parents."));
+  const rows: { id: string; paint: () => void }[] = [];
+  const pill = (label: string, on: boolean, onClick: () => void): HTMLButtonElement => {
+    const b = el("button", `app-docs-fpill app-docs-orphanpill${on ? " app-docs-fpill-on" : ""}`, label) as HTMLButtonElement;
+    b.type = "button";
+    b.setAttribute("aria-pressed", String(on));
+    b.addEventListener("click", onClick);
+    return b;
+  };
+  const setAll = (d: OrphanDecision | null) => {
+    for (const t of plan.orphanTerms) {
+      if (d === null) decisions.delete(t.id);
+      else decisions.set(t.id, d);
+    }
+    for (const r of rows) r.paint();
+    onChange();
+  };
+  const bulk = el("div", "app-docs-orphanbulk");
+  bulk.append(el("span", "app-field-hint", "All:"), pill("Leave", false, () => setAll(null)), pill("Retire", false, () => setAll({ kind: "retire" })));
+  head.appendChild(bulk);
+  const list = el("div", "app-docs-orphanlist");
+  for (const t of plan.orphanTerms.slice(0, 120)) {
+    const row = el("div", "app-docs-orphanrow");
+    const label = el("span", "app-docs-orphanpath");
+    if (t.labels.length > 1) label.appendChild(el("span", "app-docs-orphanparents", `${t.labels.slice(0, -1).join(" › ")} › `));
+    label.appendChild(el("span", "app-docs-orphanleaf", t.labels[t.labels.length - 1]));
+    const acts = el("span", "app-docs-orphanacts");
+    row.append(label, acts);
     const sibs = pairableCreates(plan, t.labels);
-    for (let i = 0; i < sibs.length; i++) add(`pair:${i}`, `This is ${sibs[i][sibs[i].length - 1]}`);
-    const cur = decisions.get(t.id);
-    sel.value = cur === undefined || cur.kind === "leave" ? "leave" : cur.kind === "retire" ? "retire" : `pair:${sibs.findIndex((s) => s.join("¦") === cur.path.join("¦"))}`;
-    if (sel.value === "") sel.value = "leave";
-    sel.addEventListener("change", () => {
-      if (sel.value === "leave") decisions.delete(t.id);
-      else if (sel.value === "retire") decisions.set(t.id, { kind: "retire" });
-      else decisions.set(t.id, { kind: "pair", path: sibs[Number(sel.value.slice(5))] });
-      // one create can be claimed once: another row that chose it falls back
-      for (const [id, d] of decisions) {
-        if (id !== t.id && d.kind === "pair" && decisions.get(t.id)?.kind === "pair" && d.path.join("¦") === (decisions.get(t.id) as { path: string[] }).path.join("¦")) {
-          decisions.delete(id);
-          const other = host.querySelector<HTMLSelectElement>(`select[data-term="${id}"]`);
-          if (other) other.value = "leave";
+    const paint = () => {
+      clear(acts);
+      const cur = decisions.get(t.id);
+      const kind = cur?.kind ?? "leave";
+      acts.appendChild(pill("Leave", kind === "leave", () => { decisions.delete(t.id); paint(); onChange(); }));
+      acts.appendChild(pill("Retire", kind === "retire", () => { decisions.set(t.id, { kind: "retire" }); paint(); onChange(); }));
+      if (sibs.length === 0) return;
+      const sel = el("select", `app-input app-docs-orphansel${kind === "pair" ? " app-docs-orphansel-on" : ""}`) as HTMLSelectElement;
+      const o0 = el("option", "", "This is…") as HTMLOptionElement;
+      o0.value = "";
+      sel.appendChild(o0);
+      sibs.forEach((s, i) => {
+        const o = el("option", "", s[s.length - 1]) as HTMLOptionElement;
+        o.value = String(i);
+        sel.appendChild(o);
+      });
+      sel.value = kind === "pair" ? String(sibs.findIndex((s) => s.join("¦") === (cur as { path: string[] }).path.join("¦"))) : "";
+      if (sel.value === "-1") sel.value = "";
+      sel.addEventListener("change", () => {
+        if (sel.value === "") decisions.delete(t.id);
+        else {
+          const path = sibs[Number(sel.value)];
+          // one create can be claimed once: another row that chose it falls back
+          for (const [id, d] of decisions) if (id !== t.id && d.kind === "pair" && d.path.join("¦") === path.join("¦")) decisions.delete(id);
+          decisions.set(t.id, { kind: "pair", path });
         }
-      }
-      onChange();
-    });
-    sel.dataset.term = t.id;
-    li.appendChild(sel);
-    ul.appendChild(li);
+        for (const r of rows) r.paint();
+        onChange();
+      });
+      acts.appendChild(sel);
+    };
+    rows.push({ id: t.id, paint });
+    paint();
+    list.appendChild(row);
   }
-  if (n > 80) ul.appendChild(el("li", "", `… and ${n - 80} more — decide these first and reload`));
-  host.appendChild(ul);
+  if (n > 120) list.appendChild(el("div", "app-field-hint", `… and ${n - 120} more — decide these first and reload`));
+  host.appendChild(list);
   if (plan.retiredTerms.length > 0) {
     host.appendChild(el("div", "app-field-label", `Retired earlier (${plan.retiredTerms.length})`));
     const r = el("ul", "app-docs-driftlist");

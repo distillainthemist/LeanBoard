@@ -1872,10 +1872,17 @@ input[type="color"].app-color:disabled { opacity: 0.4; cursor: default; }
 .app-docs-driftlist { margin: 4px 0 10px 18px; font-size: 12.5px; }
 /* the cutover decisions (term-store-proposal §7.1): one row per term
    the app does not know, its decision in a narrow select */
-.app-docs-decisions { list-style: none; margin-left: 0; padding-left: 0; }
-.app-docs-decision { display: flex; align-items: center; gap: 10px; padding: 3px 0; border-bottom: 1px solid #f0ede7; }
-.app-docs-decisionlabel { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.app-docs-decisionsel { width: auto; min-width: 150px; max-width: 320px; }
+.app-docs-orphanhead { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.app-docs-orphanbulk { display: flex; align-items: center; gap: 6px; }
+.app-docs-orphanlist { display: flex; flex-direction: column; margin: 4px 0 10px; }
+.app-docs-orphanrow { display: flex; align-items: center; gap: 12px; padding: 4px 0; border-bottom: 1px solid #f0ede7; font-size: 13px; }
+.app-docs-orphanpath { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app-docs-orphanparents { color: #8a847a; }
+.app-docs-orphanleaf { font-weight: 600; }
+.app-docs-orphanacts { display: flex; align-items: center; gap: 6px; flex: none; }
+.app-docs-orphanpill { min-height: 26px; padding: 0 10px; font-size: 12px; }
+.app-docs-orphansel { width: auto; min-width: 120px; max-width: 240px; min-height: 26px; padding: 0 8px; font-size: 12px; }
+.app-docs-orphansel-on { border-color: var(--app-accent, #2563eb); color: var(--app-accent, #2563eb); }
 /* write-through outcome lines (term-store-proposal §8) */
 .app-org-termpush { margin: 0 0 8px; padding: 6px 10px; background: #f6f5f2; border-radius: 8px; }
 .app-proc-termpush { margin-top: 6px; min-height: 15px; }
