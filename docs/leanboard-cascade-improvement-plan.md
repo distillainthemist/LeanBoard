@@ -1455,6 +1455,22 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-10-12 — released as v0.70.0** (SOLUTION-CARRYING:
+  `ben_ltkprocessnode`, `ben_processtype` on the site row,
+  `ben_processnodeid` on boards, initiatives and value drivers): the
+  term store and process plan (term-store-proposal-2026-10.md) — the
+  term manager sheet with colours, term sets as tiles inside one Term
+  store section, the rename journal and term binding making the
+  Organisation sync exact, the process model (types, areas, processes,
+  sub-processes, local names; Settings → Process as cards within cards
+  with drag reorder; a site admin's read-only view with their site's
+  local names; the site's process type), the one process picker on
+  rituals (with a Cadence filter), initiatives (with the Improvement
+  filter and chips) and value drivers (with by-process dimming), the
+  Process area term set synced from the model with local names as
+  synonyms and a "Process area" column role; the issues list repaints
+  after a status change with a Refresh, and reporter Teams cards quote
+  the report; the settings tab strip compacts and wraps.
 - **2026-10-09 — released as v0.69.0** (SOLUTION-CARRYING:
   `ben_ltkingestiontask`): document ingestion
   (document-ingestion-proposal-2026-10.md) — the hidden bulk-drop

@@ -327,11 +327,13 @@ Version lives in the tag alone — nothing is stamped into files.
   working folder, links card, the initiative walk, the grouped header
   form) are app-only; v0.69.0 (2026-10-09) CARRIES `ben_ltkingestiontask`
   (document ingestion) — prod imports the managed solution first, then
-  creates and exposes the bulk-drop library. The NEXT release carries
-  the process model (`ben_ltkprocessnode`, `ben_processtype`,
-  `ben_processnodeid` × 3; dev-deployed 2026-10-12 with a token
-  refreshed by `exchange-token.mjs` against the SAME resource — no
-  second sign-in). Prod imports the managed solution FIRST.
+  creates and exposes the bulk-drop library; v0.70.0 (2026-10-12)
+  CARRIES the process model (`ben_ltkprocessnode`, `ben_processtype`,
+  `ben_processnodeid` × 3; dev-deployed with a token refreshed by
+  `exchange-token.mjs` against the SAME resource — no second sign-in)
+  — prod imports the managed solution first, then the SharePoint
+  steps for the Process area term set and column. Prod imports the
+  managed solution FIRST.
 - **One rule, applied everywhere it matters.** A rule that must hold
   for every action or every card lives in ONE pure function and is
   applied at the screen for an honest picture AND at the store's
