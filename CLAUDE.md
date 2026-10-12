@@ -348,8 +348,11 @@ Version lives in the tag alone — nothing is stamped into files.
   — prod imports the managed solution first, then the SharePoint
   steps for the Process area term set and column; v0.71.0 (2026-10-12:
   cascading selects, the ingestion Teams card, the Documents timing
-  readout for super admins, pinned dialog footers) is app-only. Prod
-  imports the managed solution FIRST.
+  readout for super admins, pinned dialog footers) and v0.72.0
+  (2026-10-12: the Documents open fix — no paging before the first
+  load, cached status vocabulary — the term-set cutover tools and
+  write-through) are app-only. Prod imports the managed solution
+  FIRST.
 - **One rule, applied everywhere it matters.** A rule that must hold
   for every action or every card lives in ONE pure function and is
   applied at the screen for an honest picture AND at the store's

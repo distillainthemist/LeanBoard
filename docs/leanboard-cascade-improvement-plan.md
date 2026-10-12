@@ -1455,6 +1455,13 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-10-12 — released as v0.72.0** (app-only): the Documents open
+  fix (no scroll page before the first load; last visit's status
+  vocabulary opens the register at once; feed marks count rows kept),
+  the term-set cutover tools (orphan decisions Leave · Retire · This
+  is… with bulk actions; Align term sets with a verdict), and
+  write-through for the synced term sets. The three dev entries below
+  are its contents.
 - **2026-10-12 (after v0.71.0, dev)**: write-through for the synced
   term sets (term-store-proposal §8): every Organisation editor save
   and Process tab write pushes at once (create, rename in place,
