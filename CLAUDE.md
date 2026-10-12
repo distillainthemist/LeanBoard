@@ -352,7 +352,11 @@ Version lives in the tag alone — nothing is stamped into files.
   (2026-10-12: the Documents open fix — no paging before the first
   load, cached status vocabulary — the term-set cutover tools and
   write-through) are app-only. Prod imports the managed solution
-  FIRST.
+  FIRST. LESSON (2026-10-13, production's first sync): a sync must
+  never run from a walk it cannot trust (budget-cut OR any failed
+  children request), and the Organisation set's company-level offset
+  must be CHECKED against the set's top level before planning — run
+  the wrong way it creates the sites beside the company.
 - **One rule, applied everywhere it matters.** A rule that must hold
   for every action or every card lives in ONE pure function and is
   applied at the screen for an honest picture AND at the store's

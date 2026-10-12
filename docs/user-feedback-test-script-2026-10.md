@@ -317,9 +317,19 @@ not know (make one in the term store by hand for the test).
    a push is owed and pushes it, ending in "✓ … updated"; the drift
    report reads aligned.
 
+10. **Shape guard** (production, 2026-10-13) — with the Organisation set
+    starting at company level and the box UNTICKED, the drift report
+    reads "Cannot compare: the term set starts at COMPANY level … tick
+    the box" and write-through reports the push owed with the same
+    reason; nothing is created. With stray site terms at the top
+    level, the report lists them with Count usage → Remove.
+11. **Large set** — a production-sized set walks whole (no "cut
+    short"); a throttled walk reads "n children requests failed … try
+    again in a minute" and the sync stays disabled.
+
 | Item | Outcome |
 |---|---|
-| 1–9 | _Ben's pass pending_ |
+| 1–11 | _Ben's pass pending_ |
 
 ## Term manager pass — after v0.69.0 (2026-10-12, dev)
 

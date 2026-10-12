@@ -13,6 +13,7 @@ import {
   controlHealth,
   hasOutsideApprovers,
   orgDrift,
+  orgSetShapeProblem,
   orgSyncPlan,
   orgTreePaths,
   tallyByOwner,
@@ -2176,5 +2177,21 @@ describe("org sync plan — retired evidence and orphan ids", () => {
     expect(back2.orgSetCompanyLevel).toBe(true);
     expect(back2.termWritesOwed).toEqual(owed.termWritesOwed);
     expect(parseAppDocsConfig("{}").termWritesOwed).toEqual({});
+  });
+});
+
+describe("orgSetShapeProblem (the company-level guard)", () => {
+  const sites = ["Bell Bay", "Boyne"];
+  const cos = ["Rio Tinto Aluminium"];
+  it("refuses a site-level plan against a company-level set, and the reverse", () => {
+    expect(orgSetShapeProblem(["Rio Tinto Aluminium"], sites, cos, 0)).toMatch(/starts at COMPANY level/);
+    expect(orgSetShapeProblem(["Rio Tinto Aluminium"], sites, cos, 1)).toBe("");
+    expect(orgSetShapeProblem(["Bell Bay", "Boyne"], sites, cos, 0)).toBe("");
+    expect(orgSetShapeProblem(["Bell Bay", "Boyne"], sites, cos, 1)).toMatch(/untick/);
+    // sites created beside the company: the report offers the removal
+    expect(orgSetShapeProblem(["Rio Tinto Aluminium", "Bell Bay"], sites, cos, 1)).toMatch(/beside the company/);
+    // an empty set has no shape yet; unknown labels are not judged
+    expect(orgSetShapeProblem([], sites, cos, 0)).toBe("");
+    expect(orgSetShapeProblem(["Something else"], sites, cos, 0)).toBe("");
   });
 });

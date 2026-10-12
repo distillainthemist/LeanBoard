@@ -59,11 +59,13 @@ import {
   syncSiteDictionary,
 } from "./model";
 import { executeOrgSync } from "./orgSync";
-import { SetAdapter, alignSet, orgAdapter, processAdapter, renderOrphanDecisions } from "./termAlign";
+import { SetAdapter, alignSet, orgAdapter, partialWalk, processAdapter, renderOrphanDecisions } from "./termAlign";
 import { flushOwedTermWrites } from "./termWrite";
 import { OrphanDecision, createsAfterPairings, decisionCounts } from "./termAlignModel";
 import type { TermNode } from "./sp";
+import { promptConfirm } from "../prompts";
 import {
+  deleteTerm,
   fetchFields,
   fetchLibraries,
   fetchTermGroups,
@@ -84,7 +86,7 @@ import {
   saveDocLibrary,
 } from "./docsStore";
 import { parseOrgTree } from "../../../shared/schema/meeting";
-import { orgJson } from "../store/config";
+import { companies, orgJson } from "../store/config";
 import { renderListPage, searchPage } from "./data";
 import { openDialog } from "../../../shared/ui/dialog";
 import { buildRenderViewXml, taxonomySearchProperty } from "./rows";
@@ -1614,7 +1616,9 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
       procDriftBtn.disabled = true;
       procDriftBtn.textContent = "Comparing…";
       const adapter = await makeProcessAdapter();
-      const { nodes: termNodes, truncated, error } = await adapter.walk();
+      const procWalk = await adapter.walk();
+      const { nodes: termNodes, error } = procWalk;
+      const truncated = partialWalk(procWalk) !== "";
       procDriftBtn.disabled = false;
       procDriftBtn.textContent = "Load process drift report";
       if (error !== "") {
@@ -1642,7 +1646,7 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
       const decisionsHost = el("div", "");
       procDriftBox.appendChild(decisionsHost);
       if (truncated) {
-        procDriftBox.appendChild(note("The term walk was truncated — syncing against a partial view could recreate terms it did not see. Sync disabled."));
+        procDriftBox.appendChild(note(`${partialWalk(procWalk)} — syncing against a partial view could recreate terms it did not see. Sync disabled; reload in a minute.`));
         renderOrphanDecisions(decisionsHost, plan, new Map(), () => undefined);
         return;
       }
@@ -1717,7 +1721,9 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
       clear(driftBox);
       const offset = companyLevel.checked ? 1 : 0;
       const adapter = makeOrgAdapter(offset);
-      const [{ nodes, truncated, error }, orgRaw] = await Promise.all([adapter.walk(), orgJson()]);
+      const [orgWalk, orgRaw] = await Promise.all([adapter.walk(), orgJson()]);
+      const { nodes, error } = orgWalk;
+      const truncated = partialWalk(orgWalk) !== "";
       driftBtn.disabled = false;
       driftBtn.textContent = "Load drift report";
       if (error !== "") {
@@ -1730,6 +1736,74 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
       const plan = await adapter.plan(nodes);
       if (plan.error !== "") {
         driftBox.appendChild(note(`Cannot compare: ${plan.error}.`));
+        // stray top-level terms (a sync run with the box unticked created
+        // the sites beside the company — Ben's production set,
+        // 2026-10-13): offered for removal once a usage count says no
+        // document is tagged with any of them
+        const coNames = new Set((await companies().catch(() => [] as string[])).map((c) => c.trim().toLowerCase()));
+        const siteNames = new Set(orgTreePaths(parseOrgTree(orgRaw)).filter((p) => p.length === 1).map((p) => p[0].trim().toLowerCase()));
+        const strays = nodes.filter((n) => n.labels.length === 1 && !coNames.has(n.labels[0].trim().toLowerCase()) && siteNames.has(n.labels[0].trim().toLowerCase()));
+        if (offset === 1 && strays.length > 0) {
+          const under = (top: TermNode) => nodes.filter((n) => n.labels[0] === top.labels[0]);
+          const all = strays.flatMap(under);
+          const box = el("div", "app-docs-alignset");
+          box.appendChild(el("div", "app-field-label", `Stray top-level site terms (${strays.length}, ${all.length} terms in all)`));
+          box.appendChild(note(`${strays.map((s) => s.labels[0]).join(", ")} sit at the set's top level beside the company — created by a sync run with the box unticked. Count their usage; when no document is tagged with any of them they can be removed, and the next sync creates them under the company.`));
+          const props = [...new Set(exposed.flatMap((l) => l.config.columns.filter((c) => c.role === "orgUnit").map((c) => c.internal)))].map(taxonomySearchProperty);
+          const listIds = exposed.map((l) => l.listId);
+          const countBtn = el("button", "app-btn", "Count usage") as HTMLButtonElement;
+          const removeBtn = el("button", "app-btn", `Remove ${all.length} term${all.length === 1 ? "" : "s"}`) as HTMLButtonElement;
+          removeBtn.disabled = true;
+          const row = el("div", "app-docs-siterow");
+          row.append(countBtn, removeBtn);
+          box.append(row);
+          const out = el("div", "");
+          box.appendChild(out);
+          driftBox.appendChild(box);
+          let usage: number | null = null;
+          countBtn.addEventListener("click", () => {
+            void (async () => {
+              countBtn.disabled = true;
+              if (props.length === 0 || listIds.length === 0) {
+                usage = 0;
+                out.appendChild(note("No exposed library reads an Organisation column — nothing can be tagged with these terms."));
+              } else {
+                const r = await searchPage(app.siteUrl, "", { listIds, rowLimit: 1, termFilters: [{ properties: props, termIds: all.map((n) => n.id) }] });
+                usage = r.error === "" ? r.total : null;
+                out.appendChild(note(r.error !== "" ? `The usage count failed: ${r.error.slice(0, 120)}` : `${r.total} document${r.total === 1 ? "" : "s"} tagged with these terms${r.total === 0 ? " (or not yet crawled — the terms are new)" : ""}.`));
+              }
+              removeBtn.disabled = usage !== 0;
+              countBtn.disabled = false;
+            })();
+          });
+          removeBtn.addEventListener("click", () => {
+            void (async () => {
+              const yes = await promptConfirm({ title: `Remove ${all.length} stray term${all.length === 1 ? "" : "s"}?`, note: `${strays.map((s) => s.labels[0]).join(", ")} and everything under them leave the term set. No document is tagged with them (the count said 0). The next sync creates them under the company.`, confirmLabel: "Remove", danger: true });
+              if (!yes) return;
+              removeBtn.disabled = true;
+              removeBtn.textContent = "Removing…";
+              // deepest first: a term with children cannot be deleted
+              const ordered = [...all].sort((a, b) => b.labels.length - a.labels.length);
+              let failed = 0;
+              const gone = new Set<string>();
+              for (const n of ordered) {
+                const r = await deleteTerm(app.siteUrl, app.orgSetId, n.id);
+                if (r.ok) gone.add(n.id);
+                else {
+                  failed++;
+                  out.appendChild(el("div", "app-field-hint", `FAIL — ${n.labels.join(" › ")}: ${r.status.slice(0, 160)}`));
+                }
+              }
+              // bindings that pointed at them are spent
+              const b = app.termBindings[app.orgSetId] ?? {};
+              for (const [k, id] of Object.entries(b)) if (gone.has(id)) delete b[k];
+              await saveAppDocsConfig(app).catch(() => undefined);
+              invalidateTermPaths();
+              removeBtn.textContent = failed === 0 ? "Removed" : "Reload and retry";
+              out.appendChild(note(failed === 0 ? `✓ ${gone.size} term${gone.size === 1 ? "" : "s"} removed. Tick "The term set starts at company level", reload the drift report, and apply.` : `${failed} could not be removed — the rest are gone. Reload the report.`));
+            })();
+          });
+        }
         return;
       }
       // the ampersand guard (2026-08-11, the Shipping & Logistics case):
@@ -1787,8 +1861,8 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
       if (truncated) {
         driftBox.appendChild(
           note(
-            "The term walk was truncated (large set), so this comparison is partial — " +
-              "syncing against a partial view could recreate terms it did not see. Sync disabled."
+            `${partialWalk(orgWalk)}, so this comparison is partial — ` +
+              "syncing against a partial view could recreate terms it did not see. Sync disabled; reload in a minute."
           )
         );
         renderOrphanDecisions(decisionsHost, plan, new Map(), () => undefined);

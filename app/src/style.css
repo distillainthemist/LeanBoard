@@ -4593,7 +4593,9 @@ input.app-vg-in.app-vg-folded { background: #fff7e0; }
 .app-tm-colourrow { display: flex; flex-direction: column; gap: 5px; }
 .app-tm-colourline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .app-tm-colourpick { width: 200px; }
-.app-docs-syncnow { margin: 4px 0 10px; }
+/* a prose line, not a health row: the grid would put each word in the
+   18px glyph column (Ben, 2026-10-13: one word per line) */
+.app-docs-syncnow { display: block; margin: 4px 0 10px; line-height: 1.45; }
 @media (max-width: 899px) { .app-tm-body { grid-template-columns: 1fr; grid-template-rows: 40% 1fr; } .app-tm-tree { border-right: none; border-bottom: 1px solid #eceae5; } }
 
 /* ---- Settings → Processes (2026-10-12) ---- */

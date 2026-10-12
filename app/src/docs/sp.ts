@@ -837,7 +837,12 @@ export interface TermNode {
 
 export interface TermWalk {
   nodes: TermNode[];
+  /** The request budget ran out — the deepest levels are missing. */
   truncated: boolean;
+  /** Children requests that failed (a throttle, a refusal): those
+   *  parents' subtrees are missing. A SYNC treats any as partial;
+   *  a filter pane shows what it got. */
+  failed?: number;
   error: string;
 }
 
@@ -950,6 +955,20 @@ async function walkTermSet(
     const def = labels.find((l) => l.isDefault) ?? labels[0];
     return (def?.name ?? "").trim();
   };
+  let failed = 0;
+  // one level's parents go in CHUNKS of this many concurrent requests:
+  // a production organisation set has hundreds of parents per level
+  // (Ben, 2026-10-13: the 120-request budget cut the walk short and
+  // the sync refused), and the connector throttles a burst past ~600 a
+  // minute — so the budget is now large and the burst is bounded
+  const CHUNK = 16;
+  const fetchOnce = async (parentId: string): Promise<SpResult> => {
+    const r = await fetchTermChildren(site, setId, parentId);
+    if (r.ok) return r;
+    // one retry after a breath: a throttled request usually lands then
+    await new Promise((res) => setTimeout(res, 1500));
+    return fetchTermChildren(site, setId, parentId);
+  };
   let frontier: { id: string; labels: string[] }[] = [{ id: "", labels: [] }];
   while (frontier.length > 0) {
     const parents = frontier.filter((p) => p.labels.length < maxDepth);
@@ -959,13 +978,15 @@ async function walkTermSet(
       break;
     }
     requests += parents.length;
-    const results = await Promise.all(
-      parents.map((p) => fetchTermChildren(site, setId, p.id))
-    );
+    const results: SpResult[] = [];
+    for (let at = 0; at < parents.length; at += CHUNK) {
+      results.push(...(await Promise.all(parents.slice(at, at + CHUNK).map((p) => fetchOnce(p.id)))));
+    }
     const next: typeof frontier = [];
     for (let i = 0; i < parents.length; i++) {
       const r = results[i];
       if (!r.ok) {
+        failed++;
         if (firstError === "") firstError = r.status;
         continue; // a partial tree beats none — the error only surfaces if NOTHING loads
       }
@@ -988,6 +1009,7 @@ async function walkTermSet(
     // hand back depth-first order (children under their parent)
     nodes: termTreeOrder(nodes),
     truncated,
+    failed,
     error: nodes.length === 0 ? firstError : "",
   };
 }

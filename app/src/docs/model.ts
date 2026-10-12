@@ -3073,6 +3073,28 @@ export const pathKey = (p: string[]): string => p.map((s) => s.trim().toLowerCas
 
 /** What the planner may KNOW beyond labels (term-store-proposal §2):
  *  the rename journal and the term binding of the set. */
+/** Does the set's TOP level agree with the company-level box? Read
+ *  before any plan: a sync run the wrong way creates sites beside the
+ *  company (Ben's production set, 2026-10-13). "" = no problem found.
+ *  A top level that names a company and no site is company level; one
+ *  that names a site is site level; an empty set has no shape yet. */
+export function orgSetShapeProblem(topLabels: string[], sites: string[], companies: string[], offset: number): string {
+  const norm = (s: string) => s.trim().toLowerCase();
+  const siteSet = new Set(sites.map(norm));
+  const coSet = new Set(companies.map(norm));
+  const tops = topLabels.map(norm).filter((t) => t !== "");
+  if (tops.length === 0) return "";
+  const siteTops = tops.filter((t) => siteSet.has(t));
+  const coTops = tops.filter((t) => coSet.has(t));
+  if (offset === 0 && siteTops.length === 0 && coTops.length > 0) {
+    return `the term set starts at COMPANY level (its top term is "${topLabels[tops.indexOf(coTops[0])] ?? coTops[0]}") — tick "The term set starts at company level" before syncing, or the sites would be created beside the company`;
+  }
+  if (offset === 1 && siteTops.length > 0) {
+    return `the term set's top level holds ${siteTops.length === 1 ? "a site" : `${siteTops.length} sites`} (${siteTops.slice(0, 3).join(", ")}${siteTops.length > 3 ? ", …" : ""}) — ${coTops.length > 0 ? "beside the company term; remove the stray site terms (the report offers it)" : 'untick "The term set starts at company level"'}`;
+  }
+  return "";
+}
+
 export interface OrgSyncEvidence {
   renames?: { from: string[]; to: string[] }[];
   /** app path key → term id */

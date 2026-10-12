@@ -1455,6 +1455,16 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-10-13 (after v0.72.0, dev)**: production's first term sync
+  found three faults — the term walk's 120-request budget cut a
+  production-sized Organisation set short (now 6000, in chunks of 16
+  with one retry, and a failed children request makes the walk
+  PARTIAL so no sync trusts it); the owed-push line wrapped one word
+  per line (the health grid; now a block); and the company-level box,
+  unticked, let write-through create the sites beside the company —
+  now `orgSetShapeProblem` refuses a plan whose offset disagrees with
+  the set's top level, and the drift report offers to remove the stray
+  top-level site terms after a zero usage count.
 - **2026-10-12 — released as v0.72.0** (app-only): the Documents open
   fix (no scroll page before the first load; last visit's status
   vocabulary opens the register at once; feed marks count rows kept),

@@ -5,13 +5,13 @@
 // set is aligned the same way whichever button asked.
 
 import { el, clear } from "../../../shared/ui/dom";
-import { AppDocsConfig, OrgSyncPlan, orgSyncPlan, orgTreePaths, pathKey } from "./model";
+import { AppDocsConfig, OrgSyncPlan, orgSetShapeProblem, orgSyncPlan, orgTreePaths, pathKey } from "./model";
 import { TermNode, TermWalk, fetchTerm, fetchTermPaths, invalidateTermPaths, patchTermFields, patchTermLabels } from "./sp";
 import { AlignVerdict, OrphanDecision, createsAfterPairings, decisionCounts, pairableCreates, verdictFor } from "./termAlignModel";
 import { executeOrgSync } from "./orgSync";
 import { invalidateDocsCache, saveAppDocsConfig } from "./docsStore";
 import { parseOrgTree } from "../../../shared/schema/meeting";
-import { orgJson } from "../store/config";
+import { companies, orgJson } from "../store/config";
 
 /** What the run needs from a set: the two sets differ only in where
  *  their bindings live (the config for Organisation, the node rows for
@@ -49,13 +49,26 @@ export function orgAdapter(cfg: AppDocsConfig, offset: number): SetAdapter {
     name: "Organisation",
     setId,
     site: cfg.siteUrl,
-    walk: () => fetchTermPaths(cfg.siteUrl, setId),
-    plan: async (nodes) =>
-      orgSyncPlan(orgTreePaths(parseOrgTree(await orgJson(true))), nodes, offset, {
+    // a sync's walk must see the WHOLE set: a large budget, and any
+    // failed request makes the view partial (see partialWalk)
+    walk: () => fetchTermPaths(cfg.siteUrl, setId, 4, 6000),
+    plan: async (nodes) => {
+      const paths = orgTreePaths(parseOrgTree(await orgJson(true)));
+      // the shape guard first: a plan run the wrong way round creates
+      // the sites beside the company
+      const problem = orgSetShapeProblem(
+        nodes.filter((n) => n.labels.length === 1).map((n) => n.labels[0]),
+        paths.filter((p) => p.length === 1).map((p) => p[0]),
+        await companies().catch(() => [] as string[]),
+        offset
+      );
+      if (problem !== "") return { creates: [], matches: [], renames: [], orphans: [], orphanTerms: [], retiredTerms: [], matched: 0, error: problem };
+      return orgSyncPlan(paths, nodes, offset, {
         renames: cfg.orgRenames,
         bindings: cfg.termBindings[setId] ?? {},
         retired: Object.keys(cfg.retiredTerms[setId] ?? {}),
-      }),
+      });
+    },
     execute: async (plan, nodes, log) => {
       const { failed, bindings } = await executeOrgSync({ site: cfg.siteUrl, setId, plan, termNodes: nodes, termOffset: offset, log });
       // what landed is now bound by id; the journal entries that became
@@ -90,7 +103,7 @@ export async function processAdapter(cfg: AppDocsConfig): Promise<SetAdapter & {
     site: cfg.siteUrl,
     bound: processNodes.filter((n) => !n.archived && n.termId !== "").length,
     withAliases: processNodes.filter((n) => !n.archived && Object.keys(n.aliases).length > 0).length,
-    walk: () => fetchTermPaths(cfg.siteUrl, setId, 5, 400),
+    walk: () => fetchTermPaths(cfg.siteUrl, setId, 5, 6000),
     plan: async (nodes) => planProcessSync(tree, nodes, Object.keys(cfg.retiredTerms[setId] ?? {})),
     execute: (plan, nodes, log) => executeProcessSync({ site: cfg.siteUrl, setId, tree, plan, termNodes: nodes, log }),
     pair: async (termId, path) => {
@@ -251,6 +264,15 @@ export function renderOrphanDecisions(host: HTMLElement, plan: OrgSyncPlan, deci
   }
 }
 
+/** A walk a sync may not trust: cut short by its budget, or with any
+ *  children request failed (that parent's subtree is missing and the
+ *  plan would recreate it). "" when the walk is whole. */
+export function partialWalk(w: { truncated: boolean; failed?: number }): string {
+  if (w.truncated) return "The term walk was cut short by its request budget";
+  if ((w.failed ?? 0) > 0) return `${w.failed} children request${w.failed === 1 ? "" : "s"} failed during the term walk (a throttle or a refusal)`;
+  return "";
+}
+
 export interface AlignResult {
   failed: number;
   verdict: AlignVerdict;
@@ -269,7 +291,8 @@ export async function alignSet(a: SetAdapter, decisions: Map<string, OrphanDecis
   if (plan === null || nodes === null) {
     const w = await a.walk();
     if (w.error !== "") return { failed: 1, verdict: { aligned: false, lines: [`Term walk failed: ${w.error}`] }, plan: null };
-    if (w.truncated) return { failed: 1, verdict: { aligned: false, lines: ["The term walk was cut short — syncing against a partial view could recreate terms it did not see. Nothing was changed."] }, plan: null };
+    const partial = partialWalk(w);
+    if (partial !== "") return { failed: 1, verdict: { aligned: false, lines: [`${partial} — syncing against a partial view could recreate terms it did not see. Nothing was changed; try again in a minute.`] }, plan: null };
     nodes = w.nodes;
     plan = await a.plan(nodes);
     if (plan.error !== "") return { failed: 1, verdict: verdictFor(plan, 0), plan };
@@ -306,5 +329,5 @@ export async function alignSet(a: SetAdapter, decisions: Map<string, OrphanDecis
   const w2 = await a.walk();
   if (w2.error !== "") return { failed, verdict: { aligned: false, lines: [`The confirming walk failed: ${w2.error}`] }, plan: null };
   const after = await a.plan(w2.nodes);
-  return { failed, verdict: verdictFor(after, failed, w2.truncated), plan: after };
+  return { failed, verdict: verdictFor(after, failed, partialWalk(w2) !== ""), plan: after };
 }
