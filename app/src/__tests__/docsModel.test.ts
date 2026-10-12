@@ -83,6 +83,8 @@ describe("app docs config", () => {
     orgRenames: [],
     termBindings: {},
     retiredTerms: {},
+    orgSetCompanyLevel: false,
+    termWritesOwed: {},
     processSetId: "",
     processSetName: "",
     });
@@ -2169,5 +2171,10 @@ describe("org sync plan — retired evidence and orphan ids", () => {
     const cfg = { ...emptyAppDocsConfig(), retiredTerms: { set1: { t1: { label: "Old dept", at: "2026-10-12T00:00:00Z", how: "suffixed" as const } } } };
     const back = parseAppDocsConfig(serializeAppDocsConfig(cfg));
     expect(back.retiredTerms).toEqual(cfg.retiredTerms);
+    const owed = { ...emptyAppDocsConfig(), orgSetCompanyLevel: true, termWritesOwed: { set1: { at: "2026-10-12T00:00:00Z", reason: "no rights", retire: [{ termId: "t2", label: "Old" }] } } };
+    const back2 = parseAppDocsConfig(serializeAppDocsConfig(owed));
+    expect(back2.orgSetCompanyLevel).toBe(true);
+    expect(back2.termWritesOwed).toEqual(owed.termWritesOwed);
+    expect(parseAppDocsConfig("{}").termWritesOwed).toEqual({});
   });
 });

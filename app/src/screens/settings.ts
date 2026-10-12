@@ -2128,6 +2128,21 @@ async function renderOrg(
     oldName: string;
     newName: string;
   }[] = [];
+  /** Units removed since the last save, as label paths — write-through
+   *  retires their terms (term-store-proposal §8). */
+  const pendingRemovals: string[][] = [];
+  /** Write-through's outcome, shown at the top of the page after a
+   *  save: the term set followed, or the push is owed. */
+  const sayTermPush = (summary: string) => {
+    if (summary === "") return;
+    const line = el("div", "app-settings-note app-org-termpush", summary);
+    body.prepend(line);
+    setTimeout(() => line.remove(), 12000);
+  };
+  const pushOrg = async (opts: { removed?: string[][]; restored?: string[][] } = {}) => {
+    const r = await import("../docs/termWrite").then((m) => m.pushOrgTerms(opts)).catch((e) => ({ summary: `Term set: push failed — ${e instanceof Error ? e.message : String(e)}` }));
+    sayTermPush(r.summary);
+  };
 
   const guardLeave = async (): Promise<boolean> => {
     if (!ctx.isDirty()) return true;
@@ -2194,13 +2209,14 @@ async function renderOrg(
       if (!(await guardLeave())) return;
       await renameSiteRow(site, name); // the owners column travels with the row
       await renameBoardsSite(site, name);
-      // the Organisation term set learns of it at the next sync (journal)
+      // the Organisation term set: journaled, then pushed at once
       await import("../docs/orgJournal").then((m) => m.journalOrgRenames([{ from: [site], to: [name] }])).catch(() => undefined);
       for (const p of await listPeople(true)) {
         if (p.site === site) await upsertPerson({ ...p, site: name });
       }
       if (me.site === site) me.site = name;
       await renderOrg(body, me, ctx);
+      await pushOrg();
     })();
   };
 
@@ -2232,6 +2248,7 @@ async function renderOrg(
       await saveSiteDepartments(name, "[]");
       await saveSiteCompany(name, company);
       await renderOrg(body, me, ctx);
+      await pushOrg({ restored: [[name]] });
     })();
   };
 
@@ -2417,6 +2434,7 @@ async function renderOrg(
           if (!yes) return;
           await setSiteArchived(site, true);
           await renderOrg(body, me, ctx);
+          await pushOrg({ removed: [[site]] });
         })();
       });
       head.appendChild(arch);
@@ -2537,6 +2555,7 @@ async function renderOrg(
         dh.appendChild(
           removeBtn(() => {
             node.departments = node.departments.filter((x) => x !== d);
+            pendingRemovals.push([site, d.department], ...d.areas.map((a) => [site, d.department, a]));
             delete owners.departments[d.department];
             for (const k of Object.keys(owners.areas)) {
               if (k.startsWith(`${d.department}/`)) delete owners.areas[k];
@@ -2574,6 +2593,7 @@ async function renderOrg(
           ar.appendChild(
             removeBtn(() => {
               d.areas = d.areas.filter((x) => x !== a);
+              pendingRemovals.push([site, d.department, a]);
               delete owners.areas[`${d.department}/${a}`];
               redraw();
             })
@@ -2696,6 +2716,7 @@ async function renderOrg(
               if (!(await guardLeave())) return;
               await setSiteArchived(site, false);
               await renderOrg(body, me, ctx);
+              await pushOrg({ restored: [[site]] });
             })();
           });
           row.appendChild(restore);
@@ -2753,9 +2774,12 @@ async function renderOrg(
         .catch(() => undefined);
       pendingRenames.length = 0;
     }
+    const removed = pendingRemovals.splice(0, pendingRemovals.length);
     touched.clear();
     coOwnersTouched = false;
     ctx.markClean();
+    // write-through: the Organisation term set follows this save at once
+    await pushOrg({ removed });
   });
 }
 

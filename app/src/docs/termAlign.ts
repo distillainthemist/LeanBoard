@@ -5,9 +5,13 @@
 // set is aligned the same way whichever button asked.
 
 import { el, clear } from "../../../shared/ui/dom";
-import { OrgSyncPlan } from "./model";
-import { TermNode, TermWalk, fetchTerm, invalidateTermPaths, patchTermFields, patchTermLabels } from "./sp";
+import { AppDocsConfig, OrgSyncPlan, orgSyncPlan, orgTreePaths, pathKey } from "./model";
+import { TermNode, TermWalk, fetchTerm, fetchTermPaths, invalidateTermPaths, patchTermFields, patchTermLabels } from "./sp";
 import { AlignVerdict, OrphanDecision, createsAfterPairings, decisionCounts, pairableCreates, verdictFor } from "./termAlignModel";
+import { executeOrgSync } from "./orgSync";
+import { invalidateDocsCache, saveAppDocsConfig } from "./docsStore";
+import { parseOrgTree } from "../../../shared/schema/meeting";
+import { orgJson } from "../store/config";
 
 /** What the run needs from a set: the two sets differ only in where
  *  their bindings live (the config for Organisation, the node rows for
@@ -25,6 +29,109 @@ export interface SetAdapter {
   pair(termId: string, path: string[]): Promise<void>;
   /** Record a retirement so the planner stands the term aside. */
   recordRetired(termId: string, label: string, how: "deprecated" | "suffixed"): Promise<void>;
+}
+
+const persist = async (cfg: AppDocsConfig) => {
+  await saveAppDocsConfig(cfg);
+  invalidateDocsCache();
+};
+
+const recordRetired = async (cfg: AppDocsConfig, setId: string, termId: string, label: string, how: "deprecated" | "suffixed") => {
+  cfg.retiredTerms[setId] = { ...(cfg.retiredTerms[setId] ?? {}), [termId]: { label, at: new Date().toISOString(), how } };
+  await persist(cfg).catch(() => undefined);
+};
+
+/** The Organisation set's adapter: bindings and the journal live in the
+ *  documents config, which the adapter saves as it goes. */
+export function orgAdapter(cfg: AppDocsConfig, offset: number): SetAdapter {
+  const setId = cfg.orgSetId;
+  return {
+    name: "Organisation",
+    setId,
+    site: cfg.siteUrl,
+    walk: () => fetchTermPaths(cfg.siteUrl, setId),
+    plan: async (nodes) =>
+      orgSyncPlan(orgTreePaths(parseOrgTree(await orgJson(true))), nodes, offset, {
+        renames: cfg.orgRenames,
+        bindings: cfg.termBindings[setId] ?? {},
+        retired: Object.keys(cfg.retiredTerms[setId] ?? {}),
+      }),
+    execute: async (plan, nodes, log) => {
+      const { failed, bindings } = await executeOrgSync({ site: cfg.siteUrl, setId, plan, termNodes: nodes, termOffset: offset, log });
+      // what landed is now bound by id; the journal entries that became
+      // renames are spent (a failed one stays for the retry)
+      cfg.termBindings[setId] = { ...(cfg.termBindings[setId] ?? {}), ...bindings };
+      cfg.orgRenames = cfg.orgRenames.filter((r) => bindings[pathKey(r.to)] === undefined);
+      await persist(cfg).catch(() => undefined);
+      return failed;
+    },
+    pair: async (termId, path) => {
+      cfg.termBindings[setId] = { ...(cfg.termBindings[setId] ?? {}), [pathKey(path)]: termId };
+      await persist(cfg).catch(() => undefined);
+    },
+    recordRetired: (termId, label, how) => recordRetired(cfg, setId, termId, label, how),
+  };
+}
+
+/** The Process area set's adapter: the binding is the node's own
+ *  `termId`, so a pairing is saved on the node row. */
+export async function processAdapter(cfg: AppDocsConfig): Promise<SetAdapter & { bound: number; withAliases: number }> {
+  const [{ listProcessNodes, saveProcessNodes }, { buildProcessTree, processTermPaths }, { planProcessSync, executeProcessSync }] = await Promise.all([
+    import("../store/processes"),
+    import("../processes/model"),
+    import("./processSync"),
+  ]);
+  const processNodes = await listProcessNodes();
+  const tree = buildProcessTree(processNodes);
+  const setId = cfg.processSetId;
+  return {
+    name: "Process area",
+    setId,
+    site: cfg.siteUrl,
+    bound: processNodes.filter((n) => !n.archived && n.termId !== "").length,
+    withAliases: processNodes.filter((n) => !n.archived && Object.keys(n.aliases).length > 0).length,
+    walk: () => fetchTermPaths(cfg.siteUrl, setId, 5, 400),
+    plan: async (nodes) => planProcessSync(tree, nodes, Object.keys(cfg.retiredTerms[setId] ?? {})),
+    execute: (plan, nodes, log) => executeProcessSync({ site: cfg.siteUrl, setId, tree, plan, termNodes: nodes, log }),
+    pair: async (termId, path) => {
+      const e = processTermPaths(tree).find((x) => pathKey(x.path) === pathKey(path));
+      if (!e) return;
+      e.node.termId = termId;
+      await saveProcessNodes([{ ...e.node }]);
+    },
+    recordRetired: (termId, label, how) => recordRetired(cfg, setId, termId, label, how),
+  };
+}
+
+/** Bring a retired term back (a restored site): deprecation off, the
+ *  "(retired)" suffix stripped, the record cleared. */
+export async function unretireTerm(cfg: AppDocsConfig, setId: string, termId: string, log: (line: string) => void): Promise<boolean> {
+  const rec = cfg.retiredTerms[setId]?.[termId];
+  const label = rec?.label ?? termId;
+  let ok = true;
+  if (rec?.how === "deprecated" || rec === undefined) {
+    const r = await patchTermFields(cfg.siteUrl, setId, termId, { isDeprecated: false });
+    ok = r.ok;
+  }
+  if (rec?.how === "suffixed" || !ok) {
+    const cur = await fetchTerm(cfg.siteUrl, setId, termId);
+    const labels = ((cur.data ?? {}) as { labels?: { languageTag?: string; name?: string; isDefault?: boolean }[] }).labels;
+    if (cur.ok && Array.isArray(labels) && labels.length > 0) {
+      const next = labels.map((l) => ({ languageTag: l.languageTag ?? "en-US", name: (l.name ?? "").replace(/\s*\(retired\)$/, ""), isDefault: l.isDefault === true }));
+      ok = (await patchTermLabels(cfg.siteUrl, setId, termId, next)).ok;
+    } else ok = false;
+  }
+  if (!ok) {
+    log(`FAIL — could not bring back ${label}; it stays retired.`);
+    return false;
+  }
+  if (cfg.retiredTerms[setId]) {
+    delete cfg.retiredTerms[setId][termId];
+    if (Object.keys(cfg.retiredTerms[setId]).length === 0) delete cfg.retiredTerms[setId];
+  }
+  await persist(cfg).catch(() => undefined);
+  log(`OK — ${label} is back in use.`);
+  return true;
 }
 
 /** Retire a term: deprecate it on the v2.1 road; where the road refuses
@@ -122,7 +229,7 @@ export interface AlignResult {
 /** The run: decisions first (pairings become evidence, retirements
  *  land on the terms), then the sync from a plan that honours them,
  *  then a fresh walk and the verdict. */
-export async function alignSet(a: SetAdapter, decisions: Map<string, OrphanDecision>, log: (line: string) => void, prior?: { plan: OrgSyncPlan; nodes: TermNode[] }): Promise<AlignResult> {
+export async function alignSet(a: SetAdapter, decisions: Map<string, OrphanDecision>, log: (line: string) => void, prior?: { plan: OrgSyncPlan; nodes: TermNode[] }, opts: { verify?: boolean } = {}): Promise<AlignResult> {
   let failed = 0;
   const counts = decisionCounts(decisions);
   let plan = prior?.plan ?? null;
@@ -160,8 +267,10 @@ export async function alignSet(a: SetAdapter, decisions: Map<string, OrphanDecis
   } else {
     log("Nothing to create or rename.");
   }
-  // 3. the verdict, from a fresh walk
+  // 3. the verdict, from a fresh walk (write-through skips it: the
+  //    plan it ran is its answer, and the walk cache is dropped)
   invalidateTermPaths();
+  if (opts.verify === false) return { failed, verdict: verdictFor(plan, failed), plan };
   const w2 = await a.walk();
   if (w2.error !== "") return { failed, verdict: { aligned: false, lines: [`The confirming walk failed: ${w2.error}`] }, plan: null };
   const after = await a.plan(w2.nodes);

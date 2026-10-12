@@ -61,11 +61,19 @@ export async function renderProcessesSettings(body: HTMLElement, o: ProcessesSet
     paintTree();
   };
 
-  const write = async (fn: () => Promise<void>) => {
+  const pushNote = el("div", "app-field-hint app-proc-termpush", "");
+  body.appendChild(pushNote);
+  /** Write-through (term-store-proposal §8): the Process area term set
+   *  follows every save at once; `archived` names the nodes whose
+   *  terms retire. The outcome reads under the tree. */
+  const write = async (fn: () => Promise<void>, archived: ProcessNode[] = []) => {
     try {
       status.textContent = "";
       await fn();
       await reload();
+      pushNote.textContent = "Updating the Process area term set…";
+      const r = await import("../docs/termWrite").then((m) => m.pushProcessTerms({ archived })).catch((e) => ({ summary: `Term set: push failed — ${e instanceof Error ? e.message : String(e)}` }));
+      pushNote.textContent = r.summary;
     } catch (e) {
       say(e);
     }
@@ -271,17 +279,15 @@ export async function renderProcessesSettings(body: HTMLElement, o: ProcessesSet
     const kids = liveChildren(tree, n.nodeId).length;
     const ok = await confirmRemoval(`"${n.name}"`, `It is archived, not deleted: anything already naming it keeps the link, nothing new can pick it${kids > 0 ? `, and its ${kids} child${kids === 1 ? "" : "ren"} go with it` : ""}.`);
     if (!ok) return;
-    await write(async () => {
-      const all: ProcessNode[] = [];
-      const walk = (id: string) => {
-        const node = tree.byId.get(id);
-        if (!node) return;
-        all.push({ ...node, archived: true });
-        for (const k of tree.childrenOf.get(id) ?? []) walk(k.nodeId);
-      };
-      walk(n.nodeId);
-      await saveProcessNodes(all);
-    });
+    const all: ProcessNode[] = [];
+    const walk = (id: string) => {
+      const node = tree.byId.get(id);
+      if (!node) return;
+      all.push({ ...node, archived: true });
+      for (const k of tree.childrenOf.get(id) ?? []) walk(k.nodeId);
+    };
+    walk(n.nodeId);
+    await write(() => saveProcessNodes(all), all);
   };
 
   // ---- local names: a text box per site assigned to this type -----------------

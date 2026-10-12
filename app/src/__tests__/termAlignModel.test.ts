@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { OrgSyncPlan } from "../docs/model";
-import { OrphanDecision, createsAfterPairings, decisionCounts, pairableCreates, verdictFor } from "../docs/termAlignModel";
+import { OrphanDecision, createsAfterPairings, decisionCounts, pairableCreates, pathsToRetire, verdictFor } from "../docs/termAlignModel";
 
 const plan = (over: Partial<OrgSyncPlan> = {}): OrgSyncPlan => ({ creates: [], matches: [], renames: [], orphans: [], orphanTerms: [], retiredTerms: [], matched: 3, error: "", ...over });
 
@@ -28,5 +28,17 @@ describe("verdict", () => {
     expect(v.lines[2]).toMatch(/Stray/);
     expect(verdictFor(plan(), 0, true).aligned).toBe(false);
     expect(verdictFor(plan({ error: "x" }), 0).lines[0]).toMatch(/Cannot compare/);
+  });
+});
+
+describe("pathsToRetire (write-through)", () => {
+  it("retires a removed path's bound term and what was bound under it, never a path that is back", () => {
+    const bindings = { "bell bay": "a", "bell bay¦casting": "b", "bell bay¦casting¦line 1": "c", "bell bay¦anodes": "d" };
+    const live = [["Bell Bay"], ["Bell Bay", "Anodes"]];
+    expect(pathsToRetire([["Bell Bay", "Casting"]], live, bindings)).toEqual([{ termId: "b", label: "Casting" }, { termId: "c", label: "line 1" }]);
+    // removed then re-added before the save: nothing retires
+    expect(pathsToRetire([["Bell Bay", "Anodes"]], live, bindings)).toEqual([]);
+    // never bound: nothing to retire (the report lists it as unknown)
+    expect(pathsToRetire([["Bell Bay", "Stray"]], live, bindings)).toEqual([]);
   });
 });

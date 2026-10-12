@@ -57,3 +57,24 @@ export function verdictFor(plan: OrgSyncPlan, failed: number, truncated = false)
   if (aligned) lines.push(`✓ Aligned — ${plan.matched} term${plan.matched === 1 ? "" : "s"} bound${plan.retiredTerms.length > 0 ? `, ${plan.retiredTerms.length} retired` : ""}.`);
   return { aligned, lines };
 }
+
+/** The terms to retire for removed app paths: each removed path's
+ *  bound term — unless the path is back in the tree (removed and
+ *  re-added before the save) or was never bound (nothing to retire;
+ *  the next report lists the term as unknown). */
+export function pathsToRetire(removed: string[][], appPaths: string[][], bindings: Record<string, string>): { termId: string; label: string }[] {
+  const live = new Set(appPaths.map(pathKey));
+  const out: { termId: string; label: string }[] = [];
+  for (const p of removed) {
+    const key = pathKey(p);
+    if (live.has(key)) continue;
+    const termId = bindings[key];
+    if (!termId || out.some((o) => o.termId === termId)) continue;
+    out.push({ termId, label: p[p.length - 1] });
+    // what was under it goes with it
+    for (const [k, id] of Object.entries(bindings)) {
+      if (k.startsWith(`${key}¦`) && !live.has(k) && !out.some((o) => o.termId === id)) out.push({ termId: id, label: k.split("¦").pop() ?? "" });
+    }
+  }
+  return out;
+}

@@ -858,6 +858,14 @@ export interface AppDocsConfig {
    *  the term, or suffixed "(retired)" where the road refused). The
    *  planner stands them aside; nothing is ever deleted. */
   retiredTerms: Record<string, Record<string, { label: string; at: string; how: "deprecated" | "suffixed" }>>;
+  /** The Organisation set starts at COMPANY level (its one top-level
+   *  term is skipped when comparing) — persisted so write-through
+   *  compares the same way the drift report does. */
+  orgSetCompanyLevel: boolean;
+  /** Write-through pushes that could not land (term-store-proposal §8),
+   *  per set: when, why, and the retirements still owed. Flushed when a
+   *  super admin opens Settings → Documents, or by "Align term sets". */
+  termWritesOwed: Record<string, { at: string; reason: string; retire: { termId: string; label: string }[] }>;
   /** The upload STAGING library's title (5H2) — bytes cannot cross the
    *  connector, so uploads happen in SharePoint's own UI here, and the
    *  app copies server-side into the target. Never exposed in the nav;
@@ -902,6 +910,8 @@ export function emptyAppDocsConfig(): AppDocsConfig {
     orgRenames: [],
     termBindings: {},
     retiredTerms: {},
+    orgSetCompanyLevel: false,
+    termWritesOwed: {},
     stagingLibrary: "",
     sites: {},
   };
@@ -1013,6 +1023,19 @@ export function parseAppDocsConfig(raw: string | null | undefined): AppDocsConfi
         clean[id] = { label: asStr(x.label), at: asStr(x.at), how: x.how === "suffixed" ? "suffixed" : "deprecated" };
       }
       if (Object.keys(clean).length > 0) out.retiredTerms[setId] = clean;
+    }
+    out.orgSetCompanyLevel = o.orgSetCompanyLevel === true;
+    const owed = (o.termWritesOwed ?? {}) as Record<string, unknown>;
+    for (const [setId, v] of Object.entries(owed)) {
+      const x = (v ?? {}) as { at?: unknown; reason?: unknown; retire?: unknown };
+      if (setId === "") continue;
+      const retire = Array.isArray(x.retire)
+        ? (x.retire as unknown[]).map((r) => {
+            const y = (r ?? {}) as { termId?: unknown; label?: unknown };
+            return { termId: asStr(y.termId), label: asStr(y.label) };
+          }).filter((r) => r.termId !== "")
+        : [];
+      out.termWritesOwed[setId] = { at: asStr(x.at), reason: asStr(x.reason), retire };
     }
     const dof = (o.defaultOrgFilter ?? {}) as Record<string, unknown>;
     for (const [site, ids] of Object.entries(dof)) {
@@ -1181,6 +1204,8 @@ export function serializeAppDocsConfig(cfg: AppDocsConfig): string {
   if (cfg.orgRenames.length > 0) o.orgRenames = cfg.orgRenames;
   if (Object.keys(cfg.termBindings).length > 0) o.termBindings = cfg.termBindings;
   if (Object.keys(cfg.retiredTerms).length > 0) o.retiredTerms = cfg.retiredTerms;
+  if (cfg.orgSetCompanyLevel) o.orgSetCompanyLevel = true;
+  if (Object.keys(cfg.termWritesOwed).length > 0) o.termWritesOwed = cfg.termWritesOwed;
   if (cfg.stagingLibrary !== "") o.stagingLibrary = cfg.stagingLibrary;
   const sites: Record<string, unknown> = {};
   for (const [key, dict] of Object.entries(cfg.sites)) {

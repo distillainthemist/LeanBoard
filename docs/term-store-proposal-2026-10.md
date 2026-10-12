@@ -518,6 +518,24 @@ one-time cutover and the steady state is simpler than drift reports:
 6. **Never delete a term that carries a tag.** Retire is deprecation;
    delete stays a zero-usage action in the manager, as today.
 
+**Status — write-through BUILT 2026-10-12 (dev, unreleased).**
+`docs/termWrite.ts`: `pushOrgTerms({removed, restored})` after every
+Organisation editor save (the save bar, site rename, add, archive,
+restore) and `pushProcessTerms({archived})` after every Process tab
+write — each runs `alignSet` without the confirming walk (creates,
+renames, synonyms, bindings) then retires the removed / archived
+units' bound terms (`pathsToRetire`, never a path that is back in the
+tree); a restored site's retired term comes back (`unretireTerm`)
+before the plan runs. A failed push is OWED (`termWritesOwed[setId]`
+= when, why, retirements left) and flushed when a super admin opens
+Settings → Documents (the Term store warning line shows the outcome)
+or runs Align term sets. The outcome reads at the top of the
+Organisation page and under the process tree. The company-level
+offset is now persisted (`orgSetCompanyLevel`) so write-through
+compares as the report does. Not yet: Adopt in the verifier, the
+open-for-tagging latch, the contributor-group note, move as create +
+retire + carry (the carry is §7.2).
+
 ### Cutover for a site that already has terms
 
 One pass of §7.1: pair every orphan or retire it, bind everything.

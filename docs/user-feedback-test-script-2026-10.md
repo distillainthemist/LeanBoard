@@ -300,9 +300,26 @@ not know (make one in the term store by hand for the test).
 6. **Nothing lost** — no term is deleted by any of the above; the
    manager's delete stays the only delete and only at zero usage.
 
+7. **Write-through, organisation** — Settings → Organisation: add a
+   department and Save: a line at the top reads "Organisation term set
+   updated ✓" and Manage terms… shows the new term under its site;
+   rename it and Save: the term is renamed in place (same GUID);
+   remove it and Save: the term is retired (deprecated or suffixed),
+   listed under "Retired earlier" in the drift report; archive a site:
+   its term retires; restore it: the term comes back.
+8. **Write-through, process** — Settings → Process: add an area:
+   "Process area term set updated ✓" under the tree and the term
+   exists; set a local name: it reads as a synonym; archive a
+   process: its term (and its children's) retire.
+9. **Owed push** — as a site admin without term-store rights, rename a
+   department and Save: the line reads "push owed — …"; then as a
+   super admin open Settings → Documents: the Term store section says
+   a push is owed and pushes it, ending in "✓ … updated"; the drift
+   report reads aligned.
+
 | Item | Outcome |
 |---|---|
-| 1–6 | _Ben's pass pending_ |
+| 1–9 | _Ben's pass pending_ |
 
 ## Term manager pass — after v0.69.0 (2026-10-12, dev)
 

@@ -59,7 +59,8 @@ import {
   syncSiteDictionary,
 } from "./model";
 import { executeOrgSync } from "./orgSync";
-import { SetAdapter, alignSet, renderOrphanDecisions } from "./termAlign";
+import { SetAdapter, alignSet, orgAdapter, processAdapter, renderOrphanDecisions } from "./termAlign";
+import { flushOwedTermWrites } from "./termWrite";
 import { OrphanDecision, createsAfterPairings, decisionCounts } from "./termAlignModel";
 import type { TermNode } from "./sp";
 import {
@@ -1166,6 +1167,18 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
       setSel.value === "" ? "" : (setSel.selectedOptions[0]?.textContent ?? "");
     ctx.markDirty();
   });
+  // write-through's debt (term-store-proposal §8): a push that could not
+  // land is flushed here, where a super admin can see the outcome
+  const owedSets = Object.entries(app.termWritesOwed);
+  if (owedSets.length > 0) {
+    const owedBox = el("div", "app-docs-health app-docs-health-warn app-docs-syncnow", `${owedSets.length === 1 ? "A term-set push is" : `${owedSets.length} term-set pushes are`} owed (${owedSets.map(([id, o]) => `${id === app.orgSetId ? "Organisation" : id === app.processSetId ? "Process area" : id.slice(0, 8)}: ${o.reason || "could not land"}${o.retire.length > 0 ? `, ${o.retire.length} retirement${o.retire.length === 1 ? "" : "s"}` : ""}`).join("; ")}). Pushing now…`);
+    termStoreHost.appendChild(owedBox);
+    void flushOwedTermWrites().then((outs) => {
+      const still = outs.filter((o) => o.owed);
+      owedBox.textContent = still.length === 0 ? `✓ ${outs.map((o) => o.summary).join(" · ")}` : still.map((o) => o.summary).join(" · ") + " — the signed-in account needs contributor rights on the set; Align term sets retries.";
+      if (still.length === 0) owedBox.classList.remove("app-docs-health-warn");
+    });
+  }
   // the journal's prompt (term-store-proposal §2): renames saved in the
   // Organisation editor wait here for a sync
   if (app.orgRenames.length > 0) {
@@ -1202,6 +1215,12 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
 
   const companyLevel = el("input", "") as HTMLInputElement;
   companyLevel.type = "checkbox";
+  // persisted (write-through compares the same way the report does)
+  companyLevel.checked = app.orgSetCompanyLevel;
+  companyLevel.addEventListener("change", () => {
+    app.orgSetCompanyLevel = companyLevel.checked;
+    void saveAppDocsConfig(app).catch(() => undefined);
+  });
   const companyWrap = el("label", "app-docs-check");
   companyWrap.append(
     companyLevel,
@@ -1489,59 +1508,8 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
   // One adapter per synced set; the drift reports and "Align term sets"
   // all run through alignSet, so a set is aligned the same way
   // whichever button asked.
-  const recordRetired = async (setId: string, termId: string, label: string, how: "deprecated" | "suffixed") => {
-    app.retiredTerms[setId] = { ...(app.retiredTerms[setId] ?? {}), [termId]: { label, at: new Date().toISOString(), how } };
-    await saveAppDocsConfig(app).catch(() => undefined);
-  };
-  const makeOrgAdapter = (offset: number): SetAdapter => ({
-    name: "Organisation",
-    setId: app.orgSetId,
-    site: app.siteUrl,
-    walk: () => fetchTermPaths(app.siteUrl, app.orgSetId),
-    plan: async (nodes) =>
-      orgSyncPlan(orgTreePaths(parseOrgTree(await orgJson())), nodes, offset, {
-        renames: app.orgRenames,
-        bindings: app.termBindings[app.orgSetId] ?? {},
-        retired: Object.keys(app.retiredTerms[app.orgSetId] ?? {}),
-      }),
-    execute: async (plan, nodes, log) => {
-      const { failed, bindings } = await executeOrgSync({ site: app.siteUrl, setId: app.orgSetId, plan, termNodes: nodes, termOffset: offset, log });
-      // what landed is now bound by id; the journal entries that became
-      // renames are spent (a failed one stays for the retry)
-      app.termBindings[app.orgSetId] = { ...(app.termBindings[app.orgSetId] ?? {}), ...bindings };
-      app.orgRenames = app.orgRenames.filter((r) => bindings[pathKey(r.to)] === undefined);
-      await saveAppDocsConfig(app).catch(() => undefined);
-      return failed;
-    },
-    pair: async (termId, path) => {
-      app.termBindings[app.orgSetId] = { ...(app.termBindings[app.orgSetId] ?? {}), [pathKey(path)]: termId };
-      await saveAppDocsConfig(app).catch(() => undefined);
-    },
-    recordRetired: (termId, label, how) => recordRetired(app.orgSetId, termId, label, how),
-  });
-  const makeProcessAdapter = async (): Promise<SetAdapter & { bound: number; withAliases: number }> => {
-    const [{ listProcessNodes, saveProcessNodes }, { buildProcessTree, processTermPaths }, { planProcessSync, executeProcessSync }] = await Promise.all([import("../store/processes"), import("../processes/model"), import("./processSync")]);
-    const processNodes = await listProcessNodes();
-    const tree = buildProcessTree(processNodes);
-    const setId = app.processSetId;
-    return {
-      name: "Process area",
-      setId,
-      site: app.siteUrl,
-      bound: processNodes.filter((n) => !n.archived && n.termId !== "").length,
-      withAliases: processNodes.filter((n) => !n.archived && Object.keys(n.aliases).length > 0).length,
-      walk: () => fetchTermPaths(app.siteUrl, setId, 5, 400),
-      plan: async (nodes) => planProcessSync(tree, nodes, Object.keys(app.retiredTerms[setId] ?? {})),
-      execute: (plan, nodes, log) => executeProcessSync({ site: app.siteUrl, setId, tree, plan, termNodes: nodes, log }),
-      pair: async (termId, path) => {
-        const e = processTermPaths(tree).find((x) => pathKey(x.path) === pathKey(path));
-        if (!e) return;
-        e.node.termId = termId;
-        await saveProcessNodes([{ ...e.node }]);
-      },
-      recordRetired: (termId, label, how) => recordRetired(setId, termId, label, how),
-    };
-  };
+  const makeOrgAdapter = (offset: number): SetAdapter => orgAdapter(app, offset);
+  const makeProcessAdapter = () => processAdapter(app);
   /** The Apply road shared by both drift reports: decisions, sync,
    *  verdict — the button names what it will do as the decisions change. */
   const wireApply = (box: HTMLElement, adapter: SetAdapter, planNow: ReturnType<typeof orgSyncPlan>, nodes: TermNode[], decisions: Map<string, OrphanDecision>, extraWork: number, decisionsHost: HTMLElement) => {

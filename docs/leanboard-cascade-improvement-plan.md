@@ -1455,6 +1455,12 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-10-12 (after v0.71.0, dev)**: write-through for the synced
+  term sets (term-store-proposal §8): every Organisation editor save
+  and Process tab write pushes at once (create, rename in place,
+  synonyms, retire on removal / archive, un-retire on restore); a push
+  that cannot land is owed in the config and flushed from Settings →
+  Documents; the company-level offset is persisted.
 - **2026-10-12 (after v0.71.0, dev)**: the term-set cutover tools
   (term-store-proposal §7.1 / §7.3): orphan decisions in both drift
   reports (Leave / Retire / "This is …" against sibling creates; a
