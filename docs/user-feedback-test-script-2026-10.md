@@ -238,9 +238,24 @@ On a desktop.
    select dims the drivers outside the pick; the hub's Value drivers
    tab has the same select beside Show.
 
+8. **Process area set** — in SharePoint create an empty "Process
+   area" term set under the DMS group; Settings → Documents → Term
+   store → Process area term set: pick it; Load process drift report
+   lists every type, area, process and sub-process to create; Apply;
+   the log binds the nodes; reload the report: "Nothing to sync" (or
+   "Push local names as synonyms" if any); Manage terms… on the set
+   shows the tree read-only with "Casthouse" as a synonym of Casting.
+9. **Rename after binding** — Settings → Processes: rename Casting to
+   Cast; the process drift report reads it as a rename in place (the
+   term keeps its id), not a create + orphan.
+10. **Document column** — add a site column reading the set to the
+   controlled standards library; Document columns: role "Process area";
+   tag a document; the register's filter on it includes a parent's
+   subtree.
+
 | Item | Outcome |
 |---|---|
-| 1–7 | _Ben's pass pending_ |
+| 1–10 | _Ben's pass pending_ |
 
 ## Term manager pass — after v0.69.0 (2026-10-12, dev)
 

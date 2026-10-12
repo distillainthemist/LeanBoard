@@ -861,7 +861,11 @@ Key concepts (details: [leanboard-standard-documents-plan.md](leanboard-standard
   Cadence "Process" filter, subtree semantics) read them; the header
   form, the Improvement filters and chips, the driver editor and the
   by-process dimming of the driver tree are the app-side consumers.
-  Solution-carrying.
+  The **Process area term set** (`docs/processSync.ts`) mirrors the
+  model: the binding is the node's own `termId`, the local names go
+  up as synonyms, nothing is deleted; a "Process area" column role
+  tags documents and the register's taxonomy filter includes a pick's
+  subtree. Solution-carrying.
 - **Document ingestion** (2026-10-08, [document-ingestion-proposal-2026-10.md](document-ingestion-proposal-2026-10.md)).
   A site's bulk-drop library (type "ingestion", never in the register)
   holds one folder per task (`ben_ltkingestiontask`: destination,

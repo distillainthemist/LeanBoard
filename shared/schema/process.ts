@@ -190,3 +190,37 @@ export function flatProcessOptions(tree: ProcessTree, typeId: string, site: stri
   if (typeId !== "" && tree.byId.has(typeId)) walk(typeId);
   return out;
 }
+
+// ---- the Process area term set (term-store-proposal §6, step 5) ---------
+
+/** The LIVE nodes as label paths for the term set — type › area ›
+ *  process › sub-process in the GENERAL names (the default labels); the
+ *  local names become synonyms. Parents first. */
+export function processTermPaths(tree: ProcessTree): { path: string[]; node: ProcessNode }[] {
+  const out: { path: string[]; node: ProcessNode }[] = [];
+  const walk = (parentId: string, prefix: string[]) => {
+    for (const n of liveChildren(tree, parentId)) {
+      const path = [...prefix, n.name];
+      out.push({ path, node: n });
+      walk(n.nodeId, path);
+    }
+  };
+  walk("", []);
+  return out;
+}
+
+/** The local names a term's label collection does not carry yet, as
+ *  synonyms in the store's language — case-insensitive, the general
+ *  name never pushed as its own synonym. */
+export function synonymsToAdd(labels: { name: string; languageTag: string; isDefault: boolean }[], node: Pick<ProcessNode, "name" | "aliases">, languageTag: string): { name: string; languageTag: string; isDefault: boolean }[] {
+  const have = new Set(labels.filter((l) => (l.languageTag ?? languageTag) === languageTag).map((l) => l.name.trim().toLowerCase()));
+  have.add(node.name.trim().toLowerCase());
+  const out: { name: string; languageTag: string; isDefault: boolean }[] = [];
+  for (const alias of Object.values(node.aliases)) {
+    const a = alias.trim();
+    if (a === "" || have.has(a.toLowerCase())) continue;
+    have.add(a.toLowerCase());
+    out.push({ name: a, languageTag, isDefault: false });
+  }
+  return out;
+}

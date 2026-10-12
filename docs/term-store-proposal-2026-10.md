@@ -332,7 +332,29 @@ scoping is the app's, and the term store receives the consequence:
   - Everywhere the label is `processLabel` / `processPathLabel` with
     the surface's site, so "Casthouse" reads at Bell Bay and
     "Casting" elsewhere.
-- Not yet: the Process area term set and its renames journal (step 5).
+- **Step 5 BUILT 2026-10-12 (dev)** — the Process area term set.
+  `AppDocsConfig.processSetId / processSetName` (chosen in Settings →
+  Documents → Term store beside the Organisation set, with "Manage
+  terms…" — structure locked there); the column role "Process area"
+  (`processArea`) for the site column that tags documents.
+  `docs/processSync.ts`: `planProcessSync` = `orgSyncPlan` over the
+  live nodes' general-name paths (`processTermPaths`), with the
+  BINDING ON THE NODE (`termId`) as the evidence — no journal needed:
+  after the first sync every node compares by id, so a rename in
+  Settings → Processes is an exact rename of its term;
+  `executeProcessSync` runs the shared `executeOrgSync`, writes the
+  term ids back onto the nodes, then pushes each node's local names as
+  SYNONYMS (`synonymsToAdd`: the store's language, case-insensitive,
+  never the general name, added not removed — the manager removes).
+  The "Process area sync" block under the Term store section lists
+  creates / renames in place / orphans and applies, with a synonyms-
+  only push when the trees already agree. The register's filter on a
+  Process area column needs nothing new: a taxonomy filter already
+  includes a pick's subtree.
+  Deploy step for prod: create the "Process area" term set under the
+  DMS group, bind it here, add a site column reading it to the
+  controlled libraries, map the column's role to Process area in
+  Document columns, then run the sync.
 
 ### Order and effort
 

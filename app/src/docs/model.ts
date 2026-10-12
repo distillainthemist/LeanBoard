@@ -33,6 +33,7 @@ export const COLUMN_ROLES: { key: string; label: string }[] = [
   { key: "", label: "—" },
   { key: "documentId", label: "Document ID" },
   { key: "docType", label: "Document type" },
+  { key: "processArea", label: "Process area" },
   { key: "owner", label: "Owner" },
   { key: "approvers", label: "Approvers" },
   { key: "reviewers", label: "Reviewers" },
@@ -810,6 +811,11 @@ export interface AppDocsConfig {
   termGroupName: string;
   orgSetId: string;
   orgSetName: string;
+  /** The Process area term set (term-store-proposal §6, step 5): mirrors
+   *  the app's process model — type › area › process › sub-process;
+   *  "" = not bound. */
+  processSetId: string;
+  processSetName: string;
   /** The 5G access-model groups (Ben, 2026-08-05), all plain Entra
    *  security groups, each carrying its SharePoint permission level.
    *  "" = not configured. Controllers = full document admin;
@@ -878,6 +884,8 @@ export function emptyAppDocsConfig(): AppDocsConfig {
     termGroupName: "",
     orgSetId: "",
     orgSetName: "",
+    processSetId: "",
+    processSetName: "",
     controllersGroupId: "",
     controllersGroupName: "",
     ownersGroupId: "",
@@ -966,6 +974,8 @@ export function parseAppDocsConfig(raw: string | null | undefined): AppDocsConfi
     out.termGroupName = asStr(o.termGroupName);
     out.orgSetId = asStr(o.orgSetId);
     out.orgSetName = asStr(o.orgSetName);
+    out.processSetId = asStr(o.processSetId);
+    out.processSetName = asStr(o.processSetName);
     out.controllersGroupId = asStr(o.controllersGroupId);
     out.controllersGroupName = asStr(o.controllersGroupName);
     out.ownersGroupId = asStr(o.ownersGroupId);
@@ -1141,6 +1151,8 @@ export function serializeAppDocsConfig(cfg: AppDocsConfig): string {
   if (cfg.termGroupName !== "") o.termGroupName = cfg.termGroupName;
   if (cfg.orgSetId !== "") o.orgSetId = cfg.orgSetId;
   if (cfg.orgSetName !== "") o.orgSetName = cfg.orgSetName;
+  if (cfg.processSetId !== "") o.processSetId = cfg.processSetId;
+  if (cfg.processSetName !== "") o.processSetName = cfg.processSetName;
   if (cfg.controllersGroupId !== "") o.controllersGroupId = cfg.controllersGroupId;
   if (cfg.controllersGroupName !== "") o.controllersGroupName = cfg.controllersGroupName;
   if (cfg.ownersGroupId !== "") o.ownersGroupId = cfg.ownersGroupId;

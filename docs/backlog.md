@@ -294,7 +294,12 @@ the sync warning) and 3 (the process model — schema, Settings →
 Processes, the site's type, local names; SOLUTION-CARRYING) BUILT
 2026-10-12, and 4 (the picker; process on rituals, Cadence, initiatives
 with filter and chip, value drivers with by-process dimming) BUILT
-2026-10-12; next: 5 the Process area term set via `syncedSets`.
+2026-10-12, and 5 (the Process area term set — bound beside the
+Organisation set, synced from the process model with the binding on
+the node, local names as synonyms, the "Process area" column role)
+BUILT 2026-10-12. The plan is complete; open: a generic `syncedSets`
+list only if a third app-master set appears; synonyms the app pushed
+are never removed by the sync (the manager does).
 
 ## Document ingestion — open items (2026-10-09)
 

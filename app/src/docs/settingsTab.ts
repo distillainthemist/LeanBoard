@@ -598,7 +598,7 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
       site: app.siteUrl,
       setId,
       setName,
-      structureLocked: setId !== "" && setId === app.orgSetId,
+      structureLocked: setId !== "" && (setId === app.orgSetId || setId === app.processSetId),
       columnsUsingSet: dictionary().columns.filter((c) => c.termSetId === setId).map((c) => c.internal),
       listIds: exposed.filter((l) => l.libType !== "template" && l.libType !== "ingestion").map((l) => l.listId),
       onChanged: () => {
@@ -1038,6 +1038,10 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
   };
   seedOption(groupSel, app.termGroupId, app.termGroupName);
   seedOption(setSel, app.orgSetId, app.orgSetName);
+  // the Process area set (term-store-proposal §6, step 5): mirrors the
+  // app's process model the way the Organisation set mirrors the org
+  const procSetSel = el("select", "app-input") as HTMLSelectElement;
+  seedOption(procSetSel, app.processSetId, app.processSetName);
 
   /**
    * Fill the set dropdown for the current group. This ran ONLY inside
@@ -1067,6 +1071,16 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
       setSel.appendChild(o);
     }
     setSel.value = sets.some((s) => s.id === app.orgSetId) ? app.orgSetId : "";
+    clear(procSetSel);
+    const dash2 = el("option", "", "—") as HTMLOptionElement;
+    dash2.value = "";
+    procSetSel.appendChild(dash2);
+    for (const s of sets) {
+      const o = el("option", "", s.localizedNames?.[0]?.name ?? "") as HTMLOptionElement;
+      o.value = s.id ?? "";
+      procSetSel.appendChild(o);
+    }
+    procSetSel.value = sets.some((s) => s.id === app.processSetId) ? app.processSetId : "";
   };
   if (app.termGroupId !== "") void loadSets();
 
@@ -1109,8 +1123,16 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
     app.orgSetId = "";
     app.orgSetName = "";
     seedOption(setSel, "", "");
+    app.processSetId = "";
+    app.processSetName = "";
+    seedOption(procSetSel, "", "");
     ctx.markDirty();
     void loadSets();
+  });
+  procSetSel.addEventListener("change", () => {
+    app.processSetId = procSetSel.value;
+    app.processSetName = procSetSel.value === "" ? "" : (procSetSel.selectedOptions[0]?.textContent ?? "");
+    ctx.markDirty();
   });
   setSel.addEventListener("change", () => {
     app.orgSetId = setSel.value;
@@ -1139,6 +1161,16 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
   });
   orgSetRow.append(setSel, manageOrg);
   termStoreHost.appendChild(field("Organisation term set", orgSetRow));
+  const procSetRow = el("div", "app-docs-siterow");
+  const manageProc = el("button", "app-btn", "Manage terms…") as HTMLButtonElement;
+  manageProc.type = "button";
+  manageProc.title = "Synonyms, translations and descriptions of the process terms (the structure comes from Settings → Processes and the sync)";
+  manageProc.addEventListener("click", () => {
+    if (app.processSetId === "") return;
+    void openManager(app.processSetId, app.processSetName || "Process area");
+  });
+  procSetRow.append(procSetSel, manageProc);
+  termStoreHost.appendChild(field("Process area term set", procSetRow, "Mirrors Settings → Processes: type › area › process › sub-process; local names become synonyms. Map a site column to the \"Process area\" role to tag documents with it."));
   // the sets themselves, as tiles
   termStoreHost.append(el("div", "app-section", "Term sets"), palNote, palBox);
 
@@ -1442,6 +1474,80 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
   termStoreHost.appendChild(btnRow);
   const driftBox = el("div", "");
   termStoreHost.appendChild(driftBox);
+
+  // ---- Process area sync (step 5): the process model is the master ----
+  termStoreHost.appendChild(el("div", "app-section", "Process area sync"));
+  termStoreHost.appendChild(note("Compares Settings → Processes with the Process area term set: creates what is missing (parents first), renames bound terms in place, pushes each node's local names as synonyms, and never deletes — an archived node's term is listed and left alone."));
+  const procDriftBtn = el("button", "app-btn", "Load process drift report") as HTMLButtonElement;
+  const procDriftRow = el("div", "app-docs-siterow");
+  procDriftRow.appendChild(procDriftBtn);
+  termStoreHost.appendChild(procDriftRow);
+  const procDriftBox = el("div", "");
+  termStoreHost.appendChild(procDriftBox);
+  procDriftBtn.addEventListener("click", () => {
+    void (async () => {
+      clear(procDriftBox);
+      if (app.processSetId === "") {
+        procDriftBox.appendChild(note("Choose the Process area term set above first."));
+        return;
+      }
+      procDriftBtn.disabled = true;
+      procDriftBtn.textContent = "Comparing…";
+      const [{ listProcessNodes }, { buildProcessTree }, { planProcessSync, executeProcessSync }] = await Promise.all([import("../store/processes"), import("../processes/model"), import("./processSync")]);
+      const [{ nodes: termNodes, truncated, error }, processNodes] = await Promise.all([fetchTermPaths(app.siteUrl, app.processSetId, 5, 400), listProcessNodes()]);
+      procDriftBtn.disabled = false;
+      procDriftBtn.textContent = "Load process drift report";
+      if (error !== "") {
+        procDriftBox.appendChild(note(`Term walk failed: ${error}`));
+        return;
+      }
+      const tree = buildProcessTree(processNodes);
+      const plan = planProcessSync(tree, termNodes);
+      if (plan.error !== "") {
+        procDriftBox.appendChild(note(`Cannot compare: ${plan.error}.`));
+        return;
+      }
+      const list = (title: string, items: string[]) => {
+        procDriftBox.appendChild(el("div", "app-field-label", `${title} (${items.length})`));
+        if (items.length === 0) {
+          procDriftBox.appendChild(el("div", "app-field-hint", "none"));
+          return;
+        }
+        const ul = el("ul", "app-docs-driftlist");
+        for (const it of items) ul.appendChild(el("li", "", it));
+        procDriftBox.appendChild(ul);
+      };
+      const bound = processNodes.filter((n) => !n.archived && n.termId !== "").length;
+      procDriftBox.appendChild(note(`${plan.matched} matched${bound > 0 ? ` (${bound} bound by id)` : ""}. Bound nodes compare by id; the rest by name.`));
+      list("To create in the term set", plan.creates.map((p) => p.join(" › ")));
+      list("To rename in place (the term keeps its id)", plan.renames.map((r) => `${r.from.join(" › ")} → ${r.to[r.to.length - 1]}`));
+      list("In the term set only (left alone)", plan.orphans.map((p) => p.join(" › ")));
+      const total = plan.creates.length + plan.renames.length;
+      const withAliases = processNodes.filter((n) => !n.archived && Object.keys(n.aliases).length > 0).length;
+      if (total === 0 && withAliases === 0) {
+        procDriftBox.appendChild(note("✓ Nothing to sync — the trees agree."));
+        return;
+      }
+      if (truncated) {
+        procDriftBox.appendChild(note("The term walk was truncated — syncing against a partial view could recreate terms it did not see. Sync disabled."));
+        return;
+      }
+      const applyBtn = el("button", "app-btn", total === 0 ? "Push local names as synonyms" : `Apply to term set (${total} change${total === 1 ? "" : "s"}${withAliases > 0 ? " + synonyms" : ""})`) as HTMLButtonElement;
+      procDriftBox.appendChild(applyBtn);
+      const logBox = el("div", "");
+      procDriftBox.appendChild(logBox);
+      applyBtn.addEventListener("click", () => {
+        void (async () => {
+          applyBtn.disabled = true;
+          applyBtn.textContent = "Syncing…";
+          clear(logBox);
+          const failed = await executeProcessSync({ site: app.siteUrl, setId: app.processSetId, tree, plan, termNodes, log: (line) => logBox.appendChild(el("div", "app-field-hint", line)) });
+          applyBtn.textContent = failed === 0 ? "Applied" : "Reload the report to retry";
+          logBox.appendChild(note(failed === 0 ? "✓ Sync complete — reload the report to confirm alignment." : `${failed} step(s) failed — nothing was deleted. The usual cause is term-store rights (contributor or group manager on the set).`));
+        })();
+      });
+    })();
+  });
   diagBtn.addEventListener("click", () => {
     void (async () => {
       clear(driftBox);
