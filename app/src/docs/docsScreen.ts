@@ -4958,8 +4958,14 @@ export function mountDocs(
           "New ingestion task…",
           `A bulk drop: a folder in ${ingestionLib.config.title || ingestionLib.name}, a destination library and the people who prepare the files. Open tasks are under Document tasks.`,
           () => {
-            void import("./ingestionScreen").then(({ openIngestionTaskEditor }) =>
-              openIngestionTaskEditor({ onSaved: () => refreshTasksBadge() })
+            void import("./ingestionScreen").then(({ openIngestionTaskEditor, openIngestionTask }) =>
+              openIngestionTaskEditor({
+                onSaved: (task, notice) => {
+                  refreshTasksBadge();
+                  // the new task opens at once, the Teams outcome on its status line
+                  openIngestionTask({ task, isController: docAdmin(), onChanged: refreshTasksBadge, notice });
+                },
+              })
             );
           }
         );
