@@ -13,7 +13,8 @@ import { confirmRemoval, promptText } from "../prompts";
 import { listProcessNodes, saveProcessNode, saveProcessNodes, allSiteProcessTypes } from "../store/processes";
 import { orgJson } from "../store/config";
 import { parseOrgTree } from "../../../shared/schema/meeting";
-import { LEVEL_LABELS, ProcessLevel, ProcessNode, ProcessTree, buildProcessTree, liveChildren, newNodeId, nextOrder, processLabelWithGeneral, reorder } from "./model";
+import { draggableRow } from "../../../shared/ui/dragList";
+import { ProcessLevel, ProcessNode, ProcessTree, buildProcessTree, liveChildren, newNodeId, nextOrder, processLabelWithGeneral } from "./model";
 
 const btn = (label: string, cls = "app-btn"): HTMLButtonElement => {
   const b = el("button", cls, label) as HTMLButtonElement;
@@ -85,7 +86,63 @@ export async function renderProcessesSettings(body: HTMLElement): Promise<void> 
     strip.appendChild(add);
   };
 
-  // ---- the tree ----------------------------------------------------------------
+  // ---- the tree: cards within cards, the Organisation page's idiom ------
+  // (Ben, 2026-10-12: "a card / sub card like the Organisation hierarchy,
+  // drag and drop to re-order, the + embedded at each level")
+  const persistOrder = (list: ProcessNode[]) => void write(() => saveProcessNodes(list.map((n, i) => ({ ...n, order: (i + 1) * 10 }))));
+  const adder = (placeholder: string, onAdd: (v: string) => void): HTMLElement => {
+    const r = el("div", "app-org-row app-proc-adder");
+    const input = el("input", "app-input") as HTMLInputElement;
+    input.placeholder = placeholder;
+    const b = btn("＋");
+    const go = () => {
+      const v = input.value.trim();
+      if (v === "") return;
+      input.value = "";
+      onAdd(v);
+    };
+    b.addEventListener("click", go);
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        go();
+      }
+    });
+    r.append(input, b);
+    return r;
+  };
+  const addUnder = (parent: ProcessNode, name: string) =>
+    void write(async () => {
+      const level = (parent.level + 1) as ProcessLevel;
+      await saveProcessNode({ rowId: "", nodeId: newNodeId(), parentId: parent.nodeId, level, name, order: nextOrder(tree, parent.nodeId), termId: "", aliases: {}, archived: false });
+      expanded.add(parent.nodeId);
+    });
+  const toggleBtn = (open: boolean, what: string, onToggle: () => void): HTMLButtonElement => {
+    const b = btn(open ? "▾" : "▸", "app-org-toggle");
+    b.title = open ? `Collapse ${what}` : `Expand ${what}`;
+    b.setAttribute("aria-expanded", String(open));
+    b.addEventListener("click", onToggle);
+    return b;
+  };
+  const editBtn = (title: string, onClick: () => void): HTMLButtonElement => {
+    const b = btn("✎", "app-org-edit");
+    b.title = title;
+    b.addEventListener("click", onClick);
+    return b;
+  };
+  /** The actions every node row carries after its name. */
+  const nodeActions = (n: ProcessNode, host: HTMLElement) => {
+    host.appendChild(editBtn(`Rename ${n.name}`, () => void renameNode(n)));
+    const local = btn("Local names…", "app-link app-proc-local");
+    const count = Object.keys(n.aliases).length;
+    if (count > 0) local.textContent = `Local names (${count})`;
+    local.addEventListener("click", () => openLocalNames(n));
+    host.appendChild(local);
+    const x = btn("×", "app-org-x");
+    x.title = `Archive ${n.name}`;
+    x.addEventListener("click", () => void archiveNode(n));
+    host.appendChild(x);
+  };
   const paintTree = () => {
     clear(treeHost);
     const type = tree.byId.get(typeId);
@@ -97,80 +154,86 @@ export async function renderProcessesSettings(body: HTMLElement): Promise<void> 
     head.appendChild(el("span", "app-proc-typename", type.name));
     const assigned = Object.entries(siteTypes).filter(([, v]) => v === type.nodeId).map(([s]) => s);
     head.appendChild(el("span", "app-field-hint", assigned.length > 0 ? `Sites: ${assigned.join(", ")}` : "No site is assigned this type yet (Organisation → site card → Process type)."));
-    const rename = btn("Rename", "app-link");
-    rename.addEventListener("click", () => void renameNode(type));
+    head.appendChild(editBtn("Rename type", () => void renameNode(type)));
     const archive = btn("Archive type", "app-link");
     archive.addEventListener("click", () => void archiveNode(type));
-    head.append(rename, archive);
+    head.append(archive);
     treeHost.appendChild(head);
-    const list = el("div", "app-org-tree");
-    treeHost.appendChild(list);
-    const paintLevel = (parent: ProcessNode, host: HTMLElement) => {
-      for (const n of liveChildren(tree, parent.nodeId)) host.appendChild(nodeRow(n));
-      if (parent.level < 3) {
-        const add = btn(`＋ Add ${LEVEL_LABELS[(parent.level + 1) as ProcessLevel].toLowerCase()}`, "app-link app-proc-add");
-        add.addEventListener("click", () => void addUnder(parent));
-        host.appendChild(add);
-      }
-    };
-    const nodeRow = (n: ProcessNode): HTMLElement => {
-      const wrap = el("div", "app-proc-node");
-      const row = el("div", "app-org-row app-proc-row");
-      row.style.paddingLeft = `${(n.level - 1) * 22}px`;
-      const kids = liveChildren(tree, n.nodeId);
-      const open = expanded.has(n.nodeId);
-      const toggle = btn(n.level < 3 ? (open ? "▾" : "▸") : "", "app-org-toggle");
-      toggle.disabled = n.level === 3;
-      toggle.setAttribute("aria-expanded", String(open));
-      toggle.addEventListener("click", () => {
-        if (expanded.has(n.nodeId)) expanded.delete(n.nodeId);
-        else expanded.add(n.nodeId);
+
+    const areas = liveChildren(tree, type.nodeId);
+    const areaList = el("div", "app-dept-list");
+    areas.forEach((area, ai) => {
+      // an AREA is a card (the department card)
+      const card = el("div", "app-dept-card");
+      const ch = el("div", "app-dept-head");
+      const handle = el("span", "app-drag-handle", "⠿");
+      handle.title = "Drag to reorder";
+      ch.appendChild(handle);
+      draggableRow(card, handle, `proc-area-${type.nodeId}`, ai, areas, () => persistOrder(areas));
+      const open = expanded.has(area.nodeId);
+      ch.appendChild(toggleBtn(open, area.name, () => {
+        if (open) expanded.delete(area.nodeId);
+        else expanded.add(area.nodeId);
         paintTree();
-      });
-      const name = el("span", "app-proc-name", n.name);
-      name.title = LEVEL_LABELS[n.level];
-      const localCount = Object.keys(n.aliases).length;
-      const summary = el("span", "app-org-summary", [n.level < 3 && !open && kids.length > 0 ? `${kids.length} ${LEVEL_LABELS[(n.level + 1) as ProcessLevel].toLowerCase()}${kids.length === 1 ? "" : "s"}` : "", localCount > 0 ? `${localCount} local name${localCount === 1 ? "" : "s"}` : ""].filter((s) => s !== "").join(" · "));
-      const up = btn("↑", "app-link app-proc-move");
-      up.title = "Move up";
-      up.addEventListener("click", () => void write(async () => {
-        const pair = reorder(tree, n.nodeId, true);
-        if (pair) await saveProcessNodes(pair);
       }));
-      const down = btn("↓", "app-link app-proc-move");
-      down.title = "Move down";
-      down.addEventListener("click", () => void write(async () => {
-        const pair = reorder(tree, n.nodeId, false);
-        if (pair) await saveProcessNodes(pair);
-      }));
-      const ren = btn("Rename", "app-link");
-      ren.addEventListener("click", () => void renameNode(n));
-      const local = btn("Local names…", "app-link");
-      local.addEventListener("click", () => openLocalNames(n));
-      const arch = btn("×", "app-org-x");
-      arch.title = "Archive";
-      arch.addEventListener("click", () => void archiveNode(n));
-      row.append(toggle, name, summary, up, down, ren, local, arch);
-      wrap.appendChild(row);
-      if (n.level < 3 && open) {
-        const sub = el("div", "app-proc-children");
-        paintLevel(n, sub);
-        wrap.appendChild(sub);
+      ch.appendChild(el("span", "app-dept-name", area.name));
+      const procs = liveChildren(tree, area.nodeId);
+      if (!open) ch.appendChild(el("span", "app-org-summary", `${procs.length} process${procs.length === 1 ? "" : "es"}`));
+      nodeActions(area, ch);
+      card.appendChild(ch);
+      if (open) {
+        const procList = el("div", "app-proc-sublist");
+        procs.forEach((proc, pi) => {
+          // a PROCESS is a sub-card inside the area
+          const sub = el("div", "app-dept-card app-proc-subcard");
+          const sh = el("div", "app-dept-head");
+          const h2 = el("span", "app-drag-handle", "⠿");
+          h2.title = "Drag to reorder";
+          sh.appendChild(h2);
+          draggableRow(sub, h2, `proc-proc-${area.nodeId}`, pi, procs, () => persistOrder(procs));
+          const popen = expanded.has(proc.nodeId);
+          sh.appendChild(toggleBtn(popen, proc.name, () => {
+            if (popen) expanded.delete(proc.nodeId);
+            else expanded.add(proc.nodeId);
+            paintTree();
+          }));
+          sh.appendChild(el("span", "app-dept-name", proc.name));
+          const subs = liveChildren(tree, proc.nodeId);
+          if (!popen) sh.appendChild(el("span", "app-org-summary", `${subs.length} sub-process${subs.length === 1 ? "" : "es"}`));
+          nodeActions(proc, sh);
+          sub.appendChild(sh);
+          if (popen) {
+            const subBox = el("div", "app-area-list");
+            subs.forEach((sp, si) => {
+              // a SUB-PROCESS is a row (the area row)
+              const row = el("div", "app-area-row");
+              const h3 = el("span", "app-drag-handle", "⠿");
+              h3.title = "Drag to reorder";
+              row.appendChild(h3);
+              draggableRow(row, h3, `proc-sub-${proc.nodeId}`, si, subs, () => persistOrder(subs));
+              row.appendChild(el("span", "app-area-name", sp.name));
+              nodeActions(sp, row);
+              subBox.appendChild(row);
+            });
+            if (subs.length === 0) subBox.appendChild(el("div", "app-org-empty", "No sub-processes"));
+            const addSub = adder("Add sub-process", (v) => addUnder(proc, v));
+            addSub.classList.add("app-area-adder");
+            subBox.appendChild(addSub);
+            sub.appendChild(subBox);
+          }
+          procList.appendChild(sub);
+        });
+        if (procs.length === 0) procList.appendChild(el("div", "app-org-empty", "No processes"));
+        procList.appendChild(adder("Add process", (v) => addUnder(area, v)));
+        card.appendChild(procList);
       }
-      return wrap;
-    };
-    paintLevel(type, list);
+      areaList.appendChild(card);
+    });
+    if (areas.length === 0) areaList.appendChild(el("div", "app-org-empty", "No areas yet"));
+    areaList.appendChild(adder("Add area", (v) => addUnder(type, v)));
+    treeHost.appendChild(areaList);
   };
 
-  const addUnder = async (parent: ProcessNode) => {
-    const level = (parent.level + 1) as ProcessLevel;
-    const name = await promptText({ title: `New ${LEVEL_LABELS[level].toLowerCase()} under "${parent.name}"`, placeholder: "Name", required: "A name is needed.", confirmLabel: "Add" });
-    if (name === null) return;
-    await write(async () => {
-      await saveProcessNode({ rowId: "", nodeId: newNodeId(), parentId: parent.nodeId, level, name: name.trim(), order: nextOrder(tree, parent.nodeId), termId: "", aliases: {}, archived: false });
-      expanded.add(parent.nodeId);
-    });
-  };
   const renameNode = async (n: ProcessNode) => {
     const name = await promptText({ title: `Rename "${n.name}"`, initial: n.name, required: "A name is needed.", confirmLabel: "Rename" });
     if (name === null || name.trim() === n.name) return;

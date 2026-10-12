@@ -213,10 +213,11 @@ On a desktop.
 
 1. **Types** — Settings → Processes: ＋ New type… "Smelter"; a second
    "Refinery"; the chips switch the tree.
-2. **Tree** — under Smelter: ＋ Add area "Casting"; expand it; ＋ Add
-   process "Ingot casting"; under that ＋ Add sub-process "Line 2";
-   Rename a node; ↑ ↓ reorder two areas; × Archive a sub-process (it
-   leaves the tree; the row stays in Dataverse as archived).
+2. **Tree** — under Smelter: the "Add area" box → "Casting" ＋; expand
+   the card; its "Add process" box → "Ingot casting"; expand the
+   sub-card; its "Add sub-process" box → "Line 2"; ✎ rename a node;
+   drag ⠿ to reorder two areas, then two processes; × Archive a
+   sub-process (it leaves the tree; the row stays as archived).
 3. **Site** — Settings → Organisation → a site card → Process type:
    Smelter; the Processes tab's Smelter chip hover names the site.
 4. **Local names** — on "Casting" → Local names… → the site's box:

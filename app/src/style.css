@@ -4558,13 +4558,13 @@ input.app-vg-in.app-vg-folded { background: #fff7e0; }
 .app-proc-tree { display: flex; flex-direction: column; gap: 8px; }
 .app-proc-typehead { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 4px 0 6px; border-bottom: 1px solid #eceae5; }
 .app-proc-typename { font-size: 15px; font-weight: 700; }
-.app-proc-node { display: flex; flex-direction: column; }
-.app-proc-row { min-height: 34px; flex-wrap: nowrap; }
-.app-proc-name { font-size: 13.5px; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.app-proc-row .app-link { font-size: 12.5px; padding: 2px 6px; min-height: 30px; }
-.app-proc-move { color: #8b8478; }
-.app-proc-children { display: flex; flex-direction: column; }
-.app-proc-add { align-self: flex-start; font-size: 12.5px; padding: 4px 6px; margin-left: 22px; }
+/* the hierarchy as cards: area card › process sub-card › sub-process row,
+   each level's adder embedded at its own indent */
+.app-proc-sublist { display: flex; flex-direction: column; gap: 6px; margin-left: 18px; }
+.app-proc-subcard { background: #faf9f7; border-color: #f1efec; }
+.app-proc-adder { margin-top: 2px; }
+.app-proc-adder .app-input { flex: 0 1 260px; }
+.app-proc-local { font-size: 12px; padding: 2px 6px; min-height: 28px; }
 .app-proc-localrow { display: flex; align-items: center; gap: 10px; }
 .app-proc-localsite { width: 140px; flex: none; font-size: 13px; font-weight: 600; }
 .app-proc-localrow .app-input { flex: 1; min-width: 0; }
