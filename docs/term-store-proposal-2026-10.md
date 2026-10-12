@@ -454,3 +454,68 @@ Retire is wanted on a site with documents. Keep 7.4 for the next
 site's go-live. Open with Ben: whether Retire should deprecate (probe
 first) or suffix; whether 7.2 should run unattended or show each
 document.
+
+## 8. One-way sync as the rule (Ben, 2026-10-12)
+
+If the app is the only writer of the synced sets — no one adds a term
+in the term store directly, as a rule — then §7's reconcile becomes a
+one-time cutover and the steady state is simpler than drift reports:
+
+### The operating model
+
+1. **Write-through.** Every app edit of a synced node pushes at once:
+   add → create + bind; rename → patch labels in place; local name →
+   synonym; archive → retire. The drift report stops being the way
+   terms get made and becomes a VERIFIER (§7.3): "aligned", or what
+   differs and why.
+2. **A push that cannot land is queued, never lost.** The sync writes
+   as the signed-in user, who needs term-set contributor rights; a
+   site admin renaming their department has none. The rename journal
+   is already that queue — extend it to adds, archives and local
+   names (`pendingTermWrites`), and the existing warning line in
+   Settings → Documents → Term store ("the organisation changed since
+   the last sync") flushes it when a super admin opens the tab, or
+   on the one-click align.
+3. **An unbound term is a fault, not a feature.** Under the rule,
+   anything in the set with no binding was added outside the app (or
+   predates it). The verifier lists it with two choices, nothing
+   silent: **Adopt** (create the app node to match — the only reverse
+   step, for a term someone made in good faith) or **Retire**. After
+   the cutover, "left alone" goes away.
+4. **Re-parenting is create + retire + carry.** The API cannot move a
+   term (§3). Moving a node in the app creates the term under its new
+   parent, rebinds, retires the old term, and queues the document
+   carry (§7.2) so tags follow. The Organisation editor and the
+   Process tab say so at the moment of the move ("n documents will be
+   re-tagged").
+5. **Close the door.** The manager already locks the structure of a
+   synced set (`structureLocked`: no add / delete; labels, synonyms
+   and colours only). Two more latches: the set's open-for-tagging
+   flag off, so the SharePoint tag picker cannot create terms at
+   tagging time (to probe on v2.1: the set's `isOpen`; otherwise it is
+   a one-time admin setting in the term store, documented in the
+   deploy guide); and the term-set contributor group reduced to the
+   app's super admins.
+6. **Never delete a term that carries a tag.** Retire is deprecation;
+   delete stays a zero-usage action in the manager, as today.
+
+### Cutover for a site that already has terms
+
+One pass of §7.1: pair every orphan or retire it, bind everything.
+Then the verifier reads "aligned" and write-through keeps it so.
+Production's hand-made sets are exactly this case.
+
+### What this replaces
+
+The drift report's Apply as the way terms are made; the "left alone"
+list; the second guessing in `orgSyncPlan`'s inference, which stays
+only as the cutover's helper. The bindings, the journal, the
+read-modify-write rename, and `processSync`'s synonyms all stay.
+
+### Effort
+
+Write-through on the Organisation editor and the Process tab, the
+queue, the verifier with Adopt / Retire, and the move-as-recreate
+with the carry: about three days, on top of §7.1's one and a half.
+Order: cutover tools first (§7.1 + the verifier), then write-through,
+then the carry.
