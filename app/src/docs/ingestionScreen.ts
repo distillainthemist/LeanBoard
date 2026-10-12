@@ -268,6 +268,33 @@ function progressBar(host: HTMLElement) {
   };
 }
 
+// ---- messaging the assignees ---------------------------------------------------
+
+/** One Teams chat card to the given assignees (the caller left out, Teams
+ *  refuses a self-chat). Returns the honest outcome for a status line:
+ *  the send returns `{ error }` and NEVER throws — the first build
+ *  awaited it and read nothing, so a refused send looked like success
+ *  (Ben, 2026-10-12: "it didn't team message people"). */
+async function messageAssignees(task: IngestionTask, recipients: IngestionAssignee[], destName: string): Promise<string> {
+  const me = (currentViewer()?.email ?? "").toLowerCase();
+  const others = recipients.filter((a) => a.email !== "" && a.email !== me);
+  const selfOnly = recipients.length > 0 && others.length === 0;
+  if (others.length === 0) return selfOnly ? "You are the assignee — no Teams message (Teams refuses a chat with yourself)." : "No assignee to message.";
+  try {
+    const { sendNotifyTeams } = await import("./notify");
+    const r = await sendNotifyTeams(
+      others.map((a) => ({ name: a.name, email: a.email })),
+      `Document ingestion: ${task.name}`,
+      `You have been asked to help ingest documents into ${destName}. Add the files to the task's folder, set each file's details, and a document controller will run the ingestion. Open LeanBoard → Documents → Ingestion tasks.`,
+      appLinkUrl()
+    );
+    if (r.error !== "") return `The Teams message did not go: ${r.error.slice(0, 200)}`;
+    return `Teams message sent to ${others.map((a) => a.name || a.email).join(", ")}${r.how === "message" ? " (as a plain message — the card was refused)" : ""}.`;
+  } catch (e) {
+    return `The Teams message did not go: ${e instanceof Error ? e.message : String(e)}`;
+  }
+}
+
 // ---- the task screen -----------------------------------------------------------
 
 export interface IngestionScreenOpts {
@@ -275,6 +302,8 @@ export interface IngestionScreenOpts {
   isController: boolean;
   /** The register repaints its panel and badge. */
   onChanged: () => void;
+  /** A line to show on open (the editor's Teams outcome). */
+  notice?: string;
 }
 
 export function openIngestionTask(o: IngestionScreenOpts): () => void {
@@ -419,6 +448,19 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
     // the task-level buttons live in the title row, before ✕ (Ben, 2026-10-09)
     const right = el("span", "app-ing-headactions");
     right.appendChild(openFolder); // (Ben, 2026-10-09: with the task buttons)
+    if (o.isController && task.status !== "closed" && task.assignees.length > 0) {
+      const msg = btn("Message assignees");
+      msg.title = "Send the task's Teams card to every assignee again";
+      msg.addEventListener("click", () => {
+        void (async () => {
+          msg.disabled = true;
+          status.textContent = "Sending the Teams message…";
+          status.textContent = await messageAssignees(task, task.assignees, libName(dest));
+          msg.disabled = false;
+        })();
+      });
+      right.appendChild(msg);
+    }
     if (o.isController && task.status !== "closed") {
       const edit = btn("Edit task…");
       edit.addEventListener("click", () => {
@@ -428,10 +470,10 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
           onCancelled: () => {
             cancelled = true;
           },
-          onSaved: () => {
+          onSaved: (_saved, notice) => {
             o.onChanged();
             closeNow();
-            if (!cancelled) openIngestionTask(o);
+            if (!cancelled) openIngestionTask({ ...o, notice });
           },
         });
       });
@@ -453,6 +495,7 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
     const gridHost = el("div", "app-ing-grid");
     body.appendChild(gridHost);
     const status = el("div", "app-ing-status");
+    if (o.notice) status.textContent = o.notice;
     body.appendChild(status);
     const progress = progressBar(body);
     // writes on the ingestion library skip the bracket unless it asks
@@ -1154,7 +1197,7 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
 export interface IngestionEditorOpts {
   /** Absent = a new task. */
   task?: IngestionTask;
-  onSaved: (task: IngestionTask) => void;
+  onSaved: (task: IngestionTask, notice?: string) => void;
   /** The task was cancelled (removed) — the sheet behind closes. */
   onCancelled?: () => void;
 }
@@ -1367,24 +1410,16 @@ export function openIngestionTaskEditor(o: IngestionEditorOpts): void {
         t.destListId = destSel.value.toLowerCase();
       }
       await saveIngestionTask(t);
-      // a Teams message to each NEW assignee (decision 7), best effort
-      const fresh = t.assignees.filter((a) => !before.has(a.email) && a.email !== (currentViewer()?.email ?? "").toLowerCase());
+      // a Teams message to each NEW assignee (decision 7); the outcome
+      // travels to the sheet's status line, never swallowed
+      const fresh = t.assignees.filter((a) => !before.has(a.email));
+      let notice = "";
       if (fresh.length > 0) {
-        try {
-          const { sendNotifyTeams } = await import("./notify");
-          const dest = ctx.libraries.find((l) => l.listId.toLowerCase() === t.destListId);
-          await sendNotifyTeams(
-            fresh.map((a) => ({ name: a.name, email: a.email })),
-            `Document ingestion: ${t.name}`,
-            `You have been asked to help ingest documents into ${libName(dest)}. Add the files to the task's folder, set each file's details, and a document controller will run the ingestion. Open LeanBoard → Documents → Document tasks.`,
-            appLinkUrl()
-          );
-        } catch {
-          /* the task is saved; the message is a courtesy */
-        }
+        const dest = ctx.libraries.find((l) => l.listId.toLowerCase() === t.destListId);
+        notice = await messageAssignees(t, fresh, libName(dest));
       }
       dlg.close();
-      o.onSaved(t);
+      o.onSaved(t, notice);
     } catch (e) {
       err.textContent = e instanceof Error ? e.message : String(e);
     }
