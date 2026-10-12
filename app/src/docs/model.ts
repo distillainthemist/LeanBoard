@@ -3091,7 +3091,15 @@ export function orgSetShapeProblem(topLabels: string[], sites: string[], compani
     return `the term set starts at COMPANY level (its top term is "${coTops[0]}") — tick "The term set starts at company level" before syncing, or the sites would be created beside the company${siteTops.length > 0 ? ` (${siteTops.length} already ${siteTops.length === 1 ? "was" : "were"}: ${siteTops.slice(0, 3).join(", ")}${siteTops.length > 3 ? ", …" : ""} — the report offers to remove them)` : ""}`;
   }
   if (offset === 1 && siteTops.length > 0) {
-    return `the term set's top level holds ${siteTops.length === 1 ? "a site" : `${siteTops.length} sites`} (${siteTops.slice(0, 3).join(", ")}${siteTops.length > 3 ? ", …" : ""}) — ${coTops.length > 0 ? "beside the company term; remove the stray site terms (the report offers it)" : 'untick "The term set starts at company level"'}`;
+    const others = topLabels.filter((t) => !siteSet.has(norm(t)) && norm(t) !== "");
+    // "untick" only when the top level is ALL sites; beside any other
+    // top-level term (the company, whatever the app calls it) the
+    // sites are strays
+    const advice =
+      others.length === 0
+        ? 'untick "The term set starts at company level"'
+        : `beside ${others.length === 1 ? `"${others[0]}"` : `${others.length} other top-level terms`}; remove the stray site terms (the report offers it)`;
+    return `the term set's top level holds ${siteTops.length === 1 ? "a site" : `${siteTops.length} sites`} (${siteTops.slice(0, 3).join(", ")}${siteTops.length > 3 ? ", …" : ""}) — ${advice}`;
   }
   return "";
 }

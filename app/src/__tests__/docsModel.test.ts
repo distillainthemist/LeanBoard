@@ -2188,8 +2188,11 @@ describe("orgSetShapeProblem (the company-level guard)", () => {
     expect(orgSetShapeProblem(["Rio Tinto Aluminium"], sites, cos, 1)).toBe("");
     expect(orgSetShapeProblem(["Bell Bay", "Boyne"], sites, cos, 0)).toBe("");
     expect(orgSetShapeProblem(["Bell Bay", "Boyne"], sites, cos, 1)).toMatch(/untick/);
+    // a company term the app calls something else is still "another
+    // top-level term": the sites beside it are strays, not a reason to untick
+    expect(orgSetShapeProblem(["RTA", "Test archive"], sites.concat("Test archive"), cos, 1)).toMatch(/beside "RTA"; remove the stray/);
     // sites created beside the company: the report offers the removal
-    expect(orgSetShapeProblem(["Rio Tinto Aluminium", "Bell Bay"], sites, cos, 1)).toMatch(/beside the company/);
+    expect(orgSetShapeProblem(["Rio Tinto Aluminium", "Bell Bay"], sites, cos, 1)).toMatch(/beside "Rio Tinto Aluminium"; remove the stray/);
     // the same mixed top level with the box unticked is flagged too
     expect(orgSetShapeProblem(["Rio Tinto Aluminium", "Bell Bay"], sites, cos, 0)).toMatch(/starts at COMPANY level.*Bell Bay/);
     // an empty set has no shape yet; unknown labels are not judged
