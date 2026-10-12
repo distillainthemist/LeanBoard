@@ -9,6 +9,7 @@
 // lead-time item) — filtering that silently applied to loaded rows only
 // would lie about the corpus.
 
+import { mountTermCascade } from "../../../shared/ui/termCascade";
 import { el, clear } from "../../../shared/ui/dom";
 import { statusChip as tonePill } from "../../../shared/ui/format";
 import { draggableRow } from "../../../shared/ui/dragList";
@@ -2639,6 +2640,23 @@ export function mountDocs(
           });
         }
         const nodes = phoneNodes.get(col) ?? [];
+        // a HIERARCHICAL set (the organisation) as stacked cascading
+        // selects (Ben, 2026-10-12); flat sets keep the one select
+        if (col === "" && nodes.some((n) => n.labels.length > 1)) {
+          const picked = filterFor(col)?.nodes ?? [];
+          const host = el("div", "app-docs-phonecascade");
+          host.setAttribute("aria-label", colLabel(col));
+          mountTermCascade(host, {
+            nodes,
+            value: picked.length === 1 ? picked[0].id : "",
+            selectClass: "app-input app-docs-phonesel",
+            placeholder: (depth) => (depth === 0 ? `Any ${colLabel(col).toLowerCase()}` : "— any —"),
+            onChange: (node) => applyFilter(col, node ? (nodes.find((n) => n.id === node.id) ?? null) : null, nodes),
+          });
+          if (picked.length > 1) host.appendChild(el("div", "app-field-hint", `${picked.length} picked on the desktop — choose one here to replace them`));
+          phoneFilters.appendChild(host);
+          continue;
+        }
         const sel = el("select", "app-input app-docs-phonesel") as HTMLSelectElement;
         sel.setAttribute("aria-label", colLabel(col));
         sel.title = `Filter by ${colLabel(col).toLowerCase()}`;

@@ -4589,3 +4589,15 @@ input.app-vg-in.app-vg-folded { background: #fff7e0; }
 .app-vd-dim { opacity: 0.35; }
 .app-vd-procfilter { display: inline-flex; align-items: center; gap: 8px; }
 .app-vd-procfilter .app-input { width: auto; }
+
+/* ---- cascading pickers everywhere (2026-10-12) ---- */
+.app-orgcascade select, .ltk-termcascade select { flex: 1 1 150px; min-width: 0; }
+.app-cp-orgcascade { display: flex; flex-direction: column; gap: 8px; }
+.app-cp-orgcascade .ltk-procpick { flex-direction: column; align-items: stretch; }
+.app-cp-phoneorg .ltk-procpick { flex-direction: column; align-items: stretch; gap: 8px; }
+.app-docs-phonecascade .ltk-procpick { flex-direction: column; align-items: stretch; gap: 8px; }
+.app-docs-termcascade:empty { display: none; }
+.app-im-procfilter { padding: 4px 8px 8px; }
+.app-im-scope .ltk-procpick select { flex: 0 1 180px; }
+.ltk-lh-procfilter { display: inline-flex; gap: 6px; }
+.app-vd-procpick-filter { display: inline-flex; gap: 6px; }

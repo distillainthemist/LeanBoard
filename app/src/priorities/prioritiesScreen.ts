@@ -19,6 +19,7 @@
 // view — built (P3), persists per user per org via prefs.ts; P4 adds TV
 // walk mode + the embedded card.
 
+import { mountOrgCascade } from "./orgCascade";
 import { changeVersion } from "../store/changes";
 import { el, clear } from "../../../shared/ui/dom";
 import { paletteMap } from "../../../shared/palette";
@@ -662,7 +663,10 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
         head.appendChild(s);
         return s;
       };
-      sel("Organisation", orgSelectOptions(tree).map((o) => ({ value: o.key, label: o.label })), orgKey(state.org), (v) => void goTo(orgFromKey(v)));
+      // the organisation as stacked cascading selects (Ben, 2026-10-12)
+      const orgHost = el("div", "app-cp-phoneorg");
+      mountOrgCascade(orgHost, { tree, value: state.org, selectClass: "app-input app-cp-phonesel", onChange: (o) => void goTo(o) });
+      head.appendChild(orgHost);
       sel("Period", periodsOnOffer().map((p) => ({ value: p, label: p })), state.period, (v) => {
         state.period = v;
         render();

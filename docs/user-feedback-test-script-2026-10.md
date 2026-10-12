@@ -258,13 +258,20 @@ On a desktop.
    adders, handles, rename or archive — and "Local name…" on a node
    offers only that site's box; as a site admin of a site without a
    type the tab is absent.
+13. **Cascades everywhere** — the Improvement tab's "Owned by my team"
+   scope and its Filters → Process; Cadence's Process after the
+   organisation; the value drivers' Process (settings and hub); the
+   Priorities "Browse all…" dialog and its phone head; the phone
+   register's organisation; Add / Edit properties' Organisation unit:
+   each is a set of dependent selects, never one long indented list;
+   clearing a level steps back to its parent.
 12. **Narrow window** — shrink the settings window: the tabs compact
    under 1440px and wrap onto a second line under 1180px; nothing
    scrolls sideways; View as stays at the right.
 
 | Item | Outcome |
 |---|---|
-| 1–12 | _Ben's pass pending_ |
+| 1–13 | _Ben's pass pending_ |
 
 ## Term manager pass — after v0.69.0 (2026-10-12, dev)
 

@@ -11,7 +11,8 @@
 // Settings: view preferences, plus the protected-time editor for site
 // admins (canEditSite).
 
-import { ProcessNode, ProcessTree, buildProcessTree, flatProcessOptions, inSubtree } from "../../shared/schema/process";
+import { ProcessNode, ProcessTree, buildProcessTree, flatProcessOptions, inSubtree, typeOf } from "../../shared/schema/process";
+import { mountProcessPicker } from "../../shared/ui/processPicker";
 import { applyThemeVars, defaultTheme, Theme } from "../../shared/tokens";
 import { LTK_BASE_CSS } from "../../shared/ui/baseCss";
 import { copyText } from "../../shared/ui/clipboard";
@@ -209,22 +210,31 @@ export class LeanHubView {
     this.render();
   }
 
-  /** The Process select for the scope's site: "Any process" + the
-   *  type's nodes, indented; nothing when the site has no type. */
-  private processFilter(): HTMLSelectElement | null {
+  /** The Process filter for the scope's site: the cascading picker
+   *  (area › process › sub-process under the site's type, Ben
+   *  2026-10-12 — never a flat list); nothing when the site has no type. */
+  private processFilter(): HTMLElement | null {
     const site = this.scopeOrg.site;
     const typeId = site === "" ? "" : (this.siteTypes[site] ?? "");
-    const options = flatProcessOptions(this.processTree, typeId, site);
-    if (options.length === 0) {
+    if (typeId === "" || flatProcessOptions(this.processTree, typeId, site).length === 0) {
       this.scopeProcess = "";
       return null;
     }
-    if (this.scopeProcess !== "" && !options.some((o) => o.value === this.scopeProcess)) this.scopeProcess = "";
-    return this.select(this.scopeProcess, [{ value: "", label: "Any process" }, ...options.map((o) => ({ value: o.value, label: o.label }))], (v) => {
-      this.scopeProcess = v;
-      this.scopeTouched = true;
-      this.render();
+    if (this.scopeProcess !== "" && typeOf(this.processTree, this.scopeProcess) !== typeId) this.scopeProcess = "";
+    const host = el("span", "ltk-lh-procfilter");
+    mountProcessPicker(host, {
+      tree: this.processTree,
+      siteTypes: this.siteTypes,
+      site,
+      value: this.scopeProcess,
+      selectClass: "ltk-lh-input",
+      onChange: (v) => {
+        this.scopeProcess = v;
+        this.scopeTouched = true;
+        this.render();
+      },
     });
+    return host;
   }
 
   private matchesProcess(meeting: HubMeeting): boolean {

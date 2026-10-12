@@ -28,7 +28,7 @@ import { buildMetricState, loadMetricLasts } from "./metricValues";
 import { newAction } from "../../../shared/schema/actions";
 import { promptConfirm } from "../prompts";
 import { parseOrgTree } from "../../../shared/schema/meeting";
-import { effectiveEnd, groupPrioritiesForPicker, isDescendant, orgName, OrgRef, orgRef, orgLevel, orgPath, periodFor, periodsOnOffer, parsePrioritySettings, ragPaletteKey, sameOrg, spanLiveIn } from "../priorities/model";
+import { effectiveEnd, groupPrioritiesForPicker, isDescendant, orgFromKey, orgKey, orgName, OrgRef, orgRef, orgLevel, orgPath, periodFor, periodsOnOffer, parsePrioritySettings, ragPaletteKey, sameOrg, spanLiveIn } from "../priorities/model";
 import { paletteMap } from "../../../shared/palette";
 import { appPalettes } from "../store/config";
 import { todayIso } from "../../../shared/schema/id";
@@ -46,6 +46,8 @@ import { isFieldEmpty } from "./fieldCodec";
 import { assigneePeople } from "../../../shared/schema/people";
 import { renderInitiativeForm } from "./initiativeForm";
 import { buildProcessTree, flatProcessOptions, inSubtree, processPathLabel } from "../processes/model";
+import { mountProcessPicker } from "../../../shared/ui/processPicker";
+import { mountOrgCascade } from "../priorities/orgCascade";
 import { allSiteProcessTypes, listProcessNodes } from "../store/processes";
 import { initiativeRag } from "../priorities/model";
 import {
@@ -254,23 +256,21 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
       if (ownedOrgKeys.length > 0) {
         const scoped = f.teamScope === "" ? groups.team : groups.team.filter((i) => orgsOf(i).some((o) => orgKeyOf(o).startsWith(f.teamScope.replace(/\|+$/, ""))));
         const head = groupHead(`Owned by my team · ${scoped.length}`);
-        const scope = el("select", "app-input app-im-scope") as HTMLSelectElement;
-        const opts: [string, string][] = [["", "All my orgs + children"]];
-        for (const k of ownedOrgKeys) {
-          const parts = k.split("|").filter((x) => x !== "");
-          opts.push([k, parts[parts.length - 1] ?? k]);
-        }
-        for (const [v, l] of opts) {
-          const o = el("option", "", l) as HTMLOptionElement;
-          o.value = v;
-          if (v === f.teamScope) o.selected = true;
-          scope.appendChild(o);
-        }
-        scope.addEventListener("change", () => {
-          f.teamScope = scope.value;
-          render();
+        // the owned orgs as a cascade (Ben, 2026-10-12): a node is
+        // choosable when it is owned or sits under an owned node
+        const ownedPrefixes = ownedOrgKeys.map((k) => k.replace(/\|+$/, ""));
+        const scopeHost = el("span", "app-im-scope");
+        mountOrgCascade(scopeHost, {
+          tree,
+          value: f.teamScope === "" ? orgRef() : orgFromKey(f.teamScope),
+          selectClass: "app-input",
+          allowed: (o) => ownedPrefixes.some((p) => orgKey(o).replace(/\|+$/, "").startsWith(p) || p.startsWith(orgKey(o).replace(/\|+$/, ""))),
+          onChange: (o) => {
+            f.teamScope = orgKey(o).replace(/\|+$/, "") === "" ? "" : orgKey(o);
+            render();
+          },
         });
-        head.appendChild(scope);
+        head.appendChild(scopeHost);
         table.appendChild(head);
         if (scoped.length === 0) table.appendChild(note(`No initiatives in your orgs for ${f.period || "this period"}.`));
         else table.appendChild(columnHead());
@@ -497,11 +497,22 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
         }
         // Process: the scope site's areas and processes (a pick includes
         // everything beneath it); nothing at company level
-        const procOpts = flatProcessOptions(processTree, processTypeOfScope(), scope.site, 2);
-        if (procOpts.length > 0) {
-          exclusive("Process", procOpts.map((o) => [o.value, o.label.replace(/\u00a0/g, "")] as [string, string]), f.process, "", (v) => {
-            f.process = v;
+        if (processTypeOfScope() !== "" && flatProcessOptions(processTree, processTypeOfScope(), scope.site, 1).length > 0) {
+          // the cascading picker, never a flat list (Ben, 2026-10-12)
+          const procGroup = group("Process");
+          const host = el("div", "app-im-procfilter");
+          mountProcessPicker(host, {
+            tree: processTree,
+            siteTypes,
+            site: scope.site,
+            value: f.process,
+            selectClass: "app-input",
+            onChange: (v) => {
+              f.process = v;
+              render();
+            },
           });
+          procGroup.appendChild(host);
         }
         const flagPills = group("Flags");
         pill(flagPills, "⚑ Flagged only", f.flagOnly, () => {

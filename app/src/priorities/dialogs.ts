@@ -164,35 +164,24 @@ export function field(label: string, control: HTMLElement, hint?: string): HTMLE
 
 export function pickOrg(host: HTMLElement, tree: OrgTree, current: OrgRef): Promise<OrgRef | null> {
   return new Promise((resolve) => {
-    const m = modal(host, "Go to an organisation", "Company, sites, departments and areas.");
-    const list = el("div", "app-cp-orgtree");
+    const m = modal(host, "Go to an organisation", "Company › site › department › area — any level.");
     const done = (o: OrgRef | null) => {
       m.close();
       resolve(o);
     };
-    const row = (o: OrgRef, depth: number) => {
-      const b = el("button", "app-cp-orgtree-row" + (orgKey(o) === orgKey(current) ? " app-cp-orgtree-on" : "")) as HTMLButtonElement;
-      b.type = "button";
-      b.style.paddingLeft = `${10 + depth * 18}px`;
-      b.textContent = orgName(o);
-      b.addEventListener("click", () => done(o));
-      list.appendChild(b);
-    };
-    for (const c of tree.companies) {
-      row(orgRef(c.name), 0);
-      for (const s of c.sites) {
-        row(orgRef(c.name, s.name), 1);
-        for (const d of s.departments) {
-          row(orgRef(c.name, s.name, d.name), 2);
-          for (const a of d.areas) row(orgRef(c.name, s.name, d.name, a), 3);
-        }
-      }
-    }
-    m.body.appendChild(list);
+    // the cascade, never a flat list (Ben, 2026-10-12)
+    const host2 = el("div", "app-cp-orgcascade");
+    void import("./orgCascade").then(({ mountOrgCascade }) => {
+      const cascade = mountOrgCascade(host2, { tree, value: current, selectClass: "app-input", hideSingleCompany: false, onChange: () => undefined });
+      go.addEventListener("click", () => done(cascade.value()));
+    });
+    m.body.appendChild(host2);
+    const go = el("button", "app-btn app-btn-primary", "Go") as HTMLButtonElement;
+    go.type = "button";
     const cancel = el("button", "app-link", "Cancel") as HTMLButtonElement;
     cancel.type = "button";
     cancel.addEventListener("click", () => done(null));
-    m.footer.appendChild(cancel);
+    m.footer.append(cancel, go);
   });
 }
 

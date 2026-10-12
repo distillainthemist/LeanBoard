@@ -7,6 +7,7 @@
 // search the owners & approvers pool (5G1); the dictionary's row order
 // decides the form.
 
+import { mountTermCascade } from "../../../shared/ui/termCascade";
 import { clear, el } from "../../../shared/ui/dom";
 import { searchEntra } from "../store/people";
 import {
@@ -188,6 +189,36 @@ export function buildFieldEditors(opts: FieldEditorOpts): BuiltEditor[] {
         }
       });
       sel.addEventListener("change", sync);
+      // a HIERARCHICAL set (the Organisation unit, the Process area) reads
+      // as cascading selects (Ben, 2026-10-12); the flat select stays the
+      // reader of record (its value is what read() returns), driven by
+      // the cascade and hidden once the walk shows depth
+      let cascade: ReturnType<typeof mountTermCascade> | null = null;
+      const cascadeHost = el("div", "app-docs-termcascade");
+      void fetchTermPaths(opts.site, setId).then((walk) => {
+        if (f.type === "TaxonomyFieldTypeMulti" || walk.nodes.every((n) => n.labels.length <= 1)) return;
+        cascade = mountTermCascade(cascadeHost, {
+          nodes: walk.nodes,
+          value: init?.term?.termId ?? "",
+          selectClass: "app-input",
+          placeholder: (depth) => (depth === 0 ? "—" : "— any —"),
+          onChange: (node) => {
+            sel.value = node ? JSON.stringify({ label: node.labels[node.labels.length - 1], termId: node.id }) : "";
+            if (node && sel.value === "") {
+              // the option is keyed by exact JSON; find it by id
+              for (const o of Array.from(sel.options)) {
+                try {
+                  if (o.value !== "" && (JSON.parse(o.value) as { termId?: string }).termId?.toLowerCase() === node.id.toLowerCase()) sel.value = o.value;
+                } catch {
+                  /* skip */
+                }
+              }
+            }
+            sync();
+          },
+        });
+        sel.style.display = "none";
+      });
       // A9 (feedback round 1): a MULTI column (tags) keeps every term —
       // chips for what the document carries, the select ADDS one; the
       // single select used to replace the lot and prefill only the first
@@ -231,7 +262,9 @@ export function buildFieldEditors(opts: FieldEditorOpts): BuiltEditor[] {
         stack.append(chipBox, sel);
         box.appendChild(fieldRow(labelOf(f) + star, stack));
       } else {
-        box.appendChild(fieldRow(labelOf(f) + star, sel));
+        const single = el("div", "app-docs-termstack");
+        single.append(cascadeHost, sel);
+        box.appendChild(fieldRow(labelOf(f) + star, single));
       }
       // H1: the hashtags column invites PROPOSALS — the vocabulary is
       // closed (controllers mint terms), but anyone may ask

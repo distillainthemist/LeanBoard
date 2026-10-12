@@ -16,6 +16,7 @@ import { listPeople, viewerPerson } from "../../store/people";
 import { listDrivers, saveDriver } from "../../store/valueDrivers";
 import { allSiteProcessTypes, listProcessNodes } from "../../store/processes";
 import { buildProcessTree, flatProcessOptions, inSubtree } from "../../processes/model";
+import { mountProcessPicker } from "../../../../shared/ui/processPicker";
 import { driverActual, listDriverPoints, listDriverRaw, putDriverPoint, refoldDriverPeriod, writePeriodSpread } from "../../store/driverSeries";
 import { parseOrgTree } from "../../../../shared/schema/meeting";
 import { nowIso, todayIso } from "../../../../shared/schema/id";
@@ -208,22 +209,20 @@ export function mountValueDrivers(parent: HTMLElement): () => void {
       const procOpts = flatProcessOptions(processTree, siteTypes[site] ?? "", site);
       if (procOpts.length > 0) {
         if (processFilter !== "" && !procOpts.some((o) => o.value === processFilter)) processFilter = "";
-        const procSel = el("select", "app-input app-vd-sel") as HTMLSelectElement;
-        const any = el("option", "", "Any process") as HTMLOptionElement;
-        any.value = "";
-        procSel.appendChild(any);
-        for (const o of procOpts) {
-          const opt = el("option", "", o.label) as HTMLOptionElement;
-          opt.value = o.value;
-          if (o.value === processFilter) opt.selected = true;
-          procSel.appendChild(opt);
-        }
-        procSel.title = "Dim the drivers outside this process";
-        procSel.addEventListener("change", () => {
-          processFilter = procSel.value;
-          render();
+        // the cascading picker (Ben, 2026-10-12), dimming the drivers outside the pick
+        const procHost = el("span", "app-vd-procpick-filter");
+        mountProcessPicker(procHost, {
+          tree: processTree,
+          siteTypes,
+          site,
+          value: processFilter,
+          selectClass: "app-input app-vd-sel",
+          onChange: (v) => {
+            processFilter = v;
+            render();
+          },
         });
-        bar.append(el("span", "app-field-label", "Process"), procSel);
+        bar.append(el("span", "app-field-label", "Process"), procHost);
       } else processFilter = "";
       bar.appendChild(el("span", "app-cp-muted app-vd-readhint", canEdit() ? "Click a driver to enter its values." : "Click a driver to see its values."));
       if (canEdit()) {

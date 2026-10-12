@@ -569,6 +569,21 @@ dividers. No priority statement here — the card above names it.
   the FLAT indented list (`flatProcessOptions`) in one select; a pick
   includes its subtree. The driver tree DIMS (`.app-vd-dim`) rather
   than hides outside a chosen process, so the links hold.
+- **Hierarchies are picked through CASCADING selects, never a flat
+  list** (Ben, 2026-10-12, "check all locations"): organisation = the
+  OrgTree cascade (`priorities/orgCascade.ts`: company › site ›
+  department › area, "Whole …" placeholders, a reachable-but-not-
+  choosable node marked "›"), process = the process picker, a term
+  set = the term cascade (`shared/ui/termCascade.ts`: a select per
+  level of the walk, any level a leaf). Converted: the Improvement
+  "Owned by my team" scope and its Process filter, the Cadence Process
+  filter, both value-driver Process filters, "Go to an organisation",
+  the Priorities phone head, the phone register's organisation, and
+  the taxonomy field editor for any set with depth (the Organisation
+  unit, the Process area — tags stay chips + a flat adder). Left as
+  they are, by design: the register's Organisation FILTER pills (a
+  multi-pick, OR'd; the folders pane is its tree), the Default filters'
+  site checkboxes, single-level site selects.
 - **Local names read through one rule** (`processLabel(node, site)`):
   the site's name where a site is in scope, the general name
   otherwise, "Casthouse (Casting)" where both are wanted.

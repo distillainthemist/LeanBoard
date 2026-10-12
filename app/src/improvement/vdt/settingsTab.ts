@@ -114,22 +114,20 @@ export async function renderValueDriversSettings(body: HTMLElement): Promise<voi
       return;
     }
     if (processFilter !== "" && !opts.some((o) => o.value === processFilter)) processFilter = "";
-    const sel = el("select", "app-input") as HTMLSelectElement;
-    const any = el("option", "", "Any process") as HTMLOptionElement;
-    any.value = "";
-    sel.appendChild(any);
-    for (const o of opts) {
-      const opt = el("option", "", o.label) as HTMLOptionElement;
-      opt.value = o.value;
-      if (o.value === processFilter) opt.selected = true;
-      sel.appendChild(opt);
-    }
-    sel.title = "Dim the drivers outside this process";
-    sel.addEventListener("change", () => {
-      processFilter = sel.value;
-      paint();
+    // the cascading picker (Ben, 2026-10-12), dimming the drivers outside the pick
+    const host = el("span", "app-vd-procpick-filter");
+    mountProcessPicker(host, {
+      tree: processTree,
+      siteTypes,
+      site,
+      value: processFilter,
+      selectClass: "app-input",
+      onChange: (v) => {
+        processFilter = v;
+        paint();
+      },
     });
-    procFilterHost.append(el("span", "app-field-label", "Process"), sel);
+    procFilterHost.append(el("span", "app-field-label", "Process"), host);
   };
   paintProcFilter();
   top.append(el("span", "app-bar-gap"), procFilterHost);
