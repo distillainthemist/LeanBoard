@@ -1455,6 +1455,12 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-10-13 — released as v0.72.2** (app-only): the shape guard
+  flags a mixed top level (company + sites) whichever way the
+  company-level box is set, the stray-term removal is offered either
+  way, and the guard says "untick" only when the top level is all
+  sites (a company term the app names differently is still "another
+  top-level term"); labels reported in their own spelling.
 - **2026-10-13 — released as v0.72.1** (app-only): the term-sync
   hardening below (walk budget, partial-walk refusal, shape guard,
   stray-term removal, the owed line).
