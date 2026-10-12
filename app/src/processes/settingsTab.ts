@@ -11,8 +11,6 @@ import { openDialog } from "../../../shared/ui/dialog";
 import { settingsSection } from "../settingsSection";
 import { confirmRemoval, promptText } from "../prompts";
 import { listProcessNodes, saveProcessNode, saveProcessNodes, allSiteProcessTypes } from "../store/processes";
-import { orgJson } from "../store/config";
-import { parseOrgTree } from "../../../shared/schema/meeting";
 import { draggableRow } from "../../../shared/ui/dragList";
 import { ProcessLevel, ProcessNode, ProcessTree, buildProcessTree, liveChildren, newNodeId, nextOrder, processLabelWithGeneral } from "./model";
 
@@ -34,7 +32,6 @@ export async function renderProcessesSettings(body: HTMLElement): Promise<void> 
   let tree: ProcessTree = buildProcessTree([]);
   let typeId = "";
   const expanded = new Set<string>();
-  let sites: string[] = [];
   let siteTypes: Record<string, string> = {};
   const say = (e: unknown) => {
     status.textContent = e instanceof Error ? e.message : String(e);
@@ -258,8 +255,10 @@ export async function renderProcessesSettings(body: HTMLElement): Promise<void> 
 
   // ---- local names: a text box per site assigned to this type -----------------
   const openLocalNames = (n: ProcessNode) => {
+    // only the sites assigned this type (Ben, 2026-10-12) — a local name
+    // for a site of another type would never be read
     const assigned = Object.entries(siteTypes).filter(([, v]) => v === typeId).map(([s]) => s);
-    const pool = assigned.length > 0 ? assigned : sites;
+    const pool = assigned;
     const draft: Record<string, string> = { ...n.aliases };
     const dlg = openDialog({
       host: document.body,
@@ -279,7 +278,7 @@ export async function renderProcessesSettings(body: HTMLElement): Promise<void> 
         },
       ],
     });
-    dlg.body.appendChild(el("div", "app-settings-note", assigned.length > 0 ? `What each site assigned to this type calls "${n.name}". Blank = the general name.` : `No site is assigned this type yet — every site is listed. Blank = the general name.`));
+    dlg.body.appendChild(el("div", "app-settings-note", `What each site assigned to this type calls "${n.name}". Blank = the general name.`));
     for (const site of pool) {
       const row = el("div", "app-proc-localrow");
       row.appendChild(el("span", "app-proc-localsite", site));
@@ -290,10 +289,9 @@ export async function renderProcessesSettings(body: HTMLElement): Promise<void> 
       row.appendChild(inp);
       dlg.body.appendChild(row);
     }
-    if (pool.length === 0) dlg.body.appendChild(el("div", "app-field-hint", "No sites are defined yet."));
+    if (pool.length === 0) dlg.body.appendChild(el("div", "app-field-hint", "No site is assigned this type yet — Settings → Organisation → the site card → Process type."));
     dlg.body.appendChild(el("div", "app-field-hint", `Reads as ${processLabelWithGeneral(n, pool[0] ?? "")} on a surface with that site in scope.`));
   };
 
-  sites = parseOrgTree(await orgJson()).map((s) => s.site);
   await reload();
 }
