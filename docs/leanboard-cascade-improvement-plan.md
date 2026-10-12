@@ -1455,12 +1455,16 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
-- **2026-10-12 (after v0.70.0, dev)**: a Teams card on ingestion task
-  creation again (the editor now reads the send's outcome and reports
-  it); cascading organisation and process selects everywhere a flat
-  list stood; the Documents register's per-load timing readout on its
-  status line (docs/timing.ts marks every SharePoint call and term
-  walk; the load summarises its own).
+- **2026-10-12 — released as v0.71.0** (app-only): a Teams card on
+  ingestion task creation again (the editor now reads the send's
+  outcome and reports it); cascading organisation and process selects
+  everywhere a flat list stood; the Documents register's per-load
+  timing readout on its status line for super admins (docs/timing.ts
+  marks every SharePoint call and term walk; the visit's first load
+  clocks from the tab opening and stays on the line; the tooltip lists
+  every load with its trigger) — cut so production can be measured,
+  where the slowness is; dialogs pin their footer (`.app-modal-pinned`:
+  Edit details, the create flow, every priorities modal).
 - **2026-10-12 — released as v0.70.0** (SOLUTION-CARRYING:
   `ben_ltkprocessnode`, `ben_processtype` on the site row,
   `ben_processnodeid` on boards, initiatives and value drivers): the

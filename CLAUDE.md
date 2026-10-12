@@ -346,8 +346,10 @@ Version lives in the tag alone — nothing is stamped into files.
   `ben_processnodeid` × 3; dev-deployed with a token refreshed by
   `exchange-token.mjs` against the SAME resource — no second sign-in)
   — prod imports the managed solution first, then the SharePoint
-  steps for the Process area term set and column. Prod imports the
-  managed solution FIRST.
+  steps for the Process area term set and column; v0.71.0 (2026-10-12:
+  cascading selects, the ingestion Teams card, the Documents timing
+  readout for super admins, pinned dialog footers) is app-only. Prod
+  imports the managed solution FIRST.
 - **One rule, applied everywhere it matters.** A rule that must hold
   for every action or every card lives in ONE pure function and is
   applied at the screen for an honest picture AND at the store's
