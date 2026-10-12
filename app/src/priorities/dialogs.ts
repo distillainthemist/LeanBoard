@@ -129,7 +129,8 @@ export interface ModalHandle {
 
 export function modal(host: HTMLElement, title: string, note?: string, wide = false): ModalHandle {
   const overlay = el("div", "app-modal-overlay");
-  const box = el("div", "app-modal" + (wide ? " app-modal-wide" : ""));
+  // pinned footer: the body scrolls, the buttons stay (Ben, 2026-10-12)
+  const box = el("div", "app-modal app-modal-pinned" + (wide ? " app-modal-wide" : ""));
   box.appendChild(el("div", "app-modal-title", title));
   if (note) box.appendChild(el("div", "app-modal-note", note));
   const body = el("div", "app-cp-modal-body");

@@ -597,6 +597,19 @@ input[type="color"].app-cat-swatch {
   margin-top: 4px;
 }
 .app-modal-footer .app-link { cursor: pointer; border: none; background: none; }
+/* pinned footer (Ben, 2026-10-12: "scroll all the way down to save"):
+   a tall dialog scrolls its BODY, never the box — the title and the
+   Cancel / Save row stay in view. The box is already a flex column, so
+   the body takes the remaining height and scrolls inside it. */
+.app-modal-pinned { overflow: hidden; }
+.app-modal-pinned > .app-cp-modal-body { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; }
+/* the form ground rides on the scrolling body itself, edge to edge */
+.app-modal-pinned.app-modal-form > .app-cp-modal-body { background: #faf9f7; margin: 0 -22px; padding: 12px 22px 14px; border-top: 1px solid #eceae5; border-bottom: 1px solid #eceae5; }
+.app-modal-pinned.app-modal-form .app-if-body { background: none; margin: 0; padding: 0; border: none; }
+@media (max-width: 599px) {
+  .app-modal-pinned.app-modal-form > .app-cp-modal-body { margin: 0 -12px; padding: 10px 12px 12px; }
+  .app-modal-pinned.app-modal-form .app-if-body { margin: 0; padding: 0; }
+}
 
 /* settings screen (v2) */
 .app-nav { flex: 1; }
@@ -3705,6 +3718,7 @@ a.app-ib-folderbtn { text-decoration: none; white-space: nowrap; }
 }
 /* create flow */
 .app-im-create { max-height: calc(100% - 32px); overflow: auto; }
+.app-im-create.app-modal-pinned { overflow: hidden; }
 .app-im-tplgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
 .app-im-tplcard { display: flex; flex-direction: column; gap: 8px; text-align: left; border: 1px solid #e4dfd6; border-radius: 10px; background: #fff; padding: 12px 14px; cursor: pointer; font: inherit; }
 .app-im-tplcard:hover { border-color: var(--app-accent); }

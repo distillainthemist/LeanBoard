@@ -370,7 +370,12 @@ the same commit.
   `.app-modal-wide` = min(92vw, 1080px); `.app-modal-form` =
   min(92vw, 820px) for a long form), title 17px bold, muted note,
   footer Cancel text-link + primary. Reason picklists = chip rows
-  (`.app-cp-reason`, selected dark).
+  (`.app-cp-reason`, selected dark). **A dialog taller than the
+  window pins its footer** (`.app-modal-pinned`, 2026-10-12): the
+  `.app-cp-modal-body` scrolls, the title and the Cancel / Save row
+  stay in view — never make someone scroll to find Save. Every
+  `modal()` dialog (priorities, lifecycle, gantt) and both initiative
+  header forms are pinned; a Done-only dialog may still scroll whole.
 - **A long form is grouped, never tabbed or folded** (the initiative
   header form, 2026-10-08, edit-details-proposal-2026-10.md): named
   groups as section cards on the settings ground, each with a

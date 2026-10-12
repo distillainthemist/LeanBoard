@@ -39,7 +39,8 @@ export interface EditDetailsOpts {
 
 export function openEditDetails(o: EditDetailsOpts): void {
   const overlay = el("div", "app-modal-overlay");
-  const box = el("div", "app-modal app-modal-form app-im-create");
+  // pinned footer: the six-group form scrolls under a fixed Save row
+  const box = el("div", "app-modal app-modal-form app-modal-pinned app-im-create");
   overlay.appendChild(box);
   o.host.appendChild(overlay);
   const close = () => overlay.remove();

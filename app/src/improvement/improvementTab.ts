@@ -836,7 +836,7 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
 
     const openCreate = (lockedPriority?: { priorityId: string; label: string }) => {
       const scrim = el("div", "app-modal-overlay");
-      const box = el("div", "app-modal app-modal-wide app-im-create");
+      const box = el("div", "app-modal app-modal-wide app-modal-pinned app-im-create");
       scrim.appendChild(box);
       wrap.appendChild(scrim);
       const close = () => scrim.remove();
@@ -879,7 +879,10 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
           grid.appendChild(card);
         }
         if (ordered.length === 0) grid.appendChild(el("div", "app-settings-note", "No active templates — a super admin authors them in Settings → Improvement."));
-        box.appendChild(grid);
+        // the grid scrolls under the pinned footer (many templates)
+        const pickBody = el("div", "app-cp-modal-body");
+        pickBody.appendChild(grid);
+        box.appendChild(pickBody);
         const foot = el("div", "app-modal-footer");
         const cancel = btn("Cancel", "app-link");
         cancel.addEventListener("click", close);
