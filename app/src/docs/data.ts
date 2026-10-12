@@ -122,7 +122,16 @@ export async function renderListPage(
         }),
       }
     );
-    if (r.ok) return { ...parseRenderPage(r.data, listId), error: "" };
+    if (r.ok) {
+      const page = parseRenderPage(r.data, listId);
+      // the readout learns how much of the page was documents: a page
+      // of folders (dropped client-side) costs a round trip for nothing
+      if (r.mark) {
+        const raw = Array.isArray((r.data as { Row?: unknown[] } | null)?.Row) ? (r.data as { Row: unknown[] }).Row.length : page.rows.length;
+        r.mark.note += ` ${page.rows.length}/${raw} rows of ${rowLimitOf(xml)} asked${page.next === "" ? ", last page" : ""}`;
+      }
+      return { ...page, error: "" };
+    }
     // a cut-off body (mobile bridge) is retried at half the page size —
     // the floor gives up and reports, everything else reports at once
     const rows = rowLimitOf(xml);

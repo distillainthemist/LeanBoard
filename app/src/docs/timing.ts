@@ -29,9 +29,11 @@ export const now = (): number =>
     ? performance.now()
     : Date.now();
 
-export function markTiming(kind: TimingKind, at: number, note = "", failed = false): void {
-  marks.push({ kind, ms: Math.max(0, now() - at), note, failed, at });
+export function markTiming(kind: TimingKind, at: number, note = "", failed = false): TimingMark {
+  const mark: TimingMark = { kind, ms: Math.max(0, now() - at), note, failed, at };
+  marks.push(mark);
   if (marks.length > KEEP) marks.splice(0, marks.length - KEEP);
+  return mark;
 }
 
 /** The marks whose call started at or after `since` (a load's own). */

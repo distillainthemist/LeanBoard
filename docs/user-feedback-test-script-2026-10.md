@@ -349,7 +349,10 @@ Needs the ingestion library set up (document-ingestion-proposal §8).
    status line ends with "… after opening · feed … ×n · app data …" on
    the visit's first load and "loaded in … · feed …" on every later one
    (search, scroll-paging, a filter); hover reads each call; a site
-   admin or user sees the plain count.
+   admin or user sees the plain count. After v0.71.0: the tooltip's
+   Load 1 is the open itself (never "next page, scroll"), and "opened
+   in" is close to the feed time — the stray scroll page and the
+   vocabulary wait are gone.
 
 | Item | Outcome |
 |---|---|

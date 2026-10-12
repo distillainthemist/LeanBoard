@@ -1455,6 +1455,13 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-10-12 (after v0.71.0, dev)**: the production timing tooltip
+  named the Documents open cost — a scroll page fired on the empty
+  list before the first load (50 unfiltered rows, 8 feed calls) and
+  the status-vocabulary read gated the real load; paging now follows a
+  reset only, last visit's vocabulary opens the register at once with
+  the live read behind, and feed marks say how many rows each page
+  kept of those returned.
 - **2026-10-12 — released as v0.71.0** (app-only): a Teams card on
   ingestion task creation again (the editor now reads the send's
   outcome and reports it); cascading organisation and process selects

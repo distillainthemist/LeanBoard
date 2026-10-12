@@ -15,7 +15,7 @@ import { getClient } from "@microsoft/power-apps/data";
 import { dataSourcesInfo } from "../../.power/schemas/appschemas/dataSourcesInfo";
 import { termTreeOrder } from "./rows";
 import { bytesToBase64, spQuote } from "./model";
-import { kindOfUri, markTiming, now as tnow } from "./timing";
+import { kindOfUri, markTiming, now as tnow, TimingMark } from "./timing";
 
 // the import is for side effect typing only — the data source must exist
 // in the app for the connection to be present at runtime
@@ -25,6 +25,9 @@ export interface SpResult {
   ok: boolean;
   status: string;
   data: unknown;
+  /** This call's timing mark — a caller that learns more (rows kept
+   *  of rows returned) appends it to the mark's note. */
+  mark?: TimingMark;
 }
 
 let declared = false;
@@ -72,7 +75,12 @@ export async function spRequest(
   // register's status line reads the marks made during its load
   const kind = kindOfUri(uri);
   const t0 = tnow();
-  const note = kind === "feed" || kind === "count" ? (uri.match(/guid'([^']+)'/)?.[1] ?? "").slice(0, 8) : "";
+  // the note names the call: a list id for feeds and counts, the
+  // road's last two path segments for everything else
+  const note =
+    kind === "feed" || kind === "count"
+      ? (uri.match(/guid'([^']+)'/)?.[1] ?? "").slice(0, 8)
+      : uri.replace(/\?.*$/, "").split("/").filter((s) => s !== "").slice(-2).join("/").slice(0, 48);
   try {
     const r = (await client.executeAsync<object, unknown>({
       connectorOperation: {
@@ -108,8 +116,8 @@ export async function spRequest(
       markTiming(kind, t0, note, true);
       return { ok: false, status: summarizeError(r.error), data: r.error ?? null };
     }
-    markTiming(kind, t0, note);
-    return { ok: true, status: "", data: (r as { data?: unknown })?.data ?? null };
+    const mark = markTiming(kind, t0, note);
+    return { ok: true, status: "", data: (r as { data?: unknown })?.data ?? null, mark };
   } catch (e) {
     console.error("[docs] SharePoint request threw", method, uri, e);
     markTiming(kind, t0, note, true);

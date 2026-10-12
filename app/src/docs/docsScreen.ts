@@ -3102,29 +3102,63 @@ export function mountDocs(
       return true;
     };
 
-    const readStatusTerms = async (): Promise<void> => {
-      if (statusCol === null || statusCol.termSetId === "") return;
-      const r = await fetchTermsInSet(app.siteUrl, statusCol.termSetId);
-      const rows = Array.isArray((r.data as { value?: unknown[] })?.value)
-        ? ((r.data as { value: unknown[] }).value as Record<string, unknown>[])
-        : [];
-      const labels: string[] = [];
+    const applyStatusTerms = (list: { id: string; label: string }[]) => {
       statusTermList.length = 0;
-      for (const t of rows) {
-        const names = t.labels as { name?: string; isDefault?: boolean }[] | undefined;
-        const def = Array.isArray(names) ? (names.find((l) => l.isDefault) ?? names[0]) : undefined;
-        const name = (def?.name ?? "").trim();
-        if (name === "") continue;
-        labels.push(name);
-        if (typeof t.id === "string") {
-          labelToId.set(name.toLowerCase(), t.id);
-          statusTermList.push({ id: t.id, label: name });
-        }
+      for (const t of list) {
+        labelToId.set(t.label.toLowerCase(), t.id);
+        statusTermList.push({ id: t.id, label: t.label });
       }
       // "approved" is whatever this site's vocabulary calls current —
       // the same reading the status glyphs use, so ✓ and "only Approved"
       // can never disagree about what a value means
-      approvedLabels = labels.filter((l) => !isNonCurrentStatus(l));
+      approvedLabels = list.map((t) => t.label).filter((l) => !isNonCurrentStatus(l));
+    };
+    const parseStatusTerms = (r: { data: unknown }): { id: string; label: string }[] => {
+      const rows = Array.isArray((r.data as { value?: unknown[] })?.value)
+        ? ((r.data as { value: unknown[] }).value as Record<string, unknown>[])
+        : [];
+      const out: { id: string; label: string }[] = [];
+      for (const t of rows) {
+        const names = t.labels as { name?: string; isDefault?: boolean }[] | undefined;
+        const def = Array.isArray(names) ? (names.find((l) => l.isDefault) ?? names[0]) : undefined;
+        const name = (def?.name ?? "").trim();
+        if (name !== "" && typeof t.id === "string") out.push({ id: t.id, label: name });
+      }
+      return out;
+    };
+    // The first load waits for the status vocabulary (the approved
+    // default rides it), and in production that read took 2.1 s before
+    // any row could be asked for (Ben, 2026-10-12). The first-page
+    // pattern applies: LAST visit's vocabulary opens the register at
+    // once while the live read refreshes it behind. The CAML filters by
+    // label, so a term re-id'd since is harmless; a term renamed since
+    // catches up on the next open.
+    const readStatusTerms = async (): Promise<void> => {
+      if (statusCol === null || statusCol.termSetId === "") return;
+      const key = `ltk-docsstatus|${siteKey(app.siteUrl)}|${statusCol.termSetId}`;
+      const live = fetchTermsInSet(app.siteUrl, statusCol.termSetId).then((r) => {
+        const list = parseStatusTerms(r);
+        if (list.length === 0) return false;
+        if (!dead) applyStatusTerms(list);
+        try {
+          localStorage.setItem(key, JSON.stringify(list));
+        } catch {
+          /* storage full or absent — the next open reads live again */
+        }
+        return true;
+      });
+      try {
+        const raw = localStorage.getItem(key);
+        const cached = raw !== null ? (JSON.parse(raw) as { id: string; label: string }[]) : null;
+        if (Array.isArray(cached) && cached.length > 0 && cached.every((t) => typeof t.id === "string" && typeof t.label === "string")) {
+          applyStatusTerms(cached);
+          return;
+        }
+      } catch {
+        /* an unreadable cache waits for the live read, as before */
+      }
+      const ok = await live;
+      if (!ok) statusTermList.length = 0;
     };
 
     // The row anatomy (status chip, owner avatar, name cell, column
@@ -4345,6 +4379,12 @@ export function mountDocs(
     /** `why` names the caller on the timing readout (Ben, 2026-10-12:
      *  a second load on every open — which one?). */
     const load = async (reset: boolean, why = ""): Promise<void> => {
+      // the list's near-end sentinel is visible on an EMPTY list, so it
+      // asked for a page a tenth of a second after opening — a full,
+      // unfiltered page across every library, with the real first load
+      // waiting behind it (Ben's production tooltip, 2026-10-12: 4.2 s
+      // to rows, 10 s of feed). Paging only ever follows a reset.
+      if (!reset && generation === 0) return;
       if (inFlight) {
         if (reset) pendingReset = true;
         return;

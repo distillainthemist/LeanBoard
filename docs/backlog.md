@@ -327,9 +327,19 @@ the test script.
   the visit's first load clocked from the tab opening ("3.4 s after
   opening · feed … · app data …") so the config read and the pre-list
   work show (hover for the call-by-call list; a throttled call reads
-  "refused"). Ben's first two readouts (2026-10-12): 477 ms and 595 ms
-  to rows, feeds of ~500 ms per library in parallel — the list query
-  is not where the time goes. Read it on a
+  "refused"). Dev readouts (2026-10-12): under 600 ms to rows. The
+  PRODUCTION tooltip (v0.71.0) found it: "Load 1 (next page, scroll,
+  started 0.1 s after opening)" — the list's near-end sentinel fired
+  on the empty list and paged a full unfiltered 50 rows (8 feed calls,
+  10 s of SharePoint) while the real first load waited as a replayed
+  reset at 4.2 s; the status-vocabulary read (2.1 s) gated that first
+  load too. FIXED after v0.71.0: paging only follows a reset
+  (`generation === 0` guard), and last visit's status vocabulary opens
+  the register at once (localStorage `ltk-docsstatus|site|set`, live
+  read refreshes behind). Feed notes now read "kept/returned rows of N
+  asked" — one production library needed seven pages for 50 rows,
+  which that note will explain (folders dropped client-side?). Read
+  the readout on a
   slow load before chasing a cause: a long feed with few calls is
   SharePoint (library growth or a throttle after an ingestion burst);
   a term walk is the filter pane after a term-store edit emptied the
