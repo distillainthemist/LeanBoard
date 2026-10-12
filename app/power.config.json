@@ -177,6 +177,14 @@
         "leanboardingestiontasks": {
           "entitySetName": "ben_ltkingestiontasks",
           "logicalName": "ben_ltkingestiontask"
+        },
+        "leanboardprocessnodes": {
+          "entitySetName": "ben_ltkprocessnodes",
+          "logicalName": "ben_ltkprocessnode"
+        },
+        "boards": {
+          "entitySetName": "ben_ltkboards",
+          "logicalName": "ben_ltkboard"
         }
       },
       "environmentVariableName": ""

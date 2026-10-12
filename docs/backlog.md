@@ -289,9 +289,10 @@ user-feedback-test-script-2026-10.md. Released v0.65.0 / v0.65.1.
 ## Term store & processes — the plan (2026-10-12)
 
 term-store-proposal-2026-10.md. Steps 1 (the term manager, with
-colours) and 2 (the rename journal + term binding + ID-first planner +
-the sync warning) BUILT 2026-10-12; next: 3 the process model (types, three levels, local
-names, one table — solution-carrying); 4 process on rituals,
+colours), 2 (the rename journal + term binding + ID-first planner +
+the sync warning) and 3 (the process model — schema, Settings →
+Processes, the site's type, local names; SOLUTION-CARRYING) BUILT
+2026-10-12; next: 4 the picker and process on rituals,
 initiatives, value drivers and their filters; 5 the Process area term
 set via `syncedSets`.
 

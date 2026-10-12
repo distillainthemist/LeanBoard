@@ -848,6 +848,14 @@ Key concepts (details: [leanboard-standard-documents-plan.md](leanboard-standard
   (`docs/orgJournal.ts`), every sync binds app paths to term ids
   (`termBindings`), and `orgSyncPlan` reads both before it infers from
   labels. Next: the process model and its synced set (proposal §6).
+- **The process model** (2026-10-12, proposal §6): `ben_ltkprocessnode`
+  — one row per node (type · area · process · sub-process), local names
+  per site as JSON, a bound term id; `processes/model.ts` holds the
+  tree and the ONE display rule `processLabel(node, site)`; Settings →
+  Processes edits it (writes at once, archive never delete); a site's
+  type sits on its settings row (`ben_processtype`); boards, initiatives
+  and value drivers carry an optional `ben_processnodeid` (consumers in
+  step 4). Solution-carrying.
 - **Document ingestion** (2026-10-08, [document-ingestion-proposal-2026-10.md](document-ingestion-proposal-2026-10.md)).
   A site's bulk-drop library (type "ingestion", never in the register)
   holds one folder per task (`ben_ltkingestiontask`: destination,

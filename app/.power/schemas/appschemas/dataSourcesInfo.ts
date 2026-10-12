@@ -12,6 +12,13 @@ export const dataSourcesInfo = {
     "dataSourceType": "Dataverse",
     "apis": {}
   },
+  "ben_ltkboards": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "ben_ltkboardid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
   "ben_ltkactionfiles": {
     "tableId": "",
     "version": "",
@@ -103,6 +110,13 @@ export const dataSourcesInfo = {
     "dataSourceType": "Dataverse",
     "apis": {}
   },
+  "ben_ltkprocessnodes": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "ben_ltkprocessnodeid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
   "ben_ltktagproposals": {
     "tableId": "",
     "version": "",
@@ -121,13 +135,6 @@ export const dataSourcesInfo = {
     "tableId": "",
     "version": "",
     "primaryKey": "ben_ltkboardinstanceid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "ben_ltkboards": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "ben_ltkboardid",
     "dataSourceType": "Dataverse",
     "apis": {}
   },

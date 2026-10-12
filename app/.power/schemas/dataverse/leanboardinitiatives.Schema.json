@@ -212,6 +212,14 @@
           "x-ms-schema-name": "ben_prioritiesjson",
           "maxLength": 4000
         },
+        "ben_processnodeid": {
+          "type": "string",
+          "title": "Process (node id)",
+          "x-ms-dataverse-attribute": "ben_processnodeid",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "ben_processnodeid",
+          "maxLength": 40
+        },
         "ben_rolesjson": {
           "type": "string",
           "title": "Roles (JSON)",

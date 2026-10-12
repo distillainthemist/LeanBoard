@@ -26,6 +26,7 @@ export interface Ben_ltkvaluedriversBase {
   ben_name?: string;
   ben_order?: number;
   ben_parentid?: string;
+  ben_processnodeid?: string;
   ben_site?: string;
   ben_source?: string;
   ben_sourceurl?: string;

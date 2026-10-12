@@ -164,6 +164,14 @@
           "x-ms-schema-name": "ben_prioritysettings",
           "maxLength": 4000
         },
+        "ben_processtype": {
+          "type": "string",
+          "title": "Process type (process node id)",
+          "x-ms-dataverse-attribute": "ben_processtype",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "ben_processtype",
+          "maxLength": 40
+        },
         "ben_protectedtimes": {
           "type": "string",
           "title": "Protected Times (JSON)",

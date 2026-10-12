@@ -50,6 +50,7 @@ export const TABLES = [
       ben_istemplate: { kind: "bool", display: "Is Template" },
       ben_isarchived: { kind: "bool", display: "Archived", default: false },
       ben_site: { ...text(100), display: "Site" },
+      ben_processnodeid: { ...text(40), display: "Process (node id)" }, // optional, term-store-proposal §6
       ben_department: { ...text(100), display: "Department" },
     },
     key: ["ben_boardid"],
@@ -163,6 +164,7 @@ export const TABLES = [
       // {companies:{name}}), and the app-level priorities settings on the
       // APP_ROW ({ragRatioPct, period:{mode,startMonth,prefix}, currentPeriod})
       ben_orgvisions: { ...memo(20000), display: "Org visions (JSON)" },
+      ben_processtype: { ...text(40), display: "Process type (process node id)" }, // term-store-proposal §6, 2026-10-12
       ben_prioritysettings: { ...memo(4000), display: "Priorities settings (JSON)" },
       // per-site hub tabs (Ben, 2026-08-19): JSON array of enabled tab keys
       // (myday · calendar · priorities · actions · documents); blank = all.
@@ -408,6 +410,30 @@ export const TABLES = [
     role: { delete: true },
   },
   {
+    // The process model (term-store-proposal-2026-10.md §6, 2026-10-12):
+    // one row per node at every level — 0 a process TYPE (Mine, Refinery,
+    // Smelter), 1 an area, 2 a process, 3 a sub-process. A site is
+    // assigned a type; a node's local names per site ride as JSON; the
+    // term binding is the synced term's id. Archived, never deleted,
+    // once anything references a node.
+    schema: "ben_LTKProcessNode",
+    logical: "ben_ltkprocessnode",
+    display: "LeanBoard Process Node",
+    plural: "LeanBoard Process Nodes",
+    primaryNameMax: 200,
+    columns: {
+      ben_nodeid: { ...text(40), display: "Node id", required: true },
+      ben_parentid: { ...text(40), display: "Parent node id" },
+      ben_level: { ...text(2), display: "Level (0 type · 1 area · 2 process · 3 sub-process)" },
+      ben_order: { ...text(10), display: "Order (numeric string)" },
+      ben_termid: { ...text(40), display: "Bound term id" },
+      ben_aliasesjson: { ...memo(20000), display: "Local names per site (JSON)" },
+      ben_isarchived: { kind: "bool", display: "Archived", default: false },
+    },
+    key: ["ben_nodeid"],
+    role: { delete: true },
+  },
+  {
     // +1/subscribe — the update fan-out audience beyond the reporter
     schema: "ben_LTKIssueWatch",
     logical: "ben_ltkissuewatch",
@@ -441,6 +467,7 @@ export const TABLES = [
       ben_unit: { ...text(40), display: "Unit" },
       ben_source: { ...text(200), display: "Source (in words)" },
       ben_sourceurl: { ...text(1000), display: "Source link" },
+      ben_processnodeid: { ...text(40), display: "Process (node id)" }, // optional, term-store-proposal §6
       ben_kind: { ...text(10), display: "Kind (driver|leading)" },
       ben_formula: { ...memo(2000), display: "Formula" },
       ben_cadence: { ...text(10), display: "Cadence" },
@@ -656,6 +683,7 @@ export const TABLES = [
       ben_gatejson: { ...memo(4000), display: "Pending gate (JSON)" },
       ben_stagetargetsjson: { ...memo(2000), display: "Stage target dates (JSON)" },
       ben_alsoorgsjson: { ...memo(4000), display: "Also shown in (orgs JSON)" }, // further departments an initiative is listed under (2026-09-17)
+      ben_processnodeid: { ...text(40), display: "Process (node id)" }, // optional, term-store-proposal §6
     },
     key: ["ben_initiativeid"],
     role: { delete: true },

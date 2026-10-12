@@ -33,6 +33,7 @@ export interface Ben_ltkinitiativesBase {
   ben_name?: string;
   ben_period?: string;
   ben_prioritiesjson?: string;
+  ben_processnodeid?: string;
   ben_rolesjson?: string;
   ben_singleaction?: boolean;
   ben_site?: string;

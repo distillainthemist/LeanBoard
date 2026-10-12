@@ -189,6 +189,7 @@ someone does the portal Add-existing step there.
 | v0.53.0 | `ben_confidential`, `ben_createdby`, `ben_visiblejson` on `ben_ltkaction` | confidential actions; the Office 365 Users connection is used for the manager lookup — its connection reference must be satisfied at import |
 | v0.54.0 | `ben_alsoorgsjson` on `ben_ltkinitiative` | initiatives listed under several departments |
 | v0.62.0 | `ben_toperiod`, `ben_plannedend` on `ben_ltkpriority`; `ben_fromperiod`, `ben_toperiod` on `ben_ltkpillar`; `ben_toperiod` on `ben_ltkinitiative` | priorities span years (no migration — a row closed before ends were stamped reads as ending in its start period); re-parenting |
+| next | `ben_ltkprocessnode` (new table, key `ben_nodeid`); `ben_processtype` on `ben_ltksitesettings`; `ben_processnodeid` on `ben_ltkboard`, `ben_ltkvaluedriver`, `ben_ltkinitiative` | the process model (term-store-proposal §6): types, areas, processes, sub-processes, local names; no SharePoint step until the Process area term set (step 5) |
 | v0.69.0 | `ben_ltkingestiontask` (new table) | document ingestion tasks; SharePoint step: create the bulk-drop library (no check-out, no content approval, major versions only, Members contribute, the site columns) and expose it as type "Ingestion" in Settings → Documents |
 
 v0.52.0, v0.55.0 through v0.61.0, and v0.63.0 through v0.68.0 were app-only; v0.69.0 carries the ingestion table. After a solution import, existing

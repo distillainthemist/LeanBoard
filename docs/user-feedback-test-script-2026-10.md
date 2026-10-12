@@ -209,6 +209,24 @@ On a desktop.
 |---|---|
 | 1–10 | _Ben's pass pending_ |
 
+## Processes pass — after v0.69.0 (2026-10-12, dev; solution-carrying)
+
+1. **Types** — Settings → Processes: ＋ New type… "Smelter"; a second
+   "Refinery"; the chips switch the tree.
+2. **Tree** — under Smelter: ＋ Add area "Casting"; expand it; ＋ Add
+   process "Ingot casting"; under that ＋ Add sub-process "Line 2";
+   Rename a node; ↑ ↓ reorder two areas; × Archive a sub-process (it
+   leaves the tree; the row stays in Dataverse as archived).
+3. **Site** — Settings → Organisation → a site card → Process type:
+   Smelter; the Processes tab's Smelter chip hover names the site.
+4. **Local names** — on "Casting" → Local names… → the site's box:
+   "Casthouse" → Save; the row reads "1 local name"; the dialog's hint
+   reads "Casthouse (Casting)".
+
+| Item | Outcome |
+|---|---|
+| 1–4 | _Ben's pass pending_ |
+
 ## Term manager pass — after v0.69.0 (2026-10-12, dev)
 
 1. **Open** — Settings → Documents → Term sets & colours → "Manage

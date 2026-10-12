@@ -25,6 +25,7 @@ export interface Ben_ltkboardsBase {
   ben_name?: string;
   ben_occurrencesettings?: string;
   ben_peoplejson?: string;
+  ben_processnodeid?: string;
   ben_site?: string;
   importsequencenumber?: number;
   overriddencreatedon?: string;

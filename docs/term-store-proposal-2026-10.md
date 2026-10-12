@@ -283,6 +283,32 @@ scoping is the app's, and the term store receives the consequence:
 - **Renaming a local name is not a term rename**: it is one synonym
   out, one in; the journal is for default labels only.
 
+### Status — the model BUILT 2026-10-12 (dev, unreleased; SOLUTION-CARRYING)
+
+- **Schema** (deployed to dev with a refreshed token — no new sign-in):
+  `ben_ltkprocessnode` (`ben_nodeid` key, `ben_parentid`, `ben_level`,
+  `ben_order`, `ben_termid`, `ben_aliasesjson`, `ben_isarchived`);
+  `ben_processtype` on the site row; `ben_processnodeid` on boards,
+  initiatives and value drivers (optional — step 4 wires them). Five
+  services regenerated.
+- **Model** `processes/model.ts` (pure, tested): rows ↔ nodes,
+  `buildProcessTree`, `liveChildren`, `processPath` / `typeOf` /
+  `processPathLabel`, `nextOrder`, `reorder`, and THE display rule
+  `processLabel(node, site)` / `processLabelWithGeneral`.
+- **Store** `store/processes.ts`: cached list, upsert by node id
+  through `writing()`, the site's type.
+- **Settings → Processes** (super admins, `processes/settingsTab.ts`):
+  the type strip (chip per type, hover lists its sites, ＋ New type…),
+  the selected type's tree in the Organisation page's collapsible-row
+  idiom — ＋ Add area / process / sub-process, Rename, ↑ ↓, Local
+  names… (a text box per site assigned to the type, else every site;
+  blank or equal to the general name = none), × Archive (never delete;
+  children go with it). Writes land at once.
+- **Organisation → site card**: "Process type" select beside Hub tabs
+  and Cascade customisation, saved on change.
+- Not yet: the picker and the consumers (step 4), the Process area
+  term set and the renames journal for it (step 5).
+
 ### Order and effort
 
 1. **The term manager** (§3) — three days; independent of the model,

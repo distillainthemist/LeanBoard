@@ -4552,3 +4552,19 @@ input.app-vg-in.app-vg-folded { background: #fff7e0; }
 .app-tm-colourpick { width: 200px; }
 .app-docs-syncnow { margin: 4px 0 10px; }
 @media (max-width: 899px) { .app-tm-body { grid-template-columns: 1fr; grid-template-rows: 40% 1fr; } .app-tm-tree { border-right: none; border-bottom: 1px solid #eceae5; } }
+
+/* ---- Settings → Processes (2026-10-12) ---- */
+.app-proc-types { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 4px 0 12px; }
+.app-proc-tree { display: flex; flex-direction: column; gap: 8px; }
+.app-proc-typehead { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 4px 0 6px; border-bottom: 1px solid #eceae5; }
+.app-proc-typename { font-size: 15px; font-weight: 700; }
+.app-proc-node { display: flex; flex-direction: column; }
+.app-proc-row { min-height: 34px; flex-wrap: nowrap; }
+.app-proc-name { font-size: 13.5px; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app-proc-row .app-link { font-size: 12.5px; padding: 2px 6px; min-height: 30px; }
+.app-proc-move { color: #8b8478; }
+.app-proc-children { display: flex; flex-direction: column; }
+.app-proc-add { align-self: flex-start; font-size: 12.5px; padding: 4px 6px; margin-left: 22px; }
+.app-proc-localrow { display: flex; align-items: center; gap: 10px; }
+.app-proc-localsite { width: 140px; flex: none; font-size: 13px; font-weight: 600; }
+.app-proc-localrow .app-input { flex: 1; min-width: 0; }
