@@ -23,7 +23,8 @@ switches. Sub-headings per tab, counted from the code:
 | Access control | 2 — app access group · Document control groups | `.app-section` |
 | Improvement | 4 — Initiative templates (first since 2026-10-08) · Methods · Standard fields · Health-check questions | `h3.app-pr-h3` + note |
 | Value drivers, Issues | 1 each | `h3.app-pr-h3` / `.app-section` |
-| Organisation | none — its own company → site rail and an editor pane (each site card: hub tabs and, since 2026-10-08, Cascade customisation) | `.app-org-split` |
+| Organisation | none — its own company → site rail and an editor pane (each site card: hub tabs, Cascade customisation and, since 2026-10-12, Process type) | `.app-org-split` |
+| Process | 1 — the type strip and the tree (super admins); a site admin sees their site's type read-only and sets its local names (2026-10-12) | `settingsSection` |
 | Users | none — the register (2026-10-08: one search box; "Search directory & add" opens directory matches with inline placement) | grid |
 
 Two findings before any navigation is added:

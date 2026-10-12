@@ -791,6 +791,16 @@ input[type="color"].app-cat-swatch {
 .app-settings-tabsrow .app-settings-tabs { flex: 1; }
 .app-settings-tabsrow .app-viewas { align-self: center; flex: 0 0 auto; }
 .app-settings-tabsrow .app-settings-tabs { flex: 1; min-width: 0; overflow-x: auto; }
+/* the tab strip under 1440px (Ben, 2026-10-12: too many tabs to scroll):
+   compact type first, then the tabs WRAP onto a second line instead of
+   scrolling sideways; View as stays pinned at the right */
+@media (max-width: 1440px) {
+  .app-settings-tab { font-size: 14px; padding: 10px 11px 8px; }
+}
+@media (max-width: 1180px) {
+  .app-settings-tabsrow .app-settings-tabs { flex-wrap: wrap; overflow-x: visible; row-gap: 0; }
+  .app-settings-tab { font-size: 13.5px; padding: 9px 10px 7px; }
+}
 /* the single settings card: tabs row on top, body below, no gap */
 .app-settings-card {
   display: flex;

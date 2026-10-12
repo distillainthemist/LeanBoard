@@ -276,6 +276,18 @@ export function mountSettings(parent: HTMLElement, initialTab = ""): () => void 
     if (isAdmin) {
       tabs.push({ key: "users", label: "Users", render: () => renderUsers(body, me) });
       tabs.push({ key: "org", label: "Organisation", render: () => renderOrg(body, me, ctx) });
+      // the process model (term-store-proposal §6), after Organisation (Ben,
+      // 2026-10-12): super admins edit it; a site admin sees their site's
+      // type and sets the site's local names (the tab hides below when the
+      // site has no type)
+      tabs.push({
+        key: "processes",
+        label: "Process",
+        render: async () => {
+          const { renderProcessesSettings } = await import("../processes/settingsTab");
+          await renderProcessesSettings(body, { me });
+        },
+      });
       tabs.push({
         key: "cadence",
         label: "Site cadence",
@@ -300,15 +312,6 @@ export function mountSettings(parent: HTMLElement, initialTab = ""): () => void 
         render: async () => {
           const { renderImprovementSettings } = await import("../improvement/templateWizard");
           await renderImprovementSettings(body, true);
-        },
-      });
-      tabs.push({
-        key: "processes",
-        label: "Processes",
-        // the process model (term-store-proposal §6) — lazy like the rest
-        render: async () => {
-          const { renderProcessesSettings } = await import("../processes/settingsTab");
-          await renderProcessesSettings(body);
         },
       });
       tabs.push({
@@ -383,6 +386,14 @@ export function mountSettings(parent: HTMLElement, initialTab = ""): () => void 
       paintSaveBar();
     };
     renderTabs();
+    // a site admin's Process tab shows only when their site has a type
+    if (me.role === "siteadmin") {
+      void import("../store/processes").then(({ allSiteProcessTypes }) =>
+        allSiteProcessTypes().then((types) => {
+          if ((types[me.site] ?? "") === "") tabsBar.querySelector<HTMLElement>('[data-key="processes"]')?.remove();
+        }).catch(() => undefined)
+      );
+    }
     await tabByKey(current).render();
     sectionStrip.refresh();
 

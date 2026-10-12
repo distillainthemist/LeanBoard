@@ -253,9 +253,18 @@ On a desktop.
    tag a document; the register's filter on it includes a parent's
    subtree.
 
+11. **Site admin** — as a site admin of a site WITH a type: the
+   "Process" tab (after Organisation) shows that type read-only — no
+   adders, handles, rename or archive — and "Local name…" on a node
+   offers only that site's box; as a site admin of a site without a
+   type the tab is absent.
+12. **Narrow window** — shrink the settings window: the tabs compact
+   under 1440px and wrap onto a second line under 1180px; nothing
+   scrolls sideways; View as stays at the right.
+
 | Item | Outcome |
 |---|---|
-| 1–10 | _Ben's pass pending_ |
+| 1–12 | _Ben's pass pending_ |
 
 ## Term manager pass — after v0.69.0 (2026-10-12, dev)
 

@@ -20,9 +20,24 @@ const btn = (label: string, cls = "app-btn"): HTMLButtonElement => {
   return b;
 };
 
-export async function renderProcessesSettings(body: HTMLElement): Promise<void> {
+export interface ProcessesSettingsOpts {
+  /** The viewer: a site admin sees their site's type, read-only, and
+   *  edits only that site's local names (Ben, 2026-10-12). */
+  me: { role: string; site: string };
+}
+
+export async function renderProcessesSettings(body: HTMLElement, o: ProcessesSettingsOpts): Promise<void> {
   clear(body);
-  body.appendChild(settingsSection("Processes", "A process type (Mine, Refinery, Smelter…) is a hierarchy of area › process › sub-process. A site is assigned a type on the Organisation page; rituals, initiatives, value drivers and documents may then name a process, always optionally. A node's local names say what one site calls it — \"Casthouse\" for \"Casting\"."));
+  const siteOnly = o.me.role === "siteadmin" ? o.me.site : "";
+  const canEdit = siteOnly === "";
+  body.appendChild(
+    settingsSection(
+      "Process",
+      canEdit
+        ? "A process type (Mine, Refinery, Smelter…) is a hierarchy of area › process › sub-process. A site is assigned a type on the Organisation page; rituals, initiatives, value drivers and documents may then name a process, always optionally. A node's local names say what one site calls it — \"Casthouse\" for \"Casting\"."
+        : `${siteOnly}'s processes. The hierarchy is managed by a super admin; set here what ${siteOnly} calls each process — "Casthouse" for "Casting" — and that name reads on ${siteOnly}'s rituals, initiatives, value drivers and documents.`
+    )
+  );
   const strip = el("div", "app-proc-types");
   const treeHost = el("div", "app-proc-tree");
   const status = el("div", "app-cp-err", "");
@@ -40,7 +55,8 @@ export async function renderProcessesSettings(body: HTMLElement): Promise<void> 
   const reload = async () => {
     [nodes, siteTypes] = await Promise.all([listProcessNodes(), allSiteProcessTypes()]);
     tree = buildProcessTree(nodes);
-    if (typeId === "" || !tree.byId.has(typeId)) typeId = tree.types.find((t) => !t.archived)?.nodeId ?? "";
+    if (siteOnly !== "") typeId = siteTypes[siteOnly] ?? "";
+    else if (typeId === "" || !tree.byId.has(typeId)) typeId = tree.types.find((t) => !t.archived)?.nodeId ?? "";
     paintStrip();
     paintTree();
   };
@@ -58,6 +74,7 @@ export async function renderProcessesSettings(body: HTMLElement): Promise<void> 
   // ---- the type strip ------------------------------------------------------
   const paintStrip = () => {
     clear(strip);
+    if (!canEdit) return; // a site admin has one type: no strip
     strip.appendChild(el("span", "app-site-tabs-label", "Process types"));
     for (const t of tree.types.filter((x) => !x.archived)) {
       const chip = btn(t.name, "app-site-tab" + (t.nodeId === typeId ? " app-site-tab-on" : ""));
@@ -129,32 +146,38 @@ export async function renderProcessesSettings(body: HTMLElement): Promise<void> 
   };
   /** The actions every node row carries after its name. */
   const nodeActions = (n: ProcessNode, host: HTMLElement) => {
-    host.appendChild(editBtn(`Rename ${n.name}`, () => void renameNode(n)));
-    const local = btn("Local names…", "app-link app-proc-local");
+    if (canEdit) host.appendChild(editBtn(`Rename ${n.name}`, () => void renameNode(n)));
+    const local = btn(canEdit ? "Local names…" : "Local name…", "app-link app-proc-local");
+    const mine = siteOnly !== "" ? (n.aliases[siteOnly.toLowerCase()] ?? "") : "";
     const count = Object.keys(n.aliases).length;
-    if (count > 0) local.textContent = `Local names (${count})`;
+    if (canEdit && count > 0) local.textContent = `Local names (${count})`;
+    if (!canEdit && mine !== "") local.textContent = `Local name: ${mine}`;
     local.addEventListener("click", () => openLocalNames(n));
     host.appendChild(local);
-    const x = btn("×", "app-org-x");
-    x.title = `Archive ${n.name}`;
-    x.addEventListener("click", () => void archiveNode(n));
-    host.appendChild(x);
+    if (canEdit) {
+      const x = btn("×", "app-org-x");
+      x.title = `Archive ${n.name}`;
+      x.addEventListener("click", () => void archiveNode(n));
+      host.appendChild(x);
+    }
   };
   const paintTree = () => {
     clear(treeHost);
     const type = tree.byId.get(typeId);
     if (!type) {
-      treeHost.appendChild(el("div", "app-settings-note", "No process type yet — add one above."));
+      treeHost.appendChild(el("div", "app-settings-note", canEdit ? "No process type yet — add one above." : `${siteOnly} has no process type assigned yet — a super admin sets it on the Organisation page.`));
       return;
     }
     const head = el("div", "app-proc-typehead");
     head.appendChild(el("span", "app-proc-typename", type.name));
     const assigned = Object.entries(siteTypes).filter(([, v]) => v === type.nodeId).map(([s]) => s);
-    head.appendChild(el("span", "app-field-hint", assigned.length > 0 ? `Sites: ${assigned.join(", ")}` : "No site is assigned this type yet (Organisation → site card → Process type)."));
-    head.appendChild(editBtn("Rename type", () => void renameNode(type)));
-    const archive = btn("Archive type", "app-link");
-    archive.addEventListener("click", () => void archiveNode(type));
-    head.append(archive);
+    head.appendChild(el("span", "app-field-hint", canEdit ? (assigned.length > 0 ? `Sites: ${assigned.join(", ")}` : "No site is assigned this type yet (Organisation → site card → Process type).") : `${siteOnly}'s process type`));
+    if (canEdit) {
+      head.appendChild(editBtn("Rename type", () => void renameNode(type)));
+      const archive = btn("Archive type", "app-link");
+      archive.addEventListener("click", () => void archiveNode(type));
+      head.append(archive);
+    }
     treeHost.appendChild(head);
 
     const areas = liveChildren(tree, type.nodeId);
@@ -163,10 +186,12 @@ export async function renderProcessesSettings(body: HTMLElement): Promise<void> 
       // an AREA is a card (the department card)
       const card = el("div", "app-dept-card");
       const ch = el("div", "app-dept-head");
-      const handle = el("span", "app-drag-handle", "⠿");
-      handle.title = "Drag to reorder";
-      ch.appendChild(handle);
-      draggableRow(card, handle, `proc-area-${type.nodeId}`, ai, areas, () => persistOrder(areas));
+      if (canEdit) {
+        const handle = el("span", "app-drag-handle", "⠿");
+        handle.title = "Drag to reorder";
+        ch.appendChild(handle);
+        draggableRow(card, handle, `proc-area-${type.nodeId}`, ai, areas, () => persistOrder(areas));
+      }
       const open = expanded.has(area.nodeId);
       ch.appendChild(toggleBtn(open, area.name, () => {
         if (open) expanded.delete(area.nodeId);
@@ -184,10 +209,12 @@ export async function renderProcessesSettings(body: HTMLElement): Promise<void> 
           // a PROCESS is a sub-card inside the area
           const sub = el("div", "app-dept-card app-proc-subcard");
           const sh = el("div", "app-dept-head");
-          const h2 = el("span", "app-drag-handle", "⠿");
-          h2.title = "Drag to reorder";
-          sh.appendChild(h2);
-          draggableRow(sub, h2, `proc-proc-${area.nodeId}`, pi, procs, () => persistOrder(procs));
+          if (canEdit) {
+            const h2 = el("span", "app-drag-handle", "⠿");
+            h2.title = "Drag to reorder";
+            sh.appendChild(h2);
+            draggableRow(sub, h2, `proc-proc-${area.nodeId}`, pi, procs, () => persistOrder(procs));
+          }
           const popen = expanded.has(proc.nodeId);
           sh.appendChild(toggleBtn(popen, proc.name, () => {
             if (popen) expanded.delete(proc.nodeId);
@@ -204,30 +231,34 @@ export async function renderProcessesSettings(body: HTMLElement): Promise<void> 
             subs.forEach((sp, si) => {
               // a SUB-PROCESS is a row (the area row)
               const row = el("div", "app-area-row");
-              const h3 = el("span", "app-drag-handle", "⠿");
-              h3.title = "Drag to reorder";
-              row.appendChild(h3);
-              draggableRow(row, h3, `proc-sub-${proc.nodeId}`, si, subs, () => persistOrder(subs));
+              if (canEdit) {
+                const h3 = el("span", "app-drag-handle", "⠿");
+                h3.title = "Drag to reorder";
+                row.appendChild(h3);
+                draggableRow(row, h3, `proc-sub-${proc.nodeId}`, si, subs, () => persistOrder(subs));
+              }
               row.appendChild(el("span", "app-area-name", sp.name));
               nodeActions(sp, row);
               subBox.appendChild(row);
             });
             if (subs.length === 0) subBox.appendChild(el("div", "app-org-empty", "No sub-processes"));
-            const addSub = adder("Add sub-process", (v) => addUnder(proc, v));
-            addSub.classList.add("app-area-adder");
-            subBox.appendChild(addSub);
+            if (canEdit) {
+              const addSub = adder("Add sub-process", (v) => addUnder(proc, v));
+              addSub.classList.add("app-area-adder");
+              subBox.appendChild(addSub);
+            }
             sub.appendChild(subBox);
           }
           procList.appendChild(sub);
         });
         if (procs.length === 0) procList.appendChild(el("div", "app-org-empty", "No processes"));
-        procList.appendChild(adder("Add process", (v) => addUnder(area, v)));
+        if (canEdit) procList.appendChild(adder("Add process", (v) => addUnder(area, v)));
         card.appendChild(procList);
       }
       areaList.appendChild(card);
     });
     if (areas.length === 0) areaList.appendChild(el("div", "app-org-empty", "No areas yet"));
-    areaList.appendChild(adder("Add area", (v) => addUnder(type, v)));
+    if (canEdit) areaList.appendChild(adder("Add area", (v) => addUnder(type, v)));
     treeHost.appendChild(areaList);
   };
 
@@ -258,11 +289,11 @@ export async function renderProcessesSettings(body: HTMLElement): Promise<void> 
     // only the sites assigned this type (Ben, 2026-10-12) — a local name
     // for a site of another type would never be read
     const assigned = Object.entries(siteTypes).filter(([, v]) => v === typeId).map(([s]) => s);
-    const pool = assigned;
+    const pool = siteOnly !== "" ? assigned.filter((s) => s === siteOnly) : assigned;
     const draft: Record<string, string> = { ...n.aliases };
     const dlg = openDialog({
       host: document.body,
-      title: `Local names for "${n.name}"`,
+      title: siteOnly !== "" ? `${siteOnly}'s name for "${n.name}"` : `Local names for "${n.name}"`,
       maxWidth: 520,
       buttons: [
         { label: "Cancel", kind: "secondary", onClick: () => dlg.close() },
@@ -278,7 +309,7 @@ export async function renderProcessesSettings(body: HTMLElement): Promise<void> 
         },
       ],
     });
-    dlg.body.appendChild(el("div", "app-settings-note", `What each site assigned to this type calls "${n.name}". Blank = the general name.`));
+    dlg.body.appendChild(el("div", "app-settings-note", siteOnly !== "" ? `What ${siteOnly} calls "${n.name}". Blank = the general name.` : `What each site assigned to this type calls "${n.name}". Blank = the general name.`));
     for (const site of pool) {
       const row = el("div", "app-proc-localrow");
       row.appendChild(el("span", "app-proc-localsite", site));
