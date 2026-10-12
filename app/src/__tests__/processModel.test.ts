@@ -1,6 +1,6 @@
 // The process model's pure parts (processes/model.ts, 2026-10-12).
 import { describe, expect, it } from "vitest";
-import { ProcessNode, buildProcessTree, liveChildren, nextOrder, nodeFromRow, processLabel, processLabelWithGeneral, processPath, processPathLabel, reorder, rowFromNode, typeOf } from "../processes/model";
+import { ProcessNode, buildProcessTree, liveChildren, nextOrder, nodeFromRow, processLabel, processLabelWithGeneral, processPath, processPathLabel, reorder, rowFromNode, typeOf } from "../../../shared/schema/process";
 
 const n = (nodeId: string, level: 0 | 1 | 2 | 3, name: string, parentId = "", order = 10, over: Partial<ProcessNode> = {}): ProcessNode => ({ rowId: "", nodeId, parentId, level, name, order, termId: "", aliases: {}, archived: false, ...over });
 const nodes = [

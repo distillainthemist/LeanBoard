@@ -85,6 +85,9 @@ export async function saveMeetingBoard(
       ben_peoplejson: JSON.stringify(participants),
       ben_site: typeof org.site === "string" ? org.site : "",
       ben_department: typeof org.department === "string" ? org.department : "",
+      // the process the ritual governs (term-store-proposal §6), mirrored
+      // from the blob so the column and the Cadence feed agree
+      ben_processnodeid: typeof meeting.processNodeId === "string" ? meeting.processNodeId : "",
     }
   ));
   // a fresh meeting board starts double-column with Agenda + Actions —

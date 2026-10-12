@@ -61,6 +61,7 @@ function fromRow(r: Ben_ltkinitiatives): Initiative {
     gate: parsePendingGate(r.ben_gatejson ?? ""),
     stageTargets: parseStringMap(r.ben_stagetargetsjson ?? ""),
     alsoOrgs: parseAlsoOrgs(r.ben_alsoorgsjson ?? ""),
+    processNodeId: r.ben_processnodeid ?? "",
   };
 }
 
@@ -123,6 +124,7 @@ export async function saveInitiative(i: Initiative): Promise<string> {
       ben_gatejson: i.gate ? JSON.stringify(i.gate) : "",
       ben_stagetargetsjson: JSON.stringify(i.stageTargets),
       ben_alsoorgsjson: JSON.stringify(i.alsoOrgs ?? []),
+      ben_processnodeid: i.processNodeId ?? "",
     }
   )));
 }

@@ -45,6 +45,8 @@ import { fieldInput } from "./fieldInput";
 import { isFieldEmpty } from "./fieldCodec";
 import { assigneePeople } from "../../../shared/schema/people";
 import { renderInitiativeForm } from "./initiativeForm";
+import { buildProcessTree, flatProcessOptions, inSubtree, processPathLabel } from "../processes/model";
+import { allSiteProcessTypes, listProcessNodes } from "../store/processes";
 import { initiativeRag } from "../priorities/model";
 import {
   primaryMetric,
@@ -78,7 +80,7 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
 
   void (async () => {
     const who = currentViewer();
-    const [initiatives, templates, roster, owners, treeRaw, siteCo, impRaw, prSettingsRaw, initActions, allBoards, initRows, palettes, cascade] = await Promise.all([
+    const [initiatives, templates, roster, owners, treeRaw, siteCo, impRaw, prSettingsRaw, initActions, allBoards, initRows, palettes, cascade, processNodes, siteTypes] = await Promise.all([
       listInitiatives(),
       listTemplates(),
       listPeople(),
@@ -94,6 +96,8 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
       // the priorities' statements, for the row meta line (all companies;
       // a rename shows on the next open — no label is stored on the link)
       loadCascade("").catch(() => null),
+      listProcessNodes().catch(() => []),
+      allSiteProcessTypes().catch(() => ({}) as Record<string, string>),
     ]);
     if (dead) return;
     stopLoading();
@@ -161,8 +165,14 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
       flagOnly: boolean;
       method: string;
       teamScope: string; // "" = my orgs + children (all owned keys)
+      /** A process node id: the initiative's process is it or beneath it. */
+      process: string;
     }
-    const f: Filters = { pdca: "", period: currentPeriod, status: "active", flagOnly: false, method: "", teamScope: "" };
+    const f: Filters = { pdca: "", period: currentPeriod, status: "active", flagOnly: false, method: "", teamScope: "", process: "" };
+    // the process model (term-store-proposal §6): the filter and the chip
+    const processTree = buildProcessTree(processNodes);
+    const processTypeOfScope = () => (scope.site !== "" ? (siteTypes[scope.site] ?? "") : "");
+    const processText = (i: Initiative): string => (i.processNodeId ?? "") === "" ? "" : processPathLabel(processTree, i.processNodeId ?? "", i.org.site);
     let viewMode: "list" | "tiles" | "gantt" = "list";
     let ganttUnmount: (() => void) | null = null;
     let search = "";
@@ -174,6 +184,7 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
       (f.status === "all" || i.status === f.status) &&
       (!f.flagOnly || i.flag !== "") &&
       (f.method === "" || i.method === f.method) &&
+      (f.process === "" || inSubtree(processTree, i.processNodeId ?? "", f.process)) &&
       (f.pdca === "" || i.snapshot.stages.find((s) => s.id === i.stageId)?.pdca === f.pdca);
 
     /** The Documents-register filters popover: anchored under the Filters
@@ -311,7 +322,7 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
      *  on the left; ＋ primary · Filters · List|Tiles · on the right. The
      *  filter selects live behind the Filters button, not in a raw row. */
     const activeFilterCount = (): number =>
-      [f.pdca !== "", f.status !== "active", f.method !== "", f.flagOnly, f.period !== currentPeriod].filter(Boolean).length;
+      [f.pdca !== "", f.status !== "active", f.method !== "", f.process !== "", f.flagOnly, f.period !== currentPeriod].filter(Boolean).length;
     /** The Priorities-header pattern (Ben, 2026-08-23): "Improvement
      *  Initiatives | Company › Site ▾" — lead in the accent, ancestors
      *  click to go up, the current node's ▾ opens Switch · Descend ·
@@ -484,6 +495,14 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
             f.method = v;
           });
         }
+        // Process: the scope site's areas and processes (a pick includes
+        // everything beneath it); nothing at company level
+        const procOpts = flatProcessOptions(processTree, processTypeOfScope(), scope.site, 2);
+        if (procOpts.length > 0) {
+          exclusive("Process", procOpts.map((o) => [o.value, o.label.replace(/\u00a0/g, "")] as [string, string]), f.process, "", (v) => {
+            f.process = v;
+          });
+        }
         const flagPills = group("Flags");
         pill(flagPills, "⚑ Flagged only", f.flagOnly, () => {
           f.flagOnly = !f.flagOnly;
@@ -496,6 +515,7 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
           f.period = currentPeriod;
           f.status = "active";
           f.method = "";
+          f.process = "";
           f.flagOnly = false;
           render();
         });
@@ -567,7 +587,7 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
       const primary = i.priorities.find((p) => p.primary) ?? i.priorities[0] ?? null;
       const priorityText = primary ? (priorityStatement.get(primary.priorityId) ?? "Linked priority") : "Other";
       const owner = (i.roles.owner ?? []).map((p) => p.who).join(", ");
-      main.appendChild(el("div", "app-im-meta", [priorityText, owner].filter((x) => x !== "").join(" · ")));
+      main.appendChild(el("div", "app-im-meta", [priorityText, owner, processText(i)].filter((x) => x !== "").join(" · ")));
       row.appendChild(main);
       // org column: department (or site), full chain on hover
       const also = i.alsoOrgs ?? [];
@@ -696,7 +716,7 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
       tile.appendChild(
         el("div", "app-im-tile-metric" + (mv && mv.display !== "" ? "" : " app-cp-muted"), mv && mv.display !== "" ? `${mv.name} ${mv.display}${mv.target !== null ? ` / ${mv.target}${mv.unit}` : ""}` : "No metric value")
       );
-      tile.appendChild(el("div", "app-im-tile-owner", [(i.roles.owner ?? [])[0]?.who ?? "no owner", i.org.department || i.org.site].filter((x) => x !== "").join(" · ")));
+      tile.appendChild(el("div", "app-im-tile-owner", [(i.roles.owner ?? [])[0]?.who ?? "no owner", i.org.department || i.org.site, processText(i)].filter((x) => x !== "").join(" · ")));
       tile.addEventListener("click", () => openInitiative(i));
       return tile;
     };
@@ -894,6 +914,7 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
             endorsement: false,
           },
           fiCtx: { people: assigneePeople([], roster, "search"), palette: stateColors },
+          processes: { tree: processTree, siteTypes },
           canPromote: canPromoteDrivers(),
           loadPriorities: (company) => loadCascade(company).then((data) => data.priorities),
         });
@@ -916,6 +937,7 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
               description: v.description,
               org: v.org,
               alsoOrgs: v.alsoOrgs,
+              processNodeId: v.processNodeId ?? "",
               confidential: v.confidential,
               flag: "" as const,
               flagNote: "",

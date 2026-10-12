@@ -33,6 +33,9 @@ export interface MeetingInfo {
    *  view) — Ben, 2026-09-08. Never the primary. */
   alsoOrgs: MeetingOrg[];
   participants: MeetingPerson[];
+  /** The process the ritual governs (a process node id) — optional
+   *  (term-store-proposal §6, 2026-10-12). */
+  processNodeId: string;
 }
 
 export function orgKey(o: MeetingOrg): string {
@@ -112,6 +115,7 @@ export function parseMeetingInfo(raw: string | null | undefined): MeetingInfo | 
     org: primary,
     alsoOrgs,
     participants,
+    processNodeId: asStr(m.processNodeId),
   };
   const empty =
     info.purpose === "" &&
@@ -120,7 +124,8 @@ export function parseMeetingInfo(raw: string | null | undefined): MeetingInfo | 
     info.org.department === "" &&
     info.org.area === "" &&
     info.alsoOrgs.length === 0 &&
-    info.participants.length === 0;
+    info.participants.length === 0 &&
+    info.processNodeId === "";
   return empty ? null : info;
 }
 
@@ -162,6 +167,7 @@ export function buildMeetingSection(info: MeetingInfo): Record<string, unknown> 
       return r;
     });
   if (also.length > 0) out.alsoOrgs = also;
+  if ((info.processNodeId ?? "") !== "") out.processNodeId = info.processNodeId;
   if (info.participants.length > 0) {
     out.participants = info.participants.map((p) =>
       p.crew !== "" ? { whoId: p.whoId, who: p.who, crew: p.crew } : { whoId: p.whoId, who: p.who }

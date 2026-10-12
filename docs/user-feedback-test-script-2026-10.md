@@ -224,9 +224,23 @@ On a desktop.
    "Casthouse" → Save; the row reads "1 local name"; the dialog's hint
    reads "Casthouse (Casting)".
 
+5. **Ritual** — Settings → Rituals → edit a ritual (or New meeting):
+   the Organisation step shows "Process" under the area once the site
+   has a type; pick Casting › Ingot casting; the review lists it; after
+   Save the Cadence tab's organisation scope gains a "Process" select
+   and picking Casting shows the ritual, picking Anodes hides it.
+6. **Initiative** — New initiative / Edit details: Organisation group →
+   "Process"; the row's meta line and the tile read "Casthouse ›
+   Ingot casting" at a site with the local name; Filters → Process
+   narrows the list; the chip count on the Filters button rises.
+7. **Value drivers** — Settings → Value drivers: a driver's rail has
+   "Process"; set it; a new child inherits it; the top row's "Process"
+   select dims the drivers outside the pick; the hub's Value drivers
+   tab has the same select beside Show.
+
 | Item | Outcome |
 |---|---|
-| 1–4 | _Ben's pass pending_ |
+| 1–7 | _Ben's pass pending_ |
 
 ## Term manager pass — after v0.69.0 (2026-10-12, dev)
 

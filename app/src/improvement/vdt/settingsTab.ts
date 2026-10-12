@@ -15,6 +15,9 @@ import { viewerPerson } from "../../store/people";
 import { parseOrgTree } from "../../../../shared/schema/meeting";
 import { nowIso } from "../../../../shared/schema/id";
 import { deleteDriverTree, listDrivers, saveDriver } from "../../store/valueDrivers";
+import { allSiteProcessTypes, listProcessNodes } from "../../store/processes";
+import { buildProcessTree, flatProcessOptions, inSubtree } from "../../processes/model";
+import { mountProcessPicker } from "../../../../shared/ui/processPicker";
 import { parseImprovementSettings, serializeImprovementSettings } from "../templateModel";
 import {
   AGGREGATE_LABELS,
@@ -59,8 +62,13 @@ function formulaFromNames(text: string, kids: DriverNode[]): string {
 export async function renderValueDriversSettings(body: HTMLElement): Promise<void> {
   clear(body);
   const viewer = currentViewer();
-  const [treeRaw, impRaw, me] = await Promise.all([orgJson(), improvementSettingsJson(), viewer ? viewerPerson(viewer.objectId).catch(() => null) : Promise.resolve(null)]);
+  const [treeRaw, impRaw, me, processNodes, siteTypes] = await Promise.all([orgJson(), improvementSettingsJson(), viewer ? viewerPerson(viewer.objectId).catch(() => null) : Promise.resolve(null), listProcessNodes().catch(() => []), allSiteProcessTypes().catch(() => ({}) as Record<string, string>)]);
   const sites = parseOrgTree(treeRaw).map((s) => s.site);
+  // the process model (term-store-proposal §6): a Process on each driver,
+  // and a by-process filter that dims the rest of the tree
+  const processTree = buildProcessTree(processNodes);
+  let processFilter = "";
+  const dimSet = (): Set<string> => new Set(processFilter === "" ? [] : nodes.filter((n) => !inSubtree(processTree, n.processNodeId, processFilter)).map((n) => n.id));
   const imp = parseImprovementSettings(impRaw);
   let site = sites.includes(me?.site ?? "") ? (me?.site ?? "") : (sites[0] ?? "");
   const actor = { whoId: viewer?.objectId ?? "", who: me?.who ?? viewer?.name ?? "" };
@@ -97,6 +105,34 @@ export async function renderValueDriversSettings(body: HTMLElement): Promise<voi
     void saveImprovementSettingsJson(serializeImprovementSettings(imp));
   });
   top.append(el("span", "app-field-label", "Edit values / adopt"), roleSel);
+  const procFilterHost = el("span", "app-vd-procfilter");
+  const paintProcFilter = () => {
+    clear(procFilterHost);
+    const opts = flatProcessOptions(processTree, siteTypes[site] ?? "", site);
+    if (opts.length === 0) {
+      processFilter = "";
+      return;
+    }
+    if (processFilter !== "" && !opts.some((o) => o.value === processFilter)) processFilter = "";
+    const sel = el("select", "app-input") as HTMLSelectElement;
+    const any = el("option", "", "Any process") as HTMLOptionElement;
+    any.value = "";
+    sel.appendChild(any);
+    for (const o of opts) {
+      const opt = el("option", "", o.label) as HTMLOptionElement;
+      opt.value = o.value;
+      if (o.value === processFilter) opt.selected = true;
+      sel.appendChild(opt);
+    }
+    sel.title = "Dim the drivers outside this process";
+    sel.addEventListener("change", () => {
+      processFilter = sel.value;
+      paint();
+    });
+    procFilterHost.append(el("span", "app-field-label", "Process"), sel);
+  };
+  paintProcFilter();
+  top.append(el("span", "app-bar-gap"), procFilterHost);
   body.appendChild(top);
 
   // ---- tree + rail ----
@@ -122,6 +158,7 @@ export async function renderValueDriversSettings(body: HTMLElement): Promise<voi
       host: treeHost,
       mode: "structure",
       selectedId: selected,
+      dim: dimSet(),
       onSelect: (id) => {
         selected = id;
         paint();
@@ -137,6 +174,7 @@ export async function renderValueDriversSettings(body: HTMLElement): Promise<voi
     if (parent) {
       n.unit = parent.unit;
       n.cadence = parent.cadence;
+      n.processNodeId = parent.processNodeId; // a child sits under its parent's process until told otherwise
     }
     await saveDriver(n);
     nodes.push(n);
@@ -220,6 +258,9 @@ export async function renderValueDriversSettings(body: HTMLElement): Promise<voi
     const sourceUrl = text(draft.sourceUrl, "https://… the report it comes from");
     sourceUrl.type = "url";
     field("Source link", sourceUrl, "Optional — the source line on the card opens it.");
+    const procHost = el("div", "app-vd-procpick");
+    const procPicker = mountProcessPicker(procHost, { tree: processTree, siteTypes, site, value: draft.processNodeId, selectClass: "app-input", onChange: () => undefined });
+    field("Process", procHost, "Optional — the process this driver sits under; a parent level is a valid choice.");
     const cadSel = el("select", "app-input") as HTMLSelectElement;
     for (const c of CADENCES) {
       const o = el("option", "", CADENCE_LABELS[c]) as HTMLOptionElement;
@@ -332,6 +373,7 @@ export async function renderValueDriversSettings(body: HTMLElement): Promise<voi
       d.tracking = { kind: trkSel.value as DriverNode["tracking"]["kind"], options: trkSel.value === "picklist" ? trkOptions.filter((o) => o.label.trim() !== "").map((o) => ({ label: o.label.trim(), state: o.state })) : [] };
       d.source = source.value.trim();
       d.sourceUrl = sourceUrl.value.trim();
+      d.processNodeId = procPicker.value();
       d.cadence = cadSel.value as DriverNode["cadence"];
       d.aggregate = aggSel.value as DriverNode["aggregate"];
       d.format = { decimals: Number(dec.value) || 0, scale: scale.value === "k" || scale.value === "m" ? scale.value : "", percent: scale.value === "%", rows: { plan: rowChecks.plan.checked, forecast: rowChecks.forecast.checked, lsl: rowChecks.lsl.checked, usl: rowChecks.usl.checked } };
@@ -447,6 +489,7 @@ export async function renderValueDriversSettings(body: HTMLElement): Promise<voi
   siteSel.addEventListener("change", () => {
     site = siteSel.value;
     selected = null;
+    paintProcFilter();
     void load();
   });
   await load();

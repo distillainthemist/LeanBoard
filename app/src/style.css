@@ -4568,3 +4568,12 @@ input.app-vg-in.app-vg-folded { background: #fff7e0; }
 .app-proc-localrow { display: flex; align-items: center; gap: 10px; }
 .app-proc-localsite { width: 140px; flex: none; font-size: 13px; font-weight: 600; }
 .app-proc-localrow .app-input { flex: 1; min-width: 0; }
+
+/* ---- the process picker and by-process view (2026-10-12) ---- */
+.ltk-procpick { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.ltk-procpick select { flex: 1 1 140px; min-width: 0; }
+.ltk-procpick-none { font-size: 12.5px; color: #6d675c; }
+.ltk-mw-procpick .ltk-mw-input { flex: 1 1 140px; width: auto; }
+.app-vd-dim { opacity: 0.35; }
+.app-vd-procfilter { display: inline-flex; align-items: center; gap: 8px; }
+.app-vd-procfilter .app-input { width: auto; }

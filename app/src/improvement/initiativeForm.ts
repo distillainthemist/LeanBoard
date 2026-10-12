@@ -15,6 +15,8 @@ import { el, clear } from "../../../shared/ui/dom";
 import type { OrgSite } from "../../../shared/schema/meeting";
 import { settingsSection } from "../settingsSection";
 import { renderAlsoOrgs, InitOrg } from "./alsoOrgs";
+import type { ProcessTree } from "../processes/model";
+import { ProcessPicker, mountProcessPicker } from "../../../shared/ui/processPicker";
 import { fieldInput, FieldInputContext } from "./fieldInput";
 import { isFieldEmpty } from "./fieldCodec";
 import { renderMetricsList } from "./metricsList";
@@ -43,6 +45,8 @@ export interface InitiativeDraft {
   description: string;
   org: InitOrg;
   alsoOrgs: InitOrg[];
+  /** The process the initiative improves — optional (node id). */
+  processNodeId?: string;
   priorities: LinkDraft[];
   roles: Record<string, RolePerson[]>;
   fieldValues: Record<string, string>;
@@ -67,6 +71,8 @@ export interface InitiativeFormOpts {
   sites: OrgSite[];
   siteCo: Record<string, string>;
   roster: RosterPerson[];
+  /** The process model (term-store-proposal §6): absent = no Process row. */
+  processes?: { tree: ProcessTree; siteTypes: Record<string, string> };
   imp: ImprovementSettings;
   /** The roles the form offers (template roles, or the snapshot's). */
   roleDefs: TemplateRole[];
@@ -189,6 +195,22 @@ export function renderInitiativeForm(o: InitiativeFormOpts): InitiativeFormHandl
   const orgRow = el("div", "app-im-orgrow");
   orgRow.append(siteSel, deptSel, areaSel);
   orgCard.appendChild(row(field("Site · department · area", orgRow)));
+  // the process the initiative improves — optional, under the site's type
+  let processValue = o.initial.processNodeId ?? "";
+  let procPicker: ProcessPicker | null = null;
+  if (o.processes) {
+    const procHost = el("div", "app-im-procpick");
+    procPicker = mountProcessPicker(procHost, {
+      tree: o.processes.tree,
+      siteTypes: o.processes.siteTypes,
+      site: siteSel.value,
+      value: processValue,
+      selectClass: "app-input",
+      onChange: (v) => (processValue = v),
+    });
+    siteSel.addEventListener("change", () => procPicker?.setSite(siteSel.value));
+    orgCard.appendChild(row(field("Process", procHost, "Optional — the process this work improves; a parent level is a valid choice.")));
+  }
   const primaryOrg = (): InitOrg => ({ company: o.siteCo[siteSel.value] ?? "", site: siteSel.value, department: deptSel.value, area: areaSel.value });
   // the fold: rarely touched, with an honest one-line summary; open by
   // default whenever it holds entries, so nothing set is ever hidden
@@ -400,6 +422,7 @@ export function renderInitiativeForm(o: InitiativeFormOpts): InitiativeFormHandl
     description: desc.value.trim(),
     org: primaryOrg(),
     alsoOrgs: d.alsoOrgs.map((x) => ({ ...x })),
+    processNodeId: processValue,
     priorities: links.map((l) => ({ ...l })),
     roles: Object.fromEntries(Object.entries(d.roles).map(([k, v]) => [k, v.map((p) => ({ ...p }))])),
     fieldValues: { ...d.fieldValues },

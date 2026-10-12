@@ -178,6 +178,11 @@ export function mountWizard(parent: HTMLElement, editBoardId = ""): () => void {
       ""
     );
     view.setOrgTree(parseOrgTree(org));
+    // the process model, for the Organisation step's process picker
+    const wizardView = view;
+    void import("../store/processes").then(({ listProcessNodes, allSiteProcessTypes }) =>
+      Promise.all([listProcessNodes(), allSiteProcessTypes()]).then(([nodes, types]) => wizardView.setProcesses(nodes, types)).catch(() => undefined)
+    );
     if (hosted) {
       view.setRosterPatterns(await rosterPatternLibrary());
       view.setMeetingCategories((await meetingCategories()).map((c) => c.name));

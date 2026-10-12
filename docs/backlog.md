@@ -292,9 +292,9 @@ term-store-proposal-2026-10.md. Steps 1 (the term manager, with
 colours), 2 (the rename journal + term binding + ID-first planner +
 the sync warning) and 3 (the process model — schema, Settings →
 Processes, the site's type, local names; SOLUTION-CARRYING) BUILT
-2026-10-12; next: 4 the picker and process on rituals,
-initiatives, value drivers and their filters; 5 the Process area term
-set via `syncedSets`.
+2026-10-12, and 4 (the picker; process on rituals, Cadence, initiatives
+with filter and chip, value drivers with by-process dimming) BUILT
+2026-10-12; next: 5 the Process area term set via `syncedSets`.
 
 ## Document ingestion — open items (2026-10-09)
 

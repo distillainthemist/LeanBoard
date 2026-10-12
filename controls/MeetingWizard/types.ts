@@ -74,6 +74,8 @@ export interface WizardDraft {
   org: { site: string; department: string; area: string };
   /** Further orgs the ritual is also shown in (Cadence); primary stays `org`. */
   alsoOrgs: { site: string; department: string; area: string }[];
+  /** The process the ritual governs (a process node id) — optional. */
+  processNodeId: string;
   category: string;
   daysOfWeek: string; // CSV
   timeOfDay: string; // HH:MM
@@ -116,6 +118,7 @@ export function emptyDraft(): WizardDraft {
     owner: null,
     org: { site: "", department: "", area: "" },
     alsoOrgs: [],
+    processNodeId: "",
     category: "weekly",
     daysOfWeek: "",
     timeOfDay: "07:00",
@@ -230,6 +233,7 @@ export function parseWizardDraft(raw: string | null | undefined): WizardDraft {
     draft.org = { ...info.org };
     draft.alsoOrgs = info.alsoOrgs.map((o) => ({ ...o }));
     draft.participants = info.participants;
+    draft.processNodeId = info.processNodeId;
   }
   for (const key of Object.keys(o)) {
     if (!MANAGED_TOP.includes(key)) draft.extraTop[key] = o[key];
@@ -312,6 +316,7 @@ export function serializeWizardDraft(draft: WizardDraft): string {
     org: draft.org,
     alsoOrgs: draft.alsoOrgs,
     participants: draft.participants,
+    processNodeId: draft.processNodeId,
   });
   if (meeting) out.meeting = meeting;
   return JSON.stringify(out);

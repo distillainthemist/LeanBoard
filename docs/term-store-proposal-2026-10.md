@@ -306,8 +306,33 @@ scoping is the app's, and the term store receives the consequence:
   children go with it). Writes land at once.
 - **Organisation → site card**: "Process type" select beside Hub tabs
   and Cascade customisation, saved on change.
-- Not yet: the picker and the consumers (step 4), the Process area
-  term set and the renames journal for it (step 5).
+- **Step 4 BUILT 2026-10-12 (dev)** — the model moved to
+  `shared/schema/process.ts` (the controls read it; the app re-exports
+  from `processes/model.ts`) with `inSubtree` and `flatProcessOptions`;
+  the ONE picker `shared/ui/processPicker.ts` (area › process ›
+  sub-process under the site's type, rebuilt in place, "— any … —"
+  clears to the parent, an archived chosen node still shows).
+  - **Rituals**: `meeting.processNodeId` on the blob (`MeetingInfo`,
+    the wizard draft), mirrored to `ben_processnodeid` on save; the
+    MeetingWizard's Organisation step shows "Process" under the area
+    when the site has a type (`setProcesses`); the review line names
+    it. **Cadence**: a "Process" select after the organisation cascade
+    (the scope site's type, indented; a pick includes its subtree) on
+    the calendar and the Rituals directory; the hub feeds the model.
+  - **Initiatives**: `processNodeId` on the model and row; a "Process"
+    row in the header form's Organisation group (create and edit), the
+    picker following the site; the Improvement tab's Filters gain
+    "Process" (the scope site's areas and processes) and the row meta
+    line / tile owner line read the process path in the site's words.
+  - **Value drivers**: `processNodeId` on the driver and row; a
+    "Process" field in the structure editor (a new child inherits its
+    parent's); a "Process" select on the Value drivers settings and
+    the hub tab that DIMS the drivers outside the chosen process
+    (`TreeOpts.dim`) — the tree stays whole, the links hold.
+  - Everywhere the label is `processLabel` / `processPathLabel` with
+    the surface's site, so "Casthouse" reads at Bell Bay and
+    "Casting" elsewhere.
+- Not yet: the Process area term set and its renames journal (step 5).
 
 ### Order and effort
 

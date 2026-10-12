@@ -21,6 +21,8 @@ import { promptConfirm } from "../prompts";
 import { Initiative } from "./initiativeModel";
 import { parseImprovementSettings, roleFillersAt, TemplateRole, activeRoles } from "./templateModel";
 import { renderInitiativeForm } from "./initiativeForm";
+import { buildProcessTree } from "../processes/model";
+import { allSiteProcessTypes, listProcessNodes } from "../store/processes";
 
 const btn = (label: string, cls = "app-btn"): HTMLButtonElement => {
   const b = el("button", cls, label) as HTMLButtonElement;
@@ -51,13 +53,15 @@ export function openEditDetails(o: EditDetailsOpts): void {
 
   void (async () => {
     const i = o.initiative;
-    const [treeRaw, siteCo, roster, impRaw, template, palettes] = await Promise.all([
+    const [treeRaw, siteCo, roster, impRaw, template, palettes, processNodes, siteTypes] = await Promise.all([
       orgJson(),
       siteCompanies(),
       listPeople(),
       improvementSettingsJson(),
       i.templateId !== "" ? getTemplate(i.templateId).catch(() => null) : Promise.resolve(null),
       appPalettes().catch(() => ({ states: [], titles: [] })),
+      listProcessNodes().catch(() => []),
+      allSiteProcessTypes().catch(() => ({}) as Record<string, string>),
     ]);
     clear(body);
     const sites = parseOrgTree(treeRaw);
@@ -98,6 +102,7 @@ export function openEditDetails(o: EditDetailsOpts): void {
         description: i.description,
         org: { ...i.org },
         alsoOrgs: (i.alsoOrgs ?? []).map((x) => ({ ...x })),
+        processNodeId: i.processNodeId ?? "",
         priorities: i.priorities.map((l) => ({ ...l, label: l.priorityId })),
         roles: i.roles,
         fieldValues: i.fieldValues,
@@ -106,6 +111,7 @@ export function openEditDetails(o: EditDetailsOpts): void {
         endorsement: i.endorsement,
       },
       fiCtx: { people: assigneePeople([], roster, "search"), palette: paletteMap(palettes.states) },
+      processes: { tree: buildProcessTree(processNodes), siteTypes },
       canPromote,
       loadPriorities: (company) => loadCascade(company).then((data) => data.priorities),
       // linking an own metric migrates its card's private points into the driver
@@ -147,6 +153,7 @@ export function openEditDetails(o: EditDetailsOpts): void {
           description: v.description,
           org: v.org,
           alsoOrgs: v.alsoOrgs,
+          processNodeId: v.processNodeId ?? "",
           confidential: v.confidential,
           endorsement: v.endorsement,
           roles: v.roles,

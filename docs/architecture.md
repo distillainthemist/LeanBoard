@@ -854,8 +854,14 @@ Key concepts (details: [leanboard-standard-documents-plan.md](leanboard-standard
   tree and the ONE display rule `processLabel(node, site)`; Settings →
   Processes edits it (writes at once, archive never delete); a site's
   type sits on its settings row (`ben_processtype`); boards, initiatives
-  and value drivers carry an optional `ben_processnodeid` (consumers in
-  step 4). Solution-carrying.
+  and value drivers carry an optional `ben_processnodeid`. The model
+  lives in `shared/schema/process.ts` and the ONE picker in
+  `shared/ui/processPicker.ts`, so the MeetingWizard (a ritual's
+  process, on the blob and mirrored to the column) and LeanHub (a
+  Cadence "Process" filter, subtree semantics) read them; the header
+  form, the Improvement filters and chips, the driver editor and the
+  by-process dimming of the driver tree are the app-side consumers.
+  Solution-carrying.
 - **Document ingestion** (2026-10-08, [document-ingestion-proposal-2026-10.md](document-ingestion-proposal-2026-10.md)).
   A site's bulk-drop library (type "ingestion", never in the register)
   holds one folder per task (`ben_ltkingestiontask`: destination,

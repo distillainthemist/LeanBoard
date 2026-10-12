@@ -9,6 +9,8 @@
 // Rostered cadences (daily/shiftly) pick one of the site's configured
 // rosters on the Cadence page — no custom roster entry.
 
+import { ProcessNode, ProcessTree, buildProcessTree, processPathLabel } from "../../shared/schema/process";
+import { mountProcessPicker } from "../../shared/ui/processPicker";
 import { applyThemeVars, defaultTheme, Theme } from "../../shared/tokens";
 import { LTK_BASE_CSS } from "../../shared/ui/baseCss";
 import { clear, el, ensureStylesheet } from "../../shared/ui/dom";
@@ -51,6 +53,8 @@ export class MeetingWizardView {
   private readonly root: HTMLElement;
   private draft: WizardDraft = emptyDraft();
   private orgTree: OrgSite[] = [];
+  private processTree: ProcessTree = buildProcessTree([]);
+  private siteTypes: Record<string, string> = {};
   private people: Person[] = [];
   private theme: Theme = defaultTheme();
   private cardTitle = "";
@@ -131,6 +135,14 @@ export class MeetingWizardView {
   setOrgTree(tree: OrgSite[]): void {
     if (JSON.stringify(tree) === JSON.stringify(this.orgTree)) return;
     this.orgTree = tree;
+    this.render();
+  }
+
+  /** The process model (term-store-proposal §6): the nodes and each
+   *  site's type, so the Organisation step can offer a process. */
+  setProcesses(nodes: ProcessNode[], siteTypes: Record<string, string>): void {
+    this.processTree = buildProcessTree(nodes);
+    this.siteTypes = siteTypes;
     this.render();
   }
 
@@ -715,6 +727,26 @@ export class MeetingWizardView {
     } else if (d.org.area !== "") {
       // stale area from a previous department choice
       d.org.area = "";
+      this.commit();
+    }
+    // the process the ritual governs — optional, under the site's type
+    if (d.org.site !== "" && (this.siteTypes[d.org.site] ?? "") !== "") {
+      const host = el("div", "ltk-mw-procpick");
+      mountProcessPicker(host, {
+        tree: this.processTree,
+        siteTypes: this.siteTypes,
+        site: d.org.site,
+        value: d.processNodeId,
+        selectClass: "ltk-mw-input",
+        disabled: this.readOnly,
+        onChange: (v) => {
+          d.processNodeId = v;
+          this.commit();
+        },
+      });
+      body.appendChild(this.row("Process", host, "Optional — the process this ritual governs; a parent level is a valid choice."));
+    } else if (d.processNodeId !== "") {
+      d.processNodeId = "";
       this.commit();
     }
     this.renderAlsoOrgs(body);
@@ -1337,6 +1369,7 @@ export class MeetingWizardView {
       [d.org.site, d.org.department, d.org.area].filter((v) => v !== "").join(" / ")
     );
     if (d.alsoOrgs.length > 0) add("Also shown in", d.alsoOrgs.map((o) => [o.site, o.department, o.area].filter((v) => v !== "").join(" / ")).join(" · "));
+    if (d.processNodeId !== "") add("Process", processPathLabel(this.processTree, d.processNodeId, d.org.site) || d.processNodeId);
     add("Cadence", CADENCES.find((c) => c.value === d.category)?.label ?? d.category);
     if (hasWeekdays(d.category)) {
       add(

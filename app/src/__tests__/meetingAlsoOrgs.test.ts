@@ -9,6 +9,7 @@ const info = (alsoOrgs: { site: string; department: string; area: string }[]) =>
   org: { site: "Bendigo", department: "Packaging", area: "" },
   alsoOrgs,
   participants: [],
+  processNodeId: "",
 });
 
 describe("alsoOrgs", () => {

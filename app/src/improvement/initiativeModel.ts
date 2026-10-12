@@ -50,6 +50,9 @@ export interface Initiative {
   /** Further orgs the initiative is ALSO listed under (2026-09-17: work
    *  that spans departments); `org` stays the primary, owning org. */
   alsoOrgs?: { company: string; site: string; department: string; area: string }[];
+  /** The process the initiative improves (a process node id) — optional
+   *  (term-store-proposal §6, 2026-10-12). */
+  processNodeId?: string;
   stageId: string;
   status: InitiativeStatus;
   confidential: boolean;

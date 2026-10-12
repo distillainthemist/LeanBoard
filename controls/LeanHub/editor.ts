@@ -11,6 +11,7 @@
 // Settings: view preferences, plus the protected-time editor for site
 // admins (canEditSite).
 
+import { ProcessNode, ProcessTree, buildProcessTree, flatProcessOptions, inSubtree } from "../../shared/schema/process";
 import { applyThemeVars, defaultTheme, Theme } from "../../shared/tokens";
 import { LTK_BASE_CSS } from "../../shared/ui/baseCss";
 import { copyText } from "../../shared/ui/clipboard";
@@ -147,6 +148,11 @@ export class LeanHubView {
   private viewTouched = false;
   /** Supplied org tree; empty = derive from the meetings at render. */
   private orgTree: OrgSite[] = [];
+  /** The process model (term-store-proposal §6): a Process filter under
+   *  the organisation scope, when the scope's site has a type. */
+  private processTree: ProcessTree = buildProcessTree([]);
+  private siteTypes: Record<string, string> = {};
+  private scopeProcess = "";
 
   constructor(
     host: HTMLElement,
@@ -195,6 +201,34 @@ export class LeanHubView {
     if (JSON.stringify(tree) === JSON.stringify(this.orgTree)) return;
     this.orgTree = tree;
     this.render();
+  }
+
+  setProcesses(nodes: ProcessNode[], siteTypes: Record<string, string>): void {
+    this.processTree = buildProcessTree(nodes);
+    this.siteTypes = siteTypes;
+    this.render();
+  }
+
+  /** The Process select for the scope's site: "Any process" + the
+   *  type's nodes, indented; nothing when the site has no type. */
+  private processFilter(): HTMLSelectElement | null {
+    const site = this.scopeOrg.site;
+    const typeId = site === "" ? "" : (this.siteTypes[site] ?? "");
+    const options = flatProcessOptions(this.processTree, typeId, site);
+    if (options.length === 0) {
+      this.scopeProcess = "";
+      return null;
+    }
+    if (this.scopeProcess !== "" && !options.some((o) => o.value === this.scopeProcess)) this.scopeProcess = "";
+    return this.select(this.scopeProcess, [{ value: "", label: "Any process" }, ...options.map((o) => ({ value: o.value, label: o.label }))], (v) => {
+      this.scopeProcess = v;
+      this.scopeTouched = true;
+      this.render();
+    });
+  }
+
+  private matchesProcess(meeting: HubMeeting): boolean {
+    return this.scopeKind !== "org" || this.scopeProcess === "" || inSubtree(this.processTree, meeting.info?.processNodeId ?? "", this.scopeProcess);
   }
 
   setPeople(people: Person[], viewerId: string): void {
@@ -430,7 +464,7 @@ export class LeanHubView {
       if (!meeting) return true;
       return this.scopeKind === "person"
         ? meetingForPerson(meeting, this.scopePerson)
-        : meetingMatchesOrg(meeting, this.scopeOrg);
+        : meetingMatchesOrg(meeting, this.scopeOrg) && this.matchesProcess(meeting);
     });
     if (boards.length === 0) {
       wrap.appendChild(el("div", "ltk-lh-empty", "No rituals match this scope."));
@@ -557,6 +591,8 @@ export class LeanHubView {
       })) {
         bar.appendChild(sel);
       }
+      const proc = this.processFilter();
+      if (proc) bar.appendChild(proc);
     }
 
     bar.appendChild(this.viewSelect());
@@ -601,7 +637,7 @@ export class LeanHubView {
       if (!meeting) return false;
       return this.scopeKind === "person"
         ? instanceForPerson(meeting, inst, this.scopePerson)
-        : meetingMatchesOrg(meeting, this.scopeOrg);
+        : meetingMatchesOrg(meeting, this.scopeOrg) && this.matchesProcess(meeting);
     });
 
     body.appendChild(this.buildGrid(days, instances));

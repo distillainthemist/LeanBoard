@@ -28,6 +28,8 @@ export interface TreeOpts {
   assumed?: Set<string>;
   /** Initiative counts per node (chip). */
   initiativeCounts?: Map<string, number>;
+  /** Nodes outside the chosen process (the by-process view): drawn dimmed. */
+  dim?: Set<string>;
 }
 
 export interface TreeHandle {
@@ -56,6 +58,7 @@ export function renderTree(nodes0: DriverNode[], opts0: TreeOpts): TreeHandle {
     if (opts.selectedId === n.id) c.classList.add("app-vd-sel");
     if (opts.moved?.has(n.id)) c.classList.add("app-vd-moved");
     if (opts.assumed?.has(n.id)) c.classList.add("app-vd-assumed");
+    if (opts.dim?.has(n.id)) c.classList.add("app-vd-dim");
     const head = el("div", "app-vd-head");
     if (!root && !leaf) head.appendChild(el("span", "app-vd-fn", "⨍"));
     head.appendChild(el("span", "app-vd-name", n.name || "(unnamed)"));

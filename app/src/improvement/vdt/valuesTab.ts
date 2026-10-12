@@ -14,6 +14,8 @@ import { appPalettes, improvementSettingsJson, orgJson, prioritySettingsJson } f
 import { paletteMap } from "../../../../shared/palette";
 import { listPeople, viewerPerson } from "../../store/people";
 import { listDrivers, saveDriver } from "../../store/valueDrivers";
+import { allSiteProcessTypes, listProcessNodes } from "../../store/processes";
+import { buildProcessTree, flatProcessOptions, inSubtree } from "../../processes/model";
 import { driverActual, listDriverPoints, listDriverRaw, putDriverPoint, refoldDriverPeriod, writePeriodSpread } from "../../store/driverSeries";
 import { parseOrgTree } from "../../../../shared/schema/meeting";
 import { nowIso, todayIso } from "../../../../shared/schema/id";
@@ -44,13 +46,15 @@ export function mountValueDrivers(parent: HTMLElement): () => void {
 
   void (async () => {
     const viewer = currentViewer();
-    const [treeRaw, impRaw, prRaw, me, roster, palettes] = await Promise.all([
+    const [treeRaw, impRaw, prRaw, me, roster, palettes, processNodes, siteTypes] = await Promise.all([
       orgJson(),
       improvementSettingsJson(),
       prioritySettingsJson(),
       viewer ? viewerPerson(viewer.objectId).catch(() => null) : Promise.resolve(null),
       listPeople().catch(() => []),
       appPalettes().catch(() => ({ states: [], titles: [] })),
+      listProcessNodes().catch(() => []),
+      allSiteProcessTypes().catch(() => ({}) as Record<string, string>),
     ]);
     const stateColors = paletteMap(palettes.states);
     const ragColor = (rag: "green" | "amber" | "red"): string => stateColors[ragPaletteKey(rag)] ?? "#9a948a";
@@ -59,6 +63,9 @@ export function mountValueDrivers(parent: HTMLElement): () => void {
     const sites = parseOrgTree(treeRaw).map((s) => s.site);
     const imp = parseImprovementSettings(impRaw);
     const periodSettings = parsePrioritySettings(prRaw).period;
+    // the by-process view (term-store-proposal §6): dims the rest
+    const processTree = buildProcessTree(processNodes);
+    let processFilter = "";
     let site = sites.includes(me?.site ?? "") ? (me?.site ?? "") : (sites[0] ?? "");
     let period = periodFor(periodSettings, todayIso()) || periodSettings.currentPeriod;
     let mode: Mode = "read";
@@ -198,6 +205,26 @@ export function mountValueDrivers(parent: HTMLElement): () => void {
         render();
       });
       bar.append(el("span", "app-field-label", "Show"), showSel, cmpSel);
+      const procOpts = flatProcessOptions(processTree, siteTypes[site] ?? "", site);
+      if (procOpts.length > 0) {
+        if (processFilter !== "" && !procOpts.some((o) => o.value === processFilter)) processFilter = "";
+        const procSel = el("select", "app-input app-vd-sel") as HTMLSelectElement;
+        const any = el("option", "", "Any process") as HTMLOptionElement;
+        any.value = "";
+        procSel.appendChild(any);
+        for (const o of procOpts) {
+          const opt = el("option", "", o.label) as HTMLOptionElement;
+          opt.value = o.value;
+          if (o.value === processFilter) opt.selected = true;
+          procSel.appendChild(opt);
+        }
+        procSel.title = "Dim the drivers outside this process";
+        procSel.addEventListener("change", () => {
+          processFilter = procSel.value;
+          render();
+        });
+        bar.append(el("span", "app-field-label", "Process"), procSel);
+      } else processFilter = "";
       bar.appendChild(el("span", "app-cp-muted app-vd-readhint", canEdit() ? "Click a driver to enter its values." : "Click a driver to see its values."));
       if (canEdit()) {
         const imp = btn("Import from finance pack…", "app-btn app-vd-importbtn");
@@ -212,6 +239,7 @@ export function mountValueDrivers(parent: HTMLElement): () => void {
       tree = renderTree(nodes, {
         host,
         mode: "values",
+        dim: new Set(processFilter === "" ? [] : nodes.filter((n) => !inSubtree(processTree, n.processNodeId, processFilter)).map((n) => n.id)),
         values: numbers(series),
         compare: compare !== "" ? numbers(compare) : undefined,
         compareLabel: compare !== "" ? SERIES_LABELS[compare].toLowerCase() : undefined,

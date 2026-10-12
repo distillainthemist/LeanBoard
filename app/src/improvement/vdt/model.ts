@@ -113,6 +113,8 @@ export interface DriverNode {
   source: string;
   /** …and the report it comes from (Ben, 2026-09-02) — the source line links. */
   sourceUrl: string;
+  /** The process the driver sits under (a process node id) — optional. */
+  processNodeId: string;
   kind: NodeKind;
   /** Numeric, good / bad, or a picklist (non-numeric = never in a formula). */
   tracking: DriverTracking;
@@ -139,6 +141,7 @@ export function newNode(site: string, parentId: string, name: string): DriverNod
     unit: "",
     source: "",
     sourceUrl: "",
+    processNodeId: "",
     kind: "driver",
     tracking: { kind: "value", options: [] },
     formula: "",

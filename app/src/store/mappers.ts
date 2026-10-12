@@ -20,6 +20,9 @@ export interface BoardSummary {
   site: string;
   department: string;
   isTemplate: boolean;
+  /** The process the ritual governs (node id, "" = none) — mirrored
+   *  from the blob's meeting.processNodeId on save. */
+  processNodeId: string;
   isArchived: boolean;
   occurrenceSettingsRaw: string;
   manifestRaw: string;
@@ -36,6 +39,7 @@ export function boardFromRow(row: Ben_ltkboards): BoardSummary {
     site: row.ben_site ?? "",
     department: row.ben_department ?? "",
     isTemplate: row.ben_istemplate === true,
+    processNodeId: row.ben_processnodeid ?? "",
     isArchived: row.ben_isarchived === true,
     occurrenceSettingsRaw: row.ben_occurrencesettings ?? "",
     manifestRaw: row.ben_manifestjson ?? "",
