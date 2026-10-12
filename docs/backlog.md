@@ -288,6 +288,15 @@ user-feedback-test-script-2026-10.md. Released v0.65.0 / v0.65.1.
 
 ## Term store & processes — the plan (2026-10-12)
 
+- **One-way sync as the rule** (proposal §8, after the cutover tools
+  built 2026-10-12): write-through from the Organisation editor and
+  the Process tab, the queue (`pendingTermWrites` on the journal), the
+  verifier's Adopt (reverse import of a good-faith term), move as
+  create + retire + carry, the set's open-for-tagging flag off (probe
+  `isOpen` on v2.1), the contributor group reduced to super admins.
+  About three days. Then §7.2 (carry the documents) and §7.4 (rebuild,
+  onboarding only).
+
 term-store-proposal-2026-10.md. Steps 1 (the term manager, with
 colours), 2 (the rename journal + term binding + ID-first planner +
 the sync warning) and 3 (the process model — schema, Settings →

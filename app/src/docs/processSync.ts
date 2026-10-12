@@ -12,7 +12,7 @@ import { TermNode, fetchTerm, fetchTermStoreLanguage, patchTermLabels } from "./
 import { ProcessNode, ProcessTree, processTermPaths, synonymsToAdd } from "../processes/model";
 import { saveProcessNodes } from "../store/processes";
 
-export function planProcessSync(tree: ProcessTree, termNodes: TermNode[]): OrgSyncPlan {
+export function planProcessSync(tree: ProcessTree, termNodes: TermNode[], retired: string[] = []): OrgSyncPlan {
   const entries = processTermPaths(tree);
   const bindings: Record<string, string> = {};
   for (const e of entries) if (e.node.termId !== "") bindings[pathKey(e.path)] = e.node.termId;
@@ -20,7 +20,7 @@ export function planProcessSync(tree: ProcessTree, termNodes: TermNode[]): OrgSy
     entries.map((e) => e.path),
     termNodes,
     0,
-    { bindings }
+    { bindings, retired }
   );
 }
 

@@ -407,6 +407,19 @@ renames the term's label but leaves it under the old parent — the
 honest limit — or Retire + create, with 7.2 to carry the documents.
 Effort: one and a half days (plan + UI + bindings + the probe).
 
+**Status — BUILT 2026-10-12 (dev, unreleased).** `docs/termAlignModel.ts`
+(pure: `pairableCreates` = siblings only, `createsAfterPairings`,
+`decisionCounts`, `verdictFor`) and `docs/termAlign.ts` (`SetAdapter`
+per set, `retireTerm` = PATCH `isDeprecated` then the "(retired)"
+suffix where the road refuses, `renderOrphanDecisions`, `alignSet` =
+decisions → re-plan → sync → fresh walk → verdict). The plan gained
+`orphanTerms` (with ids) and `retiredTerms`; the evidence gained
+`retired`; the config gained `retiredTerms[setId][termId] = {label,
+at, how}`. A pairing IS a binding the admin asserted — the planner's
+ID-first step turns it into the in-place rename, and the create drops
+out. Both drift reports now show the decision rows in place of "left
+alone" and apply through the same run.
+
 ### 7.2 Carry the documents
 
 A "Documents tagged with retired terms" sweep per library: the
@@ -426,6 +439,12 @@ awaiting a 7.1 decision, a failed write). The Term store warning line
 ("the organisation changed since the last sync") grows a second
 trigger: a process node renamed or archived. Half a day. This is the
 "force a full sync" button; 7.1 is what makes it finish clean.
+
+**Status — BUILT 2026-10-12 (dev, unreleased).** Settings → Documents
+→ Term store → **Alignment → "Align term sets"**: both configured sets
+through `alignSet` with no decisions, a card per set with its log and
+verdict lines, then one line for the whole. The warning-line trigger
+for process edits is §8's, not built yet.
 
 ### 7.4 Rebuild a set (onboarding only)
 

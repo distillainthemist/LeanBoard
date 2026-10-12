@@ -53,11 +53,14 @@ import {
   rekeyPaletteToTerms,
   resolveLibraryConfig,
   orgSyncPlan,
+  pathKey,
   seedDefaultColumns,
   siteKey,
   syncSiteDictionary,
 } from "./model";
 import { executeOrgSync } from "./orgSync";
+import { SetAdapter, alignSet, renderOrphanDecisions } from "./termAlign";
+import { OrphanDecision, createsAfterPairings, decisionCounts } from "./termAlignModel";
 import type { TermNode } from "./sp";
 import {
   fetchFields,
@@ -1482,6 +1485,132 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
     healthBox.appendChild(list);
   };
 
+  // ---- the cutover tools (term-store-proposal §7.1 / §7.3) -------------
+  // One adapter per synced set; the drift reports and "Align term sets"
+  // all run through alignSet, so a set is aligned the same way
+  // whichever button asked.
+  const recordRetired = async (setId: string, termId: string, label: string, how: "deprecated" | "suffixed") => {
+    app.retiredTerms[setId] = { ...(app.retiredTerms[setId] ?? {}), [termId]: { label, at: new Date().toISOString(), how } };
+    await saveAppDocsConfig(app).catch(() => undefined);
+  };
+  const makeOrgAdapter = (offset: number): SetAdapter => ({
+    name: "Organisation",
+    setId: app.orgSetId,
+    site: app.siteUrl,
+    walk: () => fetchTermPaths(app.siteUrl, app.orgSetId),
+    plan: async (nodes) =>
+      orgSyncPlan(orgTreePaths(parseOrgTree(await orgJson())), nodes, offset, {
+        renames: app.orgRenames,
+        bindings: app.termBindings[app.orgSetId] ?? {},
+        retired: Object.keys(app.retiredTerms[app.orgSetId] ?? {}),
+      }),
+    execute: async (plan, nodes, log) => {
+      const { failed, bindings } = await executeOrgSync({ site: app.siteUrl, setId: app.orgSetId, plan, termNodes: nodes, termOffset: offset, log });
+      // what landed is now bound by id; the journal entries that became
+      // renames are spent (a failed one stays for the retry)
+      app.termBindings[app.orgSetId] = { ...(app.termBindings[app.orgSetId] ?? {}), ...bindings };
+      app.orgRenames = app.orgRenames.filter((r) => bindings[pathKey(r.to)] === undefined);
+      await saveAppDocsConfig(app).catch(() => undefined);
+      return failed;
+    },
+    pair: async (termId, path) => {
+      app.termBindings[app.orgSetId] = { ...(app.termBindings[app.orgSetId] ?? {}), [pathKey(path)]: termId };
+      await saveAppDocsConfig(app).catch(() => undefined);
+    },
+    recordRetired: (termId, label, how) => recordRetired(app.orgSetId, termId, label, how),
+  });
+  const makeProcessAdapter = async (): Promise<SetAdapter & { bound: number; withAliases: number }> => {
+    const [{ listProcessNodes, saveProcessNodes }, { buildProcessTree, processTermPaths }, { planProcessSync, executeProcessSync }] = await Promise.all([import("../store/processes"), import("../processes/model"), import("./processSync")]);
+    const processNodes = await listProcessNodes();
+    const tree = buildProcessTree(processNodes);
+    const setId = app.processSetId;
+    return {
+      name: "Process area",
+      setId,
+      site: app.siteUrl,
+      bound: processNodes.filter((n) => !n.archived && n.termId !== "").length,
+      withAliases: processNodes.filter((n) => !n.archived && Object.keys(n.aliases).length > 0).length,
+      walk: () => fetchTermPaths(app.siteUrl, setId, 5, 400),
+      plan: async (nodes) => planProcessSync(tree, nodes, Object.keys(app.retiredTerms[setId] ?? {})),
+      execute: (plan, nodes, log) => executeProcessSync({ site: app.siteUrl, setId, tree, plan, termNodes: nodes, log }),
+      pair: async (termId, path) => {
+        const e = processTermPaths(tree).find((x) => pathKey(x.path) === pathKey(path));
+        if (!e) return;
+        e.node.termId = termId;
+        await saveProcessNodes([{ ...e.node }]);
+      },
+      recordRetired: (termId, label, how) => recordRetired(setId, termId, label, how),
+    };
+  };
+  /** The Apply road shared by both drift reports: decisions, sync,
+   *  verdict — the button names what it will do as the decisions change. */
+  const wireApply = (box: HTMLElement, adapter: SetAdapter, planNow: ReturnType<typeof orgSyncPlan>, nodes: TermNode[], decisions: Map<string, OrphanDecision>, extraWork: number, decisionsHost: HTMLElement) => {
+    const applyBtn = el("button", "app-btn", "") as HTMLButtonElement;
+    const relabel = () => {
+      const c = decisionCounts(decisions);
+      const work = createsAfterPairings(planNow, decisions).length + planNow.renames.length + c.pair + extraWork;
+      const bits: string[] = [];
+      if (work > 0) bits.push(`${work} change${work === 1 ? "" : "s"}`);
+      if (c.retire > 0) bits.push(`${c.retire} retirement${c.retire === 1 ? "" : "s"}`);
+      applyBtn.disabled = bits.length === 0;
+      applyBtn.textContent = bits.length === 0 ? "Nothing to apply" : `Apply to term set (${bits.join(", ")})`;
+    };
+    renderOrphanDecisions(decisionsHost, planNow, decisions, relabel);
+    relabel();
+    box.appendChild(applyBtn);
+    const logBox = el("div", "");
+    box.appendChild(logBox);
+    applyBtn.addEventListener("click", () => {
+      void (async () => {
+        applyBtn.disabled = true;
+        applyBtn.textContent = "Syncing…";
+        clear(logBox);
+        const r = await alignSet(adapter, decisions, (line) => logBox.appendChild(el("div", "app-field-hint", line)), { plan: planNow, nodes });
+        applyBtn.textContent = r.failed === 0 ? "Applied" : "Reload the report to retry";
+        for (const line of r.verdict.lines) logBox.appendChild(note(line));
+        if (r.failed > 0) logBox.appendChild(note("Nothing was deleted. The usual cause is term-store rights: the signed-in account needs to be a contributor or group manager on the set."));
+      })();
+    });
+    return applyBtn;
+  };
+  // ---- Align term sets: both sets, one click, a verdict each ----------
+  termStoreHost.appendChild(el("div", "app-section", "Alignment"));
+  termStoreHost.appendChild(note("Pushes the app's organisation and process model into their term sets and confirms the result with a fresh walk: creates what is missing, renames bound terms in place, pushes local names as synonyms, never deletes. A term the app does not know is reported — decide it in the drift reports below (pair it with an app node, or retire it)."));
+  const alignBtn = el("button", "app-btn app-btn-primary", "Align term sets") as HTMLButtonElement;
+  const alignRow = el("div", "app-docs-siterow");
+  alignRow.appendChild(alignBtn);
+  termStoreHost.appendChild(alignRow);
+  const alignBox = el("div", "");
+  termStoreHost.appendChild(alignBox);
+  alignBtn.addEventListener("click", () => {
+    void (async () => {
+      clear(alignBox);
+      if (app.orgSetId === "" && app.processSetId === "") {
+        alignBox.appendChild(note("Choose the Organisation term set (and the Process area term set) above first."));
+        return;
+      }
+      alignBtn.disabled = true;
+      alignBtn.textContent = "Aligning…";
+      const adapters: SetAdapter[] = [];
+      if (app.orgSetId !== "") adapters.push(makeOrgAdapter(companyLevel.checked ? 1 : 0));
+      if (app.processSetId !== "") adapters.push(await makeProcessAdapter());
+      let allAligned = true;
+      for (const a of adapters) {
+        const card = el("div", "app-docs-alignset");
+        card.appendChild(el("div", "app-field-label", `${a.name} set`));
+        const logBox = el("div", "");
+        card.appendChild(logBox);
+        alignBox.appendChild(card);
+        const r = await alignSet(a, new Map(), (line) => logBox.appendChild(el("div", "app-field-hint", line)));
+        for (const line of r.verdict.lines) card.appendChild(note(line));
+        if (!r.verdict.aligned) allAligned = false;
+      }
+      alignBox.appendChild(note(allAligned ? "✓ Every synced set is aligned with the app." : "Not yet aligned — the lines above say what is left; the drift reports below take the decisions."));
+      alignBtn.disabled = false;
+      alignBtn.textContent = "Align term sets";
+    })();
+  });
+
   termStoreHost.append(el("div", "app-section", "Organisation sync"), companyWrap);
 
   const driftBtn = el("button", "app-btn", "Load drift report") as HTMLButtonElement;
@@ -1516,16 +1645,15 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
       }
       procDriftBtn.disabled = true;
       procDriftBtn.textContent = "Comparing…";
-      const [{ listProcessNodes }, { buildProcessTree }, { planProcessSync, executeProcessSync }] = await Promise.all([import("../store/processes"), import("../processes/model"), import("./processSync")]);
-      const [{ nodes: termNodes, truncated, error }, processNodes] = await Promise.all([fetchTermPaths(app.siteUrl, app.processSetId, 5, 400), listProcessNodes()]);
+      const adapter = await makeProcessAdapter();
+      const { nodes: termNodes, truncated, error } = await adapter.walk();
       procDriftBtn.disabled = false;
       procDriftBtn.textContent = "Load process drift report";
       if (error !== "") {
         procDriftBox.appendChild(note(`Term walk failed: ${error}`));
         return;
       }
-      const tree = buildProcessTree(processNodes);
-      const plan = planProcessSync(tree, termNodes);
+      const plan = await adapter.plan(termNodes);
       if (plan.error !== "") {
         procDriftBox.appendChild(note(`Cannot compare: ${plan.error}.`));
         return;
@@ -1540,35 +1668,23 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
         for (const it of items) ul.appendChild(el("li", "", it));
         procDriftBox.appendChild(ul);
       };
-      const bound = processNodes.filter((n) => !n.archived && n.termId !== "").length;
-      procDriftBox.appendChild(note(`${plan.matched} matched${bound > 0 ? ` (${bound} bound by id)` : ""}. Bound nodes compare by id; the rest by name.`));
+      procDriftBox.appendChild(note(`${plan.matched} matched${adapter.bound > 0 ? ` (${adapter.bound} bound by id)` : ""}. Bound nodes compare by id; the rest by name.`));
       list("To create in the term set", plan.creates.map((p) => p.join(" › ")));
       list("To rename in place (the term keeps its id)", plan.renames.map((r) => `${r.from.join(" › ")} → ${r.to[r.to.length - 1]}`));
-      list("In the term set only (left alone)", plan.orphans.map((p) => p.join(" › ")));
-      const total = plan.creates.length + plan.renames.length;
-      const withAliases = processNodes.filter((n) => !n.archived && Object.keys(n.aliases).length > 0).length;
-      if (total === 0 && withAliases === 0) {
+      const decisionsHost = el("div", "");
+      procDriftBox.appendChild(decisionsHost);
+      if (truncated) {
+        procDriftBox.appendChild(note("The term walk was truncated — syncing against a partial view could recreate terms it did not see. Sync disabled."));
+        renderOrphanDecisions(decisionsHost, plan, new Map(), () => undefined);
+        return;
+      }
+      if (plan.creates.length + plan.renames.length + plan.orphanTerms.length === 0 && adapter.withAliases === 0) {
+        renderOrphanDecisions(decisionsHost, plan, new Map(), () => undefined);
         procDriftBox.appendChild(note("✓ Nothing to sync — the trees agree."));
         return;
       }
-      if (truncated) {
-        procDriftBox.appendChild(note("The term walk was truncated — syncing against a partial view could recreate terms it did not see. Sync disabled."));
-        return;
-      }
-      const applyBtn = el("button", "app-btn", total === 0 ? "Push local names as synonyms" : `Apply to term set (${total} change${total === 1 ? "" : "s"}${withAliases > 0 ? " + synonyms" : ""})`) as HTMLButtonElement;
-      procDriftBox.appendChild(applyBtn);
-      const logBox = el("div", "");
-      procDriftBox.appendChild(logBox);
-      applyBtn.addEventListener("click", () => {
-        void (async () => {
-          applyBtn.disabled = true;
-          applyBtn.textContent = "Syncing…";
-          clear(logBox);
-          const failed = await executeProcessSync({ site: app.siteUrl, setId: app.processSetId, tree, plan, termNodes, log: (line) => logBox.appendChild(el("div", "app-field-hint", line)) });
-          applyBtn.textContent = failed === 0 ? "Applied" : "Reload the report to retry";
-          logBox.appendChild(note(failed === 0 ? "✓ Sync complete — reload the report to confirm alignment." : `${failed} step(s) failed — nothing was deleted. The usual cause is term-store rights (contributor or group manager on the set).`));
-        })();
-      });
+      // local names ride every apply (synonyms are added, never removed)
+      wireApply(procDriftBox, adapter, plan, termNodes, new Map<string, OrphanDecision>(), adapter.withAliases > 0 ? 1 : 0, decisionsHost);
     })();
   });
   diagBtn.addEventListener("click", () => {
@@ -1631,23 +1747,19 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
       driftBtn.disabled = true;
       driftBtn.textContent = "Comparing…";
       clear(driftBox);
-      const [{ nodes, truncated, error }, orgRaw] = await Promise.all([
-        fetchTermPaths(app.siteUrl, app.orgSetId),
-        orgJson(),
-      ]);
+      const offset = companyLevel.checked ? 1 : 0;
+      const adapter = makeOrgAdapter(offset);
+      const [{ nodes, truncated, error }, orgRaw] = await Promise.all([adapter.walk(), orgJson()]);
       driftBtn.disabled = false;
       driftBtn.textContent = "Load drift report";
       if (error !== "") {
         driftBox.appendChild(note(`Term walk failed: ${error}`));
         return;
       }
-      const offset = companyLevel.checked ? 1 : 0;
       // the report IS the sync plan (5F): what a sync would create and
-      // rename, and what it deliberately leaves alone
-      const plan = orgSyncPlan(orgTreePaths(parseOrgTree(orgRaw)), nodes, offset, {
-        renames: app.orgRenames,
-        bindings: app.termBindings[app.orgSetId] ?? {},
-      });
+      // rename, and what it deliberately leaves alone — or, since the
+      // cutover tools, what the admin decides about
+      const plan = await adapter.plan(nodes);
       if (plan.error !== "") {
         driftBox.appendChild(note(`Cannot compare: ${plan.error}.`));
         return;
@@ -1702,12 +1814,8 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
         "To rename in place (the term keeps its id — tags survive)",
         plan.renames.map((r) => `${r.from.join(" › ")} → ${r.to[r.to.length - 1]}`)
       );
-      list("In the term set only (left alone)", plan.orphans.map((p) => p.join(" › ")));
-      const total = plan.creates.length + plan.renames.length;
-      if (total === 0) {
-        driftBox.appendChild(note("✓ Nothing to sync — the trees agree."));
-        return;
-      }
+      const decisionsHost = el("div", "");
+      driftBox.appendChild(decisionsHost);
       if (truncated) {
         driftBox.appendChild(
           note(
@@ -1715,52 +1823,17 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
               "syncing against a partial view could recreate terms it did not see. Sync disabled."
           )
         );
+        renderOrphanDecisions(decisionsHost, plan, new Map(), () => undefined);
+        return;
+      }
+      if (plan.creates.length + plan.renames.length + plan.orphanTerms.length === 0) {
+        renderOrphanDecisions(decisionsHost, plan, new Map(), () => undefined);
+        driftBox.appendChild(note("✓ Nothing to sync — the trees agree."));
         return;
       }
       // the plan above is the confirmation step — the button says exactly
       // how many changes it will make, and none of them are deletions
-      const applyBtn = el(
-        "button",
-        "app-btn",
-        `Apply to term set (${total} change${total === 1 ? "" : "s"})`
-      ) as HTMLButtonElement;
-      driftBox.appendChild(applyBtn);
-      const logBox = el("div", "");
-      driftBox.appendChild(logBox);
-      applyBtn.addEventListener("click", () => {
-        void (async () => {
-          applyBtn.disabled = true;
-          applyBtn.textContent = "Syncing…";
-          clear(logBox);
-          const { failed, bindings } = await executeOrgSync({
-            site: app.siteUrl,
-            setId: app.orgSetId,
-            plan,
-            termNodes: nodes,
-            termOffset: offset,
-            log: (line) => logBox.appendChild(el("div", "app-field-hint", line)),
-          });
-          // what landed is now bound by id; the journal entries that
-          // became renames are spent (a failed one stays for the retry)
-          app.termBindings[app.orgSetId] = { ...(app.termBindings[app.orgSetId] ?? {}), ...bindings };
-          app.orgRenames = app.orgRenames.filter((r) => bindings[r.to.map((s) => s.trim().toLowerCase()).join("¦")] === undefined);
-          await saveAppDocsConfig(app).catch(() => undefined);
-          // one shot per plan: a re-run after a PARTIAL failure would
-          // re-create the terms that DID land — reload the report instead,
-          // and the fresh plan carries only what is still missing
-          applyBtn.textContent = failed === 0 ? "Applied" : "Reload the drift report to retry";
-          logBox.appendChild(
-            note(
-              failed === 0
-                ? "✓ Sync complete — reload the drift report to confirm alignment. " +
-                    "Search filtering may take a crawl cycle to see new terms."
-                : `${failed} step(s) failed — nothing was deleted. The usual cause is term-store ` +
-                    "rights: the signed-in account needs to be a contributor or group manager " +
-                    "on the term set. Fix and reload the drift report."
-            )
-          );
-        })();
-      });
+      wireApply(driftBox, adapter, plan, nodes, new Map<string, OrphanDecision>(), 0, decisionsHost);
     })();
   });
 

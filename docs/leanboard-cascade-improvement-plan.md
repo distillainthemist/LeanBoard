@@ -1455,6 +1455,12 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-10-12 (after v0.71.0, dev)**: the term-set cutover tools
+  (term-store-proposal §7.1 / §7.3): orphan decisions in both drift
+  reports (Leave / Retire / "This is …" against sibling creates; a
+  pairing is a binding the admin asserted, retire = deprecate with a
+  "(retired)" suffix fallback, `retiredTerms` in the config) and
+  "Align term sets" — both sets synced and re-walked to a verdict.
 - **2026-10-12 (after v0.71.0, dev)**: the production timing tooltip
   named the Documents open cost — a scroll page fired on the empty
   list before the first load (50 unfiltered rows, 8 feed calls) and

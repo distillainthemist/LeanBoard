@@ -273,6 +273,37 @@ On a desktop.
 |---|---|
 | 1–13 | _Ben's pass pending_ |
 
+## Term alignment pass — after v0.71.0 (2026-10-12, dev)
+
+Settings → Documents → Term store. Needs the Organisation set (and
+the Process area set) bound, and a term in one of them the app does
+not know (make one in the term store by hand for the test).
+
+1. **Alignment card** — "Align term sets" runs both sets: a card per
+   set with its log, then "✓ Aligned — n terms bound" or the lines
+   saying what is left (the hand-made term is named as "the app does
+   not know").
+2. **Decision rows** — Load drift report: "In the term set only (n)"
+   lists the hand-made term with a select: Leave, Retire, and "This
+   is X" for each sibling the plan would create (none when the plan
+   creates nothing under that parent).
+3. **Pair** — choose "This is X": the Apply button counts it as a
+   change; Apply renames the term in place (log "is X: bound; it will
+   be renamed"), the fresh verdict reads aligned, and Manage terms…
+   shows the term under its new name with its GUID unchanged.
+4. **Retire** — choose Retire on another term: Apply deprecates it
+   (log "retired … (deprecated)") or, where the road refuses, suffixes
+   "(retired)" and says so; the verdict no longer counts it; reload
+   shows it under "Retired earlier".
+5. **One create claimed once** — two orphans cannot both be "This is
+   X": picking it on the second resets the first to Leave.
+6. **Nothing lost** — no term is deleted by any of the above; the
+   manager's delete stays the only delete and only at zero usage.
+
+| Item | Outcome |
+|---|---|
+| 1–6 | _Ben's pass pending_ |
+
 ## Term manager pass — after v0.69.0 (2026-10-12, dev)
 
 1. **Open** — Settings → Documents → Term sets & colours → "Manage

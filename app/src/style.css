@@ -1870,6 +1870,13 @@ input[type="color"].app-color:disabled { opacity: 0.4; cursor: default; }
 .app-docs-statusrow { display: flex; gap: 8px; align-items: center; margin: 3px 0; }
 .app-docs-check { display: flex; gap: 6px; align-items: center; font-size: 13px; margin: 8px 0; }
 .app-docs-driftlist { margin: 4px 0 10px 18px; font-size: 12.5px; }
+/* the cutover decisions (term-store-proposal §7.1): one row per term
+   the app does not know, its decision in a narrow select */
+.app-docs-decisions { list-style: none; margin-left: 0; padding-left: 0; }
+.app-docs-decision { display: flex; align-items: center; gap: 10px; padding: 3px 0; border-bottom: 1px solid #f0ede7; }
+.app-docs-decisionlabel { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app-docs-decisionsel { width: auto; min-width: 150px; max-width: 320px; }
+.app-docs-alignset { border: 1px solid #e4dfd6; border-radius: 10px; padding: 10px 14px; margin: 8px 0; display: flex; flex-direction: column; gap: 4px; }
 
 /* ---- Standard Documents area (plan Phase 2) ---- */
 .app-docs-wrap { display: flex; flex-direction: column; height: 100%; padding: 12px 16px; box-sizing: border-box; }

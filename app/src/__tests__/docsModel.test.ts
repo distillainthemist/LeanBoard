@@ -16,6 +16,7 @@ import {
   orgSyncPlan,
   orgTreePaths,
   tallyByOwner,
+  emptyAppDocsConfig,
   parseAppDocsConfig,
   parseLibraryConfig,
   seedDefaultColumns,
@@ -81,6 +82,7 @@ describe("app docs config", () => {
     defaultOrgFilter: {},
     orgRenames: [],
     termBindings: {},
+    retiredTerms: {},
     processSetId: "",
     processSetName: "",
     });
@@ -2126,5 +2128,46 @@ describe("orgRenames / termBindings in the docs config", () => {
     const back = parseAppDocsConfig(serializeAppDocsConfig(cfg));
     expect(back.orgRenames).toEqual(cfg.orgRenames);
     expect(back.termBindings).toEqual(cfg.termBindings);
+  });
+});
+
+// ---- the cutover tools (term-store-proposal §7.1, 2026-10-12) ------------
+
+describe("org sync plan — retired evidence and orphan ids", () => {
+  const term = (id: string, ...labels: string[]) => ({ id, labels });
+  it("stands a retired term (and what is under it) aside, and names orphans by id", () => {
+    const app = [{ site: "Bell Bay", departments: [{ department: "Casting", areas: [] }] }];
+    const terms = [term("a", "Bell Bay"), term("b", "Bell Bay", "Casting"), term("x", "Bell Bay", "Old dept"), term("y", "Bell Bay", "Old dept", "Old area"), term("z", "Bell Bay", "Stray")];
+    const plan = orgSyncPlan(orgTreePaths(app), terms, 0, { retired: ["x"] });
+    expect(plan.orphanTerms).toEqual([{ id: "z", labels: ["Bell Bay", "Stray"] }]);
+    expect(plan.retiredTerms).toEqual([{ id: "x", labels: ["Bell Bay", "Old dept"] }]);
+    expect(plan.creates).toEqual([]);
+    expect(plan.matched).toBe(2);
+  });
+  it("turns a pairing (a binding the admin asserted) into an in-place rename, and the create drops out", () => {
+    const app = [{ site: "Bell Bay", departments: [{ department: "Casthouse", areas: [] }, { department: "Anodes", areas: [] }] }];
+    const terms = [term("a", "Bell Bay"), term("b", "Bell Bay", "Casting"), term("c", "Bell Bay", "Rodding")];
+    const blind = orgSyncPlan(orgTreePaths(app), terms);
+    expect(blind.creates.length).toBe(2);
+    expect(blind.orphanTerms.map((t) => t.id).sort()).toEqual(["b", "c"]);
+    // the pairing is exact; with one app node and one spare term left
+    // under the parent, the planner's old one-to-one inference pairs
+    // the rest — nothing is created, nothing is orphaned
+    const paired = orgSyncPlan(orgTreePaths(app), terms, 0, { bindings: { "bell bay¦casthouse": "b" } });
+    expect(paired.renames).toEqual([
+      { id: "b", from: ["Bell Bay", "Casting"], to: ["Bell Bay", "Casthouse"] },
+      { id: "c", from: ["Bell Bay", "Rodding"], to: ["Bell Bay", "Anodes"] },
+    ]);
+    expect(paired.creates).toEqual([]);
+    expect(paired.orphanTerms).toEqual([]);
+    // three strays against two creates: no inference, the admin decides
+    const three = orgSyncPlan(orgTreePaths(app), [...terms, term("d", "Bell Bay", "Bake")], 0, { bindings: { "bell bay¦casthouse": "b" } });
+    expect(three.creates).toEqual([["Bell Bay", "Anodes"]]);
+    expect(three.orphanTerms.map((t) => t.id).sort()).toEqual(["c", "d"]);
+  });
+  it("round-trips retired terms through the config", () => {
+    const cfg = { ...emptyAppDocsConfig(), retiredTerms: { set1: { t1: { label: "Old dept", at: "2026-10-12T00:00:00Z", how: "suffixed" as const } } } };
+    const back = parseAppDocsConfig(serializeAppDocsConfig(cfg));
+    expect(back.retiredTerms).toEqual(cfg.retiredTerms);
   });
 });

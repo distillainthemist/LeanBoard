@@ -853,6 +853,11 @@ export interface AppDocsConfig {
    *  comparison is by id first, label second — a bound node whose label
    *  differs from its term's is a rename by definition. */
   termBindings: Record<string, Record<string, string>>;
+  /** Terms RETIRED by a cutover decision (term-store-proposal §7.1),
+   *  per set: term id → the label it had, when, and how (deprecated on
+   *  the term, or suffixed "(retired)" where the road refused). The
+   *  planner stands them aside; nothing is ever deleted. */
+  retiredTerms: Record<string, Record<string, { label: string; at: string; how: "deprecated" | "suffixed" }>>;
   /** The upload STAGING library's title (5H2) — bytes cannot cross the
    *  connector, so uploads happen in SharePoint's own UI here, and the
    *  app copies server-side into the target. Never exposed in the nav;
@@ -896,6 +901,7 @@ export function emptyAppDocsConfig(): AppDocsConfig {
     defaultOrgFilter: {},
     orgRenames: [],
     termBindings: {},
+    retiredTerms: {},
     stagingLibrary: "",
     sites: {},
   };
@@ -996,6 +1002,17 @@ export function parseAppDocsConfig(raw: string | null | undefined): AppDocsConfi
       const clean: Record<string, string> = {};
       for (const [k, v] of Object.entries(m as Record<string, unknown>)) if (typeof v === "string" && v !== "" && k !== "") clean[k] = v;
       if (Object.keys(clean).length > 0) out.termBindings[setId] = clean;
+    }
+    const rt = (o.retiredTerms ?? {}) as Record<string, unknown>;
+    for (const [setId, m] of Object.entries(rt)) {
+      if (!m || typeof m !== "object" || setId === "") continue;
+      const clean: Record<string, { label: string; at: string; how: "deprecated" | "suffixed" }> = {};
+      for (const [id, v] of Object.entries(m as Record<string, unknown>)) {
+        const x = (v ?? {}) as { label?: unknown; at?: unknown; how?: unknown };
+        if (id === "") continue;
+        clean[id] = { label: asStr(x.label), at: asStr(x.at), how: x.how === "suffixed" ? "suffixed" : "deprecated" };
+      }
+      if (Object.keys(clean).length > 0) out.retiredTerms[setId] = clean;
     }
     const dof = (o.defaultOrgFilter ?? {}) as Record<string, unknown>;
     for (const [site, ids] of Object.entries(dof)) {
@@ -1163,6 +1180,7 @@ export function serializeAppDocsConfig(cfg: AppDocsConfig): string {
   if (Object.keys(cfg.defaultOrgFilter).length > 0) o.defaultOrgFilter = cfg.defaultOrgFilter;
   if (cfg.orgRenames.length > 0) o.orgRenames = cfg.orgRenames;
   if (Object.keys(cfg.termBindings).length > 0) o.termBindings = cfg.termBindings;
+  if (Object.keys(cfg.retiredTerms).length > 0) o.retiredTerms = cfg.retiredTerms;
   if (cfg.stagingLibrary !== "") o.stagingLibrary = cfg.stagingLibrary;
   const sites: Record<string, unknown> = {};
   for (const [key, dict] of Object.entries(cfg.sites)) {
@@ -3034,6 +3052,9 @@ export interface OrgSyncEvidence {
   renames?: { from: string[]; to: string[] }[];
   /** app path key → term id */
   bindings?: Record<string, string>;
+  /** Term ids RETIRED by a cutover decision (term-store-proposal §7.1):
+   *  neither matched nor reported as orphans — listed apart. */
+  retired?: string[];
 }
 
 export interface OrgSyncPlan {
@@ -3046,6 +3067,11 @@ export interface OrgSyncPlan {
   renames: { id: string; from: string[]; to: string[] }[];
   /** Term-set-only paths — never touched, listed so nothing is silent. */
   orphans: string[][];
+  /** The same orphans with their ids — what a cutover decision (pair
+   *  or retire) is made against. */
+  orphanTerms: { id: string; labels: string[] }[];
+  /** Retired terms still in the set (evidence.retired), for the record. */
+  retiredTerms: { id: string; labels: string[] }[];
   matched: number;
   /** Non-empty when the comparison itself cannot be trusted. */
   error: string;
@@ -3076,6 +3102,8 @@ export function orgSyncPlan(
         matches: [],
         renames: [],
         orphans: [],
+        orphanTerms: [],
+        retiredTerms: [],
         matched: 0,
         error:
           `the company-level comparison needs exactly one top-level term to sync under ` +
@@ -3083,11 +3111,26 @@ export function orgSyncPlan(
       };
     }
   }
-  // unclaimed terms, keyed by their (offset-sliced) label path
+  // unclaimed terms, keyed by their (offset-sliced) label path; a
+  // retired term (and anything still under it) stands aside
   const terms = new Map<string, { id: string; labels: string[] }>();
+  const retiredIds = new Set(evidence.retired ?? []);
+  const retiredTerms: { id: string; labels: string[] }[] = [];
+  const retiredPrefixes: string[] = [];
   for (const n of termNodes) {
     const sliced = n.labels.slice(termOffset);
-    if (sliced.length > 0) terms.set(norm(sliced), { id: n.id, labels: sliced });
+    if (sliced.length === 0) continue;
+    if (retiredIds.has(n.id)) {
+      retiredTerms.push({ id: n.id, labels: sliced });
+      retiredPrefixes.push(`${norm(sliced)}¦`);
+    }
+  }
+  for (const n of termNodes) {
+    const sliced = n.labels.slice(termOffset);
+    if (sliced.length === 0 || retiredIds.has(n.id)) continue;
+    const key = norm(sliced);
+    if (retiredPrefixes.some((pre) => key.startsWith(pre))) continue;
+    terms.set(key, { id: n.id, labels: sliced });
   }
   const parentKey = (p: string[]) => norm(p.slice(0, -1));
   const maxDepth = Math.max(0, ...appPaths.map((p) => p.length));
@@ -3186,6 +3229,8 @@ export function orgSyncPlan(
     matches,
     renames,
     orphans: [...terms.values()].map((t) => t.labels),
+    orphanTerms: [...terms.values()].map((t) => ({ id: t.id, labels: t.labels })),
+    retiredTerms,
     matched,
     error: "",
   };

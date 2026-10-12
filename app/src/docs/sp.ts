@@ -766,6 +766,15 @@ export function patchTerm(
   });
 }
 
+/** PATCH arbitrary fields on a term — the retire road tries
+ *  `isDeprecated` here; a refusal is the caller's signal to fall back. */
+export function patchTermFields(site: string, setId: string, termId: string, body: Record<string, unknown>): Promise<SpResult> {
+  return spRequest(site, "PATCH", `_api/v2.1/termStore/sets/${setId}/terms/${termId}`, {
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
 /** Delete a term — the manager offers it only for a term with no
  *  children and no tagged document (a search count of zero). */
 export function deleteTerm(site: string, setId: string, termId: string): Promise<SpResult> {
@@ -826,7 +835,7 @@ export interface TermNode {
   labels: string[];
 }
 
-interface TermWalk {
+export interface TermWalk {
   nodes: TermNode[];
   truncated: boolean;
   error: string;
