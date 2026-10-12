@@ -1800,7 +1800,9 @@ input[type="color"].app-color:disabled { opacity: 0.4; cursor: default; }
 .app-docs-settiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; margin-bottom: 12px; }
 .app-docs-settile { display: flex; align-items: center; justify-content: space-between; gap: 10px; font: inherit; font-size: 13.5px; font-weight: 600; color: #26241f; text-align: left; background: #fff; border: 1px solid #e4dfd6; border-radius: 10px; padding: 12px 14px; min-height: 48px; cursor: pointer; }
 .app-docs-settile:hover { border-color: var(--app-accent); }
+.app-docs-settile-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .app-docs-settile-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app-docs-settile-sub { font-size: 11.5px; font-weight: 400; color: #6d675c; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .app-docs-settile-edit { flex: none; color: #6d675c; font-size: 14px; }
 .app-docs-settile:hover .app-docs-settile-edit { color: var(--app-accent); }
 .app-docs-palhead {

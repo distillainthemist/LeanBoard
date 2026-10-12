@@ -638,12 +638,13 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
    *  manager changes a colour. */
   let repaintPaletteCounts: () => void = () => {};
   let paletteSaveTimer: ReturnType<typeof setTimeout> | null = null;
-  const paletteCard = (key: string, setId: string, cols: SiteColumn[]): HTMLElement => {
+  const paletteCard = (key: string, setId: string, cols: SiteColumn[], setName = ""): HTMLElement => {
     const box = el("div", "app-docs-palcard");
     const head = el("button", "app-docs-palhead") as HTMLButtonElement;
-    const name = cols
+    const colNames = cols
       .map((c) => (c.label !== "" ? c.label : (liveByInternal.get(c.internal)?.title ?? c.internal)))
       .join(", ");
+    const name = setName !== "" ? setName : colNames;
     const caret = el("span", "app-docs-palcaret", "▸");
     const count = el("span", "app-field-hint", "");
     const paintCount = () => {
@@ -777,7 +778,14 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
       const tile = el("button", "app-docs-settile") as HTMLButtonElement;
       tile.type = "button";
       tile.title = `Manage ${name}: terms, synonyms, translations, colours`;
-      tile.append(el("span", "app-docs-settile-name", name), el("span", "app-docs-settile-edit", "✎"));
+      const text = el("span", "app-docs-settile-text");
+      text.appendChild(el("span", "app-docs-settile-name", name));
+      // which column reads the set — the Organisation / Process area
+      // bindings say so too; a set nothing reads yet says that honestly
+      const role = setId === app.orgSetId ? "Organisation set" : setId === app.processSetId ? "Process area set" : "";
+      const sub = [role, colNames !== "" && colNames !== name ? `read by ${colNames}` : colNames === "" ? "no column reads it yet" : ""].filter((x) => x !== "").join(" · ");
+      if (sub !== "") text.appendChild(el("span", "app-docs-settile-sub", sub));
+      tile.append(text, el("span", "app-docs-settile-edit", "✎"));
       tile.addEventListener("click", () => void openManager(setId, name, key));
       return tile;
     }
@@ -785,6 +793,10 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
     return box;
   };
 
+  /** The term group's sets as the term store names them — so the tiles
+   *  list EVERY set in the group, not only the ones a column reads
+   *  (Ben, 2026-10-12: "Process not available?"). Filled by loadSets. */
+  let groupSets: { id: string; name: string }[] = [];
   const paintPalettes = () => {
     clear(palBox);
     const dict = dictionary();
@@ -797,14 +809,23 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
         c.termSetId === "" &&
         (liveByInternal.get(c.internal)?.choices.length ?? 0) > 0
     );
-    if (sets.length === 0 && choiceCols.length === 0) {
+    if (sets.length === 0 && choiceCols.length === 0 && groupSets.length === 0) {
       palBox.appendChild(
         note("Nothing to colour yet — this appears once the libraries above have loaded.")
       );
       return;
     }
     const tiles = el("div", "app-docs-settiles");
-    for (const s of sets) tiles.appendChild(paletteCard(s.key, s.setId, s.columns));
+    const bySet = new Map(sets.map((s) => [s.setId, s]));
+    // the group's sets first, in the term store's order; a set no column
+    // reads yet (the new Process area set) still has its tile; then any
+    // column-read set outside the group
+    for (const g of groupSets) {
+      const s = bySet.get(g.id);
+      tiles.appendChild(paletteCard(s?.key ?? g.id, g.id, s?.columns ?? [], g.name));
+      bySet.delete(g.id);
+    }
+    for (const s of bySet.values()) tiles.appendChild(paletteCard(s.key, s.setId, s.columns));
     palBox.appendChild(tiles);
     for (const c of choiceCols) {
       palBox.appendChild(paletteCard(paletteKeyFor("", c.internal), "", [c]));
@@ -1061,6 +1082,8 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
         }[])
       : [];
     if (!r.ok) return; // keep whatever is seeded rather than blanking
+    groupSets = sets.map((s) => ({ id: s.id ?? "", name: s.localizedNames?.[0]?.name ?? "" })).filter((s) => s.id !== "");
+    paintPalettes();
     clear(setSel);
     const dash = el("option", "", "—") as HTMLOptionElement;
     dash.value = "";
