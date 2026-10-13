@@ -1455,6 +1455,8 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-10-13 — released as v0.73.0** (app-only): the company-aware
+  Organisation sync below.
 - **2026-10-13 (after v0.72.3, dev)**: the Organisation sync is
   COMPANY-aware — "starts at company level" now means Company › Site
   › Department › Area with each app company a top-level term
