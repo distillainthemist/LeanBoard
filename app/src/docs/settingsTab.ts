@@ -78,7 +78,10 @@ import {
 } from "./sp";
 import {
   DocLibrary,
+  adoptSyncFields,
   appDocsConfig,
+  patchAppDocsConfig,
+  saveAppDocsConfigKeepingSync,
   deleteDocLibrary,
   invalidateDocsCache,
   listDocLibraries,
@@ -148,7 +151,7 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
         lib.config = mirrorCellsToConfig(dict, lib.libType, lib.config);
       }
     }
-    await saveAppDocsConfig(app);
+    await saveAppDocsConfigKeepingSync(app);
     for (const lib of exposed) {
       await saveDocLibrary(lib);
     }
@@ -627,7 +630,7 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
               if (paletteSaveTimer) clearTimeout(paletteSaveTimer);
               return new Promise<void>((resolve, reject) => {
                 paletteSaveTimer = setTimeout(() => {
-                  saveAppDocsConfig(app)
+                  saveAppDocsConfigKeepingSync(app)
                     .then(() => {
                       invalidateDocsCache();
                       resolve();
@@ -1175,7 +1178,11 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
   if (owedSets.length > 0) {
     const owedBox = el("div", "app-docs-health app-docs-health-warn app-docs-syncnow", `${owedSets.length === 1 ? "A term-set push is" : `${owedSets.length} term-set pushes are`} owed (${owedSets.map(([id, o]) => `${id === app.orgSetId ? "Organisation" : id === app.processSetId ? "Process area" : id.slice(0, 8)}: ${o.reason || "could not land"}${o.retire.length > 0 ? `, ${o.retire.length} retirement${o.retire.length === 1 ? "" : "s"}` : ""}`).join("; ")}). Pushing now…`);
     termStoreHost.appendChild(owedBox);
-    void flushOwedTermWrites().then((outs) => {
+    void flushOwedTermWrites().then(async (outs) => {
+      // the flush wrote bindings and settled the debt on a fresh copy —
+      // this tab's copy adopts them before anything here saves
+      adoptSyncFields(app, await appDocsConfig().catch(() => app));
+      companyLevel.checked = app.orgSetCompanyLevel;
       const still = outs.filter((o) => o.owed);
       owedBox.textContent = still.length === 0 ? `✓ ${outs.map((o) => o.summary).join(" · ")}` : still.map((o) => o.summary).join(" · ") + " — the signed-in account needs contributor rights on the set; Align term sets retries.";
       if (still.length === 0) owedBox.classList.remove("app-docs-health-warn");
@@ -1221,7 +1228,11 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
   companyLevel.checked = app.orgSetCompanyLevel;
   companyLevel.addEventListener("change", () => {
     app.orgSetCompanyLevel = companyLevel.checked;
-    void saveAppDocsConfig(app).catch(() => undefined);
+    void patchAppDocsConfig((c) => {
+      c.orgSetCompanyLevel = companyLevel.checked;
+    })
+      .then((fresh) => adoptSyncFields(app, fresh))
+      .catch(() => undefined);
   });
   const companyWrap = el("label", "app-docs-check");
   companyWrap.append(
@@ -1510,8 +1521,15 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
   // One adapter per synced set; the drift reports and "Align term sets"
   // all run through alignSet, so a set is aligned the same way
   // whichever button asked.
-  const makeOrgAdapter = (offset: number): SetAdapter => orgAdapter(app, offset);
-  const makeProcessAdapter = () => processAdapter(app);
+  // every run starts from the row's sync fields, not this tab's copy
+  const makeOrgAdapter = async (offset: number): Promise<SetAdapter> => {
+    adoptSyncFields(app, await appDocsConfig().catch(() => app));
+    return orgAdapter(app, offset);
+  };
+  const makeProcessAdapter = async () => {
+    adoptSyncFields(app, await appDocsConfig().catch(() => app));
+    return processAdapter(app);
+  };
   /** The Apply road shared by both drift reports: decisions, sync,
    *  verdict — the button names what it will do as the decisions change. */
   const wireApply = (box: HTMLElement, adapter: SetAdapter, planNow: ReturnType<typeof orgSyncPlan>, nodes: TermNode[], decisions: Map<string, OrphanDecision>, extraWork: number, decisionsHost: HTMLElement) => {
@@ -1562,7 +1580,7 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
       alignBtn.disabled = true;
       alignBtn.textContent = "Aligning…";
       const adapters: SetAdapter[] = [];
-      if (app.orgSetId !== "") adapters.push(makeOrgAdapter(companyLevel.checked ? 1 : 0));
+      if (app.orgSetId !== "") adapters.push(await makeOrgAdapter(companyLevel.checked ? 1 : 0));
       if (app.processSetId !== "") adapters.push(await makeProcessAdapter());
       let allAligned = true;
       for (const a of adapters) {
@@ -1720,7 +1738,7 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
       driftBtn.textContent = "Comparing…";
       clear(driftBox);
       const offset = companyLevel.checked ? 1 : 0;
-      const adapter = makeOrgAdapter(offset);
+      const adapter = await makeOrgAdapter(offset);
       const [orgWalk, orgRaw] = await Promise.all([adapter.walk(), orgJson()]);
       const { nodes, error } = orgWalk;
       const truncated = partialWalk(orgWalk) !== "";
@@ -1798,9 +1816,12 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
                 }
               }
               // bindings that pointed at them are spent
-              const b = app.termBindings[app.orgSetId] ?? {};
-              for (const [k, id] of Object.entries(b)) if (gone.has(id)) delete b[k];
-              await saveAppDocsConfig(app).catch(() => undefined);
+              await patchAppDocsConfig((c) => {
+                const b = c.termBindings[app.orgSetId] ?? {};
+                for (const [k, id] of Object.entries(b)) if (gone.has(id)) delete b[k];
+              })
+                .then((fresh) => adoptSyncFields(app, fresh))
+                .catch(() => undefined);
               invalidateTermPaths();
               removeBtn.textContent = failed === 0 ? "Removed" : "Reload and retry";
               out.appendChild(note(failed === 0 ? `✓ ${gone.size} term${gone.size === 1 ? "" : "s"} removed. Tick "The term set starts at company level", reload the drift report, and apply.` : `${failed} could not be removed — the rest are gone. Reload the report.`));
@@ -2193,7 +2214,7 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
           else delete next[key];
           app.defaultOrgFilter = next;
           try {
-            await saveAppDocsConfig(app);
+            await saveAppDocsConfigKeepingSync(app);
             paintDof();
           } catch (e) {
             st.textContent = `The save was refused: ${String(e).slice(0, 160)}`;
@@ -2236,7 +2257,7 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
             const next = { ...app.defaultOrgFilter };
             delete next[site];
             app.defaultOrgFilter = next;
-            await saveAppDocsConfig(app).catch(() => undefined);
+            await saveAppDocsConfigKeepingSync(app).catch(() => undefined);
             paintDof();
           })();
         });

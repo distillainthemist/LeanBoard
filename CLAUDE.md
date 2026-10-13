@@ -357,7 +357,12 @@ Version lives in the tag alone — nothing is stamped into files.
   never run from a walk it cannot trust (budget-cut OR any failed
   children request), and the Organisation set's company-level offset
   must be CHECKED against the set's top level before planning — run
-  the wrong way it creates the sites beside the company.
+  the wrong way it creates the sites beside the company. LESSON
+  (2026-10-13): the documents config is one JSON row with several
+  in-memory copies — a save from an editor's copy must adopt the
+  SYNC-owned fields (bindings, retired, owed, journal, the
+  company-level box) from the row first (`saveAppDocsConfigKeepingSync`
+  / `patchAppDocsConfig`), or it silently undoes a background write.
 - **One rule, applied everywhere it matters.** A rule that must hold
   for every action or every card lives in ONE pure function and is
   applied at the screen for an honest picture AND at the store's

@@ -106,6 +106,39 @@ export async function appDocsConfig(): Promise<AppDocsConfig> {
   return parseAppDocsConfig(row?.ben_configjson);
 }
 
+/** The fields the term SYNC owns (write-through, the owed flush, the
+ *  alignment run): written by background code against a fresh read,
+ *  so an editor's older in-memory copy must never save over them
+ *  (Ben's production loop, 2026-10-13: a stale copy restored the
+ *  unticked company-level box and the owed push, which then recreated
+ *  the stray site terms on every open). */
+export function adoptSyncFields(into: AppDocsConfig, from: AppDocsConfig): void {
+  into.termBindings = from.termBindings;
+  into.retiredTerms = from.retiredTerms;
+  into.termWritesOwed = from.termWritesOwed;
+  into.orgRenames = from.orgRenames;
+  into.orgSetCompanyLevel = from.orgSetCompanyLevel;
+}
+
+/** An editor's save: its own fields from its copy, the sync-owned
+ *  fields from the row as it stands now. */
+export async function saveAppDocsConfigKeepingSync(cfg: AppDocsConfig): Promise<void> {
+  const fresh = await appDocsConfig();
+  adoptSyncFields(cfg, fresh);
+  await saveAppDocsConfig(cfg);
+  invalidateDocsCache();
+}
+
+/** A single-field write: read the row, change it, save it — never an
+ *  older copy. Returns the row as saved. */
+export async function patchAppDocsConfig(mutate: (cfg: AppDocsConfig) => void): Promise<AppDocsConfig> {
+  const fresh = await appDocsConfig();
+  mutate(fresh);
+  await saveAppDocsConfig(fresh);
+  invalidateDocsCache();
+  return fresh;
+}
+
 export async function saveAppDocsConfig(cfg: AppDocsConfig): Promise<void> {
   await upsertWhere(
     Ben_ltkdoclibrariesService,

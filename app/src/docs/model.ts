@@ -3090,6 +3090,12 @@ export function orgSetShapeProblem(topLabels: string[], sites: string[], compani
   if (offset === 0 && coTops.length > 0) {
     return `the term set starts at COMPANY level (its top term is "${coTops[0]}") — tick "The term set starts at company level" before syncing, or the sites would be created beside the company${siteTops.length > 0 ? ` (${siteTops.length} already ${siteTops.length === 1 ? "was" : "were"}: ${siteTops.slice(0, 3).join(", ")}${siteTops.length > 3 ? ", …" : ""} — the report offers to remove them)` : ""}`;
   }
+  // one top-level term that is no site and no known company: the
+  // company under another name (production's set, 2026-10-13) — a
+  // site-level plan would put the sites beside it
+  if (offset === 0 && tops.length === 1 && siteTops.length === 0) {
+    return `the term set's one top-level term "${topLabels[0]}" is not a site — if it is the company, tick "The term set starts at company level"; a site-level sync would create the sites beside it`;
+  }
   if (offset === 1 && siteTops.length > 0) {
     const others = topLabels.filter((t) => !siteSet.has(norm(t)) && norm(t) !== "");
     // "untick" only when the top level is ALL sites; beside any other

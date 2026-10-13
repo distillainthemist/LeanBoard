@@ -2197,6 +2197,8 @@ describe("orgSetShapeProblem (the company-level guard)", () => {
     expect(orgSetShapeProblem(["Rio Tinto Aluminium", "Bell Bay"], sites, cos, 0)).toMatch(/starts at COMPANY level.*Bell Bay/);
     // an empty set has no shape yet; unknown labels are not judged
     expect(orgSetShapeProblem([], sites, cos, 0)).toBe("");
-    expect(orgSetShapeProblem(["Something else"], sites, cos, 0)).toBe("");
+    // one top term that is no site: the company under another name
+    expect(orgSetShapeProblem(["Something else"], sites, cos, 0)).toMatch(/not a site — if it is the company/);
+    expect(orgSetShapeProblem(["Something else", "Bell Bay"], sites, cos, 0)).toBe("");
   });
 });

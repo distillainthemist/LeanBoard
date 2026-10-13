@@ -1218,7 +1218,9 @@ async function renderAccessControl(body: HTMLElement, me: RosterPerson): Promise
 
   // stored on the docs app config — DYNAMIC import only (the import
   // gate bans a static chain from the settings screen into src/docs)
-  const { appDocsConfig, saveAppDocsConfig, invalidateDocsCache } = await import(
+  // saves keep the sync-owned fields from the row (write-through and
+  // the owed flush write them behind this copy's back)
+  const { appDocsConfig, saveAppDocsConfigKeepingSync } = await import(
     "../docs/docsStore"
   );
   let cfg = await appDocsConfig();
@@ -1244,8 +1246,7 @@ async function renderAccessControl(body: HTMLElement, me: RosterPerson): Promise
     };
     const save = async (id: string, name: string) => {
       write(id, name);
-      await saveAppDocsConfig(cfg);
-      invalidateDocsCache();
+      await saveAppDocsConfigKeepingSync(cfg);
       // membership answers are cached per session — a relink must land
       // without a reload
       const { invalidateAccessGates } = await import("../docs/accessGates");
@@ -1317,8 +1318,7 @@ async function renderAccessControl(body: HTMLElement, me: RosterPerson): Promise
   spSave.addEventListener("click", () => {
     void (async () => {
       cfg.spEditorsGroup = spInput.value.trim();
-      await saveAppDocsConfig(cfg);
-      invalidateDocsCache();
+      await saveAppDocsConfigKeepingSync(cfg);
       const { invalidateAccessGates } = await import("../docs/accessGates");
       invalidateAccessGates();
       cfg = await appDocsConfig();
@@ -1360,8 +1360,7 @@ async function renderAccessControl(body: HTMLElement, me: RosterPerson): Promise
   stSave.addEventListener("click", () => {
     void (async () => {
       cfg.stagingLibrary = stInput.value.trim();
-      await saveAppDocsConfig(cfg);
-      invalidateDocsCache();
+      await saveAppDocsConfigKeepingSync(cfg);
       cfg = await appDocsConfig();
       paintSt();
     })();

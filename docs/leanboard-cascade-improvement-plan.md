@@ -1455,6 +1455,18 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-10-13 (after v0.72.2, dev)**: the production loop's root
+  cause — the documents config is ONE JSON row and several screens
+  held their own copy; an editor's older copy saved over the fields
+  write-through and the owed flush had just written (bindings, the
+  settled debt, the company-level box), so the next open re-flushed
+  at site level and recreated the strays. Now `adoptSyncFields` /
+  `saveAppDocsConfigKeepingSync` / `patchAppDocsConfig` in docsStore:
+  every editor save keeps the sync-owned fields from the row, the
+  checkbox and the stray removal patch the row, the flush and every
+  drift / align run re-adopt the row's sync fields first; the guard
+  refuses a site-level plan when the set's one top-level term is no
+  site (the company under another name).
 - **2026-10-13 — released as v0.72.2** (app-only): the shape guard
   flags a mixed top level (company + sites) whichever way the
   company-level box is set, the stray-term removal is offered either
