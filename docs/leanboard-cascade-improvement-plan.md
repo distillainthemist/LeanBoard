@@ -1455,6 +1455,11 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-10-13 — released as v0.73.2** (app-only): label matching
+  blind to dash variants, NBSP and doubled spaces (`labelKey`); the
+  drift report's ampersand warnings fold into one line with a "Show
+  them" list. Production after v0.73.1: 92 matched, 0 to create, 1
+  rename left (an invisible character) — this release closes it.
 - **2026-10-13 — released as v0.73.1** (app-only): the ampersand fix
   below.
 - **2026-10-13 (after v0.73.0, dev)**: the AMPERSAND — production's
