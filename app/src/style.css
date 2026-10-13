@@ -1886,6 +1886,7 @@ input[type="color"].app-color:disabled { opacity: 0.4; cursor: default; }
 /* write-through outcome lines (term-store-proposal §8) */
 .app-org-termpush { margin: 0 0 8px; padding: 6px 10px; background: #f6f5f2; border-radius: 8px; }
 .app-proc-termpush { margin-top: 6px; min-height: 15px; }
+.app-docs-ampfold > summary { cursor: pointer; }
 .app-docs-alignset { border: 1px solid #e4dfd6; border-radius: 10px; padding: 10px 14px; margin: 8px 0; display: flex; flex-direction: column; gap: 4px; }
 
 /* ---- Standard Documents area (plan Phase 2) ---- */

@@ -2246,6 +2246,10 @@ describe("company-level org paths", () => {
 describe("the ampersand (production's first sync, 2026-10-13)", () => {
   it("reads the store's ＆ as the app's & when matching, so nothing is recreated or renamed over it", () => {
     expect(pathKey(["RTAL PacOps", "Bauxite ＆ Alumina"])).toBe(pathKey(["rtal pacops", "Bauxite & Alumina"]));
+    // dashes, NBSP and doubled spaces read as one label too
+    expect(pathKey(["NOPS – Plant\u00A0＆  Rail"])).toBe(pathKey(["NOPS - Plant & Rail"]));
+    expect(pathKey(["Amrun — Mining"])).toBe(pathKey(["Amrun - Mining"]));
+    expect(pathKey(["Plant"])).not.toBe(pathKey(["Plant 2"]));
     const plan = orgSyncPlan([["Co"], ["Co", "Bauxite & Alumina"], ["Co", "Bauxite & Alumina", "Mine & Rail"]], [
       { id: "c", labels: ["Co"] },
       { id: "b", labels: ["Co", "Bauxite ＆ Alumina"] },

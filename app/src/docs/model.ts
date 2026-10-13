@@ -3102,7 +3102,17 @@ export function tallyByOwner(docs: ControlDoc[]): { owner: string; count: number
  *  writes for "&") read as the app's "&". Production's first sync
  *  (Ben, 2026-10-13) found every "&" name failing to create (the API
  *  refuses "&") and every hand-made "＆" term failing to match. */
-export const labelKey = (s: string): string => s.replace(/\uFF06/g, "&").trim().toLowerCase();
+export const labelKey = (s: string): string =>
+  s
+    .replace(/\uFF06/g, "&")
+    // the dashes a label may carry (hyphen, non-breaking hyphen, en and
+    // em dashes, the minus) read as one; so do NBSP and runs of spaces —
+    // production's last stubborn rename (2026-10-13) was one of these
+    .replace(/[\u2010-\u2015\u2212]/g, "-")
+    .replace(/[\u00A0\u2007\u202F]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
 export const pathKey = (p: string[]): string => p.map(labelKey).join("¦");
 
 /** What the planner may KNOW beyond labels (term-store-proposal §2):

@@ -1839,22 +1839,24 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
         .filter((p) => p[p.length - 1].includes("&"))
         .map((p) => p.join(" › "));
       const ff06Terms = nodes
-        .filter((n) => n.labels.some((l) => l.includes("＆")))
-        .map((n) => n.labels.join(" › "));
-      for (const p of ampPaths) {
-        driftBox.appendChild(
-          note(
-            `⚠ "${p}" contains "&" — the term store writes it as ＆, which the phone player's ` +
-              `bridge cannot read back; the sync matches and writes it that way, but documents tagged to it are unreadable on phones until the unit says "and".`
+        .filter((n) => n.labels[n.labels.length - 1].includes("＆"))
+        .map((n) => n.labels.join(" › ").replace(/＆/g, "&"));
+      // one folded note, not one per unit (Ben, 2026-10-13: sixty lines)
+      const ampAll = [...new Set([...ampPaths, ...ff06Terms.map((t) => t.split(" › ").slice(-Math.max(1, t.split(" › ").length - 1)).join(" › "))])].sort();
+      if (ampPaths.length + ff06Terms.length > 0) {
+        const det = el("details", "app-docs-ampfold");
+        det.appendChild(
+          el(
+            "summary",
+            "app-settings-note",
+            `⚠ ${ampAll.length} unit${ampAll.length === 1 ? "" : "s"} carry an ampersand (${ampPaths.length} in the organisation, ${ff06Terms.length} term${ff06Terms.length === 1 ? "" : "s"} stored as ＆). The sync matches and writes them that way, but the phone player cannot read documents tagged to a ＆ term — rename a unit to "and" and sync to fix it in place, tags follow. Show them`
           )
         );
-      }
-      for (const t of ff06Terms) {
-        driftBox.appendChild(
-          note(
-            `⚠ The term "${t.replace(/＆/g, "&")}" is stored with the phone-hostile ＆ — phones cannot read documents tagged to it; renaming its org unit to "and" and syncing renames the term in place, tags follow.`
-          )
-        );
+        const ul = el("ul", "app-docs-driftlist");
+        for (const p of ampAll.slice(0, 120)) ul.appendChild(el("li", "", p));
+        if (ampAll.length > 120) ul.appendChild(el("li", "", `… and ${ampAll.length - 120} more`));
+        det.appendChild(ul);
+        driftBox.appendChild(det);
       }
       const list = (title: string, items: string[]) => {
         driftBox.appendChild(el("div", "app-field-label", `${title} (${items.length})`));
