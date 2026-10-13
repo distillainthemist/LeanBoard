@@ -1455,6 +1455,9 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-10-13 — released as v0.72.3** (app-only): the config-row
+  fix below (editor saves keep the sync-owned fields; runs re-adopt
+  them; the lone non-site top term guard).
 - **2026-10-13 (after v0.72.2, dev)**: the production loop's root
   cause — the documents config is ONE JSON row and several screens
   held their own copy; an editor's older copy saved over the fields
