@@ -1455,6 +1455,8 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-10-13 — released as v0.73.1** (app-only): the ampersand fix
+  below.
 - **2026-10-13 (after v0.73.0, dev)**: the AMPERSAND — production's
   company-level sync log: every "&" create 400'd (the v2.1 API refuses
   "&" in a label; the store's own UI writes fullwidth ＆), the app

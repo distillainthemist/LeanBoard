@@ -354,7 +354,8 @@ Version lives in the tag alone — nothing is stamped into files.
   write-through) and v0.72.1 / v0.72.2 / v0.72.3 (2026-10-13: term-sync hardening,
   the shape guard either way round, the config-row merge) and v0.73.0
   (2026-10-13: company-aware Organisation sync — each company a
-  top-level term) are app-only. Prod imports the managed solution FIRST. LESSON
+  top-level term) and v0.73.1 (2026-10-13: the term store's fullwidth
+  ampersand read and written) are app-only. Prod imports the managed solution FIRST. LESSON
   (2026-10-13, production's first sync): a sync must
   never run from a walk it cannot trust (budget-cut OR any failed
   children request), and the Organisation set's company-level offset
