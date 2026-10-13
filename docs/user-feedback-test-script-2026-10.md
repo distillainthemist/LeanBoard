@@ -334,9 +334,15 @@ not know (make one in the term store by hand for the test).
     renames it in place (its sites and tags stay) and creates the
     other company beside it; the verdict reads aligned.
 
+13. **Ampersands** — a department named "Bauxite & Alumina" creates
+    as "Bauxite ＆ Alumina" (OK, not 400), matches on the next report
+    (no create, no rename), and the hand-made "＆" terms match their
+    "&" app names instead of reading as unknown; the ⚠ phone note
+    still names them.
+
 | Item | Outcome |
 |---|---|
-| 1–12 | _Ben's pass pending_ |
+| 1–13 | _Ben's pass pending_ |
 
 ## Term manager pass — after v0.69.0 (2026-10-12, dev)
 

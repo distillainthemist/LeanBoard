@@ -213,13 +213,15 @@ export function processTermPaths(tree: ProcessTree): { path: string[]; node: Pro
  *  synonyms in the store's language — case-insensitive, the general
  *  name never pushed as its own synonym. */
 export function synonymsToAdd(labels: { name: string; languageTag: string; isDefault: boolean }[], node: Pick<ProcessNode, "name" | "aliases">, languageTag: string): { name: string; languageTag: string; isDefault: boolean }[] {
-  const have = new Set(labels.filter((l) => (l.languageTag ?? languageTag) === languageTag).map((l) => l.name.trim().toLowerCase()));
-  have.add(node.name.trim().toLowerCase());
+  // the term store writes "＆" for "&": compare both as "&"
+  const key = (s: string) => s.replace(/\uFF06/g, "&").trim().toLowerCase();
+  const have = new Set(labels.filter((l) => (l.languageTag ?? languageTag) === languageTag).map((l) => key(l.name)));
+  have.add(key(node.name));
   const out: { name: string; languageTag: string; isDefault: boolean }[] = [];
   for (const alias of Object.values(node.aliases)) {
     const a = alias.trim();
-    if (a === "" || have.has(a.toLowerCase())) continue;
-    have.add(a.toLowerCase());
+    if (a === "" || have.has(key(a))) continue;
+    have.add(key(a));
     out.push({ name: a, languageTag, isDefault: false });
   }
   return out;

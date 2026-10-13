@@ -1844,16 +1844,15 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
       for (const p of ampPaths) {
         driftBox.appendChild(
           note(
-            `⚠ "${p}" contains "&" — SharePoint will store it as a character phones cannot ` +
-              `read back (＆). Rename the unit to use "and" before syncing.`
+            `⚠ "${p}" contains "&" — the term store writes it as ＆, which the phone player's ` +
+              `bridge cannot read back; the sync matches and writes it that way, but documents tagged to it are unreadable on phones until the unit says "and".`
           )
         );
       }
       for (const t of ff06Terms) {
         driftBox.appendChild(
           note(
-            `⚠ The term "${t.replace(/＆/g, "&")}" is stored with the phone-hostile ＆ — ` +
-              `rename its org unit to use "and" and sync; the rename lands in place, tags follow.`
+            `⚠ The term "${t.replace(/＆/g, "&")}" is stored with the phone-hostile ＆ — phones cannot read documents tagged to it; renaming its org unit to "and" and syncing renames the term in place, tags follow.`
           )
         );
       }

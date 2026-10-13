@@ -14,7 +14,7 @@ import {
   patchTermLabels,
 } from "./sp";
 
-const norm = (p: string[]) => p.map((s) => s.trim().toLowerCase()).join("¦");
+const norm = pathKey;
 
 /** Runs the plan. Returns the number of steps that FAILED (0 = clean)
  *  and the BINDINGS the run established — app path key → term id for

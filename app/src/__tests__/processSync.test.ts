@@ -19,3 +19,11 @@ describe("synonymsToAdd", () => {
     expect(synonymsToAdd([], { name: "X", aliases: {} }, "en-US")).toEqual([]);
   });
 });
+
+describe("synonymsToAdd — the store's ＆", () => {
+  it("does not re-add a local name the term already carries as ＆", () => {
+    const node = { name: "Carbon & Casting", aliases: { "bell bay": "Carbon & Cast House" } };
+    const have = [{ name: "Carbon ＆ Casting", languageTag: "en-US", isDefault: true }, { name: "Carbon ＆ Cast House", languageTag: "en-US", isDefault: false }];
+    expect(synonymsToAdd(have, node, "en-US")).toEqual([]);
+  });
+});

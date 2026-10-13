@@ -762,7 +762,7 @@ export function patchTerm(
 ): Promise<SpResult> {
   return spRequest(site, "PATCH", `_api/v2.1/termStore/sets/${setId}/terms/${termId}`, {
     headers: { Accept: "application/json", "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ ...body, labels: body.labels.map((l) => ({ ...l, name: storeLabel(l.name) })) }),
   });
 }
 
@@ -793,6 +793,11 @@ export function fetchTerm(site: string, setId: string, termId: string): Promise<
 }
 
 /** Create a term under a parent (parentId "" = the set root). */
+/** The term store refuses "&" in a label through this API (400) and
+ *  writes its own fullwidth "＆" from the UI — so every label the app
+ *  sends carries "＆"; the comparison reads both as "&" (labelKey). */
+export const storeLabel = (name: string): string => name.replace(/&/g, "\uFF06");
+
 export function createTerm(
   site: string,
   setId: string,
@@ -805,7 +810,7 @@ export function createTerm(
     : `_api/v2.1/termStore/sets/${setId}/terms/${parentId}/children`;
   return spRequest(site, "POST", uri, {
     headers: { Accept: "application/json", "Content-Type": "application/json" },
-    body: JSON.stringify({ labels: [{ languageTag, name, isDefault: true }] }),
+    body: JSON.stringify({ labels: [{ languageTag, name: storeLabel(name), isDefault: true }] }),
   });
 }
 
@@ -819,7 +824,7 @@ export function patchTermLabels(
 ): Promise<SpResult> {
   return spRequest(site, "PATCH", `_api/v2.1/termStore/sets/${setId}/terms/${termId}`, {
     headers: { Accept: "application/json", "Content-Type": "application/json" },
-    body: JSON.stringify({ labels }),
+    body: JSON.stringify({ labels: labels.map((l) => ({ ...l, name: storeLabel(l.name) })) }),
   });
 }
 

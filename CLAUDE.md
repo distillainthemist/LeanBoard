@@ -365,6 +365,11 @@ Version lives in the tag alone — nothing is stamped into files.
   SYNC-owned fields (bindings, retired, owed, journal, the
   company-level box) from the row first (`saveAppDocsConfigKeepingSync`
   / `patchAppDocsConfig`), or it silently undoes a background write.
+  LESSON (2026-10-13): the term store's v2.1 API REFUSES "&" in a
+  label (400 "Unexpected response") and the store writes fullwidth ＆
+  for it — every label the app sends goes through `storeLabel` (& → ＆)
+  and every comparison through `labelKey` (＆ → &); "term-store
+  rights" is not the usual cause of a 400 on a create.
 - **One rule, applied everywhere it matters.** A rule that must hold
   for every action or every card lives in ONE pure function and is
   applied at the screen for an honest picture AND at the store's

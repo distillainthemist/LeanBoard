@@ -16,6 +16,7 @@ import {
   orgSetShapeProblem,
   orgSyncPlan,
   orgTreePaths,
+  pathKey,
   withCompany,
   orgTreePathsWithCompany,
   tallyByOwner,
@@ -2239,5 +2240,19 @@ describe("company-level org paths", () => {
     // Bell Bay under the renamed company matches by label; only Training is new
     expect(paired.matches.map((m) => m.id)).toEqual(["b"]);
     expect(paired.creates.map((c) => c.join("/"))).toEqual(["Training", "Training/Academy"]);
+  });
+});
+
+describe("the ampersand (production's first sync, 2026-10-13)", () => {
+  it("reads the store's ＆ as the app's & when matching, so nothing is recreated or renamed over it", () => {
+    expect(pathKey(["RTAL PacOps", "Bauxite ＆ Alumina"])).toBe(pathKey(["rtal pacops", "Bauxite & Alumina"]));
+    const plan = orgSyncPlan([["Co"], ["Co", "Bauxite & Alumina"], ["Co", "Bauxite & Alumina", "Mine & Rail"]], [
+      { id: "c", labels: ["Co"] },
+      { id: "b", labels: ["Co", "Bauxite ＆ Alumina"] },
+    ]);
+    expect(plan.matched).toBe(2);
+    expect(plan.renames).toEqual([]);
+    expect(plan.creates).toEqual([["Co", "Bauxite & Alumina", "Mine & Rail"]]);
+    expect(plan.orphanTerms).toEqual([]);
   });
 });

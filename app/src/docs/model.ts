@@ -2707,7 +2707,7 @@ export function orgDrift(
   termPaths: string[][],
   termOffset = 0
 ): DriftReport {
-  const norm = (p: string[]) => p.map((s) => s.trim().toLowerCase()).join("¦");
+  const norm = pathKey;
   const terms = new Map<string, string[]>();
   for (const p of termPaths) {
     const sliced = p.slice(termOffset);
@@ -3097,7 +3097,13 @@ export function tallyByOwner(docs: ControlDoc[]): { owner: string; count: number
 // them. Terms with no app counterpart are reported and left alone.
 
 /** The one key for a label path: case-insensitive, trimmed. */
-export const pathKey = (p: string[]): string => p.map((s) => s.trim().toLowerCase()).join("¦");
+/** A label as the comparison sees it: trimmed, lower-case, and the
+ *  term store's fullwidth ampersand (＆, U+FF06 — what the store
+ *  writes for "&") read as the app's "&". Production's first sync
+ *  (Ben, 2026-10-13) found every "&" name failing to create (the API
+ *  refuses "&") and every hand-made "＆" term failing to match. */
+export const labelKey = (s: string): string => s.replace(/\uFF06/g, "&").trim().toLowerCase();
+export const pathKey = (p: string[]): string => p.map(labelKey).join("¦");
 
 /** What the planner may KNOW beyond labels (term-store-proposal §2):
  *  the rename journal and the term binding of the set. */
@@ -3107,7 +3113,7 @@ export const pathKey = (p: string[]): string => p.map((s) => s.trim().toLowerCas
  *  A top level that names a company and no site is company level; one
  *  that names a site is site level; an empty set has no shape yet. */
 export function orgSetShapeProblem(topLabels: string[], sites: string[], companies: string[], offset: number): string {
-  const norm = (s: string) => s.trim().toLowerCase();
+  const norm = labelKey;
   const siteSet = new Set(sites.map(norm));
   const coSet = new Set(companies.map(norm));
   const tops = topLabels.map(norm).filter((t) => t !== "");

@@ -1455,6 +1455,16 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-10-13 (after v0.73.0, dev)**: the AMPERSAND — production's
+  company-level sync log: every "&" create 400'd (the v2.1 API refuses
+  "&" in a label; the store's own UI writes fullwidth ＆), the app
+  tried to rename hand-made "＆" terms to "&" (the store kept ＆, so
+  "3 still to rename" forever), and the "＆" terms never matched the
+  app's "&" names (most of the 72 "unknown"). Now `labelKey` /
+  `pathKey` read ＆ as & in every comparison (planner, drift, journal,
+  bindings, the shape guard), `storeLabel` writes ＆ on every term
+  write (create, patchTermLabels, patchTerm), `synonymsToAdd` compares
+  ampersand-blind; the phone warning stays as a warning.
 - **2026-10-13 — released as v0.73.0** (app-only): the company-aware
   Organisation sync below.
 - **2026-10-13 (after v0.72.3, dev)**: the Organisation sync is
