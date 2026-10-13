@@ -1237,7 +1237,7 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
   const companyWrap = el("label", "app-docs-check");
   companyWrap.append(
     companyLevel,
-    document.createTextNode(" The term set starts at company level (skip its top level when comparing)")
+    document.createTextNode(" The term set starts at company level (Company › Site › Department › Area — each company the sites name becomes a top-level term)")
   );
   // ---- lifecycle (Phase 5A) --------------------------------------------
   // The approval engine's vocabulary. EXPLICIT (Ben, 2026-08-04): the
@@ -1759,7 +1759,7 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
         // 2026-10-13): offered for removal once a usage count says no
         // document is tagged with any of them
         const coNames = new Set((await companies().catch(() => [] as string[])).map((c) => c.trim().toLowerCase()));
-        const siteNames = new Set(orgTreePaths(parseOrgTree(orgRaw)).filter((p) => p.length === 1).map((p) => p[0].trim().toLowerCase()));
+        const siteNames = new Set(parseOrgTree(orgRaw).map((s) => s.site.trim().toLowerCase()));
         const strays = nodes.filter((n) => n.labels.length === 1 && !coNames.has(n.labels[0].trim().toLowerCase()) && siteNames.has(n.labels[0].trim().toLowerCase()));
         const hasCompanyTop = nodes.some((n) => n.labels.length === 1 && coNames.has(n.labels[0].trim().toLowerCase()));
         // offered whichever way the box is set: a top level that mixes the

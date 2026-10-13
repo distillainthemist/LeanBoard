@@ -16,6 +16,8 @@ import {
   orgSetShapeProblem,
   orgSyncPlan,
   orgTreePaths,
+  withCompany,
+  orgTreePathsWithCompany,
   tallyByOwner,
   emptyAppDocsConfig,
   parseAppDocsConfig,
@@ -2200,5 +2202,42 @@ describe("orgSetShapeProblem (the company-level guard)", () => {
     // one top term that is no site: the company under another name
     expect(orgSetShapeProblem(["Something else"], sites, cos, 0)).toMatch(/not a site — if it is the company/);
     expect(orgSetShapeProblem(["Something else", "Bell Bay"], sites, cos, 0)).toBe("");
+  });
+});
+
+describe("company-level org paths", () => {
+  it("puts each company in front of its sites, once as a top-level path", () => {
+    const tree = [
+      { site: "Bell Bay", departments: [{ department: "Casting", areas: ["Line 1"] }] },
+      { site: "Boyne", departments: [] },
+      { site: "Academy", departments: [] },
+      { site: "Loose", departments: [] },
+    ];
+    const siteCo = { "Bell Bay": "RTAL PacOps", Boyne: "RTAL PacOps", Academy: "Training" };
+    expect(orgTreePathsWithCompany(tree, siteCo).map((p) => p.join(" › "))).toEqual([
+      "RTAL PacOps",
+      "RTAL PacOps › Bell Bay",
+      "RTAL PacOps › Bell Bay › Casting",
+      "RTAL PacOps › Bell Bay › Casting › Line 1",
+      "RTAL PacOps › Boyne",
+      "Training",
+      "Training › Academy",
+      "Loose",
+    ]);
+    expect(withCompany(["Bell Bay", "Casting"], siteCo)).toEqual(["RTAL PacOps", "Bell Bay", "Casting"]);
+    expect(withCompany(["Loose"], siteCo)).toEqual(["Loose"]);
+  });
+  it("lets a hand-made top term be paired with a company create (siblings at the root)", () => {
+    const paths = orgTreePathsWithCompany([{ site: "Bell Bay", departments: [] }, { site: "Academy", departments: [] }], { "Bell Bay": "RTAL PacOps", Academy: "Training" });
+    const terms = [{ id: "p", labels: ["Pacific"] }, { id: "b", labels: ["Pacific", "Bell Bay"] }];
+    const blind = orgSyncPlan(paths, terms, 0);
+    // two companies missing, one spare top term: no inference, the admin decides
+    expect(blind.creates.map((c) => c.join("/"))).toEqual(["RTAL PacOps", "Training", "RTAL PacOps/Bell Bay", "Training/Academy"]);
+    expect(blind.orphanTerms.map((t) => t.id)).toEqual(["p", "b"]);
+    const paired = orgSyncPlan(paths, terms, 0, { bindings: { "rtal pacops": "p" } });
+    expect(paired.renames).toEqual([{ id: "p", from: ["Pacific"], to: ["RTAL PacOps"] }]);
+    // Bell Bay under the renamed company matches by label; only Training is new
+    expect(paired.matches.map((m) => m.id)).toEqual(["b"]);
+    expect(paired.creates.map((c) => c.join("/"))).toEqual(["Training", "Training/Academy"]);
   });
 });

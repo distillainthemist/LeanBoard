@@ -5,13 +5,13 @@
 // set is aligned the same way whichever button asked.
 
 import { el, clear } from "../../../shared/ui/dom";
-import { AppDocsConfig, OrgSyncPlan, orgSetShapeProblem, orgSyncPlan, orgTreePaths, pathKey } from "./model";
+import { AppDocsConfig, OrgSyncPlan, orgSetShapeProblem, orgSyncPlan, orgTreePaths, orgTreePathsWithCompany, pathKey, withCompany } from "./model";
 import { TermNode, TermWalk, fetchTerm, fetchTermPaths, invalidateTermPaths, patchTermFields, patchTermLabels } from "./sp";
 import { AlignVerdict, OrphanDecision, createsAfterPairings, decisionCounts, pairableCreates, verdictFor } from "./termAlignModel";
 import { executeOrgSync } from "./orgSync";
 import { invalidateDocsCache, saveAppDocsConfig } from "./docsStore";
 import { parseOrgTree } from "../../../shared/schema/meeting";
-import { companies, orgJson } from "../store/config";
+import { companies, orgJson, siteCompanies } from "../store/config";
 
 /** What the run needs from a set: the two sets differ only in where
  *  their bindings live (the config for Organisation, the node rows for
@@ -43,8 +43,13 @@ const recordRetired = async (cfg: AppDocsConfig, setId: string, termId: string, 
 
 /** The Organisation set's adapter: bindings and the journal live in the
  *  documents config, which the adapter saves as it goes. */
+/** The Organisation set's adapter. `offset` 1 = the set starts at
+ *  COMPANY level: the app's paths carry the company (every company a
+ *  top-level term, its sites under it) and the planner compares whole
+ *  paths — no longer "one top term, sites under it". */
 export function orgAdapter(cfg: AppDocsConfig, offset: number): SetAdapter {
   const setId = cfg.orgSetId;
+  const companyLevel = offset === 1;
   return {
     name: "Organisation",
     setId,
@@ -53,28 +58,35 @@ export function orgAdapter(cfg: AppDocsConfig, offset: number): SetAdapter {
     // failed request makes the view partial (see partialWalk)
     walk: () => fetchTermPaths(cfg.siteUrl, setId, 4, 6000),
     plan: async (nodes) => {
-      const paths = orgTreePaths(parseOrgTree(await orgJson(true)));
+      const tree = parseOrgTree(await orgJson(true));
+      const siteCo = companyLevel ? await siteCompanies().catch(() => ({}) as Record<string, string>) : {};
       // the shape guard first: a plan run the wrong way round creates
       // the sites beside the company
       const problem = orgSetShapeProblem(
         nodes.filter((n) => n.labels.length === 1).map((n) => n.labels[0]),
-        paths.filter((p) => p.length === 1).map((p) => p[0]),
+        tree.map((s) => s.site),
         await companies().catch(() => [] as string[]),
         offset
       );
       if (problem !== "") return { creates: [], matches: [], renames: [], orphans: [], orphanTerms: [], retiredTerms: [], matched: 0, error: problem };
-      return orgSyncPlan(paths, nodes, offset, {
-        renames: cfg.orgRenames,
+      const paths = companyLevel ? orgTreePathsWithCompany(tree, siteCo) : orgTreePaths(tree);
+      // the journal speaks site-rooted paths; at company level each
+      // entry gets its company in front (a renamed site keeps its company)
+      const renames = cfg.orgRenames.map((r) => ({ from: withCompany(r.from, siteCo), to: withCompany(r.to, companyLevel ? { ...siteCo, [r.from[0]]: siteCo[r.to[0]] ?? siteCo[r.from[0]] ?? "" } : siteCo) }));
+      return orgSyncPlan(paths, nodes, 0, {
+        renames,
         bindings: cfg.termBindings[setId] ?? {},
         retired: Object.keys(cfg.retiredTerms[setId] ?? {}),
       });
     },
     execute: async (plan, nodes, log) => {
-      const { failed, bindings } = await executeOrgSync({ site: cfg.siteUrl, setId, plan, termNodes: nodes, termOffset: offset, log });
+      const { failed, bindings } = await executeOrgSync({ site: cfg.siteUrl, setId, plan, termNodes: nodes, termOffset: 0, log });
       // what landed is now bound by id; the journal entries that became
       // renames are spent (a failed one stays for the retry)
       cfg.termBindings[setId] = { ...(cfg.termBindings[setId] ?? {}), ...bindings };
-      cfg.orgRenames = cfg.orgRenames.filter((r) => bindings[pathKey(r.to)] === undefined);
+      // a journal entry is spent once its target is bound (either shape of key)
+      const siteCo = companyLevel ? await siteCompanies().catch(() => ({}) as Record<string, string>) : {};
+      cfg.orgRenames = cfg.orgRenames.filter((r) => bindings[pathKey(r.to)] === undefined && bindings[pathKey(withCompany(r.to, siteCo))] === undefined);
       await persist(cfg).catch(() => undefined);
       return failed;
     },

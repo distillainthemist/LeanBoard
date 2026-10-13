@@ -1455,6 +1455,14 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-10-13 (after v0.72.3, dev)**: the Organisation sync is
+  COMPANY-aware — "starts at company level" now means Company › Site
+  › Department › Area with each app company a top-level term
+  (`orgTreePathsWithCompany`, `withCompany`), the planner compares
+  whole paths (no more "one top term, sites under it"), the journal and
+  the editor's removals are keyed with the company, and a hand-made top
+  term ("Pacific") is paired with a company create in the report
+  ("This is RTAL PacOps": renamed in place, its sites and tags stay).
 - **2026-10-13 — released as v0.72.3** (app-only): the config-row
   fix below (editor saves keep the sync-owned fields; runs re-adopt
   them; the lone non-site top term guard).

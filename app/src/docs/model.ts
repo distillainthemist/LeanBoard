@@ -2728,6 +2728,34 @@ export function orgDrift(
 }
 
 /** The org tree flattened to comparable paths (site / dept / area). */
+/** A site-rooted path with its company in front — the shape of a
+ *  COMPANY-level term set (Company › Site › Department › Area; Ben,
+ *  2026-10-13: two companies, each its own top-level term). A site
+ *  with no company keeps its site-rooted path. */
+export function withCompany(path: string[], siteCo: Record<string, string>): string[] {
+  const co = (siteCo[path[0]] ?? "").trim();
+  return co === "" ? path : [co, ...path];
+}
+
+/** The org tree as company-level paths: every company the sites name
+ *  is a top-level path, then the sites under their company. */
+export function orgTreePathsWithCompany(
+  tree: { site: string; departments: { department: string; areas: string[] }[] }[],
+  siteCo: Record<string, string>
+): string[][] {
+  const out: string[][] = [];
+  const seen = new Set<string>();
+  for (const p of orgTreePaths(tree)) {
+    const full = withCompany(p, siteCo);
+    if (full.length > p.length && !seen.has(full[0].toLowerCase())) {
+      seen.add(full[0].toLowerCase());
+      out.push([full[0]]);
+    }
+    out.push(full);
+  }
+  return out;
+}
+
 export function orgTreePaths(
   tree: { site: string; departments: { department: string; areas: string[] }[] }[]
 ): string[][] {

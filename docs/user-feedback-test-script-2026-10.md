@@ -327,9 +327,16 @@ not know (make one in the term store by hand for the test).
     short"); a throttled walk reads "n children requests failed … try
     again in a minute" and the sync stays disabled.
 
+12. **Two companies** — with the box ticked and sites under two
+    companies, the drift report creates each company as a top-level
+    term and the sites under their own company; a hand-made top term
+    ("Pacific") is listed as unknown with "This is RTAL PacOps" — Apply
+    renames it in place (its sites and tags stay) and creates the
+    other company beside it; the verdict reads aligned.
+
 | Item | Outcome |
 |---|---|
-| 1–11 | _Ben's pass pending_ |
+| 1–12 | _Ben's pass pending_ |
 
 ## Term manager pass — after v0.69.0 (2026-10-12, dev)
 

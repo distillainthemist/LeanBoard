@@ -7,12 +7,12 @@
 // Documents or runs "Align term sets". Reached from the Organisation
 // editor and the Process tab by dynamic import only (the import gate).
 
-import { AppDocsConfig, orgTreePaths, pathKey } from "./model";
+import { AppDocsConfig, orgTreePaths, orgTreePathsWithCompany, pathKey, withCompany } from "./model";
 import { appDocsConfig, invalidateDocsCache, saveAppDocsConfig } from "./docsStore";
 import { alignSet, orgAdapter, processAdapter, retireTerm, unretireTerm, SetAdapter } from "./termAlign";
 import { pathsToRetire } from "./termAlignModel";
 import { parseOrgTree } from "../../../shared/schema/meeting";
-import { orgJson } from "../store/config";
+import { orgJson, siteCompanies } from "../store/config";
 import type { ProcessNode } from "../processes/model";
 
 export interface WriteThroughOutcome {
@@ -86,10 +86,16 @@ export async function pushOrgTerms(opts: { removed?: string[][]; restored?: stri
   if (cfg.orgSetId === "") return none("Organisation");
   const lines: string[] = [];
   const setId = cfg.orgSetId;
-  const a = orgAdapter(cfg, cfg.orgSetCompanyLevel ? 1 : 0);
+  const companyLevel = cfg.orgSetCompanyLevel;
+  const a = orgAdapter(cfg, companyLevel ? 1 : 0);
+  // the editor speaks site-rooted paths; a company-level set keys them
+  // with the company in front
+  const siteCo = companyLevel ? await siteCompanies().catch(() => ({}) as Record<string, string>) : {};
+  const keyed = (p: string[]) => (companyLevel ? withCompany(p, siteCo) : p);
   // a restored site: its retired term comes back before the plan runs,
   // or the plan would create a second term beside it
-  for (const path of opts.restored ?? []) {
+  for (const raw of opts.restored ?? []) {
+    const path = keyed(raw);
     const label = path[path.length - 1];
     const hit = Object.entries(cfg.retiredTerms[setId] ?? {}).find(([, v]) => v.label.toLowerCase() === label.toLowerCase());
     if (!hit) continue;
@@ -100,9 +106,10 @@ export async function pushOrgTerms(opts: { removed?: string[][]; restored?: stri
   }
   // what to retire: a removed path's term, by binding — but never a path
   // that is back in the tree (removed and re-added before the save)
-  const appPaths = orgTreePaths(parseOrgTree(await orgJson(true)));
+  const tree = parseOrgTree(await orgJson(true));
+  const appPaths = companyLevel ? orgTreePathsWithCompany(tree, siteCo) : orgTreePaths(tree);
   const owed = cfg.termWritesOwed[setId]?.retire ?? [];
-  const retire = [...owed, ...pathsToRetire(opts.removed ?? [], appPaths, cfg.termBindings[setId] ?? {})];
+  const retire = [...owed, ...pathsToRetire((opts.removed ?? []).map(keyed), appPaths, cfg.termBindings[setId] ?? {})];
   return pushSet(cfg, a, retire, lines);
 }
 
