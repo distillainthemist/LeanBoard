@@ -72,7 +72,8 @@ import {
 } from "./sp";
 import { buildFieldEditors, editorKind } from "./fieldEditors";
 import { IngestionAssignee, IngestionTask, RunLogEntry, blanksToFill, ingestComment, latestByFile, logSummary, missingFor, taskFolderName } from "./ingestionModel";
-import { saveIngestionTask, deleteIngestionTask } from "./ingestionStore";
+import { saveIngestionTask, deleteIngestionTask, getIngestionTask, listIngestionTasks } from "./ingestionStore";
+import { listPeople } from "../store/people";
 import { promptConfirm } from "../prompts";
 
 const btn = (label: string, cls = "app-btn"): HTMLButtonElement => {
@@ -341,6 +342,18 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
   document.addEventListener("keydown", onKey);
 
   const task = o.task;
+  /** The row's current assignees, defaults and name — read before the
+   *  sheet writes, so an edit made meanwhile (or in the editor the
+   *  sheet reopened from) is never saved over. Status and log are the
+   *  sheet's own. */
+  const adoptFresh = async (): Promise<void> => {
+    const fresh = await getIngestionTask(task.rowId).catch(() => null);
+    if (!fresh) return;
+    task.name = fresh.name;
+    task.assignees = fresh.assignees;
+    task.defaults = fresh.defaults;
+    task.destListId = fresh.destListId;
+  };
   const head = el("div", "app-docs-viewhead");
   const titleBlock = el("div", "app-docs-viewtitle");
   const titleRow = el("div", "app-ing-titlerow");
@@ -470,10 +483,12 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
           onCancelled: () => {
             cancelled = true;
           },
-          onSaved: (_saved, notice) => {
+          // the sheet reopens on the SAVED task (issue 26: it reopened on
+          // the pre-edit copy, and Run / Close then wrote that copy back)
+          onSaved: (saved, notice) => {
             o.onChanged();
             closeNow();
-            if (!cancelled) openIngestionTask({ ...o, notice });
+            if (!cancelled) openIngestionTask({ ...o, task: saved, notice });
           },
         });
       });
@@ -1024,6 +1039,7 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
       if (!ok || dead) return;
       running = true;
       closeBtn.disabled = true;
+      await adoptFresh();
       task.status = "running";
       await saveIngestionTask(task).catch(() => undefined);
       const by = currentViewer()?.name ?? "";
@@ -1168,6 +1184,7 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
         status.textContent = `The folder could not be recycled: ${spErrorText(r.status)}`;
         return;
       }
+      await adoptFresh();
       task.status = "closed";
       task.closedAt = new Date().toISOString();
       await saveIngestionTask(task);
@@ -1315,27 +1332,54 @@ export function openIngestionTaskEditor(o: IngestionEditorOpts): void {
     };
     paintPeople();
     const search = el("input", "app-input") as HTMLInputElement;
-    search.placeholder = "Search the directory to add a person…";
+    search.placeholder = "Add a person — the app's people first, then the directory…";
     const hits = el("div", "app-ing-hits");
     let timer: ReturnType<typeof setTimeout> | null = null;
+    // the picker says what it is doing (issue 26: a failed or slow search
+    // showed nothing, and an older search could land over a newer one)
+    let gen = 0;
+    const rosterP = listPeople().catch(() => []);
+    const offer = (people: { email: string; name: string; tag: string }[]) => {
+      let shown = 0;
+      for (const h of people) {
+        if (h.email === "" || t.assignees.some((a) => a.email === h.email)) continue;
+        const b = btn(`＋ ${h.name}`, "app-link");
+        if (h.tag !== "") b.appendChild(el("span", "app-field-hint", ` · ${h.tag}`));
+        b.addEventListener("click", () => {
+          t.assignees.push({ email: h.email, name: h.name });
+          paintPeople();
+          clear(hits);
+          search.value = "";
+        });
+        hits.appendChild(b);
+        if (++shown >= 10) break;
+      }
+      return shown;
+    };
     search.addEventListener("input", () => {
       if (timer) clearTimeout(timer);
+      const q = search.value.trim().toLowerCase();
+      const mine = ++gen;
+      clear(hits);
+      if (q.length < 2) return;
+      hits.appendChild(el("div", "app-field-hint", "Searching…"));
       timer = setTimeout(() => {
-        void searchEntra(search.value).then((found) => {
-          clear(hits);
-          for (const h of found.slice(0, 8)) {
-            const mail = (h.mail ?? "").toLowerCase();
-            if (mail === "" || t.assignees.some((a) => a.email === mail)) continue;
-            const b = btn(`＋ ${h.displayName}`, "app-link");
-            b.addEventListener("click", () => {
-              t.assignees.push({ email: mail, name: h.displayName });
-              paintPeople();
-              clear(hits);
-              search.value = "";
-            });
-            hits.appendChild(b);
+        void (async () => {
+          const roster = (await rosterP).filter((p) => p.active && (p.who.toLowerCase().includes(q) || p.email.toLowerCase().includes(q))).map((p) => ({ email: p.email.toLowerCase(), name: p.who, tag: p.site }));
+          let directory: { email: string; name: string; tag: string }[] = [];
+          let failed = "";
+          try {
+            const known = new Set(roster.map((r) => r.email));
+            directory = (await searchEntra(search.value)).map((h) => ({ email: (h.mail ?? "").toLowerCase(), name: h.displayName, tag: "directory" })).filter((h) => !known.has(h.email));
+          } catch (e) {
+            failed = e instanceof Error ? e.message : String(e);
           }
-        });
+          if (mine !== gen) return; // a newer search is on its way
+          clear(hits);
+          const shown = offer([...roster, ...directory]);
+          if (shown === 0) hits.appendChild(el("div", "app-field-hint", failed !== "" ? `The directory search failed: ${failed.slice(0, 120)}` : "No match — try another spelling, or the person's email."));
+          else if (failed !== "") hits.appendChild(el("div", "app-field-hint", `The directory search failed: ${failed.slice(0, 120)}`));
+        })();
       }, 250);
     });
     const assigneesWrap = el("div", "app-ing-people");
@@ -1396,6 +1440,11 @@ export function openIngestionTaskEditor(o: IngestionEditorOpts): void {
     try {
       t.defaults = editors.filter((e) => !e.isEmpty()).map((e) => e.read());
       if (isNew) {
+        // one task per name and per folder: a second task on the same
+        // folder would leave two rows over one batch (issue 26)
+        const open = (await listIngestionTasks().catch(() => [])).filter((x) => x.status !== "closed");
+        const clash = open.find((x) => x.name.trim().toLowerCase() === name.trim().toLowerCase() || taskFolderName(x.name) === taskFolderName(name));
+        if (clash) throw new Error(`An open task "${clash.name}" already uses that name — open it from Ingestion tasks, or choose another name.`);
         const rootRes = await fetchListRoot(ctx.site, ctx.ingestionLib.listId);
         const root = String(((rootRes.data ?? {}) as { ServerRelativeUrl?: unknown }).ServerRelativeUrl ?? "");
         if (root === "") throw new Error(`The ingestion library's folder could not be read: ${spErrorText(rootRes.status)}`);

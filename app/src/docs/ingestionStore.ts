@@ -25,12 +25,24 @@ export async function saveIngestionTask(t: IngestionTask): Promise<string> {
     const r = await Ben_ltkingestiontasksService.create(fields as Parameters<typeof Ben_ltkingestiontasksService.create>[0]);
     if (r.success === false) fail("Could not create the ingestion task", r.error);
     const id = String((r.data as { ben_ltkingestiontaskid?: unknown } | undefined)?.ben_ltkingestiontaskid ?? "");
+    // a row with no id would be CREATED again on its next save — refuse
+    // here rather than leave a task that duplicates itself (issue 26)
+    if (id === "") throw new Error("The ingestion task was created but its id did not come back — reload Ingestion tasks before editing it.");
     t.rowId = id;
     return id;
   }
   const r = await Ben_ltkingestiontasksService.update(t.rowId, fields as Parameters<typeof Ben_ltkingestiontasksService.update>[1]);
   if (r.success === false) fail("Could not save the ingestion task", r.error);
   return t.rowId;
+}
+
+/** The row as it stands now — the sheet re-reads before it writes
+ *  (issue 26, 2026-10-18 round: a stale copy saved back over an edit). */
+export async function getIngestionTask(rowId: string): Promise<IngestionTask | null> {
+  if (rowId === "") return null;
+  const r = await Ben_ltkingestiontasksService.get(rowId);
+  if (r.success === false || !r.data) return null;
+  return taskFromRow(r.data as IngestionTaskRow);
 }
 
 export async function deleteIngestionTask(rowId: string): Promise<void> {
