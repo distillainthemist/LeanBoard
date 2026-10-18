@@ -70,6 +70,11 @@ interface HubData {
  *  round always runs in the background and re-feeds the view's setters
  *  — stale for a beat, never wrong for long. */
 let hubCache: HubData | null = null;
+// a profile save (My profile) drops the cached round: the site drives
+// the tabs, meetings and protected times (issue 31)
+window.addEventListener("ltk-profile-changed", () => {
+  hubCache = null;
+});
 
 async function fetchHubData(viewer: {
   objectId: string;

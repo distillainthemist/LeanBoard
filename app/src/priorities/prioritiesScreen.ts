@@ -183,7 +183,7 @@ const MEMO_TTL_MS = 60_000;
 const memoMap = new Map<string, { at: number; ver: number; value: Promise<unknown> }>();
 /** The change topic a memo key depends on (a write bumps it — see
  *  store/changes.ts — and the next hit reloads instead of serving stale). */
-const MEMO_TOPIC: Record<string, string> = { initiatives: "initiatives", initActions: "initiatives", initBoards: "initiatives", initRows: "initiatives" };
+const MEMO_TOPIC: Record<string, string> = { initiatives: "initiatives", initActions: "initiatives", initBoards: "initiatives", initRows: "initiatives", roster: "people" };
 function memo<T>(key: string, load: () => Promise<T>): Promise<T> {
   const topic = MEMO_TOPIC[key] ?? "";
   const ver = topic !== "" ? changeVersion(topic) : 0;
@@ -286,7 +286,14 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
     const currentPeriod = periodFor(settings.period, today) || settings.period.currentPeriod;
 
     // default org = viewer's own site (under its company); else the first site
-    const mySite = me?.site && siteCo[me.site] !== undefined ? orgRef(siteCo[me.site], me.site) : null;
+    // the person's own site, matched without regard to case; a site
+    // with no company still resolves (issue 27, 2026-10-18 round)
+    const mySite = (() => {
+      const s = (me?.site ?? "").trim();
+      if (s === "") return null;
+      const coKey = Object.keys(siteCo).find((k) => k.toLowerCase() === s.toLowerCase());
+      return orgRef(coKey !== undefined ? siteCo[coKey] : "", coKey ?? s);
+    })();
     const firstSite = tree.companies.flatMap((c) => c.sites.map((s) => orgRef(c.name, s.name)))[0] ?? orgRef(companyList[0] ?? "");
     // card: the configured org, blank parts falling back to the viewer's
     // site (the board's own org is what the card is normally set to)
@@ -299,7 +306,9 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
     // a shared view link (Ben, 2026-10-07) sets the opening state once
     const linkView = card ? null : decodePrioritiesView(takePendingPrioritiesView());
     const linkOrg = linkView && linkView.org !== "" ? orgFromKey(linkView.org) : null;
-    const startOrg = cardOrg() ?? linkOrg ?? (prefs.lastOrg !== "" ? orgFromKey(prefs.lastOrg) : (mySite ?? firstSite));
+    // ALWAYS the person's site (Ben, 2026-10-19): the remembered org
+    // used to win and pinned whatever the screen first opened on
+    const startOrg = cardOrg() ?? linkOrg ?? mySite ?? firstSite;
     const cardL1 = card?.pillarName ? (data0Pillars: Pillar[]) => data0Pillars.find((x) => x.level === 1 && x.name.toLowerCase() === card.pillarName!.toLowerCase())?.id ?? null : null;
     const state: ScreenState = {
       org: startOrg,
@@ -326,7 +335,6 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
     }
     const persist = () => {
       if (card) return; // card mounts never touch the person's prefs
-      prefs.lastOrg = orgKey(state.org);
       prefs.rule = state.rule;
       prefs.showOther = state.showOther;
       prefs.groupByPillar = state.groupByPillar;

@@ -665,11 +665,17 @@ async function renderProfile(
       area: area.value,
       crew: crew.value || undefined,
     });
+    const siteChanged = me.site !== site.value;
     me.site = site.value;
     me.department = dept.value;
     me.area = area.value;
     me.crew = crew.value || undefined;
     ctx.markClean();
+    // the hub, the accent and the priorities roster listen; a changed
+    // site then takes the person HOME so the main interface repaints
+    // at once (Ben, 2026-10-19)
+    window.dispatchEvent(new CustomEvent("ltk-profile-changed", { detail: { site: me.site } }));
+    if (siteChanged) window.location.hash = "#/";
   };
   ctx.registerSave(doSave);
 

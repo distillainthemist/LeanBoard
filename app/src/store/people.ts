@@ -7,7 +7,7 @@ import { Office365UsersService } from "../generated/services/Office365UsersServi
 import { currentViewer } from "../runtime";
 import { syncPersonAccess } from "./accessGroup";
 import { allWhere, eq, upsertWhere } from "./dv";
-import { memoRead } from "./changes";
+import { memoRead, writing } from "./changes";
 import { personFromRow, RosterPerson } from "./mappers";
 
 export async function listPeople(includeInactive = false): Promise<RosterPerson[]> {
@@ -30,21 +30,27 @@ export async function upsertPerson(
   person: RosterPerson,
   onAccessSyncError?: (err: unknown) => void
 ): Promise<void> {
-  await upsertWhere(
-    Ben_ltkpeoplesService,
-    eq("ben_whoid", person.whoId),
-    (row) => row.ben_ltkpeopleid,
-    {
-      ben_whoid: person.whoId,
-      ben_name: person.who,
-      ben_email: person.email,
-      ben_crew: person.crew ?? "",
-      ben_site: person.site,
-      ben_department: person.department,
-      ben_area: person.area,
-      ben_role: person.role === "user" ? "" : person.role,
-      ben_active: person.active,
-    }
+  // through writing(): every "people" reader drops its cache as the
+  // row lands (issue 31, 2026-10-18 round: a changed site needed a
+  // browser refresh because nothing was told)
+  await writing(
+    "people",
+    upsertWhere(
+      Ben_ltkpeoplesService,
+      eq("ben_whoid", person.whoId),
+      (row) => row.ben_ltkpeopleid,
+      {
+        ben_whoid: person.whoId,
+        ben_name: person.who,
+        ben_email: person.email,
+        ben_crew: person.crew ?? "",
+        ben_site: person.site,
+        ben_department: person.department,
+        ben_area: person.area,
+        ben_role: person.role === "user" ? "" : person.role,
+        ben_active: person.active,
+      }
+    )
   );
   void syncPersonAccess(person, currentViewer()?.objectId ?? "").catch((err) => {
     console.warn("access-group sync failed", err);

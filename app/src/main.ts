@@ -127,6 +127,18 @@ void (async () => {
     const { branding, siteSettings } = await import("./store/config");
     const { viewerPerson } = await import("./store/people");
     const b = await branding();
+    // the site's accent follows a profile change (issue 31)
+    window.addEventListener("ltk-profile-changed", (e) => {
+      const site = String((e as CustomEvent<{ site?: string }>).detail?.site ?? "").trim();
+      void (async () => {
+        let next = b.accent.trim();
+        if (site !== "") {
+          const s = await siteSettings(site).catch(() => null);
+          if (s && s.accent.trim() !== "") next = s.accent.trim();
+        }
+        if (/^#[0-9a-fA-F]{3,8}$/.test(next)) document.documentElement.style.setProperty("--app-accent", next);
+      })();
+    });
     if (b.appName.trim() !== "") brand.textContent = b.appName.trim();
     if (b.logo.startsWith("data:image/")) {
       const img = el("img", "app-logo") as HTMLImageElement;
