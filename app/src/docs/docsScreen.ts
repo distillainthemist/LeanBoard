@@ -2059,7 +2059,8 @@ export function mountDocs(
     // B6 (feedback round 1): "the documents Sam owns" and "has linked
     // documents / has tags" — server-side, so paging and counts hold
     let personFilters: { col: string; text: string }[] = (bootView?.people ?? []).map((p) => ({ ...p }));
-    let presentCols: string[] = [...(bootView?.present ?? [])];
+    // a saved view from before issue 33 may still carry "has tags"
+    let presentCols: string[] = [...(bootView?.present ?? [])].filter((c) => dictBy.get(c)?.role !== "tags");
     const setPersonFilter = (col: string, text: string) => {
       personFilters = personFilters.filter((p) => p.col !== col);
       if (text.trim() !== "") personFilters.push({ col, text: text.trim() });
@@ -2861,62 +2862,61 @@ export function mountDocs(
               pills.appendChild(el("span", "app-field-hint", "No terms."));
               return;
             }
-            const active = filterFor(col);
             // top two levels as pills; deeper active picks still show
             const shallow = nodes.filter((n) => n.labels.length <= 2);
-            const deepPick = (active?.nodes ?? []).filter((p) => !shallow.some((n) => n.id === p.id));
             const CAP = 14;
             // a big vocabulary (tags, or any set past the cap) is SEARCHED,
             // not scrolled (Ben, 2026-10-06): the picked terms stay as
             // pills, the typed text narrows what else shows
             const isTags = dictBy.get(col)?.role === "tags";
-            const q = (termQuery.get(col) ?? "").trim().toLowerCase();
-            if (isTags || nodes.length > CAP) {
-              const find = el("input", "app-input app-docs-fperson") as HTMLInputElement;
+            const searched = isTags || nodes.length > CAP;
+            // ONLY this column's pills repaint on a keystroke or a pick —
+            // the whole-popover repaint destroyed the search box under
+            // the typist's cursor (issue 35, 2026-10-18 round)
+            const paintPills = () => {
+              clear(pills);
+              const active = filterFor(col);
+              const q = (termQuery.get(col) ?? "").trim().toLowerCase();
+              const deepPick = (active?.nodes ?? []).filter((p) => !shallow.some((n) => n.id === p.id));
+              const pickedIds = new Set((active?.nodes ?? []).map((n) => n.id));
+              const matches = (n: TermNode) => q === "" || n.labels.some((l) => l.toLowerCase().includes(q));
+              let shown =
+                q !== "" || searched
+                  ? [...(active?.nodes ?? []), ...nodes.filter((n) => !pickedIds.has(n.id) && (q !== "" ? matches(n) : n.labels.length <= 2))]
+                  : [...deepPick, ...shallow];
+              const capped = shown.length > CAP;
+              if (capped) shown = shown.slice(0, CAP);
+              for (const n of shown) {
+                const on = (active?.nodes ?? []).some((p) => p.id === n.id);
+                const pb = el(
+                  "button",
+                  `app-docs-fpill${on ? " app-docs-fpill-on" : ""}`,
+                  n.labels[n.labels.length - 1]
+                ) as HTMLButtonElement;
+                pb.title = `${n.labels.join(" › ")} — tick several to match any of them`;
+                pb.setAttribute("aria-pressed", String(on));
+                pb.addEventListener("click", () => {
+                  // B1: several per column, OR'd — a second pick adds
+                  toggleFilter(col, n, nodes);
+                  paintPills();
+                });
+                pills.appendChild(pb);
+              }
+              if (capped) pills.appendChild(el("span", "app-field-hint", "Type to find the rest"));
+            };
+            if (searched) {
+              const find = el("input", "app-input app-docs-fsearch") as HTMLInputElement;
               find.type = "search";
               find.placeholder = `Search ${nodes.length} ${isTags ? "tags" : "terms"}…`;
               find.value = termQuery.get(col) ?? "";
               find.setAttribute("aria-label", `Search ${colLabel(col)}`);
               find.addEventListener("input", () => {
                 termQuery.set(col, find.value);
-                paintPop();
-                const again = menu?.querySelector<HTMLInputElement>(`input[aria-label="Search ${colLabel(col)}"]`);
-                if (again) {
-                  again.focus();
-                  again.setSelectionRange(again.value.length, again.value.length);
-                }
+                paintPills();
               });
               pills.before(find);
             }
-            const pickedIds = new Set((active?.nodes ?? []).map((n) => n.id));
-            const matches = (n: TermNode) => q === "" || n.labels.some((l) => l.toLowerCase().includes(q));
-            let shown =
-              q !== "" || isTags || nodes.length > CAP
-                ? [...(active?.nodes ?? []), ...nodes.filter((n) => !pickedIds.has(n.id) && (q !== "" ? matches(n) : n.labels.length <= 2))]
-                : [...deepPick, ...shallow];
-            const capped = shown.length > CAP;
-            if (capped) shown = shown.slice(0, CAP);
-            for (const n of shown) {
-              const on = (active?.nodes ?? []).some((p) => p.id === n.id);
-              const pb = el(
-                "button",
-                `app-docs-fpill${on ? " app-docs-fpill-on" : ""}`,
-                n.labels[n.labels.length - 1]
-              ) as HTMLButtonElement;
-              pb.title = `${n.labels.join(" › ")} — tick several to match any of them`;
-              pb.setAttribute("aria-pressed", String(on));
-              pb.addEventListener("click", () => {
-                // B1: several per column, OR'd — a second pick adds
-                toggleFilter(col, n, nodes);
-                paintPop();
-              });
-              pills.appendChild(pb);
-            }
-            if (capped) {
-              pills.appendChild(
-                el("span", "app-field-hint", isTags || nodes.length > CAP ? "Type to find the rest" : "Deeper terms live in the Browse-by tree")
-              );
-            }
+            paintPills();
           });
         }
         // date columns: a from/to pair each (Ben, 2026-08-03). Native
@@ -3017,19 +3017,20 @@ export function mountDocs(
           });
           g.appendChild(box);
         }
-        // B6: presence — linked documents, tags (report 17's "how do I
-        // see what is linked or tagged")
+        // B6: presence — linked documents (report 17's "how do I see
+        // what is linked"); "Has tags" went (issue 33, 2026-10-18 round:
+        // tags are filtered by value above)
         const presenceCols = siteDict.columns.filter(
-          (c) => (c.role === "linkedDocuments" || c.role === "tags") && columnOffered(c)
+          (c) => c.role === "linkedDocuments" && columnOffered(c)
         );
         if (presenceCols.length > 0) {
-          const hg = group("Has");
+          const hg = group("Linked documents");
           const hp = el("div", "app-docs-fpills");
           hg.appendChild(hp);
           for (const pc of presenceCols) {
             const on = presentCols.includes(pc.internal);
-            const pb = el("button", `app-docs-fpill${on ? " app-docs-fpill-on" : ""}`, pc.label !== "" ? pc.label : pc.internal) as HTMLButtonElement;
-            pb.title = `Only documents with ${(pc.label || pc.internal).toLowerCase()}`;
+            const pb = el("button", `app-docs-fpill${on ? " app-docs-fpill-on" : ""}`, "Has linked documents") as HTMLButtonElement;
+            pb.title = "Only documents that name other documents";
             pb.setAttribute("aria-pressed", String(on));
             pb.addEventListener("click", () => {
               togglePresent(pc.internal);

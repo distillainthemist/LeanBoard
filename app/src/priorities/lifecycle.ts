@@ -335,7 +335,7 @@ async function mountPrimaryCard(host: HTMLElement, initiativeId: string, cardTyp
     const mounter = slot ? cardMounter(cardType) : null;
     if (!slot || !mounter) return;
     const row = await liveRow(i.boardId, slot.cardId).catch(() => null);
-    const card = el("div", "app-cp-ov-chartercard");
+    const card = el("div", `app-cp-ov-chartercard${cardType === "MetricsCard" ? " app-cp-ov-chartercard-scroll" : ""}`);
     host.appendChild(card);
     mounter({
       host: card,

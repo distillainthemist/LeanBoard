@@ -139,6 +139,25 @@ export async function renderIssuesAdmin(body: HTMLElement): Promise<void> {
   // filter change; "Select all shown" takes the current list.
   const selected = new Map<string, Issue>();
   let shown: Issue[] = [];
+  /** The rows the admin has opened — a repaint re-opens them (issue 34,
+   *  2026-10-18 round: a status change closed the item and jumped the
+   *  page to the top). */
+  const openIds = new Set<string>();
+  /** Does a status still belong in the list under its filter? */
+  const inFilter = (status: string): boolean =>
+    statusSel.value === "all" || (statusSel.value === "open" ? (OPEN_STATUSES as readonly string[]).includes(status) : statusSel.value === status);
+  /** The scroll positions above the list, restored after a rebuild. */
+  const scrollMarks = (): (() => void) => {
+    const marks: { node: Element; top: number }[] = [];
+    for (let n: Element | null = listHost; n; n = n.parentElement) {
+      if (n.scrollHeight > n.clientHeight && n.scrollTop > 0) marks.push({ node: n, top: n.scrollTop });
+    }
+    const win = window.scrollY;
+    return () => {
+      for (const m of marks) m.node.scrollTop = m.top;
+      window.scrollTo(0, win);
+    };
+  };
   const selBar = el("div", "app-issad-selbar");
   const selCount = el("span", "app-issad-selcount", "");
   const selAll = el("button", "app-link", "Select all shown") as HTMLButtonElement;
@@ -252,8 +271,11 @@ export async function renderIssuesAdmin(body: HTMLElement): Promise<void> {
 
   // ---- the list ----------------------------------------------------------
   const paint = async () => {
-    clear(listHost);
-    listHost.appendChild(el("div", "app-loading-line", "Reading issues…"));
+    const restore = scrollMarks();
+    // the old rows stay up while the fresh ones are read — an empty
+    // list shrinks the page and scrolls it to the top
+    if (listHost.childElementCount === 0) listHost.appendChild(el("div", "app-loading-line", "Reading issues…"));
+    else listHost.prepend(el("div", "app-loading-line app-issad-reloading", "Refreshing…"));
     const parts: string[] = [];
     if (statusSel.value === "open") {
       parts.push(`(${OPEN_STATUSES.map((s) => `ben_status eq '${s}'`).join(" or ")})`);
@@ -287,6 +309,7 @@ export async function renderIssuesAdmin(body: HTMLElement): Promise<void> {
     }
     for (const issue of rows) listHost.appendChild(issueRow(issue));
     paintSel();
+    restore();
   };
   statusSel.addEventListener("change", () => void paint());
   kindSel.addEventListener("change", () => void paint());
@@ -343,17 +366,40 @@ export async function renderIssuesAdmin(body: HTMLElement): Promise<void> {
     wrap.appendChild(head);
 
     let detail: HTMLElement | null = null;
+    const open = () => {
+      detail = el("div", "app-issad-detail");
+      wrap.appendChild(detail);
+      openIds.add(issue.ben_ltkissueid);
+      void paintDetail(detail, issue);
+    };
     row.addEventListener("click", () => {
       if (detail !== null) {
         detail.remove();
         detail = null;
+        openIds.delete(issue.ben_ltkissueid);
         return;
       }
-      detail = el("div", "app-issad-detail");
-      wrap.appendChild(detail);
-      void paintDetail(detail, issue);
+      open();
     });
+    if (openIds.has(issue.ben_ltkissueid)) open();
     return wrap;
+  };
+
+  /** A status change lands IN PLACE: the row's chip, the thread, and a
+   *  dimmed row with a hint when the status left the list's filter —
+   *  the list re-sorts and drops rows only on ↻ Refresh or a filter
+   *  change (Ben, 2026-10-18). */
+  const statusLanded = (wrap: HTMLElement, issue: Issue, to: string) => {
+    issue.ben_status = to;
+    const chip = wrap.querySelector<HTMLElement>(".app-issad-status");
+    if (chip) {
+      chip.className = `app-issad-status app-issad-status-${to}`;
+      chip.textContent = STATUS_WORDS[to] ?? to;
+    }
+    const gone = !inFilter(to);
+    wrap.classList.toggle("app-issad-item-left", gone);
+    wrap.querySelector(".app-issad-lefthint")?.remove();
+    if (gone) wrap.querySelector(".app-issad-head")?.appendChild(el("div", "app-issad-lefthint", `${STATUS_WORDS[to] ?? to} — leaves this list on ↻ Refresh`));
   };
 
   const paintDetail = async (host: HTMLElement, issue: Issue) => {
@@ -478,9 +524,7 @@ export async function renderIssuesAdmin(body: HTMLElement): Promise<void> {
       clear(host);
       await paintDetail(host, issue);
     };
-    /** A status change can move the issue out of the list's filter:
-     *  repaint the LIST, not only this detail (Ben, 2026-10-12). */
-    const refreshList = () => void paint();
+    const wrapOf = (): HTMLElement => host.closest<HTMLElement>(".app-issad-item") ?? host;
 
     // status — declining routes through the message prompt
     const statusPick = el("select", "app-input app-issad-ctl") as HTMLSelectElement;
@@ -496,7 +540,10 @@ export async function renderIssuesAdmin(body: HTMLElement): Promise<void> {
       const to = statusPick.value;
       if (to === issue.ben_status) return;
       if (to === "declined") {
-        openDecline(id, issue, () => refreshList());
+        openDecline(id, issue, () => {
+          statusLanded(wrapOf(), issue, "declined");
+          void refresh();
+        });
         statusPick.value = issue.ben_status ?? "new"; // the dialog decides
         return;
       }
@@ -505,7 +552,8 @@ export async function renderIssuesAdmin(body: HTMLElement): Promise<void> {
           const r = await Ben_ltkissuesService.update(id, { ben_status: to });
           if (r.success === false) throw new Error(r.error?.message ?? "refused");
           await writeMessage(id, `Status → ${STATUS_WORDS[to] ?? to}`, "reporter");
-          refreshList();
+          statusLanded(wrapOf(), issue, to);
+          await refresh();
         } catch (e) {
           fail("The status change was refused", e);
         }

@@ -1791,6 +1791,9 @@ input[type="color"].app-color:disabled { opacity: 0.4; cursor: default; }
 .app-docs-fdates { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 /* feedback round 1, Tranche B (2026-10-06): people filter input, the view chip, the panel rail */
 .app-docs-fperson { width: 180px; font-size: 12.5px; }
+/* the term search box in a filter group: its own row, with room above
+   the pills (issue 33, 2026-10-18 round — it sat flush) */
+.app-docs-fsearch { display: block; width: 100%; box-sizing: border-box; margin: 2px 0 8px; font-size: 12.5px; }
 /* feedback round 1, Tranche C (2026-10-06) */
 .app-docs-verhint { margin: 2px 0 6px; }
 .app-docs-hrtools { display: flex; gap: 8px; margin: 6px 0 10px; }
@@ -2833,6 +2836,10 @@ button.app-doclist-hsort:hover { color: var(--app-accent, #2563eb); }
 .app-issad-filters .app-input { width: auto; }
 .app-issad-list { display: flex; flex-direction: column; gap: 6px; }
 .app-issad-item { border: 1px solid #e3e0d9; border-radius: 8px; background: #fff; }
+/* a status that left the list's filter stays until Refresh, dimmed */
+.app-issad-item-left { opacity: 0.7; border-style: dashed; }
+.app-issad-lefthint { font-size: 11.5px; color: #8a847a; padding: 0 12px 6px; }
+.app-issad-reloading { font-size: 12px; color: #8a847a; }
 .app-issad-head { display: flex; align-items: center; }
 .app-issad-check { flex: none; width: 16px; height: 16px; margin: 0 0 0 12px; cursor: pointer; accent-color: var(--app-accent, #2563eb); }
 .app-issad-head .app-issad-row { flex: 1; min-width: 0; }
@@ -3352,8 +3359,10 @@ textarea.app-cp-statement { font-size: 14px; font-weight: 500; }
 /* the header's action cluster: one 40px row — primary, ⋮ and ✕ level */
 .app-cp-ov-headbtns .app-btn { height: 40px; min-height: 40px; box-sizing: border-box; }
 .app-cp-ov-prompt { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 22px; background: #fff7e0; border-bottom: 1px solid #f0c36d; font-size: 13px; color: #7a4d00; }
-.app-cp-ov-desk { display: grid; grid-template-columns: 1fr; flex: 1; min-height: 0; }
-.app-cp-ov-left { display: flex; flex-direction: column; min-width: 0; }
+.app-cp-ov-desk { display: grid; grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr); flex: 1; min-height: 0; }
+/* min-height 0: without it the column grows to its content and the
+   popup clips the bottom instead of the body scrolling (issue 32) */
+.app-cp-ov-left { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .app-cp-ov-tabs { display: flex; gap: 2px; padding: 8px 14px 0; border-bottom: 1px solid #ece8e0; }
 .app-cp-ov-tab { border: none; background: none; font: inherit; font-size: 13px; font-weight: 600; color: #6d675c; padding: 8px 12px; cursor: pointer; border-bottom: 2px solid transparent; min-height: 40px; }
 .app-cp-ov-tab-on { color: #26241f; border-bottom-color: #26241f; }
@@ -4149,6 +4158,10 @@ a.app-ib-folderbtn { text-decoration: none; white-space: nowrap; }
 /* a definite height so a tall charter scrolls INSIDE its card (2026-09-17) */
 .app-cp-ov-chartercard { height: calc(90vh - 270px); min-height: 360px; background: #fff; border: 1px solid #e4dfd6; border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; }
 .app-cp-ov-chartercard > * { flex: 1; min-height: 0; }
+/* the Metrics tab's card: each chart keeps a readable height and the
+   card scrolls once, instead of squeezing and clipping (issue 32) */
+.app-cp-ov-chartercard-scroll { overflow: auto; }
+.app-cp-ov-chartercard-scroll .app-mc-chartgrid { height: auto; min-height: 100%; grid-auto-rows: minmax(240px, auto); }
 .app-cp-metric-val { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* Metrics card: the chart grid (2026-09-14) */
 .app-mc-chartgrid { display: grid; gap: 10px; padding: 10px; height: 100%; box-sizing: border-box; min-height: 0; }
