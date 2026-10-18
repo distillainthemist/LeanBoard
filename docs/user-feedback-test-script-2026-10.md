@@ -273,6 +273,53 @@ On a desktop.
 |---|---|
 | 1–13 | _Ben's pass pending_ |
 
+## Issue round tranche A — after v0.73.2 (2026-10-19, dev)
+
+Twelve fixes from docs/issues-plan-2026-10-19.md. Numbers are the
+issue numbers in that plan.
+
+1. **(1) Health report** — Documents ⋮ → Document control health: a
+   library whose review column is not the site's first review column
+   no longer lists its dated documents under "No next review date"; a
+   calculated or text review column lists under "Review date
+   unreadable" (info).
+2. **(28) Template board** — Settings → Improvement → New template:
+   the board designer opens on the board at once, no reload.
+3. **(30) Template usage** — the template list reads "n active
+   initiatives"; editing shows the real count; Delete on a used
+   template says it cannot be deleted and names the count.
+4. **(26) Ingestion task edit** — Edit task… → add an assignee → Save:
+   the sheet reopens with the new assignee; Run and Close keep the
+   assignees; a second new task with the same name is refused; the
+   assignee picker lists the app's people first with "Searching…" /
+   "No match".
+5. **(27) Priorities** — opens at your own site every time, whatever
+   you browsed to last.
+6. **(31) My profile** — change your site and Save: you land on the
+   home hub with the new site's tabs and accent, no browser refresh.
+7. **(34) Issues** — change an issue's status: it stays open where it
+   is, the chip updates, the thread shows the line; a status outside
+   the filter dims the row with "leaves this list on ↻ Refresh".
+8. **(33/35) Filters** — the term search box keeps focus as you type;
+   no "Has tags"; "Linked documents · Has linked documents" remains;
+   the search box has room above the pills.
+9. **(32c) Priority popup → Metrics** — the tab scrolls; every chart
+   keeps its height; nothing is clipped at the bottom.
+10. **(25) Register width** — with the Folders pane open on a laptop,
+    every chosen column (status included) stays; the list scrolls
+    sideways with the Document column frozen; ingestion marks the
+    organisation column required when the destination carries it.
+11. **(11) Health report, people** — a directory lookup that fails
+    reads "Not checked: n lookups failed", not "no longer in the
+    directory".
+12. **(9) Reviewer picker** — document controllers list before the
+    directory search; Replace a person with only Reviewers ticked
+    searches everyone.
+
+| Item | Outcome |
+|---|---|
+| 1–12 | _Ben's pass pending_ |
+
 ## Term alignment pass — after v0.71.0 (2026-10-12, dev)
 
 Settings → Documents → Term store. Needs the Organisation set (and

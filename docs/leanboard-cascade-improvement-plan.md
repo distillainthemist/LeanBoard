@@ -1455,6 +1455,17 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-10-19 (after v0.73.2, dev)**: the 2026-10-18 issue round
+  (docs/issues-plan-2026-10-19.md: 38 issues investigated, decided one
+  by one) — tranche A, twelve app-only bug fixes: the health report's
+  review-date role key (1), the template board's cached miss (28), the
+  hard-coded "no initiatives" (30), the ingestion sheet's stale task
+  (26), Priorities opening at the person's site (27), a profile save
+  that refreshes the hub (31), the issues list keeping open items (34),
+  the filter popover's focus and "Has tags" (33/35), the priority
+  popup's clipped Metrics tab (32c), the register keeping every column
+  with sideways scroll (25), the three-state directory lookup (11),
+  controllers in the reviewer picker (9).
 - **2026-10-13 — released as v0.73.2** (app-only): label matching
   blind to dash variants, NBSP and doubled spaces (`labelKey`); the
   drift report's ampersand warnings fold into one line with a "Show

@@ -49,6 +49,33 @@ release).
 Total about 190 hours of app work. Two items carry schema (2, 23) and
 should share ONE solution-carrying release.
 
+## Progress
+
+- **Tranche A — BUILT 2026-10-19 (dev, unreleased):** 1 (`libRoleInternal`
+  in model.ts, tested; the health report, the review-due sweep,
+  `canMarkReviewedRow` and `resolveDatesFor` resolve per library;
+  `reviewUnreadable` info finding), 28 (`writing("boards")`), 30 (real
+  count; Delete refused with a count), 26 (sheet reopens on the saved
+  task, `adoptFresh()` before Run / Close, `getIngestionTask`, a create
+  without an id throws, duplicate open-task names refused, picker =
+  roster first + directory with searching / no-match / error states and
+  a generation guard), 27 (`startOrg = card ?? link ?? mySite ?? first`,
+  `lastOrg` no longer persisted, case-insensitive site), 31
+  (`upsertPerson` through `writing("people")`, `ltk-profile-changed`
+  event → hub cache cleared, accent re-applied, priorities roster
+  topic; a changed site goes to `#/`), 34 (`openIds`, `statusLanded`
+  in place, dimmed "leaves this list on ↻ Refresh", rows kept during a
+  rebuild, scroll restored), 33/35 (`paintPills` per column, Has tags
+  gone, `.app-docs-fsearch`), 32c (`.app-cp-ov-left { min-height: 0 }`,
+  desk rows, `.app-cp-ov-chartercard-scroll` with 240px chart rows), 25
+  (every chosen column at every width — `minColumnPx` on the list, the
+  header inside the scroller sticky top, the Document column sticky
+  left; role key `orgUnit`), 11's lookup bug (`DirectoryProfile.state`
+  found / absent / error, retry by email search, "Not checked: n
+  lookups failed"), 9 (`controllerMembers()` listed first in
+  `reviewerPeopleSource`; `roleReassign` uses it for reviewer-only
+  swaps).
+
 ## Order (proposed)
 
 1. **Tranche A — bugs, app-only (≈25 h):** 1, 28, 30, 26, 27, 31, 34, 33/35,
