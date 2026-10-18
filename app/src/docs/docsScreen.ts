@@ -65,7 +65,7 @@ import {
   spErrorText,
   stageOfTerm,
   termForStage,
-  termsForStage, isRegisterLibrary } from "./model";
+  termsForStage, isRegisterLibrary, libRoleInternal } from "./model";
 import { viewerInPool, viewerIsController } from "./accessGates";
 import {
   TermNode,
@@ -391,6 +391,16 @@ export function mountDocs(
     };
     const internalForRole = (role: string): string =>
       siteDict.columns.find((c) => c.role === role)?.internal ?? "";
+    /** The column a LIBRARY maps to a role: its own mapping first, else
+     *  the site column when the library carries it, else "" (issue 1,
+     *  2026-10-19: a library whose review column has another internal
+     *  name read as undated everywhere the site column alone was used). */
+    const libInternal = (lib: DocLibrary | null | undefined, role: string, siteInternal: string): string => {
+      if (!lib) return siteInternal;
+      const own = libRoleInternal(lib.config.columns, role, "");
+      if (own !== "") return own;
+      return siteInternal !== "" && lib.config.columns.some((c) => c.internal === siteInternal) ? siteInternal : "";
+    };
     const statusInternal = internalForRole("status");
     const ownerInternal = internalForRole("owner");
     const reviewInternal = internalForRole("nextReviewDate");
@@ -420,10 +430,9 @@ export function mountDocs(
         }
       | undefined
     > => {
-      const carried = new Set(lib.config.columns.map((c) => c.internal));
-      const eff = effectiveInternal !== "" && carried.has(effectiveInternal) ? effectiveInternal : "";
-      const rev = reviewInternal !== "" && carried.has(reviewInternal) ? reviewInternal : "";
-      const cad = cadenceInternal !== "" && carried.has(cadenceInternal) ? cadenceInternal : "";
+      const eff = libInternal(lib, "effectiveDate", effectiveInternal);
+      const rev = libInternal(lib, "nextReviewDate", reviewInternal);
+      const cad = libInternal(lib, "reviewCadence", cadenceInternal);
       if (eff === "" && rev === "" && cad === "") return undefined;
       let months: number | null = null;
       const impLabel = (row.values[importanceInternal] ?? "").split(";")[0].trim();
@@ -654,8 +663,8 @@ export function mountDocs(
      *  owner or an admin — due or not, an early review is still a
      *  review. The queue's button is the same dialog. */
     const canMarkReviewedRow = (row: DocRow, lib: DocLibrary | null | undefined): boolean => {
-      if (lib?.libType !== "standard" || reviewInternal === "") return false;
-      if (!lib.config.columns.some((c) => c.internal === reviewInternal)) return false;
+      if (lib?.libType !== "standard") return false;
+      if (libInternal(lib, "nextReviewDate", reviewInternal) === "") return false;
       if (stageOfRow(row) !== "approved") return false;
       const g = lifecycleGatesFor(row);
       return g.isOwner || g.isAdmin;
@@ -665,9 +674,10 @@ export function mountDocs(
      *  overflow item — an early review is offered quietly, a due one
      *  loudly. */
     const reviewDue = (row: DocRow): boolean => {
-      if (reviewInternal === "") return false;
-      const iso = row.values[`${reviewInternal}.`] ?? "";
-      const t = Date.parse(iso !== "" ? iso : (row.values[reviewInternal] ?? ""));
+      const rev = libInternal(byListId.get(row.listId), "nextReviewDate", reviewInternal);
+      if (rev === "") return false;
+      const iso = row.values[`${rev}.`] ?? "";
+      const t = Date.parse(iso !== "" ? iso : (row.values[rev] ?? ""));
       return !Number.isNaN(t) && t <= Date.now() + REVIEW_HORIZON_DAYS * 86_400_000;
     };
     const openMarkReviewedRow = (row: DocRow) => {
@@ -1327,9 +1337,13 @@ export function mountDocs(
       // review due — my standards, date within the horizon. Scoped to
       // the APPROVED stage where the site maps one (5D): a retired or
       // mid-revision standard has no periodic review to chase.
-      if (reviewInternal !== "" && ownerInternal !== "") {
+      {
         const approvedLabels = statusInternal !== "" ? labelsForStage("approved") : [];
-        for (const l of carrying(standards, reviewInternal, ownerInternal)) {
+        // per library: ITS review and owner columns (issue 1, 2026-10-19)
+        for (const l of standards) {
+          const rev = libInternal(l, "nextReviewDate", reviewInternal);
+          const own = libInternal(l, "owner", ownerInternal);
+          if (rev === "" || own === "") continue;
           const scoped =
             approvedLabels.length > 0 &&
             l.config.columns.some((c) => c.internal === statusInternal);
@@ -1339,20 +1353,20 @@ export function mountDocs(
                 app.siteUrl,
                 l.listId,
                 buildRenderViewXml({
-                  personIsMe: ownerInternal,
-                  dueWithinDays: { col: reviewInternal, days: REVIEW_HORIZON_DAYS },
+                  personIsMe: own,
+                  dueWithinDays: { col: rev, days: REVIEW_HORIZON_DAYS },
                   termFilters: scoped
                     ? [{ cols: [statusInternal], labels: approvedLabels }]
                     : undefined,
-                  fields: [reviewInternal, ...gateFieldsFor(l)],
+                  fields: [rev, ...gateFieldsFor(l)],
                   rowLimit: 30,
                 })
               );
               for (const row of page.rows) {
                 // the ISO twin ("Column.") is the real value; the display
                 // text is a site-locale guess we only fall back to
-                const iso = row.values[`${reviewInternal}.`] ?? "";
-                const disp = row.values[reviewInternal] ?? "";
+                const iso = row.values[`${rev}.`] ?? "";
+                const disp = row.values[rev] ?? "";
                 const t = Date.parse(iso !== "" ? iso : disp);
                 const when = Number.isNaN(t)
                   ? disp

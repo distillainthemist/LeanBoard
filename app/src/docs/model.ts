@@ -60,6 +60,20 @@ export const COLUMN_ROLES: { key: string; label: string }[] = [
   { key: "retainUntil", label: "Retain until" },
 ];
 
+const ROLE_KEYS = new Set(COLUMN_ROLES.map((r) => r.key));
+
+/** The internal name a LIBRARY maps to a role, else `fallback` — the
+ *  one way code resolves a role per library. The role key is checked
+ *  against COLUMN_ROLES: the health report resolved a role named
+ *  "review" for two months (the key is nextReviewDate), fell back to
+ *  the site column every time and reported dated documents as undated
+ *  (issue 1 of the 2026-10-18 round). A typo now throws at first use,
+ *  which the tests catch. */
+export function libRoleInternal(columns: { internal: string; role: string }[], role: string, fallback = ""): string {
+  if (!ROLE_KEYS.has(role)) throw new Error(`unknown column role "${role}"`);
+  return columns.find((c) => c.role === role)?.internal ?? fallback;
+}
+
 /** One library column as LeanBoard presents it. */
 export interface ColumnConfig {
   /** SharePoint internal name — the stable identity. */
@@ -2837,6 +2851,10 @@ export interface ControlDoc {
   documentId: string;
   /** Next review date, ISO ("" = none recorded). */
   reviewIso: string;
+  /** The review column's DISPLAY text when no ISO twin came — a date
+   *  the feed rendered but the app cannot read (a calculated column,
+   *  a text column); reported as unreadable, never as missing. */
+  reviewText?: string;
   /** C1 (feedback round 1): the people named in the role columns —
    *  display names and the email twins, per role — for the roles
    *  health checks and the replace-a-person tool. */
@@ -2955,7 +2973,15 @@ export function controlHealth(
       "No next review date",
       "Approved documents with no review date never come up for review — they " +
         "age quietly.",
-      approved.filter((d) => d.reviewIso.trim() === "")
+      approved.filter((d) => d.reviewIso.trim() === "" && (d.reviewText ?? "").trim() === "")
+    );
+    add(
+      "reviewUnreadable",
+      "info",
+      "Review date unreadable",
+      "The review column shows a value the app cannot read as a date — a " +
+        "calculated or text column. Map a real date column to Next review date.",
+      approved.filter((d) => d.reviewIso.trim() === "" && (d.reviewText ?? "").trim() !== "")
     );
   } else if (controlled.length > 0 && !roles.review) {
     skipped.push("Next review date is not mapped — review checks cannot run.");

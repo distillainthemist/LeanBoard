@@ -15,6 +15,7 @@ import {
   orgDrift,
   orgSetShapeProblem,
   orgSyncPlan,
+  libRoleInternal,
   orgTreePaths,
   pathKey,
   withCompany,
@@ -2258,5 +2259,35 @@ describe("the ampersand (production's first sync, 2026-10-13)", () => {
     expect(plan.renames).toEqual([]);
     expect(plan.creates).toEqual([["Co", "Bauxite & Alumina", "Mine & Rail"]]);
     expect(plan.orphanTerms).toEqual([]);
+  });
+});
+
+// ---- issue 1 (2026-10-18 round): the role resolver and the unreadable review date
+describe("libRoleInternal", () => {
+  const cols = [
+    { internal: "DMSOwner", role: "owner" },
+    { internal: "ReviewBy", role: "nextReviewDate" },
+    { internal: "Title", role: "" },
+  ];
+  it("resolves a library's own column, falls back when unmapped, and refuses an unknown role", () => {
+    expect(libRoleInternal(cols, "nextReviewDate", "DMSNextReview")).toBe("ReviewBy");
+    expect(libRoleInternal(cols, "status", "DMSStatus")).toBe("DMSStatus");
+    expect(libRoleInternal(cols, "status")).toBe("");
+    expect(() => libRoleInternal(cols, "review")).toThrow(/unknown column role/);
+  });
+});
+
+describe("controlHealth — a review date the app cannot read", () => {
+  it("reports it as unreadable, not missing", () => {
+    const r = controlHealth(
+      [
+        { listId: "L", itemId: 1, name: "a", libName: "S", controlled: true, owner: "x", stage: "approved", org: "o", docType: "t", documentId: "1", reviewIso: "", reviewText: "12/09/2026", people: [], checkedOutTo: "", uniqueId: "", links: [], regulatorApproved: false },
+        { listId: "L", itemId: 2, name: "b", libName: "S", controlled: true, owner: "x", stage: "approved", org: "o", docType: "t", documentId: "2", reviewIso: "", reviewText: "", people: [], checkedOutTo: "", uniqueId: "", links: [], regulatorApproved: false },
+      ],
+      { owner: true, status: true, org: true, docType: true, documentId: true, review: true, links: false, regulator: false },
+      Date.parse("2026-10-19T00:00:00Z")
+    );
+    expect(r.issues.find((i) => i.key === "reviewUnreadable")?.docs.map((d) => d.itemId)).toEqual([1]);
+    expect(r.issues.find((i) => i.key === "reviewMissing")?.docs.map((d) => d.itemId)).toEqual([2]);
   });
 });
