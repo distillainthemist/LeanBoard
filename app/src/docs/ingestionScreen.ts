@@ -390,7 +390,9 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
     const fieldsRes = await fetchFields(ctx.site, dest.listId);
     const destFields: SpField[] = fieldsRes.ok ? fieldsFromResponse(fieldsRes.data) : [];
     const carried = new Set(dest.config.columns.filter((c) => c.available).map((c) => c.internal));
-    const roleInternals = ["owner", "docType", "organisation"].map((r) => ctx.internalForRole(r)).filter((i) => i !== "" && carried.has(i));
+    // "orgUnit" is the role key — "organisation" never matched, so the
+    // organisation column was never required (issue 25)
+    const roleInternals = ["owner", "docType", "orgUnit"].map((r) => ctx.internalForRole(r)).filter((i) => i !== "" && carried.has(i));
     const required = destFields
       .filter((f) => (f.required || roleInternals.includes(f.internal)) && carried.has(f.internal) && f.internal !== ctx.internalForRole("status"))
       .map((f) => ({ internal: f.internal, label: ctx.dictBy.get(f.internal)?.label || f.title }));

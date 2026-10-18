@@ -256,7 +256,7 @@ export function buildRegisterColumns(
   // so it lands last.
   const wanted = opts.keepOrder === true ? [...opts.wanted] : sortByDictionary(opts.wanted, [...dictBy.keys()]);
   const libraryLabel = opts.libraryLabel;
-  if (libraryLabel !== undefined && opts.bucket !== "narrow") {
+  if (libraryLabel !== undefined) {
     columns.push({
       key: "library",
       label: "Library",
@@ -270,8 +270,9 @@ export function buildRegisterColumns(
       continue;
     }
     const role = roleOf(internal);
-    if (opts.bucket !== "full" && role === "status") continue;
-    if (opts.bucket === "narrow") continue;
+    // every chosen column shows whatever the pane's width: a narrow
+    // pane scrolls the list sideways with the Document column frozen
+    // (Ben, 2026-10-19 — the status column used to vanish under 560px)
     columns.push({
       key: internal,
       label: labelOf(internal),

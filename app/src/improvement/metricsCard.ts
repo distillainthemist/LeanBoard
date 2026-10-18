@@ -231,8 +231,9 @@ export function mountMetricsCard(opts: CardMount): () => void {
     }
     const cols = rows.length <= 1 ? 1 : rows.length <= 4 ? 2 : 3;
     const grid = el("div", `app-mc-chartgrid app-mc-cols-${cols}`);
-    grid.style.gridTemplateRows = `repeat(${Math.ceil(rows.length / cols)}, minmax(0, 1fr))`;
-    grid.style.gridAutoRows = "";
+    // a scrolling host (the priority popup's Metrics tab) sizes rows by
+    // its own CSS so every chart keeps a readable height (issue 32)
+    if (!wrap.closest(".app-cp-ov-chartercard-scroll")) grid.style.gridTemplateRows = `repeat(${Math.ceil(rows.length / cols)}, minmax(0, 1fr))`;
     for (const r of rows) {
       const cell = el("div", "app-mc-chart" + (r.m.primary ? " app-mc-chart-primary" : ""));
       grid.appendChild(cell);

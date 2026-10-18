@@ -30,6 +30,10 @@ export interface DocListOptions<T> {
   density?: "comfortable" | "compact";
   /** Extra element under the empty message (e.g. "Clear all filters"). */
   emptyExtra?: () => HTMLElement | null;
+  /** A floor per column in pixels (the first column gets twice it): the
+   *  rows keep that width and the list scrolls sideways, the first
+   *  column frozen, instead of squeezing columns away. 0 = fit. */
+  minColumnPx?: number;
 }
 
 export interface DocList<T> {
@@ -53,13 +57,19 @@ export function mountDocList<T>(host: HTMLElement, opts: DocListOptions<T>): Doc
   const body = el("div", "app-doclist-body");
   const tail = el("div", "app-doclist-tail");
   const sentinel = el("div", "app-doclist-sentinel");
-  bodyWrap.append(body, tail, sentinel);
-  wrap.append(header, bodyWrap);
+  // the header rides INSIDE the scroller (sticky at the top) so a
+  // sideways scroll moves header and rows together
+  bodyWrap.append(header, body, tail, sentinel);
+  wrap.append(bodyWrap);
   host.appendChild(wrap);
 
   if (opts.density === "compact") wrap.classList.add("app-doclist-compact");
   const tracks = opts.columns.map((c) => c.width ?? "1fr").join(" ");
+  const floor = opts.minColumnPx ?? 0;
+  const minWidth = floor > 0 && opts.columns.length > 1 ? `${floor * (opts.columns.length + 1)}px` : "";
+  if (minWidth !== "") wrap.classList.add("app-doclist-wide");
   header.style.gridTemplateColumns = tracks;
+  header.style.minWidth = minWidth;
   for (const c of opts.columns) {
     if (c.sortKey !== undefined && opts.onSort) {
       const sortKey = c.sortKey;
@@ -87,6 +97,7 @@ export function mountDocList<T>(host: HTMLElement, opts: DocListOptions<T>): Doc
     for (const row of rows) {
       const r = el("div", "app-doclist-row");
       r.style.gridTemplateColumns = tracks;
+      r.style.minWidth = minWidth;
       for (const c of opts.columns) {
         const cell = el("div", "app-doclist-cell");
         const content = c.render(row);

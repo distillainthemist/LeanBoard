@@ -2004,8 +2004,15 @@ input[type="color"].app-color:disabled { opacity: 0.4; cursor: default; }
 .app-docs-status { font-size: 12px; color: #6b6b6b; margin-bottom: 6px; min-height: 15px; }
 .app-doclist { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .app-doclist-head, .app-doclist-row { display: grid; gap: 10px; align-items: center; padding: 6px 8px; }
-.app-doclist-head { border-bottom: 2px solid #e5e5e5; font-size: 11.5px; color: #6b6b6b; }
-.app-doclist-scroll { flex: 1; overflow-y: auto; min-height: 0; }
+.app-doclist-head { border-bottom: 2px solid #e5e5e5; font-size: 11.5px; color: #6b6b6b; position: sticky; top: 0; background: #fff; z-index: 3; }
+/* both axes: a narrow pane scrolls the rows sideways (issue 25) */
+.app-doclist-scroll { flex: 1; overflow: auto; min-height: 0; }
+/* the Document column stays put while the rest scrolls — the
+   ingestion grid's own treatment */
+.app-doclist-wide .app-doclist-row > .app-doclist-cell:first-child,
+.app-doclist-wide .app-doclist-head > :first-child { position: sticky; left: 0; background: #fff; z-index: 1; }
+.app-doclist-wide .app-doclist-head > :first-child { z-index: 4; }
+.app-doclist-wide .app-doclist-row:hover > .app-doclist-cell:first-child { background: #faf9f7; }
 .app-doclist-row { border-bottom: 1px solid #f1efec; cursor: pointer; font-size: 13.5px; }
 .app-doclist-row:hover { background: #faf9f7; }
 .app-doclist-cell { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -9,7 +9,7 @@
 
 import { clear, el } from "../../../shared/ui/dom";
 import { openDialog } from "../../../shared/ui/dialog";
-import { poolPeopleSource } from "./accessGates";
+import { poolPeopleSource, reviewerPeopleSource } from "./accessGates";
 import { checkInFile, checkOutFile, fetchListModeration, validateUpdateListItem } from "./sp";
 import { spErrorText, validateItemErrors } from "./model";
 
@@ -68,12 +68,14 @@ export function openReplacePerson(opts: {
     fromSel.appendChild(o);
   }
   body.appendChild(fieldRow("Replace", fromSel));
-  // to — the pool (owners & approvers group), searched
+  const roles = new Set<ReassignDoc["people"][number]["role"]>(["owner", "approvers", "reviewers"]);
+  // to — the pool (owners & approvers group), searched; the reviewer
+  // source when only reviewers are ticked
   let to: { email: string; name: string } | null = null;
   const toBox = el("div", "app-docs-ppl");
   const toChip = el("div", "app-docs-pplchips");
   const toSearch = el("input", "app-input") as HTMLInputElement;
-  toSearch.placeholder = "Search the owners & approvers group…";
+  toSearch.placeholder = "Search the owners & approvers group (anyone, for reviewers only)…";
   const toHits = el("div", "app-docs-pplhits");
   toBox.append(toChip, toSearch, toHits);
   const paintTo = () => {
@@ -101,7 +103,10 @@ export function openReplacePerson(opts: {
     if (timer !== null) clearTimeout(timer);
     timer = setTimeout(() => {
       const mine = ++seq;
-      void poolPeopleSource().then((src) =>
+      // a reviewer may be anyone (C2): when only reviewers are ticked the
+      // replacement comes from the reviewer source (issue 9)
+      const sourceFor = () => (roles.size === 1 && roles.has("reviewers") ? reviewerPeopleSource() : poolPeopleSource());
+      void sourceFor().then((src) =>
         src.search(toSearch.value).then((hits) => {
           if (mine !== seq) return;
           clear(toHits);
@@ -123,8 +128,7 @@ export function openReplacePerson(opts: {
     }, 300);
   });
   body.appendChild(fieldRow("With", toBox));
-  // roles
-  const roles = new Set<ReassignDoc["people"][number]["role"]>(["owner", "approvers", "reviewers"]);
+  // roles (declared above the search handler that reads them)
   const rolesRow = el("div", "app-docs-fpills");
   for (const r of ["owner", "approvers", "reviewers"] as const) {
     const lab = el("label", "app-docs-check") as HTMLLabelElement;

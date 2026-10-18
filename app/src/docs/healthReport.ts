@@ -261,18 +261,36 @@ export function openControlHealth(opts: ControlHealthOpts): void {
     }
     // the directory: every named email, looked up once (capped)
     try {
-      const { directoryProfile } = await import("../store/people");
+      const { directoryProfile, searchEntra } = await import("../store/people");
       const emails = [...new Set(withPeople.flatMap((d) => d.people.flatMap((p) => p.emails)))].slice(0, 300);
       const gone = new Set<string>();
+      const unchecked: string[] = [];
       let at = 0;
       const worker = async () => {
         while (at < emails.length) {
           const e = emails[at++];
           const prof = await directoryProfile(e);
-          if (!prof.found || !prof.accountEnabled) gone.add(e);
+          if (prof.state === "found") {
+            if (!prof.accountEnabled) gone.add(e);
+            continue;
+          }
+          if (prof.state === "absent") {
+            gone.add(e);
+            continue;
+          }
+          // the lookup failed: try the directory search by email before
+          // giving up on the person — found there means present
+          try {
+            const hits = await searchEntra(e);
+            if (hits.some((h) => h.mail.toLowerCase() === e.toLowerCase())) continue;
+          } catch {
+            /* the search failed too */
+          }
+          unchecked.push(e);
         }
       };
       await Promise.all(Array.from({ length: Math.min(6, emails.length) }, worker));
+      if (unchecked.length > 0) skipped.push(`Not checked: ${unchecked.length} directory lookup${unchecked.length === 1 ? "" : "s"} failed (${unchecked.slice(0, 3).join(", ")}${unchecked.length > 3 ? ", …" : ""}) — a throttle or an email that is not the account's sign-in name; run the report again later.`);
       const hits: ControlDoc[] = [];
       for (const d of withPeople) {
         const names: string[] = [];

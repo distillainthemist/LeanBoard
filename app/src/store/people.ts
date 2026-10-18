@@ -86,6 +86,14 @@ export interface DirectoryProfile {
   accountEnabled: boolean;
   /** false if the directory has no such account (deleted/unknown). */
   found: boolean;
+  /** "found" / "absent" (the directory answered: no such account) /
+   *  "error" (the lookup itself failed — a throttle, a connector
+   *  hiccup, an email that is not the UPN). Only "absent" means the
+   *  person has gone; an error is "not checked" (issue 11, 2026-10-18
+   *  round: every error read as "left the business"). */
+  state: "found" | "absent" | "error";
+  /** The error's text, for a "not checked" line. */
+  error?: string;
 }
 
 /**
@@ -95,7 +103,7 @@ export interface DirectoryProfile {
  * Never throws: a missing account resolves to found:false.
  */
 export async function directoryProfile(whoId: string): Promise<DirectoryProfile> {
-  const absent = { jobTitle: "", accountEnabled: false, found: false };
+  const absent: DirectoryProfile = { jobTitle: "", accountEnabled: false, found: false, state: "absent" };
   if (whoId.trim() === "") return absent;
   try {
     const res = await Office365UsersService.UserProfile_V2(
@@ -108,9 +116,14 @@ export async function directoryProfile(whoId: string): Promise<DirectoryProfile>
       jobTitle: u.jobTitle ?? "",
       accountEnabled: u.accountEnabled !== false,
       found: true,
+      state: "found",
     };
-  } catch {
-    return absent;
+  } catch (e) {
+    // a 404 is the directory's own answer; anything else is the
+    // lookup failing, which says nothing about the person
+    const text = e instanceof Error ? e.message : String(e);
+    if (/\b404\b|not ?found|does not exist|ResourceNotFound/i.test(text)) return absent;
+    return { ...absent, state: "error", error: text.slice(0, 160) };
   }
 }
 

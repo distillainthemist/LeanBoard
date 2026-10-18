@@ -61,36 +61,21 @@ describe("buildRegisterColumns", () => {
     expect(keys(shown)).toEqual(["name", "DocOwner", "modified"]);
   });
 
-  it("drops the status column first as the pane narrows (mid bucket)", () => {
-    const cols = buildRegisterColumns(ctx(), {
-      wanted: ["DocType", "DocStatus", "DocOwner", "Modified"],
-      bucket: "mid",
-    });
-    expect(keys(cols)).toEqual(["name", "DocType", "DocOwner", "modified"]);
+  it("keeps every chosen column whatever the pane's width — a narrow pane scrolls sideways (issue 25, 2026-10-19)", () => {
+    const wanted = ["DocType", "DocStatus", "DocOwner", "Modified"];
+    for (const bucket of ["full", "mid", "narrow"] as const) {
+      const cols = buildRegisterColumns(ctx(), { wanted, bucket });
+      // the dictionary orders a default set: owner before status here
+      expect(keys(cols)).toEqual(["name", "DocType", "DocOwner", "DocStatus", "modified"]);
+    }
   });
 
-  it("narrow keeps only name and Modified", () => {
-    const cols = buildRegisterColumns(ctx(), {
-      wanted: ["DocType", "DocStatus", "DocOwner", "Modified"],
-      bucket: "narrow",
-    });
-    expect(keys(cols)).toEqual(["name", "modified"]);
-  });
-
-  it("shows the library column when provided — except narrow", () => {
+  it("shows the library column when provided, at every width", () => {
     const label = () => "Standards";
-    const wide = buildRegisterColumns(ctx(), {
-      wanted: ["DocType", "Modified"],
-      bucket: "full",
-      libraryLabel: label,
-    });
-    expect(keys(wide)).toEqual(["name", "library", "DocType", "modified"]);
-    const narrow = buildRegisterColumns(ctx(), {
-      wanted: ["DocType", "Modified"],
-      bucket: "narrow",
-      libraryLabel: label,
-    });
-    expect(keys(narrow)).toEqual(["name", "modified"]);
+    for (const bucket of ["full", "narrow"] as const) {
+      const cols = buildRegisterColumns(ctx(), { wanted: ["DocType", "Modified"], bucket, libraryLabel: label });
+      expect(keys(cols)).toEqual(["name", "library", "DocType", "modified"]);
+    }
   });
 
   it("appends trailing columns after Modified (the screen's kebab)", () => {

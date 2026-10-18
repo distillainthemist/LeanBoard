@@ -28,6 +28,7 @@ const controllerCache = new Map<string, Promise<boolean>>();
 export function invalidateAccessGates(): void {
   poolCache = null;
   controllerCache.clear();
+  controllersCache = null;
 }
 
 /** The eligibility pool (owners & approvers group), read once per
@@ -109,14 +110,17 @@ export const POOL_ROLES = new Set(["owner", "approvers", "reviewers"]);
  *  directory fills in behind them; nothing is refused. */
 export async function reviewerPeopleSource(): Promise<PeopleSource> {
   const pool = await poolState().catch(() => ({ configured: false, members: null }) as PoolState);
-  const members = (pool.members ?? [])
-    .filter((m) => m.email !== "")
+  // document controllers list up front too (issue 9, 2026-10-18 round)
+  const controllers = await controllerMembers().catch(() => [] as GroupMember[]);
+  const seenFirst = new Set<string>();
+  const members = [...(pool.members ?? []), ...controllers]
+    .filter((m) => m.email !== "" && !seenFirst.has(m.email.toLowerCase()) && seenFirst.add(m.email.toLowerCase()))
     .map((m) => ({ mail: m.email, displayName: m.name }));
   const matches = (p: { mail: string; displayName: string }, l: string) =>
     l === "" || p.displayName.toLowerCase().includes(l) || p.mail.toLowerCase().includes(l);
   return {
     restricted: false,
-    hint: members.length > 0 ? "Reviewers may be anyone — the owners & approvers group lists first." : "",
+    hint: members.length > 0 ? "Reviewers may be anyone — the owners & approvers group and the document controllers list first." : "",
     search: async (q) => {
       const l = q.trim().toLowerCase();
       const first = members.filter((p) => matches(p, l));
@@ -131,6 +135,19 @@ export async function reviewerPeopleSource(): Promise<PeopleSource> {
       return [...first, ...rest.filter((p) => p.mail !== "" && !seen.has(p.mail.toLowerCase()))];
     },
   };
+}
+
+let controllersCache: Promise<GroupMember[]> | null = null;
+/** The document controllers group's members, read once per session —
+ *  the reviewer picker lists them up front. */
+export function controllerMembers(): Promise<GroupMember[]> {
+  controllersCache ??= (async () => {
+    const cfg = await appDocsConfig();
+    if (cfg.controllersGroupId === "") return [];
+    return groupMembers(cfg.controllersGroupId);
+  })();
+  controllersCache.catch(() => (controllersCache = null));
+  return controllersCache;
 }
 
 /** Controllers-group membership, merged into the admin gates BESIDE the
