@@ -7,6 +7,7 @@ import type { Ben_ltkinitiativetemplates } from "../generated/models/Ben_ltkinit
 import { Ben_ltkboardsService } from "../generated/services/Ben_ltkboardsService";
 import { allWhere, eq, upsertWhere } from "./dv";
 import { getBoard } from "./boards";
+import { writing } from "./changes";
 import { parseTemplateMetricsBlob,
   InitiativeTemplate,
   parseFields,
@@ -83,7 +84,12 @@ export async function ensureTemplateBoard(t: InitiativeTemplate): Promise<string
   const boardId = t.boardId !== "" ? t.boardId : `tpl-${t.id}`;
   const existing = await getBoard(boardId);
   const rand = () => Math.random().toString(36).slice(2, 6);
-  await upsertWhere(
+  // through writing(): the getBoard miss above is cached for a minute,
+  // and a bare upsert left it there — the designer then opened on
+  // "Unknown board" until a reload (issue 28, 2026-10-18 round)
+  await writing(
+    "boards",
+    upsertWhere(
     Ben_ltkboardsService,
     eq("ben_boardid", boardId),
     (row) => row.ben_ltkboardid,
@@ -117,6 +123,7 @@ export async function ensureTemplateBoard(t: InitiativeTemplate): Promise<string
             }),
           }),
     }
+    )
   );
   return boardId;
 }

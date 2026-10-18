@@ -21,6 +21,7 @@ import { companies, improvementSettingsJson, orgJson, saveImprovementSettingsJso
 import { getBoard, saveManifest } from "../store/boards";
 import { parseManifest } from "../store/mappers";
 import { deleteTemplate, ensureTemplateBoard, getTemplate, listTemplates, saveTemplate } from "../store/templates";
+import { listInitiatives } from "../store/initiatives";
 import { cardLabel } from "../../../controls/CardSettings/registry";
 import { createWizardShell } from "./wizardShell";
 import { pickOwner } from "../priorities/dialogs";
@@ -154,7 +155,9 @@ export function mountTemplateWizard(parent: HTMLElement, templateId: string): ()
     const companyList = await companies();
     const imp = parseImprovementSettings(await improvementSettingsJson());
     // app-level standard roles ride every template (addable; label edits stay template-local)
-    const usage = 0; // initiatives arrive with P5; the note reads "No initiatives…" until then
+    // the initiatives running on this template (issue 30, 2026-10-18
+    // round: a placeholder zero said "no initiatives" for every template)
+    const usage = (await listInitiatives().catch(() => [])).filter((i) => i.templateId === t.id && i.status === "active").length;
     let dirty = false;
     const mark = () => {
       dirty = true;
@@ -1155,6 +1158,9 @@ export async function renderImprovementSettings(body: HTMLElement, isSuper: bool
     hBox.appendChild(hList);
   }
   const all = await listTemplates();
+  // every initiative, for the per-template counts and the delete guard
+  const initiatives = await listInitiatives().catch(() => []);
+  const usesOf = (templateId: string) => initiatives.filter((i) => i.templateId === templateId);
   // retired last (design 1.1)
   const templates = [...all.filter((t) => t.active), ...all.filter((t) => !t.active)];
   const list = el("div", "app-tw-list");
@@ -1200,7 +1206,14 @@ export async function renderImprovementSettings(body: HTMLElement, isSuper: bool
           })();
         });
         item("Delete", () => {
-          void promptConfirm({ title: `Delete ${t.name}?`, note: "Allowed while no initiative uses it. Its template board stays as a project board you can remove from Rituals.", confirmLabel: "Delete", danger: true }).then(async (yes) => {
+          // refused while any initiative, of any status, was cloned from
+          // it (Ben, 2026-10-19): their boards came from this layout
+          const uses = usesOf(t.id);
+          if (uses.length > 0) {
+            void promptConfirm({ title: `${t.name} cannot be deleted`, note: `${uses.length} initiative${uses.length === 1 ? " was" : "s were"} created from it. Retire the template instead — nothing new can pick it, and the initiatives keep running.`, confirmLabel: "OK" });
+            return;
+          }
+          void promptConfirm({ title: `Delete ${t.name}?`, note: "No initiative uses it. Its template board stays as a project board you can remove from Rituals.", confirmLabel: "Delete", danger: true }).then(async (yes) => {
             if (!yes || !t.rowId) return;
             await deleteTemplate(t.rowId);
             await renderImprovementSettings(body, isSuper);
@@ -1237,7 +1250,11 @@ export async function renderImprovementSettings(body: HTMLElement, isSuper: bool
       el(
         "div",
         "app-settings-note",
-        [t.singleAction ? "no stages" : `${t.stages.length} stages`, `${activeRoles(t).length} roles`, METRIC_RULE_LABELS[t.metricRule].split(" — ")[0].toLowerCase(), t.boardId !== "" ? "board laid out" : "no board yet", t.company ? t.company : "all companies", "0 initiatives use this"].join(" · ")
+        [t.singleAction ? "no stages" : `${t.stages.length} stages`, `${activeRoles(t).length} roles`, METRIC_RULE_LABELS[t.metricRule].split(" — ")[0].toLowerCase(), t.boardId !== "" ? "board laid out" : "no board yet", t.company ? t.company : "all companies", (() => {
+          const u = usesOf(t.id);
+          const active = u.filter((i) => i.status === "active").length;
+          return u.length === 0 ? "no initiatives use this" : `${active} active initiative${active === 1 ? "" : "s"}${u.length > active ? ` (${u.length} in all)` : ""}`;
+        })()].join(" · ")
       )
     );
     list.appendChild(card);
