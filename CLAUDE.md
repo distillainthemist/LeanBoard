@@ -356,7 +356,10 @@ Version lives in the tag alone — nothing is stamped into files.
   (2026-10-13: company-aware Organisation sync — each company a
   top-level term) and v0.73.1 / v0.73.2 (2026-10-13: the term store's fullwidth
   ampersand read and written; dashes and spaces normalised in label
-  matching) are app-only. Prod imports the managed solution FIRST. LESSON
+  matching) are app-only. v0.74.0 (2026-10-19: the 2026-10-18 issue
+  round, 36 items across five tranches — `docs/issues-plan-2026-10-19.md`)
+  is SOLUTION-CARRYING: the `ben_ltkdocflag` table and four document
+  columns on `ben_ltktagproposal`. Prod imports the managed solution FIRST. LESSON
   (2026-10-13, production's first sync): a sync must
   never run from a walk it cannot trust (budget-cut OR any failed
   children request), and the Organisation set's company-level offset

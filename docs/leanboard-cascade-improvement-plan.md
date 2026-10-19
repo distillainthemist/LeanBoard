@@ -1455,6 +1455,17 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-10-19 — released as v0.74.0** (SOLUTION-CARRYING: `ben_ltkdocflag`
+  + the tag-proposal document columns): the whole 2026-10-18 issue
+  round, tranches A–E below, every item passed by Ben on dev the same
+  day. Follow-ups folded in during the pass: the primary-initiative star
+  asks first and the priority popup survives the screen repaint; the
+  overlay's reader row (flag chip + Flag for review) under the buttons
+  with Suggest a tag beside the Tags property; owners read fresh before
+  the flag card; a tag is written only on a document in revision (the
+  waiting state "minted", "To tag at next revision"); the ingestion
+  grid's "Flag for review" column. Parked: 16 translation, 24 document
+  traveller.
 - **2026-10-19 (after v0.73.2, dev)**: issue round tranche E — document
   flags (23, SCHEMA-CARRYING: `ben_ltkdocflag`, deployed to dev),
   every template card on a new board (29), the shared initiative row
