@@ -302,7 +302,7 @@ On a desktop.
 
 | Item | Outcome |
 |---|---|
-| 1–6 | _Ben's pass pending_ |
+| 1–6 | PASS (Ben, 2026-10-19; 6 after the scope cleared person and presence filters too) |
 
 ## Issue round tranche B — after v0.73.2 (2026-10-19, dev)
 
