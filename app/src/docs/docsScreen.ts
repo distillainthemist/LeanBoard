@@ -5560,8 +5560,20 @@ export function mountDocs(
       if (docAdmin() && tagsColOf() !== null) {
         const tc = tagsColOf()!;
         const b = item("Tag proposals…", "Approve or decline the tags people have proposed.", () => {
-          void import("./tagQueue").then(({ openTagQueue }) =>
-            openTagQueue({ host: dialogHost, site: app.siteUrl, setId: tc.termSetId, tagsInternal: tc.internal, onChanged: () => void load(true) })
+          void Promise.all([import("./tagQueue"), import("./tagProposals")]).then(([{ openTagQueue }, { docInRevision }]) =>
+            openTagQueue({
+              host: dialogHost,
+              site: app.siteUrl,
+              setId: tc.termSetId,
+              tagsInternal: tc.internal,
+              // a tag is written only on a document in revision (Ben, 2026-10-19)
+              inRevision: (p) =>
+                docInRevision(p, statusInternal, (label) => {
+                  const id = labelToId.get(label.toLowerCase());
+                  return id === undefined ? "" : stageOfTerm(siteDict, id);
+                }),
+              onChanged: () => void load(true),
+            })
           );
         });
         void import("./tagProposals").then(({ listProposals }) => listProposals("pending")).then((pending) => {

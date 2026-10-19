@@ -9,7 +9,7 @@
 import { clear, el } from "../../../shared/ui/dom";
 import { openDialog } from "../../../shared/ui/dialog";
 import { promptText } from "../prompts";
-import { TagProposal, approveProposal, declineProposal, listProposals } from "./tagProposals";
+import { TagProposal, applyWaitingProposal, approveProposal, declineProposal, listProposals, markProposalTagged } from "./tagProposals";
 
 export function openTagQueue(opts: {
   host: HTMLElement;
@@ -17,6 +17,9 @@ export function openTagQueue(opts: {
   setId: string;
   /** The tags column's internal name ("" = approvals mint only). */
   tagsInternal: string;
+  /** Is the proposal's document in revision — may the tag be written
+   *  now? (Ben, 2026-10-19: never on an approved document.) */
+  inRevision: (p: TagProposal) => Promise<boolean>;
   onChanged: () => void;
 }): void {
   const dlg = openDialog({
@@ -28,16 +31,17 @@ export function openTagQueue(opts: {
   const body = dlg.body;
   const status = el("div", "app-docs-addstatus");
   const list = el("div", "app-docs-tagqueue");
-  body.append(el("div", "app-field-hint", "Approving mints the tag in the term set, puts it on the document the proposal names, and tells the proposer. Declining asks for your reason and sends it."), list, status);
+  body.append(el("div", "app-field-hint", "Approving mints the tag in the term set, puts it on the document the proposal names when that document is in revision, and tells the proposer. An approved document is never written to — its tag waits for the next revision. Declining asks for your reason and sends it."), list, status);
   const paint = async () => {
     clear(list);
     list.appendChild(el("div", "app-loading-line", "Reading proposals…"));
-    const pending = await listProposals("pending").catch(() => [] as TagProposal[]);
+    const [pending, waiting] = await Promise.all([listProposals("pending").catch(() => [] as TagProposal[]), listProposals("minted").catch(() => [] as TagProposal[])]);
     clear(list);
-    if (pending.length === 0) {
+    if (pending.length === 0 && waiting.length === 0) {
       list.appendChild(el("div", "app-settings-note", "No tags are waiting for a decision."));
       return;
     }
+    if (pending.length > 0) list.appendChild(el("div", "app-docs-tasksgroup", `Proposed (${pending.length})`));
     for (const p of pending) {
       const row = el("div", "app-docs-tagprop");
       row.appendChild(el("div", "app-docs-tagproplabel", `#${p.label}`));
@@ -49,7 +53,7 @@ export function openTagQueue(opts: {
         void (async () => {
           ok.disabled = true;
           status.textContent = `Approving “${p.label}”…`;
-          const r = await approveProposal(p, opts.site, opts.setId, opts.tagsInternal);
+          const r = await approveProposal(p, opts.site, opts.setId, opts.tagsInternal, () => opts.inRevision(p));
           if (r.error !== "") {
             status.textContent = `Could not approve “${p.label}”: ${r.error}`;
             ok.disabled = false;
@@ -75,6 +79,44 @@ export function openTagQueue(opts: {
       acts.append(ok, no);
       row.appendChild(acts);
       list.appendChild(row);
+    }
+    // approved while the document was approved: the tag waits
+    if (waiting.length > 0) {
+      list.appendChild(el("div", "app-docs-tasksgroup", `To tag at next revision (${waiting.length})`));
+      for (const p of waiting) {
+        const row = el("div", "app-docs-tagprop");
+        row.appendChild(el("div", "app-docs-tagproplabel", `#${p.label}`));
+        row.appendChild(el("div", "app-field-hint", `on “${p.docName}” — the tag exists; it goes on the document once it is in revision`));
+        const acts = el("div", "app-docs-tagpropacts");
+        const now = el("button", "app-btn", "Tag now") as HTMLButtonElement;
+        now.title = "Write the tag — works once the document is in revision";
+        now.addEventListener("click", () => {
+          void (async () => {
+            now.disabled = true;
+            status.textContent = `Tagging “${p.docName}”…`;
+            const r = await applyWaitingProposal(p, opts.tagsInternal, () => opts.inRevision(p));
+            status.textContent = r.error !== "" ? `Not tagged: ${r.error}` : `“${p.label}” is on “${p.docName}”.`;
+            now.disabled = false;
+            if (r.applied) {
+              opts.onChanged();
+              await paint();
+            }
+          })();
+        });
+        const done = el("button", "app-btn", "Done — tagged by hand") as HTMLButtonElement;
+        done.title = "An editor already put the tag on at the revision";
+        done.addEventListener("click", () => {
+          void (async () => {
+            done.disabled = true;
+            const err = await markProposalTagged(p);
+            status.textContent = err !== "" ? `Could not record it: ${err}` : `“${p.label}” recorded as tagged.`;
+            await paint();
+          })();
+        });
+        acts.append(now, done);
+        row.appendChild(acts);
+        list.appendChild(row);
+      }
     }
   };
   void paint();

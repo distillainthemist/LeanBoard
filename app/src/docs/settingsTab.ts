@@ -2006,7 +2006,8 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
         return;
       }
       tagBox.appendChild(el("div", "app-loading-line", "Reading the proposal queue…"));
-      const { listProposals, approveProposal, declineProposal, mintTag } = await import("./tagProposals");
+      const { listProposals, approveProposal, declineProposal, mintTag, docInRevision, statusStageReader } = await import("./tagProposals");
+      const stageReader = await statusStageReader(app.siteUrl, dict).catch(() => ({ statusInternal: "", stageOf: () => "" as const }));
       const [pending, walk] = await Promise.all([listProposals("pending"), fetchTermPaths(app.siteUrl, tagCol.termSetId)]);
       clear(tagBox);
       const fail = (m: string) => {
@@ -2083,7 +2084,7 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
         ok.addEventListener("click", () => {
           void (async () => {
             ok.disabled = true;
-            const r = await approveProposal(prop, app.siteUrl, tagCol.termSetId, tagCol.internal);
+            const r = await approveProposal(prop, app.siteUrl, tagCol.termSetId, tagCol.internal, () => docInRevision(prop, stageReader.statusInternal, stageReader.stageOf));
             if (r.error !== "") {
               fail(`Could not approve "${prop.label}": ${r.error}`);
               ok.disabled = false;

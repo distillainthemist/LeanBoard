@@ -7,8 +7,51 @@
 
 import { currentViewer } from "../runtime";
 import { Ben_ltktagproposalsService } from "../generated/services/Ben_ltktagproposalsService";
-import { tagLabelProblems } from "./model";
-import { createTerm, fetchTermStoreLanguage, invalidateTermPaths } from "./sp";
+import { LifecycleStage, SiteDictionary, stageOfTerm, tagLabelProblems } from "./model";
+import { createTerm, fetchTermStoreLanguage, fetchTermsInSet, invalidateTermPaths, spRequest } from "./sp";
+
+/** Proposal statuses: pending → approved | declined; "minted" = approved
+ *  and the term exists, but the document named was APPROVED at the
+ *  time (Ben, 2026-10-19: a metadata write would knock it out of the
+ *  approved state), so the tag waits for its next revision. */
+export type ProposalStatus = "pending" | "approved" | "declined" | "minted";
+
+/** Is the document a proposal names in revision — draft, in review or
+ *  awaiting approval — so a tag may be written on it? No lifecycle
+ *  (no status column, no value) = yes; unreadable = no (never a write
+ *  the app cannot vouch for). */
+export async function docInRevision(p: { docSite: string; docUid: string }, statusInternal: string, stageOf: (statusLabel: string) => LifecycleStage | ""): Promise<boolean> {
+  if (statusInternal === "" || p.docUid === "") return true;
+  const r = await spRequest(p.docSite, "GET", `_api/web/GetFileById('${p.docUid}')/ListItemAllFields?$select=Id,${statusInternal}`);
+  if (!r.ok) return false;
+  const raw = ((r.data ?? {}) as Record<string, unknown>)[statusInternal];
+  const label = typeof raw === "string" ? raw : raw && typeof raw === "object" ? String((raw as { Label?: unknown }).Label ?? "") : "";
+  const stage = stageOf(label.split(";")[0].trim());
+  return stage === "" || stage === "draft" || stage === "inReview" || stage === "inApproval" || stage === "inOwnerApproval";
+}
+
+/** A stage reader from the site's status vocabulary (Settings has no
+ *  live label → id map of its own). */
+export async function statusStageReader(site: string, dict: SiteDictionary): Promise<{ statusInternal: string; stageOf: (label: string) => LifecycleStage | "" }> {
+  const col = dict.columns.find((c) => c.role === "status" && c.termSetId !== "");
+  if (col === undefined) return { statusInternal: "", stageOf: () => "" };
+  const byLabel = new Map<string, string>();
+  const r = await fetchTermsInSet(site, col.termSetId);
+  const rows = Array.isArray((r.data as { value?: unknown[] })?.value) ? ((r.data as { value: unknown[] }).value as Record<string, unknown>[]) : [];
+  for (const t of rows) {
+    const names = t.labels as { name?: string; isDefault?: boolean }[] | undefined;
+    const def = Array.isArray(names) ? (names.find((l) => l.isDefault) ?? names[0]) : undefined;
+    const name = (def?.name ?? "").trim();
+    if (name !== "" && typeof t.id === "string") byLabel.set(name.toLowerCase(), t.id);
+  }
+  return {
+    statusInternal: col.internal,
+    stageOf: (label) => {
+      const id = byLabel.get(label.trim().toLowerCase());
+      return id === undefined ? "" : stageOfTerm(dict, id);
+    },
+  };
+}
 
 export interface TagProposal {
   id: string;
@@ -160,24 +203,31 @@ export async function approveProposal(
   p: TagProposal,
   site: string,
   setId: string,
-  tagsInternal = ""
-): Promise<{ error: string; warn: string; applied: boolean }> {
+  tagsInternal = "",
+  /** May the tag be written on the document now (it is in revision)?
+   *  Absent = yes. */
+  mayApply?: () => Promise<boolean>
+): Promise<{ error: string; warn: string; applied: boolean; waiting: boolean }> {
   const minted = await mintTag(site, setId, p.label);
-  if (minted.error !== "") return { error: minted.error, warn: "", applied: false };
+  if (minted.error !== "") return { error: minted.error, warn: "", applied: false, waiting: false };
   const termId = minted.termId;
+  const named = p.docUid !== "" && tagsInternal !== "";
+  // the document named is approved → the term exists, the tag waits
+  const waiting = named && mayApply !== undefined && !(await mayApply().catch(() => false));
   const upd = await Ben_ltktagproposalsService.update(p.id, {
-    ben_status: "approved",
+    ben_status: waiting ? "minted" : "approved",
     ben_termid: termId,
-    ben_decision: "Approved",
+    ben_decision: waiting ? `Approved — “${p.docName}” is approved, so the tag waits for its next revision` : "Approved",
   });
-  if (upd.success === false) return { error: `the term was created but the ledger update was refused: ${upd.error?.message ?? ""}`, warn: "", applied: false };
+  if (upd.success === false) return { error: `the term was created but the ledger update was refused: ${upd.error?.message ?? ""}`, warn: "", applied: false, waiting: false };
   const warns: string[] = [];
   let applied = false;
-  if (p.docUid !== "" && tagsInternal !== "") {
+  if (named && !waiting) {
     const applyErr = await applyTagToDocument(p, tagsInternal, { label: p.label, termId }).catch((e) => (e instanceof Error ? e.message : String(e)));
     if (applyErr === "") applied = true;
     else warns.push(`not added to “${p.docName}”: ${applyErr}`);
   }
+  if (waiting) warns.push(`“${p.docName}” is approved — the tag waits for its next revision (listed under “To tag at next revision”)`);
   // the proposer hears, as they do on a decline
   const me = currentViewer();
   if (p.proposerEmail !== "" && p.proposerEmail !== (me?.email ?? "").toLowerCase()) {
@@ -187,7 +237,7 @@ export async function approveProposal(
       const r = await sendNotifyTeams(
         [{ email: p.proposerEmail, name: p.proposerName || p.proposerEmail }],
         `Your tag proposal was approved: ${p.label}`,
-        applied ? `“${p.label}” is now a tag and is on “${p.docName}”.` : `“${p.label}” is now a tag — you can add it from the document's properties.`,
+        applied ? `“${p.label}” is now a tag and is on “${p.docName}”.` : waiting ? `“${p.label}” is now a tag — it goes on “${p.docName}” at its next revision.` : `“${p.label}” is now a tag — you can add it from the document's properties.`,
         appLinkUrl()
       );
       if (r.error !== "") warns.push(`the Teams message did not go: ${r.error}`);
@@ -195,7 +245,24 @@ export async function approveProposal(
       warns.push(`the Teams message did not go: ${String(e instanceof Error ? e.message : e).slice(0, 120)}`);
     }
   }
-  return { error: "", warn: warns.join("; "), applied };
+  return { error: "", warn: warns.join("; "), applied, waiting };
+}
+
+/** A waiting ("minted") proposal: write the tag now that the document
+ *  is in revision; still approved = it keeps waiting. */
+export async function applyWaitingProposal(p: TagProposal, tagsInternal: string, mayApply: () => Promise<boolean>): Promise<{ error: string; applied: boolean }> {
+  if (p.termId === "" || tagsInternal === "" || p.docUid === "") return { error: "the proposal names no document or term", applied: false };
+  if (!(await mayApply().catch(() => false))) return { error: `“${p.docName}” is still approved — the tag keeps waiting`, applied: false };
+  const applyErr = await applyTagToDocument(p, tagsInternal, { label: p.label, termId: p.termId }).catch((e) => (e instanceof Error ? e.message : String(e)));
+  if (applyErr !== "") return { error: applyErr, applied: false };
+  const upd = await Ben_ltktagproposalsService.update(p.id, { ben_status: "approved", ben_decision: "Approved — tagged at the next revision" });
+  return { error: upd.success === false ? (upd.error?.message ?? "the ledger update was refused") : "", applied: true };
+}
+
+/** An editor put the tag on by hand — the waiting proposal is done. */
+export async function markProposalTagged(p: TagProposal): Promise<string> {
+  const upd = await Ben_ltktagproposalsService.update(p.id, { ben_status: "approved", ben_decision: "Approved — tagged by hand" });
+  return upd.success === false ? (upd.error?.message ?? "the ledger update was refused") : "";
 }
 
 /** Decline with the controller's message (required — never silent).

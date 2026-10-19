@@ -2057,6 +2057,8 @@ input[type="color"].app-color:disabled { opacity: 0.4; cursor: default; }
 .app-docs-tagproplabel { font-weight: 600; }
 .app-docs-tagpropacts { display: flex; gap: 8px; margin-top: 4px; }
 .app-docs-suggesttag { align-self: flex-start; font-size: 12.5px; margin-top: 4px; }
+/* …in the Tags property cell: after the value, on its own line */
+.app-docs-propval .app-docs-suggesttag { display: block; margin-top: 2px; }
 .app-docs-mocchips { display: inline-flex; flex-wrap: wrap; gap: 4px; }
 .app-docs-mocchip { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 999px; background: #f1efec; color: #26241f; text-decoration: none; white-space: nowrap; }
 a.app-docs-mocchip { color: var(--app-accent, #2563eb); }

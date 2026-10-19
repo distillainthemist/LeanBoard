@@ -691,12 +691,6 @@ export function openDocViewer(opts: ViewerOpts): () => void {
       fl.addEventListener("click", () => opts.flags?.raise());
       reader.appendChild(fl);
     }
-    if (opts.suggestTag !== undefined) {
-      const sug = el("button", "app-btn app-docs-readerbtn", "# Suggest a tag…") as HTMLButtonElement;
-      sug.title = "Propose a tag for this document — a document controller decides";
-      sug.addEventListener("click", () => opts.suggestTag?.());
-      reader.appendChild(sug);
-    }
     reader.hidden = reader.children.length === 0;
   };
   paintReader();
@@ -789,6 +783,13 @@ export function openDocViewer(opts: ViewerOpts): () => void {
     // gates keep comparing emails, never this text.
     const ownerK = internalForRole("owner");
     const apprK = internalForRole("approvers");
+    const tagsK = internalForRole("tags");
+    const suggestTagLink = (): HTMLElement => {
+      const sug = el("button", "app-link app-docs-suggesttag", "Suggest a tag…") as HTMLButtonElement;
+      sug.title = "Propose a tag for this document — a document controller decides; an approved document is tagged at its next revision";
+      sug.addEventListener("click", () => opts.suggestTag?.());
+      return sug;
+    };
     if (ownerK !== undefined && apprK !== undefined) {
       const ov = shown.find(([k]) => k === ownerK)?.[1].trim() ?? "";
       const av = shown.find(([k]) => k === apprK)?.[1].trim() ?? "";
@@ -881,8 +882,17 @@ export function openDocViewer(opts: ViewerOpts): () => void {
           if (hint !== undefined) {
             cell.appendChild(el("span", "app-field-hint", ` · ${hint}`));
           }
+          // the reader's tag road sits with the tags (Ben, 2026-10-19)
+          if (k === tagsK && opts.suggestTag !== undefined) cell.appendChild(suggestTagLink());
           grid.appendChild(cell);
         }
+      }
+      // a document with no tags yet still offers the road, on its own row
+      if (tagsK !== undefined && opts.suggestTag !== undefined && !shown.some(([k]) => k === tagsK)) {
+        grid.appendChild(el("span", "app-docs-propkey", labels[tagsK] ?? "Tags"));
+        const cell = el("span", "app-docs-propval");
+        cell.appendChild(suggestTagLink());
+        grid.appendChild(cell);
       }
       propsBox.appendChild(grid);
     }
