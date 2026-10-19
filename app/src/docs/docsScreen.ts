@@ -2558,7 +2558,9 @@ export function mountDocs(
     });
     // favourites: the way back, where eyes land (issue 21, 2026-10-18
     // round — the nav row's second click was the only exit)
+    titleRow.append(titleBlock, el("div", "app-docs-titlegap"), addBtn, filtersBtn, seg, topKebab);
     if (favMode) {
+      // at the far right, where the toolbar sits (Ben, 2026-10-19)
       const back = el("button", "app-btn app-docs-favback", "← Back to libraries") as HTMLButtonElement;
       back.addEventListener("click", () => {
         pendingFav = false;
@@ -2566,7 +2568,6 @@ export function mountDocs(
       });
       titleRow.appendChild(back);
     }
-    titleRow.append(titleBlock, el("div", "app-docs-titlegap"), addBtn, filtersBtn, seg, topKebab);
     if (favMode) {
       filtersBtn.style.display = "none";
       seg.style.display = "none";
