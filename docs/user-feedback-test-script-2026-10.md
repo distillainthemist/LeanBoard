@@ -319,7 +319,8 @@ On a desktop.
 | 1–2 | PASS (Ben, 2026-10-19) |
 | 3 | PASS (Ben, 2026-10-19) — after a follow-up: starring asks first, and the popup now survives the screen repaint every popup write triggers |
 | 4 | PASS (Ben, 2026-10-19) |
-| 5–6 | _Ben's pass pending_ |
+| 5 | PASS (Ben, 2026-10-19) |
+| 6 | _Ben's pass pending_ |
 
 ## Issue round tranche D — after v0.73.2 (2026-10-19, dev)
 
