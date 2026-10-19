@@ -3751,9 +3751,10 @@ export function mountDocs(
                 }
               },
               density,
-              // a pane under the full width keeps every column and
-              // scrolls sideways (issue 25)
-              minColumnPx: bucket === "full" ? 0 : 120,
+              // every column keeps a floor at EVERY width: a wide pane with
+              // few columns never reaches it, a narrower pane with many
+              // scrolls sideways instead of squeezing (issue 25)
+              minColumnPx: 120,
             });
       if (prev.length > 0) list.setRows(prev);
     };
