@@ -69,7 +69,16 @@ function contextBlob(): Record<string, string> {
 // canvas card's image field shares it); the defaults ARE this dialog's
 // historical behaviour (1.5MB threshold, 1600px edge, JPEG 0.85).
 
-export function openReportDialog(opts: { host: HTMLElement }): void {
+export interface ReportPrefill {
+  kind?: "bug" | "idea";
+  area?: IssueArea;
+  title?: string;
+  description?: string;
+  /** Extra context keys stored with the report (a UAT run and case). */
+  context?: Record<string, string>;
+}
+
+export function openReportDialog(opts: { host: HTMLElement; prefill?: ReportPrefill; onSent?: (issueId: string) => void }): void {
   const viewer = currentViewer();
   const myEmail = (viewer?.email ?? "").toLowerCase();
   const myName = viewer?.name ?? "";
@@ -121,7 +130,10 @@ export function openReportDialog(opts: { host: HTMLElement }): void {
     kindRow.appendChild(b);
     return b;
   });
-  kindBtns[0].classList.add("app-issue-kind-on");
+  if (opts.prefill?.kind === "idea") {
+    kind = "idea";
+    kindBtns[1].classList.add("app-issue-kind-on");
+  } else kindBtns[0].classList.add("app-issue-kind-on");
 
   const area = el("select", "app-input") as HTMLSelectElement;
   for (const a of AREAS) {
@@ -129,7 +141,7 @@ export function openReportDialog(opts: { host: HTMLElement }): void {
     o.value = a.key;
     area.appendChild(o);
   }
-  area.value = areaForRoute(window.location.hash);
+  area.value = opts.prefill?.area ?? areaForRoute(window.location.hash);
   dlg.body.append(kindRow, el("div", "app-field-label", "Part of the app"), area);
 
   // ---- dedupe at the source: open issues in this area --------------------
@@ -192,6 +204,8 @@ export function openReportDialog(opts: { host: HTMLElement }): void {
   // and the live line below names what still blocks Send — a disabled
   // button must never be a mystery (Ben, 2026-08-12)
   const needed = el("div", "app-issue-needed");
+  if (opts.prefill?.title !== undefined) title.value = opts.prefill.title;
+  if (opts.prefill?.description !== undefined) desc.value = opts.prefill.description;
   dlg.body.append(
     el("div", "app-field-label", "Summary *"),
     title,
@@ -308,7 +322,7 @@ export function openReportDialog(opts: { host: HTMLElement }): void {
         ben_status: "new",
         ben_reporteremail: myEmail,
         ben_reportername: myName,
-        ben_context: JSON.stringify(contextBlob()),
+        ben_context: JSON.stringify({ ...contextBlob(), ...(opts.prefill?.context ?? {}) }),
       } as Parameters<typeof Ben_ltkissuesService.create>[0]);
       if (made.success === false || made.data?.ben_ltkissueid === undefined) {
         throw new Error(made.error?.message ?? "the issue could not be created");
@@ -344,6 +358,7 @@ export function openReportDialog(opts: { host: HTMLElement }): void {
       const cancel = dlg.root.querySelector(".ltk-btn-secondary") as HTMLButtonElement | null;
       if (cancel !== null) cancel.textContent = "Close";
       running = false;
+      opts.onSent?.(issueId);
     } catch (e) {
       status.textContent = `Could not send: ${String(e instanceof Error ? e.message : e).slice(0, 200)}`;
       status.classList.add("app-docs-addstatus-warn");

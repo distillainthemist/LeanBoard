@@ -340,6 +340,16 @@ export function mountSettings(parent: HTMLElement, initialTab = ""): () => void 
         },
       });
       tabs.push({
+        key: "uat",
+        label: "UAT",
+        // UAT runs (uat-proposal-2026-10.md): pick components and people,
+        // watch progress, close, export — super admins
+        render: async () => {
+          const { renderUatSettings } = await import("../uat/settingsTab");
+          await renderUatSettings(body);
+        },
+      });
+      tabs.push({
         key: "issues",
         label: "Issues",
         // the ⚐ Report triage desk (issues plan I2) — superadmin only,

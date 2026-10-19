@@ -125,13 +125,29 @@ export async function renderIssuesAdmin(body: HTMLElement): Promise<void> {
       areaSel.appendChild(o);
     }
   }
+  // issues raised from a UAT run (uat-proposal decision 3): the run and
+  // case ride the issue's context; this filter reads them back
+  const uatSel = el("select", "app-input") as HTMLSelectElement;
+  {
+    const all = el("option", "", "Any origin") as HTMLOptionElement;
+    all.value = "all";
+    uatSel.appendChild(all);
+    void import("../uat/store").then(({ listRuns }) => listRuns()).then((runs) => {
+      for (const r of runs) {
+        const o = el("option", "", `UAT: ${r.name}`) as HTMLOptionElement;
+        o.value = r.rowId;
+        uatSel.appendChild(o);
+      }
+    }).catch(() => undefined);
+    uatSel.addEventListener("change", () => void paint());
+  }
   // a refresh re-reads the list (Ben, 2026-10-12: a resolved issue
   // stayed in the Open list until the tab was left and re-entered)
   const refreshBtn = el("button", "app-btn", "↻ Refresh") as HTMLButtonElement;
   refreshBtn.type = "button";
   refreshBtn.title = "Re-read the issues";
   refreshBtn.addEventListener("click", () => void paint());
-  filters.append(statusSel, kindSel, areaSel, refreshBtn);
+  filters.append(statusSel, kindSel, areaSel, uatSel, refreshBtn);
   body.appendChild(filters);
 
   // ---- selection → export to PDF (2026-10-06) ----------------------------
@@ -311,6 +327,7 @@ export async function renderIssuesAdmin(body: HTMLElement): Promise<void> {
     }
     if (kindSel.value !== "all") parts.push(`ben_kind eq '${kindSel.value}'`);
     if (areaSel.value !== "all") parts.push(`ben_area eq '${areaSel.value}'`);
+    if (uatSel.value !== "all") parts.push(`contains(ben_context,'"uatRun":"${uatSel.value}"')`);
     const res = await Ben_ltkissuesService.getAll({
       ...(parts.length > 0 ? { filter: parts.join(" and ") } : {}),
       top: 200,
@@ -322,7 +339,16 @@ export async function renderIssuesAdmin(body: HTMLElement): Promise<void> {
     }
     // priority rank first (unranked last), then oldest first — the
     // queue reads top-to-bottom as "work on this next"
-    const rows = [...(res.data ?? [])].sort((a, b) => {
+    const uatRun = uatSel.value;
+    const fromRun = (i: Issue): boolean => {
+      if (uatRun === "all") return true;
+      try {
+        return (JSON.parse(i.ben_context ?? "{}") as Record<string, string>).uatRun === uatRun;
+      } catch {
+        return false;
+      }
+    };
+    const rows = [...(res.data ?? [])].filter(fromRun).sort((a, b) => {
       const pa = a.ben_priority ?? Number.POSITIVE_INFINITY;
       const pb = b.ben_priority ?? Number.POSITIVE_INFINITY;
       if (pa !== pb) return pa - pb;

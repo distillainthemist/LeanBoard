@@ -1,0 +1,51 @@
+[
+  {
+    "key": "documents",
+    "label": "Documents",
+    "issueArea": "documents",
+    "personas": ["reader", "author", "owner", "reviewer", "approver", "controller", "superadmin"],
+    "modules": ["docs/"]
+  },
+  {
+    "key": "rituals",
+    "label": "Rituals & boards",
+    "issueArea": "boards",
+    "personas": ["participant", "owner", "siteadmin", "superadmin"],
+    "modules": ["screens/board.ts", "screens/hub.ts", "store/boards.ts", "store/instances.ts"]
+  },
+  {
+    "key": "actions",
+    "label": "Actions",
+    "issueArea": "cards",
+    "personas": ["assignee", "owner", "superadmin"],
+    "modules": ["store/actions.ts", "screens/myday"]
+  },
+  {
+    "key": "improvement",
+    "label": "Improvement",
+    "issueArea": "improvement",
+    "personas": ["member", "lead", "sponsor", "superadmin"],
+    "modules": ["improvement/"]
+  },
+  {
+    "key": "priorities",
+    "label": "Cascaded priorities",
+    "issueArea": "priorities",
+    "personas": ["viewer", "orgowner", "superadmin"],
+    "modules": ["priorities/"]
+  },
+  {
+    "key": "settings",
+    "label": "Settings, people & organisation",
+    "issueArea": "settings",
+    "personas": ["user", "siteadmin", "superadmin"],
+    "modules": ["screens/settings.ts", "store/people.ts", "processes/"]
+  },
+  {
+    "key": "issues",
+    "label": "Issue reporting",
+    "issueArea": "settings",
+    "personas": ["reporter", "superadmin"],
+    "modules": ["issues/"]
+  }
+]

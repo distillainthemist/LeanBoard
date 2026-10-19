@@ -324,13 +324,23 @@ export function mountHub(parent: HTMLElement): () => void {
         cleanups.push(mountValueDrivers(tabHost));
       });
     };
+    // the UAT tab (uat-proposal-2026-10.md §4) rides as an extra tab for
+    // people assigned to an open run — looked up after the hub paints
+    let uatOn = false;
     const extraTabs = (docsCount: number) => [
       { key: "documents", label: "Documents", count: docsCount },
       { key: "priorities", label: "Priorities" },
       { key: "improvement", label: "Improvement" },
       { key: "drivers", label: "Value drivers" },
+      ...(uatOn ? [{ key: "uat", label: "UAT" }] : []),
     ];
     const mountDocsTab = (key: string, tabHost: HTMLElement) => {
+      if (key === "uat") {
+        void import("../uat/uatTab").then(({ mountUat }) => {
+          cleanups.push(mountUat(tabHost));
+        });
+        return;
+      }
       if (key === "priorities") {
         mountPrioritiesTab(tabHost);
         return;
@@ -362,11 +372,27 @@ export function mountHub(parent: HTMLElement): () => void {
     view.setExtraTabs(extraTabs(docsTaskCount), mountDocsTab);
     // main-tab layout: the default order (Priorities before Actions and
     // Documents) narrowed by the viewer's site enablement (Organisation
-    // settings) — applied before any deep link fronts a tab
-    view.setTabLayout(effectiveTabs(null));
+    // settings) — applied before any deep link fronts a tab; the UAT
+    // tab, when on, always rides at the end
+    let tabKeys = effectiveTabs(null);
+    const applyLayout = () => {
+      if (view) view.setTabLayout(uatOn ? [...tabKeys, "uat"] : tabKeys);
+    };
+    applyLayout();
     void siteHubTabs(me?.site ?? "")
       .then((enabled: string[] | null) => {
-        if (view && enabled !== null) view.setTabLayout(effectiveTabs(enabled));
+        if (enabled !== null) tabKeys = effectiveTabs(enabled);
+        applyLayout();
+      })
+      .catch(() => undefined);
+    void import("../uat/store")
+      .then(({ myOpenRuns }) => myOpenRuns(currentViewer()?.email ?? ""))
+      .then((runs) => {
+        if (!view || runs.length === 0) return;
+        uatOn = true;
+        view.setExtraTabs(extraTabs(docsTaskCount), mountDocsTab);
+        applyLayout();
+        if (window.location.hash.startsWith("#/uat")) view.selectTab("uat");
       })
       .catch(() => undefined);
     // a shared Documents link launched the app (or an old #/docs

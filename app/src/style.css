@@ -4747,3 +4747,48 @@ input.app-vg-in.app-vg-folded { background: #fff7e0; }
 .app-im-scope .ltk-procpick select { flex: 0 1 180px; }
 .ltk-lh-procfilter { display: inline-flex; gap: 6px; }
 .app-vd-procpick-filter { display: inline-flex; gap: 6px; }
+
+/* ---- UAT (uat-proposal-2026-10.md) ---- */
+.app-uat-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 8px 0; }
+.app-uat-runs { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.app-uat-run { border: 1px solid #e4dfd6; border-radius: 10px; background: #fff; }
+.app-uat-runhead { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 10px 12px; cursor: pointer; }
+.app-uat-runhead:hover { background: #faf9f7; }
+.app-uat-runname { font-weight: 700; }
+.app-uat-rundetail { padding: 4px 12px 12px; display: flex; flex-direction: column; gap: 10px; border-top: 1px solid #f0ede7; }
+.app-uat-bars { display: flex; flex-direction: column; gap: 4px; }
+.app-uat-barline { display: grid; grid-template-columns: 180px minmax(120px, 1fr) auto; gap: 10px; align-items: center; font-size: 12.5px; }
+.app-uat-barlabel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app-uat-barbar { display: flex; height: 10px; border-radius: 999px; background: #eee9e0; overflow: hidden; }
+.app-uat-barbar-wide { height: 12px; margin: 6px 0; }
+.app-uat-seg-pass { background: #2f8f4e; } .app-uat-seg-fail { background: #c62828; } .app-uat-seg-blocked { background: #e0a100; } .app-uat-seg-skipped { background: #a39c90; }
+.app-uat-fail { display: flex; gap: 8px; flex-wrap: wrap; font-size: 12.5px; }
+.app-uat-caseid { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: #6d675c; white-space: nowrap; }
+.app-uat-acts, .app-uat-caseacts { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.app-uat-comps { display: flex; flex-direction: column; gap: 4px; }
+.app-uat-comp { display: flex; gap: 8px; align-items: center; font-size: 13px; }
+.app-uat-hits { display: flex; flex-direction: column; gap: 2px; }
+.app-uat-chosen { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.app-uat-person { border: 1px solid #e4dfd6; border-radius: 8px; padding: 6px 10px; display: flex; flex-direction: column; gap: 6px; }
+.app-uat-persontop { display: flex; align-items: center; justify-content: space-between; }
+.app-uat-personname { font-weight: 600; font-size: 13px; }
+.app-uat-personas { display: flex; gap: 6px; flex-wrap: wrap; }
+.app-uat { padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; max-width: 900px; }
+.app-uat-head { display: flex; flex-direction: column; gap: 4px; }
+.app-uat-runtitle { font-size: 18px; font-weight: 700; }
+.app-uat-runsel { max-width: 420px; }
+.app-uat-next { align-self: flex-start; }
+.app-uat-body { display: flex; flex-direction: column; gap: 6px; }
+.app-uat-case { border: 1px solid #e4dfd6; border-left-width: 4px; border-radius: 10px; background: #fff; }
+.app-uat-case-pass { border-left-color: #2f8f4e; } .app-uat-case-fail { border-left-color: #c62828; } .app-uat-case-blocked { border-left-color: #e0a100; } .app-uat-case-skipped { border-left-color: #a39c90; }
+.app-uat-casetop { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 8px 12px; cursor: pointer; }
+.app-uat-casetop:hover { background: #faf9f7; }
+.app-uat-casetitle { font-weight: 600; font-size: 13.5px; flex: 1; min-width: 160px; }
+.app-uat-persona { font-size: 11.5px; color: #6d675c; border: 1px solid #e4dfd6; border-radius: 999px; padding: 1px 8px; }
+.app-uat-casedetail { padding: 4px 12px 12px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; border-top: 1px solid #f0ede7; }
+.app-uat-steps { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 3px; }
+.app-uat-expected { background: #f7f5f0; border-radius: 6px; padding: 6px 10px; }
+.app-uat-pre { color: #6d675c; }
+.app-uat-pass { border-color: #2f8f4e; color: #2f8f4e; }
+.app-uat-fail { border-color: #c62828; color: #c62828; }
+@media (max-width: 599px) { .app-uat-barline { grid-template-columns: 1fr; gap: 4px; } .app-uat { padding: 10px; } }
