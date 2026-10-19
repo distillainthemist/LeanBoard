@@ -20,7 +20,7 @@ import { fileTypeChip, withStatusGlyph } from "../../../shared/ui/format";
 import { resolvePaletteColor } from "../../../shared/palette";
 import { textOn } from "../../../shared/tokens";
 import type { ListColumn } from "./listView";
-import { DocRow, formatWhen, splitNameForEllipsis, VERSION_FIELD, versionLabel } from "./rows";
+import { DocRow, formatWhen, splitNameForEllipsis, NAME_SLOT, VERSION_FIELD, versionLabel } from "./rows";
 import {
   SiteDictionary,
   paletteEntryFor,
@@ -262,22 +262,32 @@ export function buildRegisterColumns(
     ];
   }
 
-  const columns: ListColumn<DocRow>[] = [nameCol];
+  const columns: ListColumn<DocRow>[] = [];
   // the caller decides WHICH columns show; the dictionary decides their
   // ORDER, so columns sit in the same relative sequence whatever is
   // hidden (Ben, 2026-08-04). Modified is unknown to the dictionary,
   // so it lands last.
   const wanted = opts.keepOrder === true ? [...opts.wanted] : sortByDictionary(opts.wanted, [...dictBy.keys()]);
   const libraryLabel = opts.libraryLabel;
-  if (libraryLabel !== undefined) {
-    columns.push({
-      key: "library",
-      label: "Library",
-      width: "minmax(110px, 1fr)",
-      render: libraryLabel,
-    });
-  }
+  // the Document column sits where the chosen order puts its slot —
+  // first when the order names no slot — and Library rides beside it
+  const pushName = () => {
+    columns.push(nameCol);
+    if (libraryLabel !== undefined) {
+      columns.push({
+        key: "library",
+        label: "Library",
+        width: "minmax(110px, 1fr)",
+        render: libraryLabel,
+      });
+    }
+  };
+  if (!wanted.includes(NAME_SLOT)) pushName();
   for (const internal of wanted) {
+    if (internal === NAME_SLOT) {
+      pushName();
+      continue;
+    }
     if (internal === "Modified") {
       columns.push(modifiedCol);
       continue;

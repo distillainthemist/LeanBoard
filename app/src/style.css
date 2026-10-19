@@ -2017,6 +2017,8 @@ input[type="color"].app-color:disabled { opacity: 0.4; cursor: default; }
 .app-docs-version { font-variant-numeric: tabular-nums; }
 .app-docs-version-minor { color: #8a847a; }
 .app-docs-vercurrent { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+/* the way back from favourites (issue 21) */
+.app-docs-favback { white-space: nowrap; }
 /* a scroller that can move sideways shows its bars: a styled scrollbar is
    a classic one in Chromium, never an overlay that hides until hovered
    (Ben, 2026-10-19: "the scrollbar disappears") */

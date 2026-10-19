@@ -116,3 +116,12 @@ describe("the Version column (issue 19, 2026-10-19)", () => {
     expect(versionLabel(" ")).toBeNull();
   });
 });
+
+describe("the Document column's slot (issue 20, 2026-10-19)", () => {
+  it("sits first without a slot, and where the chosen order puts __name with one; Library rides beside it", () => {
+    const plain = buildRegisterColumns(ctx(), { wanted: ["DocType", "Modified"], bucket: "full", keepOrder: true, libraryLabel: () => "S" });
+    expect(keys(plain)).toEqual(["name", "library", "DocType", "modified"]);
+    const moved = buildRegisterColumns(ctx(), { wanted: ["DocType", "__name", "Modified"], bucket: "full", keepOrder: true, libraryLabel: () => "S" });
+    expect(keys(moved)).toEqual(["DocType", "name", "library", "modified"]);
+  });
+});
