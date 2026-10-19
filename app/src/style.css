@@ -3477,6 +3477,15 @@ textarea.app-cp-statement { font-size: 14px; font-weight: 500; }
 .app-cp-tvbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .app-cp-tvorg { font-size: 20px; font-weight: 700; flex: 1; min-width: 0; }
 .app-cp-tvorg-lead { color: var(--app-accent); }
+/* the year control ‹ FY26 ▾ › (issue 37): filled = the current year (where
+   you are), tinted = another year, with a way back */
+.app-cp-yearctl { display: inline-flex; align-items: center; gap: 2px; vertical-align: middle; }
+.app-cp-yearstep { border: none; background: none; font: inherit; font-size: 24px; line-height: 1; color: var(--app-accent); cursor: pointer; padding: 0 4px; min-height: 36px; border-radius: 6px; }
+.app-cp-yearstep:hover:not(:disabled) { background: #f4f1ea; }
+.app-cp-yearstep:disabled { color: #c9c3b8; cursor: default; }
+.app-cp-yearpill { border: 1px solid var(--app-accent); background: var(--app-accent); color: #fff; border-radius: 999px; font: inherit; font-weight: 700; font-size: 16px; padding: 0 14px; min-height: 36px; cursor: pointer; white-space: nowrap; }
+.app-cp-yearpill-off { background: color-mix(in srgb, var(--app-accent) 12%, #fff); color: color-mix(in srgb, var(--app-accent) 82%, #000); }
+.app-cp-yearback { font-size: 13px; font-weight: 500; margin-left: 8px; white-space: nowrap; }
 .app-cp-tvorg-sep { color: #a39c90; font-weight: 400; padding: 0 4px; }
 .app-cp-tvorg-chain { color: #26241f; }
 .app-cp-tvorg .app-cp-crumbs { display: inline-flex; align-items: baseline; gap: 2px; flex-wrap: wrap; vertical-align: baseline; }

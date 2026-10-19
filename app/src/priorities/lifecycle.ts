@@ -95,6 +95,14 @@ export interface LifecycleCtx {
   };
   /** After any write: reload the cascade and repaint (scroll preserved). */
   changed: () => Promise<void>;
+  /** The initiative behind a popup row (null = not loaded / confidential
+   *  and hidden) — the row menu and the Metrics card act on it (issue 32). */
+  initiativeById: (id: string) => import("../improvement/initiativeModel").Initiative | null;
+  /** Super or site admin — may act on any initiative. */
+  viewerIsAdmin: boolean;
+  /** After an initiative write from the popup: re-read the initiatives
+   *  (rows, tallies) and repaint. */
+  initiativesChanged: () => Promise<void>;
   /** Open the detail overlay for a priority (used by the review list). */
   open: (p: Priority) => void;
 }
@@ -293,9 +301,14 @@ async function mountPrimaryCommentary(host: HTMLElement, initiativeId: string, a
   await paint();
 }
 
-async function mountPrimaryCard(host: HTMLElement, initiativeId: string, cardType: "CanvasCard" | "MetricsCard"): Promise<void> {
+async function mountPrimaryCard(
+  host: HTMLElement,
+  initiativeId: string,
+  cardType: "CanvasCard" | "MetricsCard",
+  who: { actor: { whoId: string; who: string }; isAdmin: boolean }
+): Promise<void> {
   host.appendChild(el("div", "app-cp-muted", "Loading…"));
-  const [{ listInitiatives }, { getBoard }, { parseManifest }, { liveRow }, { cardMounter }, { makeInitiativeBinding }, { defaultTheme }] = await Promise.all([
+  const [{ listInitiatives }, { getBoard }, { parseManifest }, { liveRow, ensureLiveRow, saveCard }, { cardMounter }, { makeInitiativeBinding }, { defaultTheme }, { myRoles }, { upsertActions }] = await Promise.all([
     import("../store/initiatives"),
     import("../store/boards"),
     import("../store/mappers"),
@@ -303,6 +316,8 @@ async function mountPrimaryCard(host: HTMLElement, initiativeId: string, cardTyp
     import("../cardRegistry"),
     import("../improvement/binding"),
     import("../../../shared/tokens"),
+    import("../improvement/initiativeModel"),
+    import("../store/actions"),
   ]);
   if (!host.isConnected) return;
   const i = (await listInitiatives()).find((x) => x.id === initiativeId) ?? null;
@@ -330,13 +345,24 @@ async function mountPrimaryCard(host: HTMLElement, initiativeId: string, cardTyp
   const slots = parseManifest(board.manifestRaw).slots;
   const theme = defaultTheme();
   const binding = (await makeInitiativeBinding(i.boardId, () => undefined)) ?? undefined;
+  // the Metrics card is WRITABLE here for whoever may add commentary —
+  // a role on the initiative, or an admin, while it is active (issue 32,
+  // Ben 2026-10-19); the charter stays read-only (it is edited on the board)
+  const canEdit = cardType === "MetricsCard" && i.status === "active" && (myRoles(i, who.actor.whoId).length > 0 || who.isAdmin);
   const mountRO = async (cardType: string, title: string) => {
     const slot = slots.find((s) => s.cardType === cardType);
     const mounter = slot ? cardMounter(cardType) : null;
     if (!slot || !mounter) return;
-    const row = await liveRow(i.boardId, slot.cardId).catch(() => null);
+    let row = await liveRow(i.boardId, slot.cardId).catch(() => null);
+    if (!row && canEdit) {
+      // no document row yet — make one so the first value lands
+      row = await ensureLiveRow(i.boardId, slot.cardId, cardType)
+        .then(() => liveRow(i.boardId, slot.cardId))
+        .catch(() => null);
+    }
     const card = el("div", `app-cp-ov-chartercard${cardType === "MetricsCard" ? " app-cp-ov-chartercard-scroll" : ""}`);
     host.appendChild(card);
+    const rowId = row?.id ?? "";
     mounter({
       host: card,
       title,
@@ -345,17 +371,23 @@ async function mountPrimaryCard(host: HTMLElement, initiativeId: string, cardTyp
       outputJson: row?.outputJson ?? "",
       people: [],
       theme,
-      readOnly: true,
+      readOnly: !canEdit || rowId === "",
       settings: slot.settings,
-      instanceKey: "",
+      instanceKey: `${i.boardId}:${slot.cardId}`,
       instanceWhen: "",
       binding,
       actions: [],
       sources: [],
-      viewer: { whoId: "", who: "" },
-      onSave: () => undefined,
+      viewer: who.actor,
+      onSave: (outputJson, tileSvg) => {
+        if (!canEdit || rowId === "") return;
+        void saveCard(rowId, outputJson, tileSvg);
+      },
       onTile: () => undefined,
-      onActions: () => undefined,
+      onActions: (actions) => {
+        if (!canEdit) return;
+        void upsertActions(actions, i.boardId);
+      },
     });
   };
   if (!slots.some((s) => s.cardType === cardType)) {
@@ -807,13 +839,39 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
           chip.style.background = r.pdcaBg;
           rowEl.appendChild(chip);
         }
+        const openBoard = () => {
+          rememberBoardOrigin("#/priorities", live.id);
+          close();
+          window.location.hash = `#/board/${r.boardId}`;
+        };
         if (r.boardId !== "") {
           rowEl.classList.add("app-cp-ov-link");
-          rowEl.addEventListener("click", () => {
-            rememberBoardOrigin("#/priorities", live.id);
-            close();
-            window.location.hash = `#/board/${r.boardId}`;
+          rowEl.addEventListener("click", openBoard);
+        }
+        // the same ⋮ as the Improvement tab's rows (issue 32)
+        const init = ctx.initiativeById(r.id);
+        if (init) {
+          const kebab = btn("⋮", "app-cp-kebab app-im-kebab");
+          kebab.title = "Open · Edit details · Flag · Escalate · Archive";
+          kebab.addEventListener("click", (e) => {
+            e.stopPropagation();
+            void import("../improvement/rowMenu").then(({ openInitiativeRowMenu }) => {
+              openInitiativeRowMenu(kebab, init, {
+                host: ctx.host,
+                viewer: { whoId: ctx.actor().whoId, isAdmin: ctx.viewerIsAdmin },
+                actor: ctx.actor,
+                roster: ctx.roster,
+                currentPeriod: ctx.currentPeriod,
+                onOpen: () => openBoard(),
+                onChanged: () => {
+                  void ctx.initiativesChanged().then(() => {
+                    if (scrim.isConnected) paint();
+                  });
+                },
+              });
+            });
           });
+          rowEl.appendChild(kebab);
         }
         return rowEl;
       };
@@ -843,11 +901,11 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
       if (hidden > 0) body.appendChild(el("div", "app-cp-muted", `+ ${hidden} confidential initiative${hidden === 1 ? "" : "s"}`));
     } else if (tab === "charter" || tab === "metrics") {
       if (live.primaryInitiativeId === "") {
-        body.appendChild(el("div", "app-cp-muted", `No primary initiative yet — ★ one on the Initiatives tab. Its ${tab === "charter" ? "charter" : "metrics"} show here, read-only.`));
+        body.appendChild(el("div", "app-cp-muted", `No primary initiative yet — ★ one on the Initiatives tab. Its ${tab === "charter" ? "charter shows here, read-only" : "metrics show here"}.`));
       } else {
         const host = el("div", "app-cp-ov-charter");
         body.appendChild(host);
-        void mountPrimaryCard(host, live.primaryInitiativeId, tab === "charter" ? "CanvasCard" : "MetricsCard");
+        void mountPrimaryCard(host, live.primaryInitiativeId, tab === "charter" ? "CanvasCard" : "MetricsCard", { actor: ctx.actor(), isAdmin: ctx.viewerIsAdmin });
       }
     } else if (tab === "commentary") {
       if (live.primaryInitiativeId === "") {

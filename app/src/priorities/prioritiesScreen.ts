@@ -264,7 +264,8 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
     ]);
     // initiatives + their actions + metric values (P6b/c): the tallies'
     // live inputs. A failure leaves the tallies grey, never blocks the matrix.
-    const [initiativeList, initiativeActions, initBoards, initRows] = await Promise.all([
+    // eslint-disable-next-line prefer-const
+    let [initiativeList, initiativeActions, initBoards, initRows] = await Promise.all([
       memo("initiatives", () => import("../store/initiatives").then((m) => m.listInitiatives())).catch(() => []),
       memo("initActions", () => import("../store/actions").then((m) => m.actionsForInitiatives())).catch(() => []),
       memo("initBoards", () => import("../store/boards").then((m) => m.listBoards())).catch(() => []),
@@ -345,6 +346,17 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
 
     const byPriority = initiativesByPriority(initiativeList);
     const ragsFor = makeRagsFor(byPriority, initiativeActions, () => data.priorities, metricState);
+    /** An initiative write from the popup (issue 32): re-read the list
+     *  and refill the SAME map, so every closure over it sees the change. */
+    const reloadInitiatives = async () => {
+      const fresh = await import("../store/initiatives").then((m) => m.listInitiatives()).catch(() => null);
+      if (dead || fresh === null) return;
+      initiativeList = fresh;
+      memoSet("initiatives", fresh);
+      byPriority.clear();
+      for (const [k, v] of initiativesByPriority(fresh)) byPriority.set(k, v);
+      render();
+    };
     let data: CascadeData = await memo(`cascade|${state.org.company}`, () => loadCascade(state.org.company));
     if (dead) return;
     stopLoading();
@@ -500,6 +512,9 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
         return out;
       },
       changed: reload,
+      initiativeById: (id) => initiativeList.find((i) => i.id === id) ?? null,
+      viewerIsAdmin: viewer.role !== "user",
+      initiativesChanged: reloadInitiatives,
       open: (p) => openOverlay(p),
     };
     const openOverlay = (p: Priority) => {
@@ -572,10 +587,78 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
      *  the accent; ancestors click to go up, the current node's ▾ opens
      *  Switch · Descend · Browse all…), then the cascade chip, ▶ Walk
      *  through, ＋ Priority and ⋮. Cards: a Focus/All toggle instead. */
+    /** The year control (issue 37, Ben 2026-10-19): ‹ FY26 ▾ › — the pill
+     *  is filled when it IS the current year, tinted otherwise, with
+     *  "Back to FY26" beside it; the menu lists every year on offer. */
+    const renderYearControl = (): HTMLElement => {
+      const ctl = el("span", "app-cp-yearctl");
+      const offered = periodsOnOffer();
+      const at = offered.indexOf(state.period);
+      const step = (dir: -1 | 1, label: string, title: string) => {
+        const b = el("button", "app-cp-yearstep", label) as HTMLButtonElement;
+        b.type = "button";
+        const to = at >= 0 ? (offered[at + dir] ?? "") : "";
+        b.disabled = to === "";
+        b.title = to === "" ? title : `${title}: ${to}`;
+        b.addEventListener("click", () => {
+          state.period = to;
+          render();
+        });
+        return b;
+      };
+      const isCurrent = state.period === currentPeriod;
+      const pill = el("button", "app-cp-yearpill" + (isCurrent ? "" : " app-cp-yearpill-off"), `${state.period} ▾`) as HTMLButtonElement;
+      pill.type = "button";
+      pill.title = isCurrent ? "The current year — pick another" : `Viewing ${state.period} — the current year is ${currentPeriod}`;
+      pill.addEventListener("click", () => {
+        document.querySelectorAll(".app-cp-menu").forEach((m) => m.remove());
+        const menu = el("div", "app-cp-menu");
+        menu.appendChild(el("div", "app-cp-menu-h", "Year"));
+        for (const per of offered) {
+          const b = el("button", "app-cp-menu-item app-cp-orgmenu-item", (state.period === per ? "● " : "○ ") + per) as HTMLButtonElement;
+          b.type = "button";
+          if (per === currentPeriod) b.appendChild(el("span", "app-cp-orgmenu-badge", "current"));
+          b.addEventListener("click", () => {
+            menu.remove();
+            state.period = per;
+            render();
+          });
+          menu.appendChild(b);
+        }
+        const r = pill.getBoundingClientRect();
+        menu.style.top = `${r.bottom + 4}px`;
+        menu.style.left = `${Math.min(r.left, window.innerWidth - 240)}px`;
+        document.body.appendChild(menu);
+        const off = (e: PointerEvent) => {
+          if (!menu.contains(e.target as Node)) {
+            menu.remove();
+            document.removeEventListener("pointerdown", off, true);
+          }
+        };
+        setTimeout(() => document.addEventListener("pointerdown", off, true), 0);
+        cleanups.push(() => menu.remove());
+      });
+      ctl.append(step(-1, "‹", "Earlier year"), pill, step(1, "›", "Later year"));
+      if (!isCurrent) {
+        const back = el("button", "app-link app-cp-yearback", `Back to ${currentPeriod}`) as HTMLButtonElement;
+        back.type = "button";
+        back.addEventListener("click", () => {
+          state.period = currentPeriod;
+          render();
+        });
+        ctl.appendChild(back);
+      }
+      return ctl;
+    };
+
     const renderHeader = (): HTMLElement => {
       const bar = el("div", "app-cp-tvbar");
       const title = el("div", "app-cp-tvorg");
-      title.appendChild(el("span", "app-cp-tvorg-lead", `${state.period} Cascaded Priorities`));
+      if (card) title.appendChild(el("span", "app-cp-tvorg-lead", `${state.period} Cascaded Priorities`));
+      else {
+        title.appendChild(renderYearControl());
+        title.appendChild(el("span", "app-cp-tvorg-lead", " Cascaded Priorities"));
+      }
       title.appendChild(el("span", "app-cp-tvorg-sep", " | "));
       if (card) {
         title.appendChild(el("span", "app-cp-tvorg-chain", orgPath(state.org).map(orgName).join(" › ")));

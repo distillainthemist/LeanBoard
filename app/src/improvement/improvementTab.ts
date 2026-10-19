@@ -740,51 +740,26 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
     };
 
     const openRowMenu = (anchor: HTMLElement, i: Initiative) => {
-      document.querySelectorAll(".app-cp-menu").forEach((m) => m.remove());
-      const menu = el("div", "app-cp-menu");
-      const item = (label: string, run: () => void, disabled = false) => {
-        const b = btn(label, "app-cp-menu-item");
-        b.disabled = disabled;
-        b.addEventListener("click", () => {
-          menu.remove();
-          run();
-        });
-        menu.appendChild(b);
-      };
-      const mine = myRoles(i, viewer.whoId).length > 0 || viewer.isAdmin;
-      item("Open", () => openInitiative(i), i.boardId === "");
-      item("Edit details…", () => {
-        void import("./editDetails").then(({ openEditDetails }) => {
-          openEditDetails({
+      // the shared initiative row menu (issue 32) — the priority popup
+      // shows the same one
+      void import("./rowMenu").then(({ openInitiativeRowMenu }) => {
+        cleanups.push(
+          openInitiativeRowMenu(anchor, i, {
             host: wrap,
-            initiative: i,
-            actor: actor(),
-            onSaved: () => {
+            viewer: { whoId: viewer.whoId, isAdmin: viewer.isAdmin },
+            actor,
+            roster,
+            currentPeriod,
+            onOpen: openInitiative,
+            onChanged: () => {
               void listInitiatives().then((fresh) => {
                 list = fresh;
                 render();
               });
             },
-          });
-        });
-      }, !mine);
-      item(i.flag === "" ? "⚐ Flag — needs support" : "Clear flag", () => void setFlag(i, i.flag === "" ? "flag" : ""), !mine);
-      item("▲ Escalate to sponsor", () => void setFlag(i, "escalated"), !mine || i.flag === "escalated");
-      item("Health check (next update)", () => undefined, true);
-      item("Move stage (next update)", () => undefined, true);
-      item(i.status === "archived" ? "Restore" : "Archive", () => void archive(i), !mine);
-      const r = anchor.getBoundingClientRect();
-      menu.style.top = `${r.bottom + 4}px`;
-      menu.style.left = `${Math.min(r.left, window.innerWidth - 260)}px`;
-      document.body.appendChild(menu);
-      const off = (e: PointerEvent) => {
-        if (!menu.contains(e.target as Node)) {
-          menu.remove();
-          document.removeEventListener("pointerdown", off, true);
-        }
-      };
-      setTimeout(() => document.addEventListener("pointerdown", off, true), 0);
-      cleanups.push(() => menu.remove());
+          })
+        );
+      });
     };
 
     const actor = () => ({ whoId: viewer.whoId, who: me?.who ?? who?.name ?? "" });
@@ -793,43 +768,6 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
       if (me?.role === "superadmin") return true;
       const role = imp.standardRoles.find((r) => r.key === imp.vdtEditorRole);
       return role !== undefined && roleFillersAt(role, scope.site || (me?.site ?? "")).some((p) => p.whoId === viewer.whoId);
-    };
-
-    const setFlag = async (i: Initiative, flag: Initiative["flag"]) => {
-      if (flag === "escalated") {
-        const { openEscalateDialog } = await import("./escalate");
-        const sponsors = (i.roles.sponsor ?? [])
-          .map((p) => ({ name: p.who, email: roster.find((r) => r.whoId === p.whoId)?.email ?? "" }))
-          .filter((p) => p.email !== "");
-        openEscalateDialog({
-          host: wrap,
-          initiativeTitle: i.title,
-          orgLine: `${actor().who} escalated "${i.title}" (${i.org.site}${i.org.department ? " · " + i.org.department : ""})`,
-          recipients: sponsors,
-          link: boardUrl(i.boardId),
-          onEscalate: async (note) => {
-            i.flag = "escalated";
-            i.flagNote = note;
-            await saveInitiative(i);
-            await appendInitiativeEvent(i, "flag", { flag: "escalated", note }, actor());
-            render();
-          },
-        });
-        return;
-      }
-      i.flag = flag;
-      i.flagNote = "";
-      await saveInitiative(i);
-      await appendInitiativeEvent(i, "flag", { flag }, actor());
-      render();
-    };
-
-    const archive = async (i: Initiative) => {
-      i.status = i.status === "archived" ? "active" : "archived";
-      i.toPeriod = i.status === "archived" ? currentPeriod : "";
-      await saveInitiative(i);
-      await appendInitiativeEvent(i, i.status === "archived" ? "archived" : "reopened", {}, actor());
-      render();
     };
 
     // ---- create flow (design 1.3): three steps in one modal ---------------------
