@@ -1338,6 +1338,16 @@ describe("add a document — the write recipe (4C)", () => {
     expect(empty.taxInternals).toEqual([]);
   });
 
+  it("reads a site-locale date back (residual issue 3, 2026-10-20)", async () => {
+    const { parseSiteDate } = await import("../docs/model");
+    expect(parseSiteDate("17/08/2027", 3081)).toBe("2027-08-17");
+    expect(parseSiteDate("8/17/2027", 1033)).toBe("2027-08-17");
+    expect(parseSiteDate("17/08/2027 00:00", 2057)).toBe("2027-08-17");
+    expect(parseSiteDate("2027-08-17", 3081)).toBe("2027-08-17");
+    expect(parseSiteDate("17/08/2027", 1033)).toBe(""); // month 17
+    expect(parseSiteDate("next year", 3081)).toBe("");
+    expect(parseSiteDate("", 3081)).toBe("");
+  });
   it("writes dates the way the site's locale reads them", async () => {
     const { formatDateForLocale } = await import("../docs/model");
     // the measured refusal: "Enter a date like this: 2/23/2012" — en-US

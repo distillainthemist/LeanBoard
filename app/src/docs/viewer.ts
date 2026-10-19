@@ -579,6 +579,14 @@ export function openDocViewer(opts: ViewerOpts): () => void {
     });
   });
   util.appendChild(copy);
+  // Download under the document's NAME, in the row itself (residual
+  // issue 1, 2026-10-20: the frame's own save icon names a blob "pdf")
+  if (!viewOnly) {
+    const dlBtn = el("button", "app-btn", row.ext === "pdf" ? "Download" : "Download PDF") as HTMLButtonElement;
+    dlBtn.title = `Saves “${row.name.replace(/\.[^.]+$/, "")}.pdf” — the viewer's own save icon cannot name the file`;
+    dlBtn.addEventListener("click", () => void downloadNamed("pdf"));
+    util.appendChild(dlBtn);
+  }
   if (opts.share !== undefined) {
     const shareBtn = el("button", "app-btn", "Share…") as HTMLButtonElement;
     shareBtn.addEventListener("click", () => opts.share?.());

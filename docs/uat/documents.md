@@ -191,15 +191,16 @@ steps:
 2. Look for Download, Open in new tab and the version list.
 expected: SharePoint's own viewer shows the document; no download or new-tab road; the current version line stands in for a history that would be refused; nothing errors
 
-### UAT-DOC-021 — Copy link, Share with QR, Open in new tab
+### UAT-DOC-021 — Copy link, Download, Share with QR, Open in new tab
 persona: reader
 modules: docs/viewer.ts docs/docsScreen.ts docs/links.ts
-preconditions: any document
+preconditions: any PDF document
 steps:
 1. Open the document → Copy link; paste it in a new browser tab.
-2. Share… → read the permalink and the QR code.
-3. ⋯ → Open in new tab ↗.
-expected: the pasted link opens LeanBoard on that document; the QR encodes the same link; the new tab opens the file in SharePoint, and its tooltip says to print from there
+2. Download: read the saved file's name.
+3. Share… → read the permalink and the QR code.
+4. ⋯ → Open in new tab ↗.
+expected: the pasted link opens LeanBoard on that document; Download saves the file under the document's own name (the viewer frame's own save icon cannot name it — it offers "pdf"); the QR encodes the same link; the new tab opens the file in SharePoint, and its tooltip says to print from there
 
 ### UAT-DOC-022 — A permalink opens the document, a view link opens the view
 persona: reader
@@ -375,11 +376,12 @@ expected: the effective date refreshes, the next review date moves by the cadenc
 ### UAT-DOC-040 — Cancel a revision
 persona: owner
 modules: docs/lifecycleCmds.ts
-preconditions: an approved standard with a draft revision in progress (a minor version after the major)
+preconditions: an approved standard with a draft revision in progress (a minor version after the major), NOT checked out
 steps:
 1. Open it → ⋯ → Cancel revision…
 2. Confirm.
-expected: the last approved major is restored as current, the status returns to approved, the draft versions stay in history
+3. Repeat on a revision checked out to you; then on one checked out to someone else.
+expected: the last approved major's content and status come back as a NEW major (v3.0 restored lands as v4.0 with the comment "Revision cancelled — restored v3.0"), published where content approval is on; the draft versions stay in history; your own check-out is discarded first; another person's check-out refuses with their name
 
 ### UAT-DOC-041 — Supersede and obsolete
 persona: controller
@@ -649,7 +651,7 @@ preconditions: documents with a missing owner, a missing status, an overdue revi
 steps:
 1. Register kebab → Document control health…
 2. Expand each finding; click a document.
-expected: each finding lists its documents with a reason and the fix; a date the feed rendered but the app cannot read is "unreadable", never "missing"; a document opens from the report; the summary counts clean documents
+expected: each finding lists its documents with a reason and the fix; a review date the feed renders in the site's locale ("17/08/2027" on an Australian site) is read as a date, so "Review date unreadable" fires only for a value that is not a date at all; the CSV's "Review source" column says whether each date came from the feed or was read from the text; a document opens from the report; the summary counts clean documents
 
 ### UAT-DOC-070 — People findings: leavers, outside the group, replace a person
 persona: controller

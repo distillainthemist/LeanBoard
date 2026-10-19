@@ -23,9 +23,11 @@ import {
   parseDocLinks,
   tallyByOwner,
   libRoleInternal,
+  parseSiteDate,
 } from "./model";
 import { DocLibrary } from "./docsStore";
 import { renderListPage } from "./data";
+import { fetchRegionalSettings } from "./sp";
 import { DocRow, buildRenderViewXml, formatDayMonthYear } from "./rows";
 import { toCsv } from "./views";
 
@@ -104,12 +106,13 @@ export function openControlHealth(opts: ControlHealthOpts): void {
           d.owner,
           d.documentId,
           d.reviewIso === "" ? "" : formatDayMonthYear(d.reviewIso),
+          d.reviewSource === "twin" ? "feed" : d.reviewSource === "parsed" ? `text “${d.reviewText ?? ""}” read as ${d.reviewIso}` : (d.reviewText ?? "") !== "" ? `unreadable “${d.reviewText}”` : "",
           (flaggedPeople.get(`${issue.key}|${docKey(d)}`) ?? []).join("; "),
         ]);
       }
     }
     const csv = toCsv(
-      ["Level", "Finding", "Document", "Library", "Owner", "Document ID", "Next review", "People"],
+      ["Level", "Finding", "Document", "Library", "Owner", "Document ID", "Next review", "Review source", "People"],
       rows
     );
     const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
@@ -122,6 +125,10 @@ export function openControlHealth(opts: ControlHealthOpts): void {
 
   const scan = async (): Promise<ControlDoc[]> => {
     const out: ControlDoc[] = [];
+    // the site's date order, for a review column whose feed carries no
+    // ISO twin (residual issue 3: production, every approved document)
+    const regional = await fetchRegionalSettings(opts.site).catch(() => ({ ok: false, data: null }));
+    const localeId = Number(((regional.data ?? {}) as { LocaleId?: unknown }).LocaleId ?? 0) || 1033;
     for (const lib of opts.libraries) {
       const carried = new Set(lib.config.columns.map((c) => c.internal));
       const orgCol = opts.roles.org.find((c) => carried.has(c)) ?? "";
@@ -153,6 +160,16 @@ export function openControlHealth(opts: ControlHealthOpts): void {
         approversCol,
         reviewersCol,
       ].filter((f) => f !== "" && carried.has(f));
+      /** The review date: the ISO twin first, else the display text read
+       *  in the site's locale, else nothing — and which it was. */
+      const reviewOf = (row: DocRow, col: string, localeId: number): Pick<ControlDoc, "reviewIso" | "reviewText" | "reviewSource"> => {
+        if (col === "") return { reviewIso: "", reviewText: "", reviewSource: "" };
+        const twin = row.values[`${col}.`] ?? "";
+        const text = row.values[col] ?? "";
+        if (twin !== "") return { reviewIso: twin, reviewText: text, reviewSource: "twin" };
+        const parsed = parseSiteDate(text, localeId);
+        return { reviewIso: parsed, reviewText: text, reviewSource: parsed !== "" ? "parsed" : "" };
+      };
       const peopleOf = (row: DocRow, role: "owner" | "approvers" | "reviewers", col: string) => {
         if (col === "" || !carried.has(col)) return null;
         const names = (row.values[col] ?? "").split(";").map((x) => x.trim()).filter((x) => x !== "");
@@ -195,8 +212,7 @@ export function openControlHealth(opts: ControlHealthOpts): void {
             documentId: roles.documentId !== "" ? (row.values[roles.documentId] ?? "") : "",
             // the ISO twin is the real value; the display text is a
             // site-locale rendering we never re-parse (the R6 lesson)
-            reviewIso: roles.review !== "" ? (row.values[`${roles.review}.`] ?? "") : "",
-            reviewText: roles.review !== "" ? (row.values[roles.review] ?? "") : "",
+            ...reviewOf(row, roles.review, localeId),
             checkedOutTo: row.checkoutName ?? "",
             uniqueId: row.uniqueId ?? "",
             // a feed-clipped JSON parses to null → [] — checks may

@@ -58,6 +58,7 @@ import {
   isDateColumn,
   lifecycleCommandsFor,
   parseBasePermissions,
+  parseSiteDate,
   siteKey,
   hasOutsideApprovers,
   sortByDictionary,
@@ -78,6 +79,7 @@ import {
   fetchListRoot,
   cachedTermPaths,
   fetchTermsInSet,
+  fetchRegionalSettings,
   undoCheckOut,
 } from "./sp";
 import { openDialog } from "../../../shared/ui/dialog";
@@ -272,6 +274,18 @@ export function mountDocs(
     /** listId → what SharePoint says this user may do. Primed for the
      *  writable libraries at mount, so the kebab can answer instantly. */
     const permsByLib = new Map<string, BasePermissions>();
+    /** The site's date order — a review column without an ISO twin is
+     *  read from its display text (residual issue 3, 2026-10-20). */
+    let siteLocaleId = 1033;
+    void fetchRegionalSettings(app.siteUrl).then((r) => {
+      const id = Number(((r.data ?? {}) as { LocaleId?: unknown }).LocaleId ?? 0);
+      if (id > 0) siteLocaleId = id;
+    }).catch(() => undefined);
+    /** A date column's value as ISO: the twin, else the locale parse. */
+    const dateIsoOf = (row: DocRow, col: string): string => {
+      const twin = row.values[`${col}.`] ?? "";
+      return twin !== "" ? twin : parseSiteDate(row.values[col] ?? "", siteLocaleId);
+    };
 
     const permsReady = Promise.all(
       libraries
@@ -716,8 +730,7 @@ export function mountDocs(
     const reviewDue = (row: DocRow): boolean => {
       const rev = libInternal(byListId.get(row.listId), "nextReviewDate", reviewInternal);
       if (rev === "") return false;
-      const iso = row.values[`${rev}.`] ?? "";
-      const t = Date.parse(iso !== "" ? iso : (row.values[rev] ?? ""));
+      const t = Date.parse(dateIsoOf(row, rev));
       return !Number.isNaN(t) && t <= Date.now() + REVIEW_HORIZON_DAYS * 86_400_000;
     };
     const openMarkReviewedRow = (row: DocRow) => {
@@ -780,7 +793,9 @@ export function mountDocs(
           site: app.siteUrl,
           row,
           host: dialogHost,
+          listId: row.listId,
           heldByMe: isMine(row),
+          heldByOther: (row.checkoutEmail ?? "") !== "" && !isMine(row) ? (row.checkoutName ?? row.checkoutEmail ?? "") : "",
           // the restore reverts the grant column; seats/ledger follow
           grantRelease: { emails: grantEmails(row) },
           onDone: () => void refreshRow(row),
@@ -1603,9 +1618,8 @@ export function mountDocs(
               for (const row of page.rows) {
                 // the ISO twin ("Column.") is the real value; the display
                 // text is a site-locale guess we only fall back to
-                const iso = row.values[`${rev}.`] ?? "";
                 const disp = row.values[rev] ?? "";
-                const t = Date.parse(iso !== "" ? iso : disp);
+                const t = Date.parse(dateIsoOf(row, rev));
                 const when = Number.isNaN(t)
                   ? disp
                   : formatDayMonthYear(new Date(t).toISOString());

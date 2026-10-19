@@ -2721,6 +2721,38 @@ export function formatDateForLocale(iso: string, localeId: number): string {
   }).format(new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
 }
 
+/** The inverse of formatDateForLocale (residual issue 3, 2026-10-20:
+ *  production's feed carried no ISO twin for the review column, so the
+ *  display text — "17/08/2027" on an en-AU site — is read in the SITE's
+ *  day/month order). Returns "YYYY-MM-DD", or "" when the text is not a
+ *  date in that locale. A time after the date is ignored. */
+export function parseSiteDate(text: string, localeId: number): string {
+  const m = /^\s*(\d{1,4})[./-](\d{1,2})[./-](\d{1,4})(?:[ ,T].*)?$/.exec(text);
+  if (m === null) return "";
+  const a = Number(m[1]);
+  const b = Number(m[2]);
+  const c = Number(m[3]);
+  let y: number;
+  let mo: number;
+  let d: number;
+  if (m[1].length === 4) {
+    y = a;
+    mo = b;
+    d = c;
+  } else {
+    const tag = LCID_TAGS[localeId] ?? "en-US";
+    const parts = new Intl.DateTimeFormat(tag, { year: "numeric", month: "numeric", day: "numeric" }).formatToParts(new Date(2001, 1, 3));
+    const dayFirst = parts.findIndex((p) => p.type === "day") < parts.findIndex((p) => p.type === "month");
+    d = dayFirst ? a : b;
+    mo = dayFirst ? b : a;
+    y = c < 100 ? 2000 + c : c;
+  }
+  if (mo < 1 || mo > 12 || d < 1 || d > 31 || y < 1900) return "";
+  const dt = new Date(Date.UTC(y, mo - 1, d));
+  if (dt.getUTCMonth() !== mo - 1 || dt.getUTCDate() !== d) return "";
+  return dt.toISOString().slice(0, 10);
+}
+
 export function newDocumentWrites(
   values: AddFieldValue[],
   localeId = 1033
@@ -2953,6 +2985,9 @@ export interface ControlDoc {
    *  the feed rendered but the app cannot read (a calculated column,
    *  a text column); reported as unreadable, never as missing. */
   reviewText?: string;
+  /** Where reviewIso came from: the feed's ISO twin, the display text
+   *  parsed in the site's locale, or nowhere (residual issue 3). */
+  reviewSource?: "twin" | "parsed" | "";
   /** C1 (feedback round 1): the people named in the role columns —
    *  display names and the email twins, per role — for the roles
    *  health checks and the replace-a-person tool. */

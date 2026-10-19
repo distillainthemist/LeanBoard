@@ -593,10 +593,14 @@ export function openLifecycleCommand(opts: LifecycleRunOpts): void {
 
 export interface CancelRevisionOpts {
   site: string;
+  listId: string;
   row: DocRow;
   host: HTMLElement;
   /** The holder's check-out (if the acting user's) is discarded first. */
   heldByMe: boolean;
+  /** Who else holds it checked out ("" = nobody) — the restore cannot
+   *  proceed under someone else's check-out. */
+  heldByOther?: string;
   /** 5G3: grants die with the cycle they were granted for. The restore
    *  itself reverts the Revision editors column (the approved major
    *  predates the grant); memberships/ledger release afterwards. */
@@ -638,6 +642,9 @@ export function openCancelRevision(opts: CancelRevisionOpts): void {
     running = true;
     status.classList.remove("app-docs-addstatus-warn");
 
+    if ((opts.heldByOther ?? "") !== "") {
+      return fail("Checked out elsewhere", `${opts.heldByOther} holds this document checked out — the revision can be cancelled once it is checked in or discarded.`);
+    }
     if (opts.heldByMe) {
       status.textContent = "Discarding your check-out…";
       const undo = await timed(undoCheckOut(site, row.serverUrl), "Discard");
@@ -662,12 +669,42 @@ export function openCancelRevision(opts: CancelRevisionOpts): void {
       );
     }
 
+    // SharePoint restores a version only on a CHECKED-OUT file (residual
+    // issue 2, 2026-10-20: "You must first check out this document") —
+    // the bracket every other write uses: check out → restore → check in
+    // as a major → publish where content approval is on
+    status.textContent = "Checking out…";
+    const out = await timed(checkOutFile(site, row.serverUrl), "Check-out");
+    if (!out.ok && !/already checked out/i.test(spErrorText(out.status))) {
+      return fail("Could not check out for the restore", out.status);
+    }
     status.textContent = `Restoring version ${majors[0]}…`;
     const restored = await timed(
       restoreFileVersion(site, row.serverUrl, majors[0]),
       "The restore"
     );
-    if (!restored.ok) return fail("The restore was refused", restored.status);
+    if (!restored.ok) {
+      await undoCheckOut(site, row.serverUrl).catch(() => undefined);
+      return fail("The restore was refused", restored.status);
+    }
+    status.textContent = "Checking in…";
+    const cin = await timed(
+      checkInFile(site, row.serverUrl, `Revision cancelled — restored v${majors[0]}`, true),
+      "Check-in"
+    );
+    if (!cin.ok) return fail("Restored, but the check-in was refused", cin.status);
+    const mod = await fetchListModeration(site, opts.listId);
+    if (mod.ok && ((mod.data ?? {}) as { EnableModeration?: unknown }).EnableModeration === true) {
+      status.textContent = "Publishing (content approval)…";
+      const pub = await timed(
+        validateUpdateListItem(site, opts.listId, row.id, [{ FieldName: "_ModerationStatus", FieldValue: "0" }], false),
+        "The publish"
+      );
+      if (!pub.ok || validateItemErrors(pub.data).length > 0) {
+        status.textContent = "Restored — SharePoint content approval is still PENDING: a document controller approves it in SharePoint.";
+        status.classList.add("app-docs-addstatus-warn");
+      }
+    }
 
     // the restore reverted the grant COLUMN (the approved major
     // predates it); memberships and ledger entries release here
