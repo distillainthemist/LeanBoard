@@ -276,13 +276,10 @@ const PROP_SKIP = new Set([
 export function openDocViewer(opts: ViewerOpts): () => void {
   const { site, row } = opts;
   let blobUrl = "";
-  let printFrame: HTMLIFrameElement | null = null;
   const { panel, close } = overlay(
     row.name,
     () => {
       if (blobUrl !== "") URL.revokeObjectURL(blobUrl);
-      printFrame?.remove();
-      printFrame = null;
       opts.onClose?.();
     },
     true,
@@ -327,21 +324,13 @@ export function openDocViewer(opts: ViewerOpts): () => void {
     });
     head.appendChild(detailsBtn);
     paintHooks.push(() => (detailsBtn.style.display = detailsOpen ? "none" : ""));
-    head.appendChild(linkBtn(viewOnly ? "Open in viewer ↗" : "Open in new tab ↗", openUrl, false));
-    // one-click print (issue 18, 2026-10-18 round): the PDF rendition in a
-    // hidden same-origin frame, printed; a refused fetch falls back to
-    // the new tab, where Ctrl+P works. Paper size stays the printer's.
-    if (!viewOnly) {
-      const printBtn = el("button", "app-btn app-docs-headprint", "Print") as HTMLButtonElement;
-      printBtn.title = "Print the document (the PDF rendition)";
-      printBtn.addEventListener("click", () => {
-        printBtn.disabled = true;
-        void printDocument().finally(() => {
-          printBtn.disabled = false;
-        });
-      });
-      head.appendChild(printBtn);
-    }
+    const openLink = linkBtn(viewOnly ? "Open in viewer ↗" : "Open in new tab ↗", openUrl, false);
+    openLink.title = viewOnly ? "SharePoint's own viewer, in a new tab" : "The PDF rendition in a new tab — print from there with Ctrl+P";
+    head.appendChild(openLink);
+    // no Print button (issue 18, tried 2026-10-19): inside the player the
+    // Office rendition's bytes cannot be fetched, and a PDF loaded into a
+    // hidden frame downloads instead of printing — the new tab is the
+    // one honest road, so the open link carries the hint
     // R4: ONE close control — ✕ alone; the details door lives on the
     // pane itself
     const x = el("button", "app-btn app-docs-viewclose", "✕") as HTMLButtonElement;
@@ -1199,52 +1188,6 @@ export function openDocViewer(opts: ViewerOpts): () => void {
   /** Save the document under ITS name (A4): the PDF rendition or the
    *  original bytes, fetched to a blob so the download attribute holds;
    *  a tenant whose policy refuses the fetch gets the URL in a new tab. */
-  /** The PDF rendition: as a same-origin blob URL when the bytes can be
-   *  fetched, else the presigned URL itself (no sign-in needed — it
-   *  renders in the browser's viewer in a new tab), else "". */
-  const pdfRendition = async (): Promise<{ blob: string; presigned: string }> => {
-    if (row.ext === "pdf" && blobUrl !== "") return { blob: blobUrl, presigned: "" };
-    const p = await presigned();
-    const url = row.ext === "pdf" ? p.downloadUrl : transformPdfUrl(p.thumbUrl, row.ext);
-    if (url === "") return { blob: "", presigned: "" };
-    try {
-      const res = await fetch(url);
-      if (!res.ok) return { blob: "", presigned: url };
-      const bytes = await res.blob();
-      return { blob: URL.createObjectURL(bytes.type === "application/pdf" ? bytes : new Blob([bytes], { type: "application/pdf" })), presigned: url };
-    } catch {
-      return { blob: "", presigned: url }; // a player CSP connect-src can refuse the fetch
-    }
-  };
-  const printDocument = async (): Promise<void> => {
-    const r = await pdfRendition();
-    const url = r.blob;
-    if (url === "") {
-      // nothing to print from here: a new tab with the rendition, where
-      // the browser's viewer prints (Ctrl+P). The presigned URL needs no
-      // sign-in; the drive API address would answer "unauthenticated"
-      // in a bare tab (Ben, 2026-10-19), so it is never the fallback —
-      // SharePoint's own viewer page is the last resort
-      window.open(r.presigned !== "" ? r.presigned : row.ext === "pdf" ? pdfUrl : viewerPageUrl(site, row), "_blank", "noopener");
-      return;
-    }
-    printFrame?.remove();
-    const f = el("iframe", "app-docs-printframe") as HTMLIFrameElement;
-    f.title = `Print ${row.name}`;
-    f.setAttribute("aria-hidden", "true");
-    printFrame = f;
-    f.addEventListener("load", () => {
-      try {
-        f.contentWindow?.focus();
-        f.contentWindow?.print();
-      } catch {
-        window.open(url, "_blank", "noopener");
-      }
-    });
-    f.src = url;
-    document.body.appendChild(f);
-  };
-
   const downloadNamed = async (_what: "pdf"): Promise<void> => {
     const p = await presigned();
     const base = row.name.replace(/\.[^.]+$/, "");

@@ -94,8 +94,10 @@ should share ONE solution-carrying release.
   task scope; the status column leaves `filterColumns` while ticked;
   `nonCurrent: !onlyApproved` in views / links; the seeded status chip
   is gone; `approvedLabels` from the lifecycle mapping first), 18
-  (viewer "Print": `pdfBlobUrl` → hidden `.app-docs-printframe` →
-  `contentWindow.print()`, new-tab fallback; hidden for view-only),
+  (18 TRIED AND WITHDRAWN 2026-10-19: inside the player the Office
+  rendition's bytes cannot be fetched (CSP), and a PDF blob in a hidden
+  frame DOWNLOADS instead of printing; the Print button went and "Open
+  in new tab ↗" carries "print from there with Ctrl+P"),
   25 ingestion (status column in the grid, `landing(row)` = grid value
   else Approved; approved / superseded / obsolete = major check-in +
   publish, other stages minor and unpublished; the confirm counts per

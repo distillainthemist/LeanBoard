@@ -2019,8 +2019,6 @@ input[type="color"].app-color:disabled { opacity: 0.4; cursor: default; }
 .app-docs-vercurrent { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
 /* the way back from favourites (issue 21) */
 .app-docs-favback { white-space: nowrap; }
-/* the print frame (issue 18): off-screen, never a visible box */
-.app-docs-printframe { position: fixed; right: 0; bottom: 0; width: 1px; height: 1px; border: 0; opacity: 0; pointer-events: none; }
 /* a scroller that can move sideways shows its bars: a styled scrollbar is
    a classic one in Chromium, never an overlay that hides until hovered
    (Ben, 2026-10-19: "the scrollbar disappears") */
