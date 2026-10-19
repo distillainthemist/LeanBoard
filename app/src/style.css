@@ -2051,8 +2051,8 @@ input[type="color"].app-color:disabled { opacity: 0.4; cursor: default; }
 .app-docs-flagcell { color: #92610f; font-weight: 600; font-size: 12.5px; white-space: nowrap; }
 .app-docs-flagchip { cursor: pointer; }
 .app-docs-levels { display: flex; flex-direction: column; gap: 4px; max-width: 420px; }
-.app-ing-flagmark { font-size: 14px; padding: 0 4px; color: #a39c90; text-decoration: none; }
-.app-ing-flagmark-on { color: #92610f; font-weight: 700; }
+.app-ing-cell-flag { flex-wrap: wrap; gap: 4px; }
+.app-ing-flagbtn { font-size: 12px; min-height: 28px; padding: 0 10px; }
 .app-docs-tagprop { border: 1px solid #e4dfd6; border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; }
 .app-docs-tagproplabel { font-weight: 600; }
 .app-docs-tagpropacts { display: flex; gap: 8px; margin-top: 4px; }

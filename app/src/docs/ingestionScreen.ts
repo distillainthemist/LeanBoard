@@ -595,12 +595,18 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
         /* unreadable = no flags shown */
       }
     };
-    const flagMark = (row: DocRow): HTMLElement => {
+    const flagCell = (row: DocRow): HTMLElement => {
       const open = fileFlags.get(flagKey(src.listId, row.id)) ?? [];
-      const b = btn("⚑", "app-link app-ing-flagmark" + (open.length > 0 ? " app-ing-flagmark-on" : ""));
-      const text = open.length === 0 ? "Flag this file for review" : `${open.length} open flag${open.length === 1 ? "" : "s"}: ${open.map((f) => f.level).join(", ")} — click to add another`;
+      const c = el("div", "app-ing-cell app-ing-cell-flag");
+      for (const f of open) {
+        const pill = statusChip(`⚑ ${f.level}`, "amber");
+        pill.title = `${f.flaggerName || f.flaggerEmail}${f.comment !== "" ? ` — ${f.comment}` : ""}`;
+        c.appendChild(pill);
+      }
+      const b = btn(open.length === 0 ? "⚑ Flag…" : "＋", "app-btn app-ing-flagbtn");
+      const text = open.length === 0 ? "Flag this file for review — ingest it as is, the flag follows it" : "Add another flag";
+      b.title = text;
       b.setAttribute("aria-label", text);
-      attachTip(b, text);
       b.addEventListener("click", (e) => {
         e.stopPropagation();
         void (async () => {
@@ -623,7 +629,8 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
           });
         })();
       });
-      return b;
+      c.appendChild(b);
+      return c;
     };
     const repaintReady = (row: DocRow) => {
       const old = gridHost.querySelector<HTMLElement>(`[data-row="${row.uniqueId}"] .app-ing-readymark`);
@@ -864,7 +871,9 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
       gridHost.classList.toggle("app-ing-grid-fit", fit);
       paintGrid();
     });
-    const template = () => (fit ? `minmax(200px, 1.6fr) minmax(0, 1.2fr) ${gridFields.map(() => "minmax(0, 1fr)").join(" ")}` : `320px minmax(220px, 1.3fr) ${gridFields.map(() => "minmax(170px, 1fr)").join(" ")}`);
+    // Document · Name on ingestion · Flag for review (Ben, 2026-10-19: a
+    // glyph in the Document cell was too obscure) · the configured columns
+    const template = () => (fit ? `minmax(200px, 1.6fr) minmax(0, 1.2fr) minmax(0, 0.9fr) ${gridFields.map(() => "minmax(0, 1fr)").join(" ")}` : `320px minmax(220px, 1.3fr) 180px ${gridFields.map(() => "minmax(170px, 1fr)").join(" ")}`);
     const paintGrid = () => {
       computeView();
       clear(gridHost);
@@ -900,6 +909,11 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
         });
         h.appendChild(b);
         head.appendChild(h);
+        if (f === NAME) {
+          const fh = el("div", "app-ing-cell", "Flag for review");
+          fh.title = "Ingest the file as is and flag it for review — the flag follows the file into the destination library";
+          head.appendChild(fh);
+        }
       }
       gridHost.appendChild(head);
       if (rows.length === 0) {
@@ -923,13 +937,14 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
           else selected.delete(row.uniqueId);
           paintSel();
         });
-        doc.append(box, el("span", "app-ing-dirtydot", "●"), nameCell(row), readyMark(row), flagMark(row));
+        doc.append(box, el("span", "app-ing-dirtydot", "●"), nameCell(row), readyMark(row));
         rowEl.appendChild(doc);
         for (const f of gridCols) {
           const c = el("div", "app-ing-cell app-ing-cell-edit" + (draft.get(row.uniqueId)?.has(f.internal) ? " app-ing-cell-dirty" : ""));
           c.dataset.col = f.internal;
           paintCell(c, row, f);
           rowEl.appendChild(c);
+          if (f === NAME) rowEl.appendChild(flagCell(row));
         }
         gridHost.appendChild(rowEl);
       }
