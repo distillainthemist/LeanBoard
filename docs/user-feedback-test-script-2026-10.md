@@ -317,7 +317,8 @@ On a desktop.
 | Item | Outcome |
 |---|---|
 | 1–2 | PASS (Ben, 2026-10-19) |
-| 3–6 | _Ben's pass pending_ |
+| 3 | PASS (Ben, 2026-10-19) — after a follow-up: starring asks first, and the popup now survives the screen repaint every popup write triggers |
+| 4–6 | _Ben's pass pending_ |
 
 ## Issue round tranche D — after v0.73.2 (2026-10-19, dev)
 
