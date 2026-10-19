@@ -308,7 +308,8 @@ On a desktop.
 
 | Item | Outcome |
 |---|---|
-| 1–8 | _Ben's pass pending_ |
+| 1–6, 8 | PASS (Ben, 2026-10-19; 5 moved to the far right; 6 after the view-link grace window) |
+| 7 | WITHDRAWN — the player refuses the Office rendition's bytes and a PDF in a hidden frame downloads; Open in new tab carries the Ctrl+P hint |
 
 ## Issue round tranche A — after v0.73.2 (2026-10-19, dev)
 
