@@ -76,6 +76,31 @@ should share ONE solution-carrying release.
   `reviewerPeopleSource`; `roleReassign` uses it for reviewer-only
   swaps).
 
+- **Tranche B — BUILT 2026-10-19 (dev, unreleased):** 19 (`KEPT_SYSTEM_FIELDS`
+  / `VERSION_FIELD` / `versionLabel` in rows.ts; the feed always
+  carries `_UIVersionString`, `_ModerationStatus`, `_CheckinComment`;
+  chooser entry "Version"; the cell "v3.0", minors muted; CSV), 7/14/15
+  (`BasePermissions.open` 0x20 and `.viewVersions` 0x40; perms read for
+  EVERY register library; `ViewerOpts.perms`; a view-only reader: Open
+  in viewer ↗ = `viewerPageUrl` (Doc.aspx) for Office, embed for PDF,
+  page-image preview with the reason, no Download, the kebab's Open
+  PDF → Open in viewer; without View Versions no call is made —
+  "Current version vX · status · date" from the row, the same on a
+  403), 20 (`NAME_SLOT` "__name" draggable in the chooser, always on;
+  `buildRegisterColumns` places the Document column at its slot with
+  Library beside it), 21 (← Back to libraries in the title row), 22
+  (`onlyApproved` is a `let` again: kebab "✓ Show only approved",
+  ticked by default; `approvedFilterFor` CAML + suspended under the
+  task scope; the status column leaves `filterColumns` while ticked;
+  `nonCurrent: !onlyApproved` in views / links; the seeded status chip
+  is gone; `approvedLabels` from the lifecycle mapping first), 18
+  (viewer "Print": `pdfBlobUrl` → hidden `.app-docs-printframe` →
+  `contentWindow.print()`, new-tab fallback; hidden for view-only),
+  25 ingestion (status column in the grid, `landing(row)` = grid value
+  else Approved; approved / superseded / obsolete = major check-in +
+  publish, other stages minor and unpublished; the confirm counts per
+  stage; status allowed as a task default).
+
 ## Order (proposed)
 
 1. **Tranche A — bugs, app-only (≈25 h):** 1, 28, 30, 26, 27, 31, 34, 33/35,

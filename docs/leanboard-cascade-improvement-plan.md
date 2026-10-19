@@ -1455,6 +1455,11 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-10-19 (after v0.73.2, dev)**: issue round tranche B — the
+  Version column (19), the permission-aware viewer for Restricted View
+  readers (7/14/15), the movable Document column (20), Back to
+  libraries (21), the "Show only approved" kebab toggle (22), Print
+  (18) and per-file ingestion statuses (25).
 - **2026-10-19 (after v0.73.2, dev)**: the 2026-10-18 issue round
   (docs/issues-plan-2026-10-19.md: 38 issues investigated, decided one
   by one) — tranche A, twelve app-only bug fixes: the health report's

@@ -273,6 +273,43 @@ On a desktop.
 |---|---|
 | 1–13 | _Ben's pass pending_ |
 
+## Issue round tranche B — after v0.73.2 (2026-10-19, dev)
+
+1. **(19) Version column** — Kebab → Choose columns → tick Version: a
+   "v3.0" column; minors (v3.2) muted; sorts; in the CSV export.
+2. **(7/15) Version history, view-only reader** — as a Restricted View
+   account: the details pane shows "Current version v3.0 · Approved ·
+   date" with the check-in comment and a one-line reason, no JSON, no
+   failing call. As a Read account: the full history as before.
+3. **(14) Opening, view-only reader** — as a Restricted View account:
+   the preview shows the first page with the reason line; the header
+   reads "Open in viewer ↗" and opens SharePoint's own viewer; no
+   Download as PDF in ⋯; the register kebab reads "Open in viewer ↗".
+   HOSTED CHECK: does a PDF open in the embed viewer for that account?
+4. **(20) Document column position** — Choose columns: a "Document"
+   row, always ticked, draggable; drag it below Document ID → Apply:
+   the ID column comes first, frozen when the list scrolls sideways.
+5. **(21) Favourites** — ★ Favourites: "← Back to libraries" in the
+   title row returns to the register.
+6. **(22) Show only approved** — Kebab: "✓ Show only approved" ticked;
+   no status chip, no Status group in Filters, approved documents only.
+   Untick: every status shows and the Status pills return; the setting
+   rides "Copy link to this view" and saved views.
+7. **(18) Print** — the overlay header's "Print": the browser's print
+   dialog with the PDF rendition (Office files too). HOSTED CHECK: if
+   the player frame blocks the dialog, the document opens in a new tab
+   instead — say which happened.
+8. **(25) Ingestion statuses** — the grid has an Approval status column
+   (blank = Approved); set one file Superseded and one Draft; Run: the
+   confirm counts "n as approved, 1 as superseded, 1 as draft"; the
+   superseded file lands published 1.0 with status Superseded, the
+   draft lands as 0.2 unpublished; Edit task… → defaults offers the
+   status.
+
+| Item | Outcome |
+|---|---|
+| 1–8 | _Ben's pass pending_ |
+
 ## Issue round tranche A — after v0.73.2 (2026-10-19, dev)
 
 Twelve fixes from docs/issues-plan-2026-10-19.md. Numbers are the
