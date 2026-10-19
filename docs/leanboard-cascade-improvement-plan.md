@@ -1455,6 +1455,22 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-10-19 (after v0.74.0, dev; SCHEMA deployed to dev)**: UAT in the
+  app (`docs/uat-proposal-2026-10.md`, Ben's decisions: one result per
+  tester, management in Settings, a Fail always raises an issue,
+  Documents first): `ben_ltkuatrun` + `ben_ltkuatresult`; scripts as
+  markdown under `docs/uat/` compiled by `tools/uat-compile.mjs` into
+  `app/src/uat/scripts.generated.json` (per-case hash + last-change
+  date, the release list); `uat/model.ts` pure + tested; Settings → UAT
+  (new run: components with counts, scope "every case" / "changed since
+  release", testers with personas; progress by persona and tester; fails;
+  Close / Reopen / Re-run the fails / Edit people / Export PDF; a Teams
+  card per assignee); the testers' UAT hub tab (shown to assignees of an
+  open run; Pass / Fail… → the issue reporter prefilled with the case,
+  the run and case in the issue's context / Blocked… / Skip / Take it
+  back; Next untested); Settings → Issues filters by UAT run so a run's
+  issues export together; `tools/uat-delta.mjs`; the Documents script —
+  80 cases, 12 journeys, 7 personas.
 - **2026-10-19 — released as v0.74.0** (SOLUTION-CARRYING: `ben_ltkdocflag`
   + the tag-proposal document columns): the whole 2026-10-18 issue
   round, tranches A–E below, every item passed by Ben on dev the same

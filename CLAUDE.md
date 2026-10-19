@@ -34,6 +34,17 @@ node tools/chunk-report.mjs
 
 If the change touched `shared/` or `controls/`, ALSO run `npm run typecheck`
 at the **repo root** — the app-only tsc once missed a red CI for two releases.
+
+**UAT scripts (docs/uat/*.md, uat-proposal-2026-10.md):** a behaviour
+change under a component's source updates or adds its UAT case IN THE
+SAME COMMIT (the case's `modules:` line names the files it covers).
+`npm run build` compiles the scripts (`tools/uat-compile.mjs`) and fails
+on a duplicate id, a missing field or an unknown persona; the vitest
+`uatModel.test.ts` parses every script too. `node tools/uat-delta.mjs
+[tag]` lists the cases whose modules changed since a release — the
+release notes' "UAT delta" line and the "changed since release" scope
+in Settings → UAT. The compiled `app/src/uat/scripts.generated.json` is
+committed (it carries each case's last-change date).
 When chaining gates in one command, verify the vitest COUNT line — a
 `grep` in the chain can match the failure line and still exit 0 (a
 commit shipped with 5 red tests that way, 2026-08-14). Same trap with
@@ -384,6 +395,9 @@ Version lives in the tag alone — nothing is stamped into files.
   three who-pickers had each drifted from the main rule).
 
 ## Key docs
+
+- docs/uat-proposal-2026-10.md + docs/uat/ — UAT runs in the app: the
+  script format, the two tables, Settings → UAT, the testers' tab.
 
 - docs/sharepoint-writes.md — the SP write cookbook (VULI vs connector
   patch, moderation, dates-in-locale vs ISO).

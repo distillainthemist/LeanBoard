@@ -273,6 +273,38 @@ On a desktop.
 |---|---|
 | 1–13 | _Ben's pass pending_ |
 
+## UAT in the app — after v0.74.0 (2026-10-19, dev)
+
+1. **Settings → UAT** — as a super admin: the tab lists runs (none yet)
+   and the per-component case counts (Documents 80, the rest "no
+   script yet"). New UAT run…: name, environment, tick Documents,
+   scope "Every case" (then try "changed since v0.73.2"), Testers and
+   personas… → add yourself with reader + owner, add a second person
+   with controller; Start run. The testers get a Teams card linking to
+   the UAT tab.
+2. **The UAT tab** — as an assignee: the hub shows a UAT tab (last);
+   the run's name, your personas, a progress bar and "Next untested";
+   cases by journey for your personas only; a case expands to
+   preconditions, steps and expected. Pass one; Blocked… one with a
+   reason; Skip one; "Take it back" on the pass.
+3. **Fail raises an issue** — Fail… on a case: the issue reporter opens
+   prefilled (title "UAT DOC-0xx: …", area Documents, the steps and
+   expected in the details); add a screenshot; Send. The case shows
+   "✗ Fail · issue raised". Cancelling the reporter records nothing.
+4. **Progress and fails in Settings** — Settings → UAT → open the run:
+   bars by persona and by tester; the fails list with the issue note;
+   Export PDF (fails first, then every case); Close run… with a note;
+   Reopen; Re-run the fails… makes "<name> — re-run" with only the
+   failed and blocked cases and sends the cards again.
+5. **Issues filtered by run** — Settings → Issues → origin "UAT: <run>":
+   only the issues raised from that run; tick them → Export to PDF.
+6. **Several runs** — start a second run that includes you: the UAT tab
+   shows a run picker; results stay per run.
+
+| Item | Outcome |
+|---|---|
+| 1–6 | _Ben's pass pending_ |
+
 ## Issue round tranche E — after v0.73.2 (2026-10-19, dev)
 
 1. **(29) Every template card** — add an optional card (e.g.
