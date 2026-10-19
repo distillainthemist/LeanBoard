@@ -341,6 +341,15 @@ export function mountTemplateWizard(parent: HTMLElement, templateId: string): ()
         shell.refresh();
       });
       r.appendChild(del);
+      // what happens in this stage (issue 36) — a prompt the team sees in
+      // the band tooltip and under the current stage in Details
+      const desc = textInput(s.description ?? "", (v) => {
+        if (v === "") delete s.description;
+        else s.description = v;
+        mark();
+      }, "What happens in this stage (optional) — shown to the team under the current stage");
+      desc.classList.add("app-tw-stage-desc");
+      r.appendChild(desc);
       return r;
     };
 

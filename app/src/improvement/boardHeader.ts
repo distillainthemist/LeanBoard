@@ -100,6 +100,11 @@ export function mountInitiativePane(o: InitiativePaneOpts): InitiativePaneHandle
       return;
     }
     let i = initiative;
+    // stage descriptions read LIVE from the template (issue 36), the
+    // initiative's snapshot as the fallback when the template is gone
+    const tplStages = initiative.templateId !== "" ? await import("../store/templates").then((m) => m.getTemplate(initiative.templateId)).then((t) => t?.stages ?? null).catch(() => null) : null;
+    if (dead) return;
+    const stageDescription = (stageId: string): string => (tplStages?.find((s) => s.id === stageId) ?? i.snapshot.stages.find((s) => s.id === stageId))?.description ?? "";
     refreshPane = async () => {
       const fresh = (await listInitiatives()).find((x) => x.boardId === o.boardId) ?? null;
       if (dead || !fresh) return;
@@ -415,6 +420,8 @@ export function mountInitiativePane(o: InitiativePaneOpts): InitiativePaneHandle
         if (state === "current") {
           row.classList.add("app-ib-rail-on");
           activeStageEl = row;
+          const d = stageDescription(s.id);
+          if (d !== "") row.appendChild(el("div", "app-ib-raildesc", d));
         }
         if (state === "done") {
           const hist = historyFor(s.name);
@@ -711,6 +718,7 @@ export function mountInitiativePane(o: InitiativePaneOpts): InitiativePaneHandle
           cycleLabel: PDCA_TOKENS[st.pdca].label,
           fg: PDCA_TOKENS[st.pdca].fg,
           bg: PDCA_TOKENS[st.pdca].bg,
+          description: stageDescription(st.id),
         })),
         fg: PDCA_TOKENS[cur.pdca].fg,
         bg: PDCA_TOKENS[cur.pdca].bg,
@@ -950,7 +958,9 @@ export function mountInitiativePane(o: InitiativePaneOpts): InitiativePaneHandle
       cleanups.push(() => menu.remove());
     };
 
-    /** The template's OPTIONAL cards not yet on this board (design 2.3). */
+    /** The template's cards not yet on this board (design 2.3; since
+     *  issue 29 every template card is copied at creation, so this is
+     *  for cards the author added to the template later). */
     const addFromTemplate = async () => {
       const [{ getTemplate }, { getBoard, saveManifest }, { parseManifest }] = await Promise.all([
         import("../store/templates"),
@@ -964,12 +974,9 @@ export function mountInitiativePane(o: InitiativePaneOpts): InitiativePaneHandle
       const tplSlots = parseManifest(tplBoard.manifestRaw).slots;
       const manifest = parseManifest(myBoard.manifestRaw);
       const have = new Set(manifest.slots.map((sl) => sl.cardId));
-      const offer = tplSlots.filter((sl) => {
-        const tpl = (sl.settings.template ?? {}) as Record<string, unknown>;
-        return tpl.mandatory !== true && !have.has(sl.cardId);
-      });
+      const offer = tplSlots.filter((sl) => !have.has(sl.cardId));
       if (offer.length === 0) {
-        void promptConfirm({ title: "Nothing to add", note: "Every optional card from the template is already on this board.", confirmLabel: "OK" });
+        void promptConfirm({ title: "Nothing to add", note: "Every card from the template is already on this board.", confirmLabel: "OK" });
         return;
       }
       const menu = el("div", "app-cp-menu");

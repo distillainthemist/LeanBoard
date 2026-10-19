@@ -197,4 +197,11 @@ describe("initiative boards keep the template's layout (2026-09-17)", () => {
     expect(out.filter((s) => s.cardType !== "MetricsCard").map((s) => [s.cardId, s.pos, s.nav])).toEqual([["c1", 1, 1], ["c2", 2, 4], ["c3", 3, 2], ["c4", 4, 2], ["c5", 5, 5], ["c7", 7, 3]]);
     expect(out.find((s) => s.cardType === "MetricsCard")?.pos).toBe(6);
   });
+  it("copies every template card, optional ones included, and never a second Metrics card (issue 29)", async () => {
+    const { slotsFromTemplate } = await import("../improvement/boardLayout");
+    const slot = (pos: number, cardType: string, mandatory: boolean) => ({ pos, w: 1, h: 1, nav: pos, cardId: `c${pos}`, cardType, title: cardType, settings: mandatory ? { template: { mandatory: true } } : {} });
+    const manifest = { grid: "3", columnTitles: [], archivedSlots: [slot(9, "DocsCard", false)], slots: [slot(1, "CanvasCard", true), slot(2, "LinksCard", false), slot(3, "ActionBoard", true), slot(4, "MetricsCard", false), slot(5, "MetricsCard", false)] };
+    const out = slotsFromTemplate(manifest as never, "metrics-kept");
+    expect(out.map((s) => s.cardId)).toEqual(["c1", "c2", "c3", "metrics-kept"]);
+  });
 });

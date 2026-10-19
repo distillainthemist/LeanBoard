@@ -2,7 +2,6 @@
 // THE TEMPLATE'S LAYOUT IS KEPT (Ben, 2026-09-17): cards stay in their own
 // cells with their own walk order; blanks stay blank.
 
-import { slotFlags } from "./templateModel";
 import type { BoardManifest } from "../store/mappers";
 
 /** The initiative's Metrics card slot (1×1). */
@@ -21,21 +20,26 @@ export function metricsCardSlot(): { pos: number; w: number; h: number; nav: num
 }
 
 /** The board slots an initiative starts from (also the reset target, Ben
- *  2026-09-14): the template's mandatory cards plus the charter and the
- *  action plan, keeping the template's card ids (so a reset keeps the data
- *  of cards that survive), the action plan on kanban with Verify +
- *  reschedule reasons, and ONE Metrics card second after the charter
- *  (`metricsCardId` keeps an existing one's id, so its sub-location data
- *  survives a reset). */
+ *  2026-09-14): EVERY card on the template board (issue 29, Ben
+ *  2026-10-19 — "mandatory" means the card cannot be removed, not that
+ *  it is the only one copied; a template author who placed a card meant
+ *  it to be there), keeping the template's card ids (so a reset keeps
+ *  the data of cards that survive), the action plan on kanban with
+ *  Verify + reschedule reasons, and ONE Metrics card (`metricsCardId`
+ *  keeps an existing one's id, so its sub-location data survives a
+ *  reset). The composer's archived cards do not come. */
 export function slotsFromTemplate(
   manifest: BoardManifest,
   metricsCardId = ""
 ): { pos: number; w: number; h: number; nav: number; cardId: string; cardType: string; title: string; settingsJSON: Record<string, unknown> }[] {
-  // mandatory cards only; the charter, the action plan and a Metrics card
-  // the author placed always come
+  // every card the author placed (issue 29); a second Metrics card never
+  // comes — the initiative has exactly one
+  let seenMetrics = false;
   const keep = manifest.slots.filter((s) => {
-    const f = slotFlags(s.settings);
-    return f.mandatory || s.cardType === "CanvasCard" || s.cardType === "ActionBoard" || s.cardType === "MetricsCard";
+    if (s.cardType !== "MetricsCard") return true;
+    if (seenMetrics) return false;
+    seenMetrics = true;
+    return true;
   });
   // THE TEMPLATE'S LAYOUT IS KEPT (Ben, 2026-09-17): every card stays in
   // its own cell with its own walk order — blank cells stay blank, nothing

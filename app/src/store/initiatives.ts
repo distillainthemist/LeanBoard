@@ -1,6 +1,6 @@
 // Improvement — initiatives (ben_ltkinitiative) + their event history
 // (ben_ltkinitiativeevent). Pure shape in improvement/initiativeModel.ts.
-// createInitiative clones the template's MANDATORY slots into a fresh
+// createInitiative clones EVERY template slot (issue 29) into a fresh
 // project board (design 1.3: "lands on the new board with the first stage
 // current and its mandatory cards created"); optional cards are offered
 // later from the template (P6's ＋ Add card from template).
@@ -181,7 +181,7 @@ export async function listInitiativeEvents(i: Initiative): Promise<InitiativeEve
 
 /** Create an initiative from a template: snapshot, stage targets, and —
  *  unless single-action — a fresh project board holding the template's
- *  MANDATORY cards (stage tags kept for P6's current-stage filter). */
+ *  cards (stage tags kept for P6's current-stage filter). */
 export async function createInitiative(
   t: InitiativeTemplate,
   header: Omit<
@@ -237,7 +237,7 @@ export async function createInitiative(
 
 
 /** What a reset would do to an initiative board: the cards it drops
- *  (not from the template, or optional) and the ones it adds back. Card
+ *  (not on the template board) and the ones it adds back. Card
  *  DATA is never deleted — a dropped card's rows stay, so re-adding it
  *  from the template revives them. */
 export async function previewBoardReset(i: Initiative): Promise<{ drops: string[]; adds: string[]; ok: boolean } | null> {

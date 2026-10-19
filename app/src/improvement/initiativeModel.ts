@@ -217,6 +217,7 @@ export function parseSnapshot(raw: string): InitiativeSnapshot {
         pdca: (["plan", "do", "check", "act"].includes(str(x.pdca)) ? str(x.pdca) : "plan") as TemplateStage["pdca"],
         targetWeeks: typeof x.targetWeeks === "number" ? x.targetWeeks : null,
         gate: { enabled: bool(obj(x.gate).enabled), approverRoles: arr(obj(x.gate).approverRoles).map((r) => str(r)).filter((r) => r !== "") },
+        ...(str(x.description).trim() !== "" ? { description: str(x.description).trim() } : {}),
       }))
       .filter((s) => s.name !== "");
     const cg = obj(o.completeGate);

@@ -3638,7 +3638,9 @@ textarea.app-cp-statement { font-size: 14px; font-weight: 500; }
 .app-tw-step-complete { background: #26241f; color: #fff; }
 .app-tw-stepper-small .app-tw-step { font-size: 11px; padding-top: 3px; padding-bottom: 3px; }
 .app-tw-stages { display: flex; flex-direction: column; gap: 6px; }
-.app-tw-stage { display: flex; align-items: center; gap: 8px; border: 1px solid #e4dfd6; border-radius: 8px; padding: 6px 8px; background: #fff; }
+.app-tw-stage { display: flex; align-items: center; gap: 8px; border: 1px solid #e4dfd6; border-radius: 8px; padding: 6px 8px; background: #fff; flex-wrap: wrap; }
+/* the stage's description on its own line (issue 36) */
+.app-tw-stage-desc { flex-basis: 100%; font-size: 12.5px; }
 .app-tw-arrows { display: inline-flex; flex-direction: column; }
 .app-tw-stage-name { flex: 1; min-width: 120px; }
 .app-tw-pdca-sel { width: auto; font-weight: 700; font-size: 12px; border-radius: 6px; }
@@ -3870,6 +3872,7 @@ a.app-ib-folderbtn { text-decoration: none; white-space: nowrap; }
 .app-ib-railhead { display: flex; align-items: baseline; gap: 8px; }
 .app-ib-railname { font-weight: 700; font-size: 13px; flex: 1; }
 .app-ib-railtarget { font-size: 12px; color: #6d675c; font-variant-numeric: tabular-nums; }
+.app-ib-raildesc { font-size: 12.5px; color: #4c463c; margin-top: 4px; white-space: pre-wrap; }
 .app-ib-railhist { font-size: 11.5px; color: #6d675c; display: flex; flex-direction: column; gap: 2px; }
 .app-ib-gateblock { border-top: 1px dashed #e4dfd6; padding-top: 6px; display: flex; flex-direction: column; gap: 5px; }
 .app-ib-gatehead { font-weight: 700; font-size: 12px; }

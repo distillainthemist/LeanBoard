@@ -30,6 +30,8 @@ export interface BandStageSeg {
   cycleLabel: string;
   fg: string;
   bg: string;
+  /** The stage's description from the template (issue 36); "" = none. */
+  description?: string;
 }
 
 export interface BandStage {
@@ -180,7 +182,7 @@ export function renderStatusBand(o: BandOpts): HTMLElement {
       seg.appendChild(el("span", "app-sb-segname", `${state === "done" ? "✓ " : ""}${st.name}`));
       seg.appendChild(el("span", "app-sb-segnum", String(at)));
       const says = state === "done" ? "complete" : state === "on" ? "current stage" : "to come";
-      seg.title = `${at}. ${st.name} · ${st.cycleLabel} · ${says}`;
+      seg.title = `${at}. ${st.name} · ${st.cycleLabel} · ${says}${(st.description ?? "") !== "" ? `\n${st.description}` : ""}`;
       seg.setAttribute("aria-label", seg.title);
       bar.appendChild(seg);
     });

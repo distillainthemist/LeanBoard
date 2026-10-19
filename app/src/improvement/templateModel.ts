@@ -35,6 +35,10 @@ export interface TemplateStage {
   targetWeeks: number | null;
   /** The gate AFTER this stage (the boundary to the next one). */
   gate: Gate;
+  /** What happens in this stage — a prompt for the team (issue 36,
+   *  2026-10-19); optional, shown in the band tooltip and the Details
+   *  rail, read live from the template. */
+  description?: string;
 }
 
 export interface TemplateRole {
@@ -451,6 +455,7 @@ export function parseStages(raw: string): { stages: TemplateStage[]; completeGat
         pdca: isPdca(x.pdca) ? x.pdca : ("plan" as Pdca),
         targetWeeks: num(x.targetWeeks),
         gate: parseGate(x.gate),
+        ...(str(x.description).trim() !== "" ? { description: str(x.description).trim() } : {}),
       }))
       .filter((s) => s.name !== "");
     return { stages, completeGate: o.completeGate ? parseGate(o.completeGate) : { enabled: true, approverRoles: ["sponsor"] } };
@@ -597,8 +602,8 @@ export function validateTemplate(t: InitiativeTemplate): string[] {
 export function propagationNote(usage: number): { reach: string; newOnly: string; headline: string } {
   return {
     headline: usage === 0 ? "No initiatives are running on this template yet." : `${usage} initiative${usage === 1 ? " is" : "s are"} running on this template.`,
-    reach: "Renamed stages, new roles and new optional cards reach them.",
-    newOnly: "Changes to stage order, gates, mandatory cards and mandatory metrics apply to new initiatives only.",
+    reach: "New roles reach them; new cards can be added to their boards from the template.",
+    newOnly: "Changes to stages, gates and mandatory metrics apply to new initiatives only.",
   };
 }
 

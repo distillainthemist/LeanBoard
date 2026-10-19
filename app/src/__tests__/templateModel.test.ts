@@ -34,6 +34,14 @@ describe("initiative templates — model", () => {
     expect(parseStages('{"stages":[{"name":"Odd","pdca":"weird"}]}').stages[0].pdca).toBe("plan");
     expect(parseStages("garbage").completeGate).toEqual({ enabled: true, approverRoles: ["sponsor"] });
   });
+  it("a stage description round-trips and a blank one is dropped (issue 36)", () => {
+    const t = newTemplate("x");
+    t.stages[0].description = "Walk the process with the crew";
+    t.stages[1].description = "   ";
+    const back = parseStages(serializeStages(t.stages, t.completeGate));
+    expect(back.stages[0].description).toBe("Walk the process with the crew");
+    expect("description" in back.stages[1]).toBe(false);
+  });
   it("roles always include the five standard ones; fields/metrics parse defensively", () => {
     const roles = parseRoles('[{"key":"finance","label":"Finance lead","standard":false,"multi":false,"timeCommitment":false}]');
     expect(roles.map((r) => r.key)).toEqual(["finance", "sponsor", "owner", "lead", "team", "support"]);
