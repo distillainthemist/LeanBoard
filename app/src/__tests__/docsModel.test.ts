@@ -17,6 +17,7 @@ import {
   orgSyncPlan,
   libRoleInternal,
   orgTreePaths,
+  normaliseMocUrl,
   lifecycleCommandsFor,
   reviewsOutstanding,
   serializeMocRecords,
@@ -2339,5 +2340,14 @@ describe("the review gate (issue 4, 2026-10-19)", () => {
     const base = { isApprover: false, hasApprovers: false, hasReviewers: true, isOwner: false, isAdmin: false, isEditor: false, isRevisionEditor: false } as unknown as Parameters<typeof lifecycleCommandsFor>[1];
     expect(lifecycleCommandsFor("inReview", { ...base, isReviewer: true }).map((c) => c.key)).toEqual(["reviewComplete", "submitApproval", "requestRevision"]);
     expect(lifecycleCommandsFor("inReview", base).map((c) => c.key)).toEqual(["submitApproval", "requestRevision"]);
+  });
+});
+
+describe("normaliseMocUrl", () => {
+  it("keeps a full url, supplies https for a bare host, refuses non-links", () => {
+    expect(normaliseMocUrl("https://x.sharepoint.com/sites/a")).toBe("https://x.sharepoint.com/sites/a");
+    expect(normaliseMocUrl("x.sharepoint.com/sites/a")).toBe("https://x.sharepoint.com/sites/a");
+    expect(normaliseMocUrl("MOC-123")).toBe("");
+    expect(normaliseMocUrl("")).toBe("");
   });
 });

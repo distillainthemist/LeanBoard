@@ -804,9 +804,16 @@ export function openDocViewer(opts: ViewerOpts): () => void {
             const label = r.ref !== "" ? r.ref : "link";
             const chip = r.url !== "" ? (el("a", "app-docs-mocchip", label) as HTMLAnchorElement) : el("span", "app-docs-mocchip", label);
             if (r.url !== "") {
-              (chip as HTMLAnchorElement).href = r.url;
-              (chip as HTMLAnchorElement).target = "_blank";
-              (chip as HTMLAnchorElement).rel = "noopener";
+              const a = chip as HTMLAnchorElement;
+              a.href = r.url;
+              a.target = "_blank";
+              a.rel = "noopener";
+              // the pane's own click handling must not swallow it
+              a.addEventListener("click", (e) => {
+                e.stopPropagation();
+                window.open(r.url, "_blank", "noopener");
+                e.preventDefault();
+              });
             }
             chip.title = [r.title, r.date].filter((x) => x !== "").join(" · ") || r.url;
             cell.appendChild(chip);

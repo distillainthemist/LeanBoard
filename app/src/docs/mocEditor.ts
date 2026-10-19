@@ -6,7 +6,7 @@
 // Add document and the ingestion grid all get it.
 
 import { clear, el } from "../../../shared/ui/dom";
-import { MocRecord, parseMocRecords, serializeMocRecords } from "./model";
+import { MocRecord, normaliseMocUrl, parseMocRecords, serializeMocRecords } from "./model";
 
 export interface MocEditor {
   root: HTMLElement;
@@ -76,7 +76,7 @@ export function buildMocEditor(opts: { initialRaw: string; onChange: () => void 
   });
   root.appendChild(add);
   paint();
-  const kept = () => rows.filter((r) => r.ref !== "" || r.url !== "");
+  const kept = () => rows.map((r) => ({ ...r, url: normaliseMocUrl(r.url) })).filter((r) => r.ref !== "" || r.url !== "");
   return {
     root,
     read: () => (kept().length === 0 ? "" : serializeMocRecords(kept())),

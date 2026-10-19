@@ -2247,6 +2247,17 @@ export interface MocRecord {
   date: string;
 }
 
+/** A pasted link, with its scheme supplied when it was typed without
+ *  one ("sharepoint.com/sites/x" → "https://…"); "" when it is not a
+ *  link at all. */
+export function normaliseMocUrl(raw: string): string {
+  const t = (raw ?? "").trim();
+  if (t === "") return "";
+  if (/^https?:\/\//i.test(t)) return t;
+  if (/^[\w.-]+\.[a-z]{2,}(\/|$)/i.test(t)) return `https://${t}`;
+  return "";
+}
+
 /** null = not the JSON shape (legacy text, or nothing). */
 export function parseMocRecords(raw: string): MocRecord[] | null {
   const t = (raw ?? "").trim();
@@ -2259,7 +2270,7 @@ export function parseMocRecords(raw: string): MocRecord[] | null {
       if (!x || typeof x !== "object") continue;
       const o = x as Record<string, unknown>;
       const ref = typeof o.ref === "string" ? o.ref.trim() : "";
-      const url = typeof o.url === "string" && /^https?:\/\//i.test(o.url.trim()) ? o.url.trim() : "";
+      const url = typeof o.url === "string" ? normaliseMocUrl(o.url) : "";
       if (ref === "" && url === "") continue;
       out.push({ ref, url, title: typeof o.title === "string" ? o.title.trim() : "", date: typeof o.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(o.date) ? o.date : "" });
     }
