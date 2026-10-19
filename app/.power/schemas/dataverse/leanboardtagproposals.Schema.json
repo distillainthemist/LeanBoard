@@ -18,6 +18,38 @@
           "x-ms-schema-name": "ben_decision",
           "maxLength": 4000
         },
+        "ben_doclistid": {
+          "type": "string",
+          "title": "Document list id",
+          "x-ms-dataverse-attribute": "ben_doclistid",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "ben_doclistid",
+          "maxLength": 40
+        },
+        "ben_docname": {
+          "type": "string",
+          "title": "Document name (display)",
+          "x-ms-dataverse-attribute": "ben_docname",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "ben_docname",
+          "maxLength": 255
+        },
+        "ben_docsite": {
+          "type": "string",
+          "title": "Document site url",
+          "x-ms-dataverse-attribute": "ben_docsite",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "ben_docsite",
+          "maxLength": 500
+        },
+        "ben_docuid": {
+          "type": "string",
+          "title": "Document unique id",
+          "x-ms-dataverse-attribute": "ben_docuid",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "ben_docuid",
+          "maxLength": 40
+        },
         "ben_ltktagproposalid": {
           "type": "string",
           "title": "LeanBoard Tag Proposal",

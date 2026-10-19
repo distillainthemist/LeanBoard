@@ -15,6 +15,10 @@ export type Ben_ltktagproposalsstatuscode = keyof typeof Ben_ltktagproposalsstat
 
 export interface Ben_ltktagproposalsBase {
   ben_decision?: string;
+  ben_doclistid?: string;
+  ben_docname?: string;
+  ben_docsite?: string;
+  ben_docuid?: string;
   ben_ltktagproposalid: string;
   ben_name?: string;
   ben_note?: string;
