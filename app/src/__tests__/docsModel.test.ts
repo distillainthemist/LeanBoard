@@ -1092,23 +1092,33 @@ describe("what a write came back with (Phase 4A)", () => {
       add: true,
       edit: true,
       remove: true,
+      open: false,
+      viewVersions: false,
     });
     // read-only: view without add or edit
     expect(parseBasePermissions({ Low: "1" })).toEqual({
       add: false,
       edit: false,
       remove: false,
+      open: false,
+      viewVersions: false,
     });
+    // the Read level: view, open and version history; Restricted View:
+    // view items only (issues 7 / 14 / 15)
+    expect(parseBasePermissions({ Low: String(0x1 | 0x20 | 0x40) })).toMatchObject({ open: true, viewVersions: true });
+    expect(parseBasePermissions({ Low: String(0x1 | 0x10000) })).toMatchObject({ open: false, viewVersions: false });
     // full control arrives as a mask JS turns negative — the low bits
     // still have to answer correctly
     expect(parseBasePermissions({ Low: "4294967295" })).toEqual({
       add: true,
       edit: true,
       remove: true,
+      open: true,
+      viewVersions: true,
     });
     // wrapped, or absent, or nonsense — never a throw, never a yes
     expect(parseBasePermissions({ d: { Low: "4" } }).edit).toBe(true);
-    expect(parseBasePermissions(null)).toEqual({ add: false, edit: false, remove: false });
+    expect(parseBasePermissions(null)).toEqual({ add: false, edit: false, remove: false, open: false, viewVersions: false });
     expect(parseBasePermissions({ Low: "not a number" }).add).toBe(false);
   });
 

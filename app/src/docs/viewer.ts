@@ -25,15 +25,18 @@ import {
 } from "../../../shared/tokens";
 import {
   DocRow,
+  VERSION_FIELD,
   formatDayMonthYear,
   formatWhen,
   pdfViewUrlFor,
   relativeHint,
   sourceUrlFor,
   transformPdfUrl,
+  viewerPageUrl,
 } from "./rows";
 import { itemDetails, itemVersions, pagePreviewUrl, presignedUrls } from "./data";
 import {
+  BasePermissions,
   DOC_LINK_GROUP,
   DOC_LINK_RELS,
   DocLink,
@@ -45,6 +48,12 @@ import {
 interface ViewerOpts {
   site: string;
   row: DocRow;
+  /** What SharePoint lets this person do in the row's library; null =
+   *  unknown (cards, kiosk), which reads as the full roads. Without
+   *  Open Items the preview and the open links use SharePoint's own
+   *  viewer and Download goes; without View Versions the history is
+   *  the current version from the row (issues 7, 14, 15). */
+  perms?: BasePermissions | null;
   /** The owning library's drive; "" = unresolved, and the viewer falls
    *  back to SharePoint's own page (see pdfViewUrlFor). */
   driveId: string;
@@ -286,6 +295,9 @@ export function openDocViewer(opts: ViewerOpts): () => void {
   // reserved for decisions (R1) — and the kiosk keeps NO external
   // door, it is navigation-free by design.
   const pdfUrl = pdfViewUrlFor(site, opts.driveId, row);
+  /** View-only access: no download, so no PDF rendition and no fetch. */
+  const viewOnly = opts.perms !== undefined && opts.perms !== null && !opts.perms.open;
+  const openUrl = viewOnly && row.ext !== "pdf" ? viewerPageUrl(site, row) : pdfUrl;
   const head = el("div", "app-docs-viewhead");
   head.appendChild(fileTypeChip(row.ext));
   const titleBlock = el("div", "app-docs-viewtitle");
@@ -312,7 +324,7 @@ export function openDocViewer(opts: ViewerOpts): () => void {
     });
     head.appendChild(detailsBtn);
     paintHooks.push(() => (detailsBtn.style.display = detailsOpen ? "none" : ""));
-    head.appendChild(linkBtn("Open in new tab ↗", pdfUrl, false));
+    head.appendChild(linkBtn(viewOnly ? "Open in viewer ↗" : "Open in new tab ↗", openUrl, false));
     // R4: ONE close control — ✕ alone; the details door lives on the
     // pane itself
     const x = el("button", "app-btn app-docs-viewclose", "✕") as HTMLButtonElement;
@@ -621,7 +633,7 @@ export function openDocViewer(opts: ViewerOpts): () => void {
     // PDF viewer names the file "pdf" — these name it after the document
     // the PDF rendition only (Ben, 2026-10-06): nobody asked for the
     // editable source, and editors have Edit source and check-out
-    item(row.ext === "pdf" ? "Download PDF" : "Download as PDF", () => void downloadNamed("pdf"));
+    if (!viewOnly) item(row.ext === "pdf" ? "Download PDF" : "Download as PDF", () => void downloadNamed("pdf"));
     if (menu.childElementCount === 0) {
       menu.appendChild(el("div", "app-field-hint", "No further actions."));
     }
@@ -923,6 +935,26 @@ export function openDocViewer(opts: ViewerOpts): () => void {
     propsBox.appendChild(verHeadRow);
     // C5 (feedback round 1): "why are three drafts listed?" — say it once
     if (!auditOn) propsBox.appendChild(el("div", "app-field-hint app-docs-verhint", "Every save while a document is checked out is a draft (minor) version; approval publishes a major one."));
+    // a reader without View Versions: no failing call — the CURRENT
+    // version from the row's own feed (issues 7 / 15)
+    const currentVersionLine = (why: string) => {
+      const v = (row.values[VERSION_FIELD] ?? "").trim();
+      const mod = (row.values["_ModerationStatus"] ?? "").trim();
+      const cmt = (row.values["_CheckinComment"] ?? "").trim();
+      const box = el("div", "app-docs-vercurrent");
+      if (v !== "") {
+        box.appendChild(
+          el("div", "", [`Current version v${v}`, mod, row.modified !== "" ? formatDayMonthYear(row.modified) : ""].filter((x) => x !== "").join(" · "))
+        );
+        if (cmt !== "") box.appendChild(el("div", "app-field-hint", `“${cmt}”`));
+      }
+      box.appendChild(el("div", "app-field-hint", why));
+      propsBox.appendChild(box);
+    };
+    if (opts.perms !== undefined && opts.perms !== null && !opts.perms.viewVersions) {
+      currentVersionLine("The full history needs the View Versions permission on this site — your access here is view-only.");
+      return;
+    }
     const vres =
       details.id > 0 && row.listId !== ""
         ? await itemVersions(site, row.listId, details.id)
@@ -930,17 +962,14 @@ export function openDocViewer(opts: ViewerOpts): () => void {
     if (!propsBox.isConnected || gen !== detailsGen) return;
     if (vres.error !== "") {
       // a reader whose permission level lacks View Versions gets a 403
-      // here — say so in words, never the JSON (feedback round 1, A1)
-      const refused = /403|unauthori[sz]ed|access denied|-2147024891/i.test(vres.error);
-      propsBox.appendChild(
-        el(
-          "div",
-          "app-field-hint",
-          refused
-            ? "Version history needs the View Versions permission on this site — ask the site owner to add it to the readers' permission level."
-            : `History unavailable: ${vres.error.slice(0, 160)}`
-        )
-      );
+      // here — say so in words, never the JSON (feedback round 1, A1),
+      // and show the current version instead
+      const refused = /403|forbidden|unauthori[sz]ed|access denied|-2147024891/i.test(vres.error);
+      if (refused) {
+        currentVersionLine("The full history needs the View Versions permission on this site — ask the site owner to add it to the readers' permission level.");
+        return;
+      }
+      propsBox.appendChild(el("div", "app-field-hint", `History unavailable: ${vres.error.slice(0, 160)}`));
       return;
     }
     if (vres.versions.length === 0) {
@@ -1182,9 +1211,17 @@ export function openDocViewer(opts: ViewerOpts): () => void {
   let previewWhy = "";
 
   const cookieFreeSrc = async (): Promise<string> => {
+    if (viewOnly) {
+      // no Open Items: the PDF rendition and the bytes are refused, so
+      // the page image stands in and the viewer link carries the rest
+      previewWhy = "Your access to this library is view-only (no download), so the preview shows the first page — Open in viewer ↗ shows the whole document.";
+      return "";
+    }
     const p = await presigned();
     if (p.error !== "") {
-      previewWhy = `SharePoint refused the preview lookup: ${p.error.slice(0, 140)}`;
+      previewWhy = /403|forbidden|unauthori[sz]ed|access denied/i.test(p.error)
+        ? "SharePoint refused the preview: your access to this library is view-only (no download) — Open in viewer ↗ shows the document."
+        : `SharePoint refused the preview lookup: ${p.error.slice(0, 140)}`;
       return "";
     }
     if (row.ext !== "pdf") {
@@ -1254,7 +1291,7 @@ export function openDocViewer(opts: ViewerOpts): () => void {
       el(
         "div",
         "app-field-hint",
-        "Open PDF shows the document in its own tab, where sign-in always works."
+        viewOnly ? "Open in viewer shows the document in SharePoint's own viewer." : "Open PDF shows the document in its own tab, where sign-in always works."
       )
     );
     // the reason, when there is one: a preview that fails the same way

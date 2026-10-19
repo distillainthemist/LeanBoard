@@ -39,8 +39,7 @@ import {
   isNonCurrentStatus,
   pdfViewUrlFor,
   pickBrowseHead,
-  taxonomySearchProperty,
-} from "./rows";
+  taxonomySearchProperty, KEPT_SYSTEM_FIELDS, VERSION_FIELD, viewerPageUrl } from "./rows";
 import { DocLibrary, docsConfig } from "./docsStore";
 import {
   BasePermissions,
@@ -273,11 +272,8 @@ export function mountDocs(
 
     const permsReady = Promise.all(
       libraries
-        // standards included since 5C+: content edits ride check-out
-        // while a standard is in a content stage (draft / in review)
-        .filter(
-          (l) => l.libType === "working" || l.libType === "revision" || l.libType === "standard"
-        )
+        // EVERY register library since the 2026-10-18 round: the viewer
+        // reads Open Items and View Versions to choose a reader's roads
         .map(async (l) => {
           const r = await fetchListPermissions(app.siteUrl, l.listId);
           if (r.ok) permsByLib.set(l.listId.toLowerCase(), parseBasePermissions(r.data));
@@ -386,6 +382,7 @@ export function mountDocs(
       (scopeAll ? libraries : libraries.filter((l) => isSelected(l.listId))).filter(canSeeLib);
     const roleOf = (internal: string): string => dictBy.get(internal)?.role ?? "";
     const labelOf = (internal: string): string => {
+      if (internal === VERSION_FIELD) return "Version";
       const c = dictBy.get(internal);
       return c && c.label !== "" ? c.label : internal;
     };
@@ -3248,7 +3245,7 @@ export function mountDocs(
         wanted:
           chosenColumns.length > 0
             ? chosenColumns.filter((i) => {
-                  if (i === "Modified") return true;
+                  if (i === "Modified" || i === VERSION_FIELD) return true;
                   const c = dictBy.get(i);
                   return c !== undefined && columnOffered(c);
                 })
@@ -3495,6 +3492,11 @@ export function mountDocs(
           row,
           driveId,
           libraryName: lib ? lib.config.title || lib.name : "",
+          // what SharePoint lets this person do in the library — a
+          // view-only reader (Restricted View) gets SharePoint's own
+          // viewer, no download, and the current version in place of
+          // a history that would be refused (issues 7, 14, 15)
+          perms: permsByLib.get((lib?.listId ?? row.listId).toLowerCase()) ?? null,
           // collapsed is the default (5I) — a task-list open, or a
           // document this user holds, arrives with work to do
           detailsOpen: openOpts?.details ?? needsMyActivity(row, lib),
@@ -4141,14 +4143,17 @@ export function mountDocs(
       // (Ben, 2026-08-02). The link carries the site-scoped viewer URL
       // immediately and upgrades to the converted-PDF one when the drive
       // resolves — a cached lookup, so normally before the click.
-      let bestPdf = pdfViewUrlFor(app.siteUrl, "", row);
-      const openPdf = el("a", "app-docs-menuitem", "Open PDF ↗") as HTMLAnchorElement;
+      const rowPerms = permsByLib.get((lib?.listId ?? row.listId).toLowerCase()) ?? null;
+      const viewOnly = rowPerms !== null && !rowPerms.open;
+      let bestPdf = viewOnly && row.ext !== "pdf" ? viewerPageUrl(app.siteUrl, row) : pdfViewUrlFor(app.siteUrl, "", row);
+      const openPdf = el("a", "app-docs-menuitem", viewOnly ? "Open in viewer ↗" : "Open PDF ↗") as HTMLAnchorElement;
       openPdf.href = bestPdf;
       openPdf.target = "_blank";
       openPdf.rel = "noopener";
       openPdf.addEventListener("click", () => closeMenu());
       menu.appendChild(openPdf);
       void driveIdFor(app.siteUrl, row.listId || lib?.listId || "").then((d) => {
+        if (viewOnly && row.ext !== "pdf") return; // the viewer page stays
         bestPdf = pdfViewUrlFor(app.siteUrl, d, row);
         openPdf.href = bestPdf;
       });
@@ -4586,6 +4591,9 @@ export function mountDocs(
                 if (internal !== "" && carried.has(internal)) out.add(internal);
               }
               for (const c of groupBy === "" ? [...orgCols] : [groupBy]) out.add(c);
+              // the version label, moderation text and check-in comment:
+              // every library has them, none is a lookup (issues 7, 19)
+              for (const f of KEPT_SYSTEM_FIELDS) out.add(f);
               // who holds it checked out — asked for ONLY where documents
               // can be worked on. It is a person field, so it is a lookup,
               // and this tenant throttles a view past twelve of those
@@ -4884,7 +4892,7 @@ export function mountDocs(
             dateRanges: dateFilters.filter((d) => carried.has(d.col)),
             personFilters: personFilters.filter((p) => carried.has(p.col)),
             presentCols: presentCols.filter((c) => carried.has(c)),
-            fields: cols.map((c) => c.internal).filter((i) => carried.has(i)),
+            fields: cols.map((c) => c.internal).filter((i) => carried.has(i) || KEPT_SYSTEM_FIELDS.has(i)),
             rowLimit: 100,
           });
           let next = "";
@@ -4948,6 +4956,7 @@ export function mountDocs(
           .filter((c) => columnOffered(c) && carried.has(c.internal))
           .map((c) => ({ internal: c.internal, label: c.label !== "" ? c.label : c.internal })),
         { internal: "Modified", label: "Modified" },
+        { internal: VERSION_FIELD, label: "Version" },
       ];
       // ordered model: the shown columns first in their current order,
       // the rest after — ticks choose, drag sets the order (Ben,

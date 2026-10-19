@@ -2102,6 +2102,12 @@ export interface BasePermissions {
   /** Deleting a document is recycling it — recoverable, but still the
    *  permission SharePoint checks for a discard. */
   remove: boolean;
+  /** OpenItems 0x20 — download the file's bytes (the PDF rendition,
+   *  Download, the fetched preview). Restricted View lacks it. */
+  open: boolean;
+  /** ViewVersions 0x40 — the version history endpoint. Read has it;
+   *  Restricted View does not (issues 7 / 14 / 15, 2026-10-18 round). */
+  viewVersions: boolean;
 }
 
 /**
@@ -2116,11 +2122,13 @@ export function parseBasePermissions(raw: unknown): BasePermissions {
   const o = (raw ?? {}) as Record<string, unknown>;
   const inner = (o.EffectiveBasePermissions ?? o.d ?? o) as Record<string, unknown>;
   const low = Number((inner as { Low?: unknown }).Low ?? 0);
-  if (!Number.isFinite(low)) return { add: false, edit: false, remove: false };
+  if (!Number.isFinite(low)) return { add: false, edit: false, remove: false, open: false, viewVersions: false };
   return {
     add: (low & 0x2) !== 0,
     edit: (low & 0x4) !== 0,
     remove: (low & 0x8) !== 0,
+    open: (low & 0x20) !== 0,
+    viewVersions: (low & 0x40) !== 0,
   };
 }
 

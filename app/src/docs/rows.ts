@@ -302,6 +302,32 @@ export interface RenderPage {
   next: string;
 }
 
+/** The system fields the register READS: the version label (the
+ *  "Version" column, issue 19, and the viewer's fallback for readers
+ *  without View Versions, issue 7), the moderation text and the
+ *  check-in comment. Every other "_" field stays plumbing. */
+export const KEPT_SYSTEM_FIELDS = new Set(["_UIVersionString", "_ModerationStatus", "_CheckinComment"]);
+
+/** The register's own "Version" column — not a dictionary column, so
+ *  the chooser, the feed and the cells name it here. */
+export const VERSION_FIELD = "_UIVersionString";
+
+/** The Version cell's reading: "v3.0", and whether it is a minor
+ *  (draft) version — null for a row without a label. */
+export function versionLabel(raw: string): { text: string; minor: boolean } | null {
+  const v = raw.trim();
+  if (v === "") return null;
+  return { text: `v${v}`, minor: !/\.0$/.test(v) };
+}
+
+/** SharePoint's own viewer page for an Office file — the road for a
+ *  reader whose permission level has View Items but not Open Items
+ *  (Restricted View): no download, so no PDF rendition, but the
+ *  browser-side viewer renders (issue 14). */
+export function viewerPageUrl(site: string, row: DocRow): string {
+  return `${site}/_layouts/15/Doc.aspx?sourcedoc={${row.uniqueId}}&action=view`;
+}
+
 /** Parse a RenderListDataAsStream response into DocRows. */
 export function parseRenderPage(raw: unknown, listId: string): RenderPage {
   const data = (raw ?? {}) as Record<string, unknown>;
@@ -320,7 +346,7 @@ export function parseRenderPage(raw: unknown, listId: string): RenderPage {
         if (iso !== "" && !Number.isNaN(Date.parse(iso))) values[k] = iso;
         continue;
       }
-      if (k.startsWith("_") || k.includes(".")) continue;
+      if ((k.startsWith("_") && !KEPT_SYSTEM_FIELDS.has(k)) || k.includes(".")) continue;
       const text = renderText(v);
       if (text !== "") values[k] = text;
       // person columns ALSO keep their emails, under "<col>#email" —

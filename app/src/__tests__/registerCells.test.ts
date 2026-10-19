@@ -6,6 +6,7 @@
 
 import { describe, expect, it } from "vitest";
 import { RegisterCellCtx, buildRegisterColumns } from "../docs/registerCells";
+import { versionLabel } from "../docs/rows";
 import { SiteDictionary, emptySiteDictionary } from "../docs/model";
 
 function dict(): SiteDictionary {
@@ -98,5 +99,20 @@ describe("buildRegisterColumns", () => {
     // to the end (stable), not dropped — the caller filtered availability
     expect(byKey.get("Mystery")).toBe("Mystery");
     expect(keys(cols)).toEqual(["name", "DocType", "Mystery", "modified"]);
+  });
+});
+
+const ROW = { id: 1, uniqueId: "u1", name: "Doc.docx", ext: "docx", serverUrl: "/sites/x/Doc.docx", listId: "L", modified: "2026-10-01T00:00:00Z", values: {} as Record<string, string> };
+
+describe("the Version column (issue 19, 2026-10-19)", () => {
+  it("is offered by name, renders v-labels, and mutes minors", () => {
+    const cols = buildRegisterColumns(ctx(), { wanted: ["DocType", "_UIVersionString", "Modified"], bucket: "full", keepOrder: true });
+    expect(keys(cols)).toEqual(["name", "DocType", "_UIVersionString", "modified"]);
+    const col = cols.find((c) => c.key === "_UIVersionString")!;
+    expect(col.label).toBe("Version");
+    expect(col.render({ ...ROW, values: {} })).toBe("");
+    expect(versionLabel("3.0")).toEqual({ text: "v3.0", minor: false });
+    expect(versionLabel("3.2")).toEqual({ text: "v3.2", minor: true });
+    expect(versionLabel(" ")).toBeNull();
   });
 });

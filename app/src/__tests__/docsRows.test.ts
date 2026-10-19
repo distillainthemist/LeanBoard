@@ -786,3 +786,33 @@ describe("truncated-response recovery (mobile bridge, 2026-08-11)", () => {
     expect(clampRowLimit(xml, 0.5)).toContain('<RowLimit Paged="TRUE">1</RowLimit>');
   });
 });
+
+describe("parseRenderPage — the kept system fields (issues 7 and 19, 2026-10-19)", () => {
+  it("keeps the version label, moderation text and check-in comment, drops other plumbing", async () => {
+    const { parseRenderPage } = await import("../docs/rows");
+    const page = parseRenderPage(
+      {
+        Row: [
+          {
+            ID: "4",
+            UniqueId: "{U}",
+            FileLeafRef: "P.docx",
+            FileRef: "/sites/Dev/L/P.docx",
+            FSObjType: "0",
+            Modified: "2026-10-01T00:00:00Z",
+            _UIVersionString: "3.0",
+            _ModerationStatus: "Approved",
+            _CheckinComment: "Approved by Sam",
+            _Level: "1",
+            "Modified.": "2026-10-01T00:00:00Z",
+          },
+        ],
+      },
+      "L"
+    );
+    expect(page.rows[0].values._UIVersionString).toBe("3.0");
+    expect(page.rows[0].values._ModerationStatus).toBe("Approved");
+    expect(page.rows[0].values._CheckinComment).toBe("Approved by Sam");
+    expect(page.rows[0].values._Level).toBeUndefined();
+  });
+});

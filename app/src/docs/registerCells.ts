@@ -20,7 +20,7 @@ import { fileTypeChip, withStatusGlyph } from "../../../shared/ui/format";
 import { resolvePaletteColor } from "../../../shared/palette";
 import { textOn } from "../../../shared/tokens";
 import type { ListColumn } from "./listView";
-import { DocRow, formatWhen, splitNameForEllipsis } from "./rows";
+import { DocRow, formatWhen, splitNameForEllipsis, VERSION_FIELD, versionLabel } from "./rows";
 import {
   SiteDictionary,
   paletteEntryFor,
@@ -233,6 +233,19 @@ export function buildRegisterColumns(
     sortKey: "modified",
     render: (row) => formatWhen(row.modified),
   };
+  // the version label (issue 19): "v3.0"; a minor (draft) version reads
+  // muted so a published register scans by the majors
+  const versionCol: ListColumn<DocRow> = {
+    key: VERSION_FIELD,
+    label: "Version",
+    width: "84px",
+    sortKey: VERSION_FIELD,
+    render: (row) => {
+      const v = versionLabel(row.values[VERSION_FIELD] ?? "");
+      if (v === null) return "";
+      return el("span", `app-docs-version${v.minor ? " app-docs-version-minor" : ""}`, v.text);
+    },
+  };
 
   // the phone (Tranche D): ONE column, the stacked cell — no library
   // column, no configured columns, no trailing star or kebab; the
@@ -267,6 +280,10 @@ export function buildRegisterColumns(
   for (const internal of wanted) {
     if (internal === "Modified") {
       columns.push(modifiedCol);
+      continue;
+    }
+    if (internal === VERSION_FIELD) {
+      columns.push(versionCol);
       continue;
     }
     const role = roleOf(internal);
