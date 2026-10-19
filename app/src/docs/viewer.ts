@@ -1199,26 +1199,33 @@ export function openDocViewer(opts: ViewerOpts): () => void {
   /** Save the document under ITS name (A4): the PDF rendition or the
    *  original bytes, fetched to a blob so the download attribute holds;
    *  a tenant whose policy refuses the fetch gets the URL in a new tab. */
-  /** The PDF bytes as a same-origin blob URL ("" = not obtainable). */
-  const pdfBlobUrl = async (): Promise<string> => {
-    if (row.ext === "pdf" && blobUrl !== "") return blobUrl;
+  /** The PDF rendition: as a same-origin blob URL when the bytes can be
+   *  fetched, else the presigned URL itself (no sign-in needed — it
+   *  renders in the browser's viewer in a new tab), else "". */
+  const pdfRendition = async (): Promise<{ blob: string; presigned: string }> => {
+    if (row.ext === "pdf" && blobUrl !== "") return { blob: blobUrl, presigned: "" };
     const p = await presigned();
     const url = row.ext === "pdf" ? p.downloadUrl : transformPdfUrl(p.thumbUrl, row.ext);
-    if (url === "") return "";
+    if (url === "") return { blob: "", presigned: "" };
     try {
       const res = await fetch(url);
-      if (!res.ok) return "";
+      if (!res.ok) return { blob: "", presigned: url };
       const bytes = await res.blob();
-      return URL.createObjectURL(bytes.type === "application/pdf" ? bytes : new Blob([bytes], { type: "application/pdf" }));
+      return { blob: URL.createObjectURL(bytes.type === "application/pdf" ? bytes : new Blob([bytes], { type: "application/pdf" })), presigned: url };
     } catch {
-      return ""; // a player CSP connect-src can refuse the fetch
+      return { blob: "", presigned: url }; // a player CSP connect-src can refuse the fetch
     }
   };
   const printDocument = async (): Promise<void> => {
-    const url = await pdfBlobUrl();
+    const r = await pdfRendition();
+    const url = r.blob;
     if (url === "") {
-      // nothing to print from here: the new tab, where the browser prints
-      window.open(openUrl, "_blank", "noopener");
+      // nothing to print from here: a new tab with the rendition, where
+      // the browser's viewer prints (Ctrl+P). The presigned URL needs no
+      // sign-in; the drive API address would answer "unauthenticated"
+      // in a bare tab (Ben, 2026-10-19), so it is never the fallback —
+      // SharePoint's own viewer page is the last resort
+      window.open(r.presigned !== "" ? r.presigned : row.ext === "pdf" ? pdfUrl : viewerPageUrl(site, row), "_blank", "noopener");
       return;
     }
     printFrame?.remove();
