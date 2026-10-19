@@ -20,6 +20,7 @@ import { Ben_ltkissuefilesService } from "../generated/services/Ben_ltkissuefile
 import { Ben_ltkissuemessagesService } from "../generated/services/Ben_ltkissuemessagesService";
 import { Ben_ltkissuewatchsService } from "../generated/services/Ben_ltkissuewatchsService";
 import type { Ben_ltkissues } from "../generated/models/Ben_ltkissuesModel";
+import { AudienceMember, audienceLine, issueAudience, sendLabel } from "./audience";
 
 const OPEN_STATUSES = ["new", "triaged", "inprogress"] as const;
 const STATUS_WORDS: Record<string, string> = {
@@ -229,29 +230,55 @@ export async function renderIssuesAdmin(body: HTMLElement): Promise<void> {
    *  stays the record, Teams is how the reporter hears it. Dynamic
    *  import ONLY: the notify module statically imports the docs-gated
    *  connectors. Returns "" or the honest reason it did not send. */
-  const deliverTeams = async (issue: Issue, text: string): Promise<string> => {
-    const email = (issue.ben_reporteremail ?? "").toLowerCase();
-    if (email === "") return "the report carries no reporter email";
-    if (email === myEmail) {
-      // CreateChat seats the caller itself — a self-chat is refused
-      return "you are the reporter — it's in the thread (Teams refuses self-chats)";
-    }
+  const deliverTeams = async (issue: Issue, audience: AudienceMember[], text: string): Promise<string> => {
+    // ONE CARD PER PERSON (issue 38, Ben 2026-10-19): each quotes that
+    // person's own report (or the one they follow) — never a group chat
+    // that would put every reporter in one room
+    if (audience.length === 0) return "you are the only person on this report — it's in the thread (Teams refuses self-chats)";
     try {
       const { sendNotifyTeams } = await import("../docs/notify");
       const { appLinkUrl } = await import("../links");
-      const r = await sendNotifyTeams(
-        [{ email, name: issue.ben_reportername || email }],
-        `About your report: ${issue.ben_name ?? ""}`,
-        text,
-        appLinkUrl(),
-        // the reporter's own description rides along, so the card reads
-        // on its own without opening LeanBoard (Ben, 2026-10-12)
-        { label: "Your report", text: (issue.ben_description ?? "").trim() || (issue.ben_name ?? "") }
-      );
-      return r.error;
+      const failed: string[] = [];
+      for (const m of audience) {
+        const r = await sendNotifyTeams(
+          [{ email: m.email, name: m.name }],
+          `About your report: ${issue.ben_name ?? ""}`,
+          text,
+          appLinkUrl(),
+          // the person's own description rides along, so the card reads
+          // on its own without opening LeanBoard (Ben, 2026-10-12)
+          m.quote
+        );
+        if (r.error !== "") failed.push(`${m.name}: ${r.error}`);
+      }
+      return failed.length === 0 ? "" : `${failed.length} of ${audience.length} did not go — ${failed.join("; ")}`;
     } catch (e) {
       return say(e);
     }
+  };
+
+  /** Everyone who hears about an issue: reporter, merged-in reporters,
+   *  followers — the sender left out. */
+  const audienceOf = (issue: Issue, mergedIn: Issue[], watchers: { ben_email?: string; ben_watchername?: string }[]): AudienceMember[] =>
+    issueAudience(
+      { name: issue.ben_name ?? "", description: issue.ben_description ?? "", reporterEmail: issue.ben_reporteremail ?? "", reporterName: issue.ben_reportername ?? "" },
+      mergedIn.map((c) => ({ name: c.ben_name ?? "", description: c.ben_description ?? "", reporterEmail: c.ben_reporteremail ?? "", reporterName: c.ben_reportername ?? "" })),
+      watchers.map((w) => ({ email: w.ben_email ?? "", name: w.ben_watchername ?? "" })),
+      myEmail
+    );
+
+  /** The issues merged into one (their reporters hear about it too). */
+  const mergedInto = async (issueId: string): Promise<Issue[]> => {
+    const r = await Ben_ltkissuesService.getAll({
+      filter: `_ben_duplicateof_value eq '${issueId}'`,
+      select: ["ben_ltkissueid", "ben_name", "ben_reportername", "ben_reporteremail", "ben_description"],
+    });
+    return r.success === false ? [] : ((r.data ?? []) as Issue[]);
+  };
+
+  const watchersOf = async (issueId: string) => {
+    const r = await Ben_ltkissuewatchsService.getAll({ filter: `_ben_issue_value eq '${issueId}'` });
+    return r.success === false ? [] : (r.data ?? []);
   };
 
   const ensureWatch = async (issueId: string, email: string, name: string) => {
@@ -408,11 +435,8 @@ export async function renderIssuesAdmin(body: HTMLElement): Promise<void> {
     const [files, messages, watches, children] = await Promise.all([
       Ben_ltkissuefilesService.getAll({ filter: `_ben_issue_value eq '${id}'` }),
       Ben_ltkissuemessagesService.getAll({ filter: `_ben_issue_value eq '${id}'` }),
-      Ben_ltkissuewatchsService.getAll({ filter: `_ben_issue_value eq '${id}'` }),
-      Ben_ltkissuesService.getAll({
-        filter: `_ben_duplicateof_value eq '${id}'`,
-        select: ["ben_ltkissueid", "ben_name", "ben_reportername"],
-      }),
+      watchersOf(id),
+      mergedInto(id),
     ]);
     clear(host);
 
@@ -431,7 +455,7 @@ export async function renderIssuesAdmin(body: HTMLElement): Promise<void> {
     } catch {
       /* unparseable context stays unshown */
     }
-    const mergedIn = children.success !== false ? (children.data ?? []) : [];
+    const mergedIn = children;
     if (mergedIn.length > 0) {
       host.appendChild(
         el(
@@ -442,12 +466,13 @@ export async function renderIssuesAdmin(body: HTMLElement): Promise<void> {
         )
       );
     }
-    const watchers = watches.success !== false ? (watches.data ?? []) : [];
+    const watchers = watches;
     if (watchers.length > 0) {
       host.appendChild(
         el("div", "app-field-hint", `${watchers.length} following (+1) beyond the reporter`)
       );
     }
+    const audience = audienceOf(issue, mergedIn, watchers);
 
     // attachments — bytes through the SDK's file door, painted as DATA
     // urls (the player's CSP blocks blob: images — Ben, 2026-08-12) with
@@ -540,7 +565,7 @@ export async function renderIssuesAdmin(body: HTMLElement): Promise<void> {
       const to = statusPick.value;
       if (to === issue.ben_status) return;
       if (to === "declined") {
-        openDecline(id, issue, () => {
+        openDecline(id, issue, audience, () => {
           statusLanded(wrapOf(), issue, "declined");
           void refresh();
         });
@@ -624,7 +649,18 @@ export async function renderIssuesAdmin(body: HTMLElement): Promise<void> {
     const compose = el("textarea", "app-input app-issad-compose") as HTMLTextAreaElement;
     compose.rows = 2;
     compose.placeholder = `Message ${issue.ben_reportername || "the reporter"}…`;
-    const sendRep = el("button", "app-btn", "Send to reporter") as HTMLButtonElement;
+    // who hears it (issue 38): chips for the reporter, merged-in
+    // reporters and followers — one Teams card each
+    const toRow = el("div", "app-issad-torow");
+    toRow.appendChild(el("span", "app-issad-tolabel", audience.length === 0 ? audienceLine(audience) : "To:"));
+    for (const m of audience) {
+      const chip = el("span", "app-issad-tochip", m.name);
+      chip.title = `${m.email} · ${m.reason}`;
+      toRow.appendChild(chip);
+    }
+    host.appendChild(toRow);
+    const sendRep = el("button", "app-btn", sendLabel(audience.length)) as HTMLButtonElement;
+    sendRep.disabled = audience.length === 0;
     const sendInt = el("button", "app-btn", "Internal note") as HTMLButtonElement;
     const sendIt = (audience: "reporter" | "internal") => {
       const text = compose.value.trim();
@@ -637,8 +673,8 @@ export async function renderIssuesAdmin(body: HTMLElement): Promise<void> {
           // is the record, Teams is the doorbell
           compose.value = "";
           if (audience === "reporter") {
-            status.textContent = "Sending the Teams message…";
-            const warn = await deliverTeams(issue, text);
+            status.textContent = audience.length > 1 ? `Sending ${audience.length} Teams cards…` : "Sending the Teams message…";
+            const warn = await deliverTeams(issue, audience, text);
             if (warn !== "") {
               // the refresh would wipe this warning — stay put so it
               // is read; the thread row landed either way
@@ -664,7 +700,7 @@ export async function renderIssuesAdmin(body: HTMLElement): Promise<void> {
   };
 
   // ---- decline: the message IS the act ------------------------------------
-  const openDecline = (id: string, issue: Issue, onDone: () => void) => {
+  const openDecline = (id: string, issue: Issue, audience: AudienceMember[], onDone: () => void) => {
     const dlgHost = el("div", "app-dlghost");
     body.appendChild(dlgHost);
     let running = false;
@@ -690,7 +726,8 @@ export async function renderIssuesAdmin(body: HTMLElement): Promise<void> {
     msg.value =
       `Thanks for reporting this — we've decided not to take it further right now. ` +
       `It stays on record, and we may revisit it as the app evolves.`;
-    dlg.body.append(el("div", "app-field-label", "Message to the reporter"), msg);
+    dlg.body.append(el("div", "app-field-label", audience.length > 1 ? `Message to the reporters (${audience.length})` : "Message to the reporter"), msg);
+    if (audience.length > 0) dlg.body.appendChild(el("div", "app-field-hint", audienceLine(audience, 6)));
     const st = el("div", "app-docs-addstatus");
     dlg.body.appendChild(st);
     const go = async () => {
@@ -702,8 +739,8 @@ export async function renderIssuesAdmin(body: HTMLElement): Promise<void> {
         if (r.success === false) throw new Error(r.error?.message ?? "refused");
         await writeMessage(id, `Status → Declined`, "reporter");
         await writeMessage(id, msg.value.trim(), "reporter");
-        st.textContent = "Sending the Teams message…";
-        const warn = await deliverTeams(issue, msg.value.trim());
+        st.textContent = audience.length > 1 ? `Sending ${audience.length} Teams cards…` : "Sending the Teams message…";
+        const warn = await deliverTeams(issue, audience, msg.value.trim());
         if (warn !== "") {
           st.textContent = `Declined and saved to the thread — Teams delivery did not go: ${warn}`;
           st.classList.add("app-docs-addstatus-warn");
@@ -746,8 +783,8 @@ export async function renderIssuesAdmin(body: HTMLElement): Promise<void> {
       el(
         "div",
         "app-field-hint",
-        "This report closes as merged; its reporter follows the issue it merges into and " +
-          "gets that issue's updates from here on."
+        "This report closes as merged; its reporter and followers follow the issue it merges into and " +
+          "get that issue's updates from here on. Reports already merged into this one move across too."
       )
     );
     const search = el("input", "app-input") as HTMLInputElement;
@@ -807,6 +844,19 @@ export async function renderIssuesAdmin(body: HTMLElement): Promise<void> {
           (child.ben_reporteremail ?? "").toLowerCase(),
           child.ben_reportername ?? ""
         );
+        // the child's followers come along (issue 38) …
+        for (const w of await watchersOf(child.ben_ltkissueid)) {
+          await ensureWatch(parent.ben_ltkissueid, (w.ben_email ?? "").toLowerCase(), w.ben_watchername ?? "");
+        }
+        // … and reports already merged into the child now point at the
+        // parent, so their reporters hear about it from there
+        for (const g of await mergedInto(child.ben_ltkissueid)) {
+          const rr = await Ben_ltkissuesService.update(g.ben_ltkissueid, {
+            "ben_DuplicateOf@odata.bind": `/ben_ltkissues(${parent.ben_ltkissueid})`,
+          } as Parameters<typeof Ben_ltkissuesService.update>[1]);
+          if (rr.success === false) throw new Error(rr.error?.message ?? "refused");
+          await ensureWatch(parent.ben_ltkissueid, (g.ben_reporteremail ?? "").toLowerCase(), g.ben_reportername ?? "");
+        }
         await writeMessage(
           child.ben_ltkissueid,
           `Merged into "${parent.ben_name ?? ""}" — updates continue there.`,
