@@ -537,7 +537,15 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       mq.addEventListener("change", onChange);
       cleanups.push(() => mq.removeEventListener("change", onChange));
     }
+    /** A repaint keeps the priority popup up (Ben, 2026-10-19: starring
+     *  a primary initiative closed it): the overlay's scrim lives in
+     *  `wrap`, so it is lifted out before the clear and put back after. */
     const render = () => {
+      const keep = Array.from(wrap.children).filter((c) => c.classList.contains("app-cp-scrim"));
+      renderBody();
+      for (const k of keep) wrap.appendChild(k);
+    };
+    const renderBody = () => {
       clear(wrap);
       persist();
       wrap.classList.toggle("app-cp-phone", phone());

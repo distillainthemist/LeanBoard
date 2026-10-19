@@ -825,6 +825,14 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
           star.addEventListener("click", (e) => {
             e.stopPropagation();
             void (async () => {
+              // a check first (Ben, 2026-10-19): the primary's charter and
+              // metrics headline the priority — not a one-click swap
+              const ok = await promptConfirm(
+                isPrimary
+                  ? { title: "Clear the primary initiative?", note: `“${r.title}” will no longer headline this priority — the Charter, Metrics and Commentary tabs empty until another is starred.`, confirmLabel: "Clear" }
+                  : { title: "Make this the primary initiative?", note: `“${r.title}” — its charter, metrics and commentary headline this priority${live.primaryInitiativeId !== "" ? ", replacing the current primary" : ""}.`, confirmLabel: "Make primary" }
+              );
+              if (!ok) return;
               live.primaryInitiativeId = isPrimary ? "" : r.id;
               await savePriority(live, ctx.data());
               await ctx.changed();
