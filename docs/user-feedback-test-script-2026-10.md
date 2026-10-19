@@ -303,7 +303,8 @@ On a desktop.
 
 | Item | Outcome |
 |---|---|
-| 1–6 | _Ben's pass pending_ |
+| 1–2 | PASS (Ben, 2026-10-19) — after follow-ups: the UAT tab scrolls inside the hub; run instructions (ben_description) on the run, the tab, the card and the PDF |
+| 3–6 | _Ben's pass pending_ |
 
 ## Issue round tranche E — after v0.73.2 (2026-10-19, dev)
 
