@@ -52,7 +52,11 @@ export const LINKS_CSS = `
 .ltk-lk-contents-note { font-size: 12px; color: var(--ltk-muted); padding: 2px 0; }
 .ltk-lk-item { display: flex; align-items: center; gap: 8px; font-size: 12.5px; min-height: 28px; }
 .ltk-lk-item-glyph { flex: none; }
-.ltk-lk-item-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ltk-fg); text-decoration: none; }
+.ltk-lk-item-name { flex: 1; min-width: 0; overflow-wrap: anywhere; white-space: normal; color: var(--ltk-fg); text-decoration: none; }
+.ltk-lk-item-caret { flex: none; width: 22px; min-height: 28px; border: none; background: none; font: inherit; font-size: 12px; color: var(--ltk-muted); cursor: pointer; padding: 0; }
+.ltk-lk-item-caret:hover { color: var(--ltk-accent); }
+/* a nested folder's contents indent under their folder */
+.ltk-lk-contents .ltk-lk-contents { margin-left: 14px; }
 .ltk-lk-item-name:hover { color: var(--ltk-accent); text-decoration: underline; }
 .ltk-lk-item-when { flex: none; font-size: 11px; color: var(--ltk-muted); font-variant-numeric: tabular-nums; }
 .ltk-tile .ltk-lk-contents, .ltk-tile .ltk-lk-toggle, .ltk-tile .ltk-lk-hint { display: none; }

@@ -1901,13 +1901,14 @@ input[type="color"].app-color:disabled { opacity: 0.4; cursor: default; }
 .app-docs-noncurrent { margin: 0; white-space: nowrap; }
 .app-docs-body { display: flex; gap: 14px; flex: 1; min-height: 0; }
 .app-docs-nav {
-  width: 276px; /* room for tree indent + counts beside the scrollbar */
+  width: 276px; /* the default; the grip drags it (issue 17) */
   flex: none;
   display: flex;
   flex-direction: column;
   min-height: 0; /* full-height column; the browse-by card fills it */
   border-right: 1px solid #e5e5e5;
   padding-right: 8px;
+  position: relative;
 }
 /* doubled class beats .app-docs-navcard's own margin at equal
    specificity further down the file (the Users-grid lesson) */
@@ -2019,6 +2020,9 @@ input[type="color"].app-color:disabled { opacity: 0.4; cursor: default; }
 .app-docs-vercurrent { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
 /* the way back from favourites (issue 21) */
 .app-docs-favback { white-space: nowrap; }
+/* the links count cell and the "show in register" road (issue 3) */
+.app-docs-linkcount { font-size: 12px; color: #6d675c; white-space: nowrap; }
+.app-docs-linksshow { align-self: flex-start; font-size: 12.5px; margin-top: 2px; }
 /* a scroller that can move sideways shows its bars: a styled scrollbar is
    a classic one in Chromium, never an overlay that hides until hovered
    (Ben, 2026-10-19: "the scrollbar disappears") */
@@ -2324,6 +2328,12 @@ button.app-docs-navterm {
   border-radius: 5px; cursor: pointer;
 }
 button.app-docs-navterm:hover:not(:disabled) { background: #f0f0f0; }
+/* a long label wraps (issue 17) instead of being cut */
+button.app-docs-navterm { white-space: normal; overflow-wrap: anywhere; }
+/* the panel's drag edge */
+.app-docs-navgrip { position: absolute; top: 0; right: -6px; width: 12px; height: 100%; cursor: col-resize; z-index: 2; }
+.app-docs-navgrip:hover { background: linear-gradient(to right, transparent 5px, #cfc8bc 5px, #cfc8bc 7px, transparent 7px); }
+.app-docs-phone .app-docs-navgrip { display: none; }
 button.app-docs-navterm:disabled { color: #8a8a8a; cursor: not-allowed; }
 /* a FILTER selection reads lighter than the scope selection — the filled
    accent pill is reserved for where you ARE (library nav); a filter is a

@@ -276,10 +276,13 @@ export interface DocUiPrefs {
   collapsed: Record<string, string[]>;
   /** The left (libraries / folders) panel hidden (B5, feedback round 1). */
   navHidden: boolean;
+  /** The panel's width in px, dragged by its edge (issue 17); 0 = the
+   *  default width. */
+  navWidth: number;
 }
 
 export function emptyDocUiPrefs(): DocUiPrefs {
-  return { libraries: [], viewMode: "", density: "", collapsed: {}, navHidden: false };
+  return { libraries: [], viewMode: "", density: "", collapsed: {}, navHidden: false, navWidth: 0 };
 }
 
 export function parseDocUiPrefs(raw: string | null | undefined): DocUiPrefs {
@@ -294,6 +297,8 @@ export function parseDocUiPrefs(raw: string | null | undefined): DocUiPrefs {
     out.viewMode = asStr(r.view);
     out.density = asStr(r.density);
     out.navHidden = r.nav === 1 || r.nav === true;
+    const w = Number(r.navw ?? 0);
+    out.navWidth = Number.isFinite(w) && w >= 220 && w <= 640 ? Math.round(w) : 0;
     if (r.collapsed && typeof r.collapsed === "object" && !Array.isArray(r.collapsed)) {
       for (const [k, v] of Object.entries(r.collapsed as Record<string, unknown>)) {
         const keys = asStrings(v);
@@ -313,6 +318,7 @@ export function serializeDocUiPrefs(ui: DocUiPrefs): string {
   if (ui.density !== "") o.density = ui.density;
   if (Object.keys(ui.collapsed).length > 0) o.collapsed = ui.collapsed;
   if (ui.navHidden) o.nav = 1;
+  if (ui.navWidth > 0) o.navw = ui.navWidth;
   return JSON.stringify(o);
 }
 

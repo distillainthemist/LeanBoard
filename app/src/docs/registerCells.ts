@@ -20,7 +20,7 @@ import { fileTypeChip, withStatusGlyph } from "../../../shared/ui/format";
 import { resolvePaletteColor } from "../../../shared/palette";
 import { textOn } from "../../../shared/tokens";
 import type { ListColumn } from "./listView";
-import { DocRow, formatWhen, splitNameForEllipsis, NAME_SLOT, VERSION_FIELD, versionLabel } from "./rows";
+import { DocRow, formatWhen, linkCount, splitNameForEllipsis, NAME_SLOT, VERSION_FIELD, versionLabel } from "./rows";
 import {
   SiteDictionary,
   paletteEntryFor,
@@ -311,6 +311,11 @@ export function buildRegisterColumns(
         if (v === "") return "";
         if (role === "status") return statusChip(v);
         if (role === "owner") return ownerCell(v);
+        // the links column reads as a count, not JSON (issue 3)
+        if (role === "linkedDocuments") {
+          const n = linkCount(v);
+          return n === 0 ? "" : el("span", "app-docs-linkcount", `${n} link${n === 1 ? "" : "s"}`);
+        }
         // RLDAS date fields arrive as ISO — humanize them
         return /^\d{4}-\d{2}-\d{2}T/.test(v) ? formatWhen(v) : v;
       },

@@ -76,6 +76,9 @@ interface ViewerOpts {
   links?: {
     internal: string;
     open: (l: DocLink) => void;
+    /** Scope the register to these documents (issue 3): the pane's
+     *  declared links plus the derived inbound ones. */
+    showInRegister?: (links: DocLink[]) => void;
     /** The DERIVED inbound view (L2): documents naming this one,
      *  already inverted into this pane's voice. `lagging` = the search
      *  road answered and the crawl may trail recent links. */
@@ -850,6 +853,16 @@ export function openDocViewer(opts: ViewerOpts): () => void {
     if (linksInternal !== "") {
       const rawLinks = details.values[linksInternal] ?? "";
       const parsedLinks = parseDocLinks(rawLinks) ?? [];
+      // everything the pane knows is linked — declared now, derived as
+      // it lands — for "Show these in the register" (issue 3)
+      const allLinks: DocLink[] = [...parsedLinks];
+      const showBtn = el("button", "app-link app-docs-linksshow", "Show these in the register") as HTMLButtonElement;
+      showBtn.title = "The register scoped to the documents linked to this one";
+      showBtn.addEventListener("click", () => opts.links?.showInRegister?.(allLinks));
+      const placeShowBtn = () => {
+        if (opts.links?.showInRegister === undefined || allLinks.length === 0 || showBtn.isConnected) return;
+        propsBox.appendChild(showBtn);
+      };
       if (parsedLinks.length > 0) {
         const box = el("div", "app-docs-linksbox");
         box.appendChild(el("div", "app-docs-linkshead", "Linked documents"));
@@ -873,6 +886,7 @@ export function openDocViewer(opts: ViewerOpts): () => void {
           }
         }
         propsBox.appendChild(box);
+        placeShowBtn();
       }
       // L2: the derived inbound view — appended as it resolves, marked
       // apart from what this document declared itself
@@ -886,7 +900,9 @@ export function openDocViewer(opts: ViewerOpts): () => void {
           const fresh = inbound.filter(
             (l) => !declared.has(`${l.uid.toLowerCase()}|${l.rel}`)
           );
+          for (const l of fresh) if (!allLinks.some((x) => x.uid.toLowerCase() === l.uid.toLowerCase())) allLinks.push(l);
           if (fresh.length === 0) return;
+          placeShowBtn();
           if (parsedLinks.length === 0) {
             dBox.appendChild(el("div", "app-docs-linkshead", "Linked documents"));
           }

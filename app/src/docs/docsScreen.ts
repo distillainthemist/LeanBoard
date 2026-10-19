@@ -24,8 +24,7 @@ import {
   listItemCount,
   renderListPage,
   searchPage,
-  tileThumbFor,
-} from "./data";
+  tileThumbFor, itemDetails } from "./data";
 import { markTiming, now as tnow, summarizeTimings, timingsSince } from "./timing";
 import { parseOrgTree } from "../../../shared/schema/meeting";
 import { DocList, ListColumn, mountDocList } from "./listView";
@@ -1758,6 +1757,7 @@ export function mountDocs(
               modifiedDays = 0;
               taskFilter = map;
               taskFilterN = uniq.size;
+              scopeLabel = "";
               closePanel();
               paintChips();
               paintTreeSelection();
@@ -1795,6 +1795,9 @@ export function mountDocs(
      *  nature — and restored when the chip clears. */
     let taskFilter: Map<string, number[]> | null = null;
     let taskFilterN = 0;
+    /** What the id scope is, when it is not the task list ("Linked to:
+     *  X", issue 3); "" = the Document tasks chip. */
+    let scopeLabel = "";
     // declared HERE, not in the data-flow section: the register's empty
     // state reads it during the initial mount, and a later `let` would be
     // a temporal-dead-zone crash that kills the whole screen
@@ -1833,6 +1836,29 @@ export function mountDocs(
 
     // ---- left nav ------------------------------------------------------
     const nav = el("nav", "app-docs-nav");
+    // the pane's width is the person's (issue 17): dragged by its edge,
+    // remembered; a deep hierarchy no longer ellipses at 276px
+    if (uiState.navWidth > 0) nav.style.width = `${uiState.navWidth}px`;
+    const navGrip = el("div", "app-docs-navgrip");
+    navGrip.title = "Drag to resize the panel";
+    navGrip.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      const startX = e.clientX;
+      const startW = nav.getBoundingClientRect().width;
+      let w = startW;
+      const move = (ev: PointerEvent) => {
+        w = Math.max(220, Math.min(640, startW + (ev.clientX - startX)));
+        nav.style.width = `${w}px`;
+      };
+      const up = () => {
+        document.removeEventListener("pointermove", move);
+        document.removeEventListener("pointerup", up);
+        persistUi({ navWidth: Math.round(w) });
+      };
+      document.addEventListener("pointermove", move);
+      document.addEventListener("pointerup", up);
+    });
+    nav.appendChild(navGrip);
     bodyRow.appendChild(nav);
     // B5 (feedback round 1): the panel hides and comes back, remembered
     // per person — a slim rail stands in for it while hidden
@@ -2781,11 +2807,12 @@ export function mountDocs(
       clear(filterBar);
       if (taskFilter !== null) {
         const chip = el("span", "app-docs-orgchip");
-        chip.appendChild(document.createTextNode(`Document tasks · ${taskFilterN}`));
+        chip.appendChild(document.createTextNode(scopeLabel !== "" ? scopeLabel : `Document tasks · ${taskFilterN}`));
         const x = el("button", "app-docs-orgchip-x", "×") as HTMLButtonElement;
         x.title = "Show the whole register again";
         x.addEventListener("click", () => {
           taskFilter = null;
+          scopeLabel = "";
           paintChips();
           // the approved toggle applies again with the whole register
           void load(true);
@@ -3484,6 +3511,9 @@ export function mountDocs(
     const linksCtlFor = (row: DocRow) => ({
       internal: linksInternalOf(),
       open: switchToLink,
+      // issue 3: the register scoped to this document's links — the
+      // task scope's road (ids per library), with its own chip
+      showInRegister: (links: DocLink[]) => void scopeToLinks(row, links),
       // L2: who names this document — the hybrid index/search road
       derived: async () => {
         const internal = linksInternalOf();
@@ -3504,6 +3534,59 @@ export function mountDocs(
         };
       },
     });
+
+    /** The register scoped to a document's links (issue 3): each link's
+     *  uid resolves to its item id (the id scope is per library, as the
+     *  task scope is); the overlay closes and the chip names the
+     *  document. Links to documents this app cannot see are left out
+     *  and counted on the status line. */
+    const pool = async <T,>(items: T[], limit: number, work: (item: T) => Promise<void>): Promise<void> => {
+      let at = 0;
+      const worker = async () => {
+        while (at < items.length) await work(items[at++]);
+      };
+      await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+    };
+    const scopeToLinks = async (from: DocRow, links: DocLink[]): Promise<void> => {
+      const map = new Map<string, number[]>();
+      let unresolved = 0;
+      const seen = new Set<string>();
+      await pool(
+        links.filter((l) => l.uid !== "" && !seen.has(l.uid.toLowerCase()) && seen.add(l.uid.toLowerCase())),
+        6,
+        async (l) => {
+          const listId = (l.listId || "").toLowerCase();
+          if (listId === "" || !byListId.has(listId)) {
+            unresolved++;
+            return;
+          }
+          const d = await itemDetails(l.site || app.siteUrl, { id: 0, uniqueId: l.uid, name: l.name, ext: "", serverUrl: "", listId, modified: "", values: {} }).catch(() => null);
+          if (!d || d.id <= 0) {
+            unresolved++;
+            return;
+          }
+          map.set(listId, [...(map.get(listId) ?? []), d.id]);
+        }
+      );
+      if (dead) return;
+      if (map.size === 0) {
+        status.textContent = unresolved > 0 ? `None of the ${unresolved} linked document${unresolved === 1 ? "" : "s"} is in a library this register shows.` : "No linked documents to show.";
+        return;
+      }
+      closeViewer?.();
+      query = "";
+      search.value = "";
+      filters = [];
+      dateFilters = [];
+      modifiedDays = 0;
+      taskFilter = map;
+      taskFilterN = [...map.values()].reduce((a, b) => a + b.length, 0);
+      scopeLabel = `Linked to: ${from.name}`;
+      paintChips();
+      paintTreeSelection();
+      void load(true, "linked documents");
+      if (unresolved > 0) status.textContent = `${unresolved} linked document${unresolved === 1 ? "" : "s"} not shown — outside the libraries this register sees.`;
+    };
 
     /** The open overlay's close handle — a link click SWITCHES the
      *  overlay, so the incumbent must close first (the docSolo

@@ -274,14 +274,35 @@ export class LinksEditor {
     else {
       for (const it of c.items) {
         const r = el("div", "ltk-lk-item");
-        r.appendChild(el("span", "ltk-lk-item-glyph", it.folder ? "📁" : "📄"));
+        if (it.folder) {
+          // a sub-folder expands in place (issue 17, 2026-10-18 round:
+          // "drill down further"); its own key is its url
+          const subKey = it.url;
+          const open = this.open.has(subKey);
+          const caret = el("button", "ltk-lk-item-caret", open ? "▾" : "▸") as HTMLButtonElement;
+          caret.type = "button";
+          caret.title = open ? "Hide this folder's contents" : "Show this folder's contents";
+          caret.addEventListener("click", () => {
+            if (open) this.open.delete(subKey);
+            else {
+              this.open.add(subKey);
+              if (!this.contents.has(subKey)) void this.loadContents(it.url, subKey);
+            }
+            this.render();
+          });
+          r.appendChild(caret);
+        } else {
+          r.appendChild(el("span", "ltk-lk-item-glyph", "📄"));
+        }
         const a = el("a", "ltk-lk-item-name", it.name) as HTMLAnchorElement;
         a.href = it.url;
         a.target = "_blank";
         a.rel = "noopener noreferrer";
+        a.title = it.folder ? "Open the folder in SharePoint" : "Open the file";
         r.appendChild(a);
         if (it.modified !== "") r.appendChild(el("span", "ltk-lk-item-when", it.modified.slice(0, 10)));
         box.appendChild(r);
+        if (it.folder) this.appendContents(box, it.url, it.url);
       }
     }
     host.appendChild(box);

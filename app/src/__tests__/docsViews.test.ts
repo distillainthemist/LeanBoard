@@ -147,8 +147,11 @@ describe("DocUiPrefs (Vault V1, ben_docuijson)", () => {
       density: "compact",
       collapsed: { "set-1": ["Brisbane", "Brisbane Packaging"] },
       navHidden: true,
+      navWidth: 340,
     };
     expect(parseDocUiPrefs(serializeDocUiPrefs(ui))).toEqual(ui);
+    // an out-of-range width is the default (issue 17)
+    expect(parseDocUiPrefs(serializeDocUiPrefs({ ...ui, navWidth: 90 })).navWidth).toBe(0);
   });
   it("tolerates garbage, blanks, and unknown shapes", async () => {
     const { parseDocUiPrefs, emptyDocUiPrefs } = await import("../docs/views");

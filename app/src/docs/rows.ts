@@ -317,6 +317,19 @@ export const VERSION_FIELD = "_UIVersionString";
  *  Document ID before the title"). Absent = first, as always. */
 export const NAME_SLOT = "__name";
 
+/** How many documents a links column names (its JSON array), 0 for
+ *  legacy free text or nothing (issue 3). */
+export function linkCount(raw: string): number {
+  const t = (raw ?? "").trim();
+  if (!t.startsWith("[")) return 0;
+  try {
+    const arr = JSON.parse(t) as unknown;
+    return Array.isArray(arr) ? arr.filter((x) => x && typeof x === "object" && typeof (x as { uid?: unknown }).uid === "string").length : 0;
+  } catch {
+    return 0;
+  }
+}
+
 /** The Version cell's reading: "v3.0", and whether it is a minor
  *  (draft) version — null for a row without a label. */
 export function versionLabel(raw: string): { text: string; minor: boolean } | null {
