@@ -306,7 +306,7 @@ On a desktop.
 | 1–2 | PASS (Ben, 2026-10-19) — after follow-ups: the UAT tab scrolls inside the hub; run instructions (ben_description) on the run, the tab, the card and the PDF |
 | 3 | PASS (Ben, 2026-10-19) |
 | 4 | PASS (Ben, 2026-10-19) |
-| 5–6 | _Ben's pass pending_ |
+| 5–6 | PASS (Ben, 2026-10-19) |
 
 ## Issue round tranche E — after v0.73.2 (2026-10-19, dev)
 
