@@ -108,6 +108,14 @@ export async function saveDocView(whoId: string, view: DocView): Promise<DocView
   return views;
 }
 
+/** Rename a saved view (issue 5): the view keeps everything else. */
+export async function renameDocView(whoId: string, from: string, to: string): Promise<DocView[]> {
+  const prefs = await docPrefs(whoId);
+  const views = prefs.views.filter((v) => v.name !== to).map((v) => (v.name === from ? { ...v, name: to } : v));
+  await save(whoId, { ...prefs, views });
+  return views;
+}
+
 export async function deleteDocView(whoId: string, name: string): Promise<DocView[]> {
   const prefs = await docPrefs(whoId);
   const views = prefs.views.filter((v) => v.name !== name);

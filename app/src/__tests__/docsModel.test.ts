@@ -88,6 +88,7 @@ describe("app docs config", () => {
     orgRenames: [],
     termBindings: {},
     retiredTerms: {},
+    sharedViewsJson: "",
     orgSetCompanyLevel: false,
     termWritesOwed: {},
     processSetId: "",

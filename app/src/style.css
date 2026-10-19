@@ -2025,6 +2025,9 @@ input[type="color"].app-color:disabled { opacity: 0.4; cursor: default; }
 /* the fixes under a people finding's row (issues 8 / 11) */
 .app-docs-hrfixes { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 0 10px 8px 22px; font-size: 12.5px; }
 .app-docs-decision-why { max-width: 520px; line-height: 1.45; }
+/* the views menu: section labels, the active view (issues 5 / 6) */
+.app-docs-menulabel { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #6d675c; padding: 6px 12px 2px; }
+.app-docs-menuitem-on { font-weight: 600; }
 .app-docs-linksshow { align-self: flex-start; font-size: 12.5px; margin-top: 2px; }
 /* a scroller that can move sideways shows its bars: a styled scrollbar is
    a classic one in Chromium, never an overlay that hides until hovered

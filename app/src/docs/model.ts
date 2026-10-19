@@ -889,6 +889,10 @@ export interface AppDocsConfig {
    *  app copies server-side into the target. Never exposed in the nav;
    *  "" = upload-add not offered. */
   stagingLibrary: string;
+  /** SITE views (issue 5 / 6, Ben 2026-10-19): saved views every
+   *  reader sees, curated by document controllers; the serialised
+   *  DocView list (views.ts parses it — kept opaque here). */
+  sharedViewsJson: string;
   /** siteUrl → that site's shared column mapping and palettes. A map,
    *  so exposing a second site later adds a key rather than a schema. */
   sites: Record<string, SiteDictionary>;
@@ -931,6 +935,7 @@ export function emptyAppDocsConfig(): AppDocsConfig {
     orgSetCompanyLevel: false,
     termWritesOwed: {},
     stagingLibrary: "",
+    sharedViewsJson: "",
     sites: {},
   };
 }
@@ -1064,6 +1069,7 @@ export function parseAppDocsConfig(raw: string | null | undefined): AppDocsConfi
       }
     }
     out.stagingLibrary = asStr(o.stagingLibrary);
+    out.sharedViewsJson = asStr(o.sharedViewsJson);
     if (o.sites && typeof o.sites === "object") {
       for (const [key, val] of Object.entries(o.sites as Record<string, unknown>)) {
         const k = siteKey(key);
@@ -1225,6 +1231,7 @@ export function serializeAppDocsConfig(cfg: AppDocsConfig): string {
   if (cfg.orgSetCompanyLevel) o.orgSetCompanyLevel = true;
   if (Object.keys(cfg.termWritesOwed).length > 0) o.termWritesOwed = cfg.termWritesOwed;
   if (cfg.stagingLibrary !== "") o.stagingLibrary = cfg.stagingLibrary;
+  if (cfg.sharedViewsJson !== "") o.sharedViewsJson = cfg.sharedViewsJson;
   const sites: Record<string, unknown> = {};
   for (const [key, dict] of Object.entries(cfg.sites)) {
     const body = serializeSiteDictionary(dict);

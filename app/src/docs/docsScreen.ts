@@ -40,7 +40,7 @@ import {
   pdfViewUrlFor,
   pickBrowseHead,
   taxonomySearchProperty, KEPT_SYSTEM_FIELDS, NAME_SLOT, VERSION_FIELD, termTreeOrder, viewerPageUrl } from "./rows";
-import { DocLibrary, docsConfig } from "./docsStore";
+import { DocLibrary, docsConfig, patchAppDocsConfig } from "./docsStore";
 import {
   BasePermissions,
   DocLink,
@@ -102,15 +102,17 @@ import {
   emptyDocUiPrefs,
   emptyDocView,
   encodeDocView,
+  parseDocViews,
+  serializeDocViews,
   toCsv,
 } from "./views";
+import { promptText } from "../prompts";
 import {
   deleteDocView,
   docPrefs,
   saveDocUi,
   saveDocView,
-  toggleFavorite,
-} from "./prefs";
+  toggleFavorite, renameDocView } from "./prefs";
 
 // Applied by the next mount: saved-view clicks, the Favourites entry and
 // library ticks re-mount the screen in place (the embedded pattern), and
@@ -2651,6 +2653,25 @@ export function mountDocs(
               .filter((l): l is DocLibrary => l !== undefined)
               .map((l) => l.config.title || l.name)
               .join(" & ");
+    /** Site views (issue 5): the controllers' shared list, read from
+     *  the documents config; a controller saves or removes one here. */
+    let siteViews: DocView[] = parseDocViews(app.sharedViewsJson);
+    const activeSaved = (): DocView | null =>
+      savedViews.find((v) => v.name === activeViewName) ?? siteViews.find((v) => v.name === activeViewName) ?? null;
+    /** Has the register moved away from the active view's saved state? */
+    const viewDrifted = (): boolean => {
+      const v = activeSaved();
+      if (v === null) return false;
+      return encodeDocView({ ...currentView(), name: "" }) !== encodeDocView({ ...v, name: "" });
+    };
+    const saveSiteViews = async (next: DocView[]) => {
+      siteViews = next;
+      app.sharedViewsJson = serializeDocViews(next);
+      await patchAppDocsConfig((c) => {
+        c.sharedViewsJson = serializeDocViews(next);
+      });
+    };
+
     const paintTitle = () => {
       const f = filterFor(groupBy) ?? filters[0] ?? null;
       const scopeTitle = f
@@ -2659,7 +2680,9 @@ export function mountDocs(
       // B4 (Ben, 2026-10-06): a saved view IS the title; the scope it
       // sits on becomes the crumb. Leaving the view is in the Views menu.
       if (activeViewName !== "") {
-        h1.textContent = activeViewName;
+        // "View · name", and "edited" once the filters have drifted from
+        // the saved state (issue 6 — the bare name was easy to miss)
+        h1.textContent = `View · ${activeViewName}${viewDrifted() ? " · edited" : ""}`;
         crumb.textContent = `${scopeTitle}${f ? ` · ${f.node.labels.join(" › ")}` : ""}`;
         crumb.style.display = "";
       } else {
@@ -4951,7 +4974,37 @@ export function mountDocs(
           if (e.key === "Enter") commit();
         });
         saveRow.append(nameIn, saveB);
+        // a controller saves the view FOR THE SITE (issue 5): everyone
+        // sees it under Site views
+        if (docAdmin()) {
+          const siteB = el("button", "app-btn", "Save for the site") as HTMLButtonElement;
+          siteB.title = "A view every reader of this register sees, kept by document controllers";
+          siteB.addEventListener("click", () => {
+            const name = nameIn.value.trim();
+            if (name === "") return;
+            void saveSiteViews([{ ...currentView(), name }, ...siteViews.filter((v) => v.name !== name)]).then(() => {
+              if (dead) return;
+              activeViewName = name;
+              paintViewChip();
+              nameIn.value = "";
+              paint();
+            });
+          });
+          saveRow.appendChild(siteB);
+        }
         menu!.appendChild(saveRow);
+        if (activeViewName !== "" && docAdmin() && !savedViews.some((v) => v.name === activeViewName) && siteViews.some((v) => v.name === activeViewName)) {
+          const upd = el("button", "app-docs-menuitem", `Update site view “${activeViewName}” with the current view`) as HTMLButtonElement;
+          upd.addEventListener("click", () => {
+            void saveSiteViews(siteViews.map((v) => (v.name === activeViewName ? { ...currentView(), name: activeViewName } : v))).then(() => {
+              if (dead) return;
+              status.textContent = `Site view “${activeViewName}” updated ✓`;
+              paintTitle();
+              closeMenu();
+            });
+          });
+          menu!.appendChild(upd);
+        }
         if (activeViewName !== "" && savedViews.some((v) => v.name === activeViewName)) {
           const upd = el("button", "app-docs-menuitem", `Update “${activeViewName}” with the current view`) as HTMLButtonElement;
           upd.title = "Save what you see now over the saved view of that name";
@@ -4960,6 +5013,7 @@ export function mountDocs(
               if (dead) return;
               savedViews = list;
               status.textContent = `View “${activeViewName}” updated ✓`;
+              paintTitle();
               closeMenu();
             });
           });
@@ -4973,28 +5027,63 @@ export function mountDocs(
           });
           menu!.appendChild(leave);
         }
-        if (savedViews.length > 0) menu!.appendChild(el("div", "app-docs-menusep", ""));
-        for (const v of savedViews) {
+        // one row shape for both lists: ✓ marks the active view (issue 6),
+        // ✎ renames (issue 5), × deletes — the site list for controllers
+        const viewRow = (v: DocView, kind: "mine" | "site") => {
           const row = el("div", "app-docs-viewrow");
-          const open = el("button", "app-docs-menuitem", v.name) as HTMLButtonElement;
-          open.title = "Open this view";
+          const active = v.name === activeViewName;
+          const open = el("button", `app-docs-menuitem${active ? " app-docs-menuitem-on" : ""}`, `${active ? "✓ " : ""}${v.name}`) as HTMLButtonElement;
+          open.title = active ? "The view you are in" : "Open this view";
           open.addEventListener("click", () => {
             closeMenu();
             pendingView = v;
             remount();
           });
-          const del = el("button", "app-docs-viewbtn", "×") as HTMLButtonElement;
-          del.title = `Delete “${v.name}”`;
-          del.setAttribute("aria-label", `Delete the view ${v.name}`);
-          del.addEventListener("click", () => {
-            void deleteDocView(whoId, v.name).then((list) => {
-              if (dead) return;
-              savedViews = list;
-              paint();
+          row.appendChild(open);
+          const mayEdit = kind === "mine" || docAdmin();
+          if (mayEdit) {
+            const ren = el("button", "app-docs-viewbtn", "✎") as HTMLButtonElement;
+            ren.title = `Rename “${v.name}”`;
+            ren.setAttribute("aria-label", `Rename the view ${v.name}`);
+            ren.addEventListener("click", () => {
+              closeMenu();
+              void promptText({ title: "Rename view", initial: v.name, required: "A name is needed.", confirmLabel: "Rename" }).then(async (to) => {
+                if (to === null || to.trim() === "" || to.trim() === v.name || dead) return;
+                const name = to.trim();
+                if (kind === "mine") savedViews = await renameDocView(whoId, v.name, name);
+                else await saveSiteViews(siteViews.filter((x) => x.name !== name).map((x) => (x.name === v.name ? { ...x, name } : x)));
+                if (activeViewName === v.name) activeViewName = name;
+                paintTitle();
+              });
             });
-          });
-          row.append(open, del);
-          menu!.appendChild(row);
+            row.appendChild(ren);
+            const del = el("button", "app-docs-viewbtn", "×") as HTMLButtonElement;
+            del.title = `Delete “${v.name}”`;
+            del.setAttribute("aria-label", `Delete the view ${v.name}`);
+            del.addEventListener("click", () => {
+              void (kind === "mine"
+                ? deleteDocView(whoId, v.name).then((list) => {
+                    savedViews = list;
+                  })
+                : saveSiteViews(siteViews.filter((x) => x.name !== v.name))
+              ).then(() => {
+                if (dead) return;
+                paint();
+              });
+            });
+            row.appendChild(del);
+          }
+          return row;
+        };
+        if (savedViews.length > 0) {
+          menu!.appendChild(el("div", "app-docs-menusep", ""));
+          menu!.appendChild(el("div", "app-docs-menulabel", "My views"));
+          for (const v of savedViews) menu!.appendChild(viewRow(v, "mine"));
+        }
+        if (siteViews.length > 0) {
+          menu!.appendChild(el("div", "app-docs-menusep", ""));
+          menu!.appendChild(el("div", "app-docs-menulabel", "Site views"));
+          for (const v of siteViews) menu!.appendChild(viewRow(v, "site"));
         }
       };
       paint();
