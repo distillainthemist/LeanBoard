@@ -370,7 +370,9 @@ Version lives in the tag alone — nothing is stamped into files.
   matching) are app-only. v0.74.0 (2026-10-19: the 2026-10-18 issue
   round, 36 items across five tranches — `docs/issues-plan-2026-10-19.md`)
   is SOLUTION-CARRYING: the `ben_ltkdocflag` table and four document
-  columns on `ben_ltktagproposal`. Prod imports the managed solution FIRST. LESSON
+  columns on `ben_ltktagproposal`. v0.75.0 (2026-10-19: UAT in the app —
+  `docs/uat-proposal-2026-10.md`) is SOLUTION-CARRYING: `ben_ltkuatrun`
+  and `ben_ltkuatresult`. Prod imports the managed solution FIRST. LESSON
   (2026-10-13, production's first sync): a sync must
   never run from a walk it cannot trust (budget-cut OR any failed
   children request), and the Organisation set's company-level offset

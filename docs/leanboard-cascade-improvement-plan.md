@@ -1455,6 +1455,10 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-10-19 — released as v0.75.0** (SOLUTION-CARRYING: `ben_ltkuatrun`
+  + `ben_ltkuatresult`): UAT in the app, every test passed by Ben on dev
+  the same day; follow-ups folded in: the tab scrolls in the hub, run
+  instructions (`ben_description`). Detail in the next entry.
 - **2026-10-19 (after v0.74.0, dev; SCHEMA deployed to dev)**: UAT in the
   app (`docs/uat-proposal-2026-10.md`, Ben's decisions: one result per
   tester, management in Settings, a Fail always raises an issue,
