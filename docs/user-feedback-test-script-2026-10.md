@@ -320,7 +320,8 @@ On a desktop.
 | 3 | PASS (Ben, 2026-10-19) — after a follow-up: starring asks first, and the popup now survives the screen repaint every popup write triggers |
 | 4 | PASS (Ben, 2026-10-19) |
 | 5 | PASS (Ben, 2026-10-19) |
-| 6 | _Ben's pass pending_ |
+| 6 part A | PASS (Ben, 2026-10-19) — after follow-ups: the flag row sits under the buttons; owners are read fresh before the card (a controller had been messaged when the register row lacked the owner's email); Suggest a tag back with the Tags property; a tag is written only on a document in revision (waiting state "minted", "To tag at next revision") |
+| 6 parts B–C | _Ben's pass pending_ |
 
 ## Issue round tranche D — after v0.73.2 (2026-10-19, dev)
 
