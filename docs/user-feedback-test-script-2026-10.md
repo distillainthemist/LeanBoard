@@ -318,7 +318,7 @@ issue numbers in that plan.
 
 | Item | Outcome |
 |---|---|
-| 1–12 | _Ben's pass pending_ |
+| 1–12 | PASS (Ben, 2026-10-19; 10 after two follow-ups: the column floor at every width, classic scrollbars) |
 
 ## Term alignment pass — after v0.71.0 (2026-10-12, dev)
 
