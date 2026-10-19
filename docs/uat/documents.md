@@ -197,7 +197,7 @@ modules: docs/viewer.ts docs/docsScreen.ts docs/links.ts
 preconditions: any PDF document
 steps:
 1. Open the document → Copy link; paste it in a new browser tab.
-2. Download: read the saved file's name.
+2. Download (in the header, beside Open in new tab): read the saved file's name.
 3. Share… → read the permalink and the QR code.
 4. ⋯ → Open in new tab ↗.
 expected: the pasted link opens LeanBoard on that document; Download saves the file under the document's own name (the viewer frame's own save icon cannot name it — it offers "pdf"); the QR encodes the same link; the new tab opens the file in SharePoint, and its tooltip says to print from there

@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-19",
+ "generatedAt": "2026-10-20",
  "releases": [
   {
    "tag": "v0.74.0",
@@ -814,13 +814,13 @@
        "preconditions": "any PDF document",
        "steps": [
         "Open the document → Copy link; paste it in a new browser tab.",
-        "Download: read the saved file's name.",
+        "Download (in the header, beside Open in new tab): read the saved file's name.",
         "Share… → read the permalink and the QR code.",
         "⋯ → Open in new tab ↗."
        ],
        "expected": "the pasted link opens LeanBoard on that document; Download saves the file under the document's own name (the viewer frame's own save icon cannot name it — it offers \"pdf\"); the QR encodes the same link; the new tab opens the file in SharePoint, and its tooltip says to print from there",
-       "hash": "5a5bd47a",
-       "changed": "2026-10-19"
+       "hash": "43935a06",
+       "changed": "2026-10-20"
       },
       {
        "id": "UAT-DOC-022",
