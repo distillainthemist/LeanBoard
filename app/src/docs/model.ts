@@ -51,7 +51,10 @@ export const COLUMN_ROLES: { key: string; label: string }[] = [
   { key: "process", label: "Process" },
   { key: "managementProcess", label: "Management process" },
   { key: "linkedDocuments", label: "Linked documents" },
-  { key: "tags", label: "Tags" },
+  // a Note column holding JSON change records, the links column's
+  // pattern (issue 10, Ben 2026-10-19): editor, chips, ingestion may
+  // require it
+  { key: "managementOfChange", label: "Management of change" },
   { key: "priorNames", label: "Prior names" },
   { key: "priorIds", label: "Prior IDs" },
   { key: "distribution", label: "Distribution audience" },
@@ -1639,6 +1642,7 @@ const ROLE_BY_INTERNAL: Record<string, string> = {
   DMSProcess: "process",
   DMSManagementProcess: "managementProcess",
   DMSLinkedDocuments: "linkedDocuments",
+  DMSManagementOfChange: "managementOfChange",
   DMSPriorNames: "priorNames",
   DMSPriorID: "priorIds",
   DMSDistributionAudience: "distribution",
@@ -2212,6 +2216,45 @@ export const DOC_LINK_RELS: DocLinkRel[] = [
 ];
 
 /** How a group of links reads on the DECLARING document's pane. */
+// ---- management of change (issue 10, 2026-10-19) -----------------------
+// A JSON list on a Note column: { ref, url, title, date }[] — the
+// register shows the refs as chips (links when a url is given), the
+// editors manage rows, nothing in SharePoint has to understand it.
+
+export interface MocRecord {
+  ref: string;
+  url: string;
+  title: string;
+  /** yyyy-mm-dd, "" when unknown. */
+  date: string;
+}
+
+/** null = not the JSON shape (legacy text, or nothing). */
+export function parseMocRecords(raw: string): MocRecord[] | null {
+  const t = (raw ?? "").trim();
+  if (!t.startsWith("[")) return null;
+  try {
+    const arr = JSON.parse(t) as unknown;
+    if (!Array.isArray(arr)) return null;
+    const out: MocRecord[] = [];
+    for (const x of arr) {
+      if (!x || typeof x !== "object") continue;
+      const o = x as Record<string, unknown>;
+      const ref = typeof o.ref === "string" ? o.ref.trim() : "";
+      const url = typeof o.url === "string" && /^https?:\/\//i.test(o.url.trim()) ? o.url.trim() : "";
+      if (ref === "" && url === "") continue;
+      out.push({ ref, url, title: typeof o.title === "string" ? o.title.trim() : "", date: typeof o.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(o.date) ? o.date : "" });
+    }
+    return out;
+  } catch {
+    return null;
+  }
+}
+
+export function serializeMocRecords(list: MocRecord[]): string {
+  return JSON.stringify(list.map((r) => ({ ref: r.ref, url: r.url, title: r.title, date: r.date })));
+}
+
 export const DOC_LINK_GROUP: Record<DocLinkRel, string> = {
   parent: "Parent documents",
   peer: "Related documents",

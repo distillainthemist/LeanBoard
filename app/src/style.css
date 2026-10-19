@@ -2028,6 +2028,18 @@ input[type="color"].app-color:disabled { opacity: 0.4; cursor: default; }
 /* the views menu: section labels, the active view (issues 5 / 6) */
 .app-docs-menulabel { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #6d675c; padding: 6px 12px 2px; }
 .app-docs-menuitem-on { font-weight: 600; }
+/* management of change (issue 10): the rows editor and the ref chips */
+.app-docs-mocbox { display: flex; flex-direction: column; gap: 6px; }
+.app-docs-moclist { display: flex; flex-direction: column; gap: 6px; }
+.app-docs-mocrow { display: grid; grid-template-columns: 130px minmax(0, 1.4fr) minmax(0, 1fr) 28px; gap: 6px; align-items: center; }
+.app-docs-mocrow .app-input { max-width: none; }
+.app-docs-mocx { padding: 0; text-align: center; }
+.app-docs-mocadd { align-self: flex-start; font-size: 12.5px; }
+.app-docs-mocchips { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.app-docs-mocchip { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 999px; background: #f1efec; color: #26241f; text-decoration: none; white-space: nowrap; }
+a.app-docs-mocchip { color: var(--app-accent, #2563eb); }
+a.app-docs-mocchip:hover { text-decoration: underline; }
+@media (max-width: 599px) { .app-docs-mocrow { grid-template-columns: 1fr 28px; } }
 .app-docs-linksshow { align-self: flex-start; font-size: 12.5px; margin-top: 2px; }
 /* a scroller that can move sideways shows its bars: a styled scrollbar is
    a classic one in Chromium, never an overlay that hides until hovered

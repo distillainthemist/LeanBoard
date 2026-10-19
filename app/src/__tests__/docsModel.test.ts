@@ -17,6 +17,8 @@ import {
   orgSyncPlan,
   libRoleInternal,
   orgTreePaths,
+  serializeMocRecords,
+  parseMocRecords,
   pathKey,
   withCompany,
   orgTreePathsWithCompany,
@@ -2300,5 +2302,16 @@ describe("controlHealth — a review date the app cannot read", () => {
     );
     expect(r.issues.find((i) => i.key === "reviewUnreadable")?.docs.map((d) => d.itemId)).toEqual([1]);
     expect(r.issues.find((i) => i.key === "reviewMissing")?.docs.map((d) => d.itemId)).toEqual([2]);
+  });
+});
+
+describe("management of change records (issue 10, 2026-10-19)", () => {
+  it("round-trips the JSON list, drops empties and bad urls, and rejects legacy text", () => {
+    const list = [{ ref: "MOC-123", url: "https://x/moc/123", title: "New hoist", date: "2026-10-01" }, { ref: "MOC-124", url: "", title: "", date: "" }];
+    const raw = serializeMocRecords(list);
+    expect(parseMocRecords(raw)).toEqual(list);
+    expect(parseMocRecords('[{"ref":"","url":"ftp://bad"},{"ref":" MOC-9 ","url":"https://ok","date":"nope"}]')).toEqual([{ ref: "MOC-9", url: "https://ok", title: "", date: "" }]);
+    expect(parseMocRecords("MOC-77 see the register")).toBeNull();
+    expect(parseMocRecords("")).toBeNull();
   });
 });

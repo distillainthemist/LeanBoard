@@ -25,8 +25,7 @@ import {
   SiteDictionary,
   paletteEntryFor,
   sortByDictionary,
-  stageOfTerm,
-} from "./model";
+  stageOfTerm, parseMocRecords } from "./model";
 
 /** What the cells need to know — the screen owns all of it already. */
 export interface RegisterCellCtx {
@@ -311,6 +310,26 @@ export function buildRegisterColumns(
         if (v === "") return "";
         if (role === "status") return statusChip(v);
         if (role === "owner") return ownerCell(v);
+        // change records read as ref chips (issue 10)
+        if (role === "managementOfChange") {
+          const recs = parseMocRecords(v);
+          if (recs === null) return v;
+          const cell = el("span", "app-docs-mocchips");
+          for (const r of recs.slice(0, 4)) {
+            const label = r.ref !== "" ? r.ref : "link";
+            if (r.url !== "") {
+              const a = el("a", "app-docs-mocchip", label) as HTMLAnchorElement;
+              a.href = r.url;
+              a.target = "_blank";
+              a.rel = "noopener";
+              a.title = r.title !== "" ? r.title : r.url;
+              a.addEventListener("click", (e) => e.stopPropagation());
+              cell.appendChild(a);
+            } else cell.appendChild(el("span", "app-docs-mocchip", label));
+          }
+          if (recs.length > 4) cell.appendChild(el("span", "app-field-hint", `+${recs.length - 4}`));
+          return cell;
+        }
         // the links column reads as a count, not JSON (issue 3)
         if (role === "linkedDocuments") {
           const n = linkCount(v);

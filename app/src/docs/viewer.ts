@@ -43,6 +43,7 @@ import {
   auditRowsFor,
   groupVersionsByMajor,
   parseDocLinks,
+  parseMocRecords,
 } from "./model";
 
 interface ViewerOpts {
@@ -792,7 +793,23 @@ export function openDocViewer(opts: ViewerOpts): () => void {
           grid.appendChild(el("span", "app-docs-propgroup", heading));
         }
         grid.appendChild(el("span", "app-docs-propkey", labels[k] ?? k));
-        if (linkCols.has(k)) {
+        const mocRecs = (opts.roles ?? {})[k] === "managementOfChange" ? parseMocRecords(v) : null;
+        if (mocRecs !== null) {
+          // change records as chips (issue 10): the ref, linking out
+          const cell = el("span", "app-docs-propval app-docs-mocchips");
+          for (const r of mocRecs) {
+            const label = r.ref !== "" ? r.ref : "link";
+            const chip = r.url !== "" ? (el("a", "app-docs-mocchip", label) as HTMLAnchorElement) : el("span", "app-docs-mocchip", label);
+            if (r.url !== "") {
+              (chip as HTMLAnchorElement).href = r.url;
+              (chip as HTMLAnchorElement).target = "_blank";
+              (chip as HTMLAnchorElement).rel = "noopener";
+            }
+            chip.title = [r.title, r.date].filter((x) => x !== "").join(" · ") || r.url;
+            cell.appendChild(chip);
+          }
+          grid.appendChild(cell);
+        } else if (linkCols.has(k)) {
           const cell = el("span", "app-docs-propval app-docs-proplinks");
           for (const part of splitLinkedValues(v)) {
             if (/^https?:\/\//i.test(part)) {

@@ -393,7 +393,9 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
     const carried = new Set(dest.config.columns.filter((c) => c.available).map((c) => c.internal));
     // "orgUnit" is the role key — "organisation" never matched, so the
     // organisation column was never required (issue 25)
-    const roleInternals = ["owner", "docType", "orgUnit"].map((r) => ctx.internalForRole(r)).filter((i) => i !== "" && carried.has(i));
+    // the MoC record rides the required set where the destination carries
+    // the column (issue 10, Ben: "let ingestion require it")
+    const roleInternals = ["owner", "docType", "orgUnit", "managementOfChange"].map((r) => ctx.internalForRole(r)).filter((i) => i !== "" && carried.has(i));
     const required = destFields
       .filter((f) => (f.required || roleInternals.includes(f.internal)) && carried.has(f.internal) && f.internal !== ctx.internalForRole("status"))
       .map((f) => ({ internal: f.internal, label: ctx.dictBy.get(f.internal)?.label || f.title }));

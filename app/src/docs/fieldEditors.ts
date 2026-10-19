@@ -21,6 +21,7 @@ import {
 import { POOL_ROLES, PeopleSource, poolPeopleSource, reviewerPeopleSource, viewerIsController } from "./accessGates";
 import { currentViewer } from "../runtime";
 import { fetchTermPaths } from "./sp";
+import { buildMocEditor } from "./mocEditor";
 
 /** Columns SharePoint manages itself — fine in a VIEW, nonsense in a
  *  form ("Checked out to" rendered as an editable person picker, Ben,
@@ -153,6 +154,20 @@ export function buildFieldEditors(opts: FieldEditorOpts): BuiltEditor[] {
     if (kind === null) continue;
     const star = f.required ? " *" : "";
     const init = opts.initial?.get(internal);
+
+    // the management-of-change column: rows of records, not a textarea
+    // of JSON (issue 10)
+    if (kind === "text" && dictBy.get(internal)?.role === "managementOfChange") {
+      const moc = buildMocEditor({ initialRaw: init?.text ?? "", onChange: sync });
+      box.appendChild(fieldRow(labelOf(f) + star, moc.root));
+      editors.push({
+        field: f,
+        kind,
+        read: () => ({ internal: f.internal, kind, text: moc.read() }),
+        isEmpty: () => moc.isEmpty(),
+      });
+      continue;
+    }
 
     if (kind === "taxonomy") {
       const setId = dictBy.get(f.internal)?.termSetId || f.termSetId;
