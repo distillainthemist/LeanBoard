@@ -42,6 +42,12 @@ export const LAUNCH_PARAM = "ritual";
  *  id would be dead for the recipient. */
 export const DOCVIEW_PARAM = "docview";
 let pendingDocView = "";
+let pendingDocViewAt = 0;
+/** The Documents view link's own grace window (ms) — the same fault
+ *  the Priorities link had: the hub mounts the register twice on a
+ *  launch, and a one-shot read left the second mount with the defaults
+ *  (Ben, 2026-10-19: "opened with Show only approved still ticked"). */
+const DOCVIEW_GRACE_MS = 20_000;
 
 /** Player query parameter carrying a shared PRIORITIES view (Ben,
  *  2026-10-07): org, period, status, view mode and the toggles —
@@ -79,18 +85,21 @@ export function prioritiesViewUrl(encoded: string): string {
   return `${PLAYER}/e/${host.environmentId}/app/${host.appId}?${q.toString()}`;
 }
 
-/** The docview payload the launch delivered — consumed once, by the
- *  Documents screen when it mounts. */
+/** The docview payload the launch delivered — readable by every
+ *  Documents mount inside the grace window, gone after it. */
 export function takePendingDocView(): string {
-  const v = pendingDocView;
-  pendingDocView = "";
-  return v;
+  if (pendingDocView === "") return "";
+  if (Date.now() - pendingDocViewAt > DOCVIEW_GRACE_MS) {
+    pendingDocView = "";
+    return "";
+  }
+  return pendingDocView;
 }
 
 /** Non-consuming peek: the hub uses it to front its Documents tab, whose
- *  mount then consumes the payload. */
+ *  mount then reads the payload. */
 export function hasPendingDocView(): boolean {
-  return pendingDocView !== "";
+  return pendingDocView !== "" && Date.now() - pendingDocViewAt <= DOCVIEW_GRACE_MS;
 }
 
 /** The absolute player URL for a Documents view (encoded via
@@ -314,6 +323,7 @@ export function launchTarget(): string {
   const dv = param(DOCVIEW_PARAM);
   if (dv !== "") {
     pendingDocView = dv;
+    pendingDocViewAt = Date.now();
     // land on the hub — its Documents tab fronts itself and consumes the
     // payload (the standalone #/docs page has no app chrome around it)
     return "#/";

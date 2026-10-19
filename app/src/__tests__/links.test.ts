@@ -50,15 +50,17 @@ describe("launchTarget", () => {
     expect(launchTarget()).toBe("");
   });
 
-  it("a docview launch lands on the hub (its Documents tab consumes it)", () => {
+  it("a docview launch lands on the hub, and every Documents mount inside the grace window reads it", () => {
     setAppHost({ ...HOST, queryParams: { docview: '{"listId":"l1"}' } });
     // the standalone #/docs page has no app chrome — never send links there
     expect(launchTarget()).toBe("#/");
     expect(hasPendingDocView()).toBe(true); // the peek does not consume
     expect(hasPendingDocView()).toBe(true);
+    // the hub mounts the register twice on a launch (2026-10-19): the
+    // second mount must still see the view, so a read does not consume
     expect(takePendingDocView()).toBe('{"listId":"l1"}');
-    expect(hasPendingDocView()).toBe(false); // the take does
-    expect(takePendingDocView()).toBe("");
+    expect(takePendingDocView()).toBe('{"listId":"l1"}');
+    expect(hasPendingDocView()).toBe(true);
   });
 
   it("shared view links carry the hub fragment", () => {
