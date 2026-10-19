@@ -427,20 +427,1524 @@
      "cases": [
       {
        "id": "UAT-DOC-001",
-       "title": "Open the Documents tab and see the libraries",
+       "title": "The Documents tab shows the exposed libraries",
        "journey": "Journey 1 — Register and libraries",
        "persona": "reader",
        "modules": [
         "docs/docsScreen.ts",
         "docs/docsTiles.ts"
        ],
-       "preconditions": "signed in as a reader at a site with at least two exposed libraries",
+       "preconditions": "signed in; at least two exposed libraries on the site",
        "steps": [
         "Open LeanBoard → Documents.",
-        "Read the library tiles."
+        "Read the tiles."
        ],
-       "expected": "every exposed library shows as a tile with its document count; the ingestion and template libraries do not show as register tiles",
-       "hash": "01974008",
+       "expected": "one tile per exposed library with its document count; the ingestion and template libraries are not register tiles; the tiles open the register scoped to that library",
+       "hash": "e3d822ed",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-002",
+       "title": "Open a library and read the register",
+       "journey": "Journey 1 — Register and libraries",
+       "persona": "reader",
+       "modules": [
+        "docs/docsScreen.ts",
+        "docs/listView.ts",
+        "docs/registerCells.ts"
+       ],
+       "preconditions": "a library with more than 20 documents",
+       "steps": [
+        "Open a library tile.",
+        "Scroll the list; use the \"more\" paging at the bottom."
+       ],
+       "expected": "the register lists the documents with Document, status chip, owner and the library's chosen columns; the header and the Document column stay in place while the rest scrolls sideways in a narrow window; paging loads more rows without losing the scroll position",
+       "hash": "7267659b",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-003",
+       "title": "The status line counts and the timing readout",
+       "journey": "Journey 1 — Register and libraries",
+       "persona": "superadmin",
+       "modules": [
+        "docs/docsScreen.ts",
+        "docs/timing.ts"
+       ],
+       "preconditions": "signed in as a super admin",
+       "steps": [
+        "Open a library.",
+        "Read the status line under the toolbar; hover it."
+       ],
+       "expected": "\"N documents of M\" with \"loaded in … · feed … · opened in …\" for a super admin only; the tooltip lists every load with its trigger; a plain user sees the count alone",
+       "hash": "449a683a",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-004",
+       "title": "Search by name",
+       "journey": "Journey 1 — Register and libraries",
+       "persona": "reader",
+       "modules": [
+        "docs/docsScreen.ts",
+        "docs/rows.ts"
+       ],
+       "preconditions": "a library with a document whose name contains a distinctive word",
+       "steps": [
+        "Type part of the name in the search box; press Enter.",
+        "Clear the search."
+       ],
+       "expected": "only matching documents remain, the count follows; clearing restores the full list",
+       "hash": "27c12b4a",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-005",
+       "title": "Filter by status",
+       "journey": "Journey 1 — Register and libraries",
+       "persona": "reader",
+       "modules": [
+        "docs/docsScreen.ts"
+       ],
+       "preconditions": "a standards library with approved and draft documents",
+       "steps": [
+        "Filters → Status → tick Draft.",
+        "Tick Approved as well, then clear the filter."
+       ],
+       "expected": "each tick narrows or widens the list at once; the filter pill shows the chosen values; Clear all removes every filter",
+       "hash": "4811d4ca",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-006",
+       "title": "Show only approved",
+       "journey": "Journey 1 — Register and libraries",
+       "persona": "reader",
+       "modules": [
+        "docs/docsScreen.ts",
+        "docs/views.ts"
+       ],
+       "preconditions": "a standards library with approved and non-approved documents",
+       "steps": [
+        "Kebab ⋮ → read \"✓ Show only approved\" (ticked by default).",
+        "Untick it.",
+        "Tick it again."
+       ],
+       "expected": "ticked, the register hides drafts, superseded and obsolete documents and the Status filter is out of the way; unticked, every stage shows and Status can be filtered; the choice is remembered for the view",
+       "hash": "49570a3e",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-007",
+       "title": "Filter by organisation at a parent level",
+       "journey": "Journey 1 — Register and libraries",
+       "persona": "reader",
+       "modules": [
+        "docs/docsScreen.ts",
+        "docs/rows.ts",
+        "docs/sp.ts"
+       ],
+       "preconditions": "documents tagged with organisation terms under one parent (a site or department)",
+       "steps": [
+        "Filters → Organisation → pick a parent term (a department with areas under it).",
+        "Open one of the results and read its Organisation value."
+       ],
+       "expected": "documents tagged anywhere beneath the parent appear, not only those tagged with the parent itself; the pill names the parent",
+       "hash": "66f63891",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-008",
+       "title": "Filter by document type and process",
+       "journey": "Journey 1 — Register and libraries",
+       "persona": "reader",
+       "modules": [
+        "docs/docsScreen.ts"
+       ],
+       "preconditions": "documents tagged with document types and process areas",
+       "steps": [
+        "Filters → Document type → Procedure.",
+        "Add Filters → Process area → a process."
+       ],
+       "expected": "the filters combine (AND); each pill removes independently; a library that lacks one of the columns is skipped quietly, never \"Something refused\"",
+       "hash": "1318ffe5",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-009",
+       "title": "Filter by a person and by \"has links\"",
+       "journey": "Journey 1 — Register and libraries",
+       "persona": "reader",
+       "modules": [
+        "docs/docsScreen.ts",
+        "docs/rows.ts"
+       ],
+       "preconditions": "documents with different owners; some with linked documents",
+       "steps": [
+        "Filters → Owner → type a name and pick it.",
+        "Filters → Linked documents → \"Has links\"."
+       ],
+       "expected": "only that owner's documents remain; the links filter then keeps the ones carrying links; the pills read \"Owner: X\" and \"Has links\"",
+       "hash": "9dcbe26b",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-010",
+       "title": "Filter by modified date",
+       "journey": "Journey 1 — Register and libraries",
+       "persona": "reader",
+       "modules": [
+        "docs/docsScreen.ts"
+       ],
+       "preconditions": "documents modified at different times",
+       "steps": [
+        "Filters → Modified → last 30 days.",
+        "Switch to a custom range."
+       ],
+       "expected": "the list narrows to the window; the pill names it; clearing restores the list",
+       "hash": "d74b714f",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-011",
+       "title": "Choose and order columns",
+       "journey": "Journey 1 — Register and libraries",
+       "persona": "reader",
+       "modules": [
+        "docs/docsScreen.ts",
+        "docs/registerCells.ts"
+       ],
+       "preconditions": "a library with several available columns",
+       "steps": [
+        "Kebab → Choose columns.",
+        "Untick one column, tick Version and Flags, drag Document below Modified, Apply.",
+        "Reload the page."
+       ],
+       "expected": "the register shows exactly the ticked columns in the dragged order, Document where it was placed with Library beside it; Version reads \"v3.0\" (a minor version muted); the choice survives a reload",
+       "hash": "e7a3c074",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-012",
+       "title": "Sort by a column",
+       "journey": "Journey 1 — Register and libraries",
+       "persona": "reader",
+       "modules": [
+        "docs/listView.ts",
+        "docs/docsScreen.ts"
+       ],
+       "preconditions": "any library",
+       "steps": [
+        "Click the Modified header; click again.",
+        "Click the Document header."
+       ],
+       "expected": "the list sorts ascending then descending with the arrow in the header; name and Modified sort across the whole library, the other columns within the loaded rows",
+       "hash": "070482a9",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-013",
+       "title": "Save, rename and tick a personal view",
+       "journey": "Journey 1 — Register and libraries",
+       "persona": "reader",
+       "modules": [
+        "docs/views.ts",
+        "docs/prefs.ts",
+        "docs/docsScreen.ts"
+       ],
+       "preconditions": "any library",
+       "steps": [
+        "Set a search, a filter and a column set.",
+        "Views → Save view… → name it.",
+        "Change a filter; read the Views menu; Views → Rename… the view; pick it again."
+       ],
+       "expected": "the saved view appears in the menu with ✓ when active; after a change the title reads \"View · name · edited\"; Rename keeps the view; picking it restores search, filters and columns; the name box in the menu is wide enough to read",
+       "hash": "7287a681",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-014",
+       "title": "Site views for everyone",
+       "journey": "Journey 1 — Register and libraries",
+       "persona": "controller",
+       "modules": [
+        "docs/views.ts",
+        "docs/docsStore.ts",
+        "docs/docsScreen.ts"
+       ],
+       "preconditions": "signed in as a document controller",
+       "steps": [
+        "Build a view; Views → \"Save for the site\".",
+        "Sign in as a reader; open Views.",
+        "As the controller: Update site view, Rename, Delete."
+       ],
+       "expected": "the site view is listed under \"Site views\" for the reader, who can pick but not change it; the controller's update, rename and delete take effect for everyone",
+       "hash": "f4100096",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-015",
+       "title": "Favourites and Back to libraries",
+       "journey": "Journey 1 — Register and libraries",
+       "persona": "reader",
+       "modules": [
+        "docs/docsScreen.ts",
+        "docs/prefs.ts"
+       ],
+       "preconditions": "any library",
+       "steps": [
+        "Star two documents (★ in the row).",
+        "Open ★ Favourites.",
+        "Click \"← Back to libraries\" at the far right."
+       ],
+       "expected": "Favourites lists the starred documents across libraries; Back returns to the tiles; the star is remembered per person",
+       "hash": "80f3f400",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-016",
+       "title": "The register on a phone",
+       "journey": "Journey 1 — Register and libraries",
+       "persona": "reader",
+       "modules": [
+        "docs/phoneRegister.ts",
+        "docs/docsScreen.ts"
+       ],
+       "preconditions": "the app open on a phone (or a window under 600 px wide)",
+       "steps": [
+        "Open Documents → a library.",
+        "Search; apply a status filter; open a document."
+       ],
+       "expected": "one stacked cell per document (name, status, owner, modified); search and filters work; the document opens in the viewer; no sideways scroll",
+       "hash": "e66fe18d",
+       "changed": "2026-10-19"
+      }
+     ]
+    },
+    {
+     "title": "Journey 2 — Open and read",
+     "cases": [
+      {
+       "id": "UAT-DOC-017",
+       "title": "Open a document in the viewer",
+       "journey": "Journey 2 — Open and read",
+       "persona": "reader",
+       "modules": [
+        "docs/viewer.ts",
+        "docs/data.ts"
+       ],
+       "preconditions": "an approved PDF and a Word document",
+       "steps": [
+        "Open the PDF from the register.",
+        "Close it; open the Word document."
+       ],
+       "expected": "the PDF renders in the viewer; the Word document shows its preview; the register's scroll position is restored on close; Esc closes",
+       "hash": "3194ef50",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-018",
+       "title": "The details pane",
+       "journey": "Journey 2 — Open and read",
+       "persona": "reader",
+       "modules": [
+        "docs/viewer.ts"
+       ],
+       "preconditions": "a document with owner, approvers, organisation, document id and a review date",
+       "steps": [
+        "Open the document → Details.",
+        "Read the identity line, the chips and the Properties grid."
+       ],
+       "expected": "the id chip, status chip and the section headings match the library's column sections; dates read in the app's format; owner & approver collapse to one row when they are the same person; the review hint names the cadence",
+       "hash": "0f3799d3",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-019",
+       "title": "Versions",
+       "journey": "Journey 2 — Open and read",
+       "persona": "owner",
+       "modules": [
+        "docs/viewer.ts",
+        "docs/data.ts",
+        "docs/rows.ts"
+       ],
+       "preconditions": "a document with several versions; signed in as its owner",
+       "steps": [
+        "Open the document → Details → Versions.",
+        "Click a version's open link."
+       ],
+       "expected": "every version with its label, author, date and comment; open links on versions for the owner or a controller only; a reader sees the list without the links",
+       "hash": "72e0435c",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-020",
+       "title": "A Restricted View reader",
+       "journey": "Journey 2 — Open and read",
+       "persona": "reader",
+       "modules": [
+        "docs/viewer.ts",
+        "docs/model.ts",
+        "docs/docsScreen.ts"
+       ],
+       "preconditions": "a library where the test reader has Restricted View (no download)",
+       "steps": [
+        "Open an approved PDF as that reader.",
+        "Look for Download, Open in new tab and the version list."
+       ],
+       "expected": "SharePoint's own viewer shows the document; no download or new-tab road; the current version line stands in for a history that would be refused; nothing errors",
+       "hash": "75ff69e5",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-021",
+       "title": "Copy link, Share with QR, Open in new tab",
+       "journey": "Journey 2 — Open and read",
+       "persona": "reader",
+       "modules": [
+        "docs/viewer.ts",
+        "docs/docsScreen.ts",
+        "docs/links.ts"
+       ],
+       "preconditions": "any document",
+       "steps": [
+        "Open the document → Copy link; paste it in a new browser tab.",
+        "Share… → read the permalink and the QR code.",
+        "⋯ → Open in new tab ↗."
+       ],
+       "expected": "the pasted link opens LeanBoard on that document; the QR encodes the same link; the new tab opens the file in SharePoint, and its tooltip says to print from there",
+       "hash": "2edd7602",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-022",
+       "title": "A permalink opens the document, a view link opens the view",
+       "journey": "Journey 2 — Open and read",
+       "persona": "reader",
+       "modules": [
+        "links.ts",
+        "docs/docsScreen.ts",
+        "screens/hub.ts"
+       ],
+       "preconditions": "a document permalink and a Documents view link (Views → Share view)",
+       "steps": [
+        "Open the document permalink in a fresh browser tab.",
+        "Open the view link in a fresh browser tab."
+       ],
+       "expected": "the permalink lands on the document with the viewer open; the view link lands on the register with the view's library, filters and \"Show only approved\" state applied, not the default library",
+       "hash": "fa2f6d2b",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-023",
+       "title": "Linked documents and \"Show these in the register\"",
+       "journey": "Journey 2 — Open and read",
+       "persona": "reader",
+       "modules": [
+        "docs/viewer.ts",
+        "docs/docLinks.ts",
+        "docs/docsScreen.ts"
+       ],
+       "preconditions": "a document with three linked documents in its links column",
+       "steps": [
+        "Open the document → Details → Linked documents.",
+        "Click one link.",
+        "Back on the first document, click \"Show these in the register\"."
+       ],
+       "expected": "the links are grouped by relationship; a click switches the viewer to the linked document; \"Show these\" scopes the register to exactly those documents with the chip \"Linked to: X\", every other filter cleared; the chip's × restores the register",
+       "hash": "53e215b4",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-024",
+       "title": "Management of change chips",
+       "journey": "Journey 2 — Open and read",
+       "persona": "reader",
+       "modules": [
+        "docs/viewer.ts",
+        "docs/registerCells.ts",
+        "docs/mocEditor.ts"
+       ],
+       "preconditions": "a document whose management-of-change column holds a record with a number and a link",
+       "steps": [
+        "Read the register's MoC column.",
+        "Open the document → Details → the MoC row; click the chip."
+       ],
+       "expected": "the number reads as a chip in both places; the chip opens the link in a new tab; the tooltip carries the title and date",
+       "hash": "55bc6e2c",
+       "changed": "2026-10-19"
+      }
+     ]
+    },
+    {
+     "title": "Journey 3 — Add, edit and replace",
+     "cases": [
+      {
+       "id": "UAT-DOC-025",
+       "title": "Add a document to a working library",
+       "journey": "Journey 3 — Add, edit and replace",
+       "persona": "author",
+       "modules": [
+        "docs/addDocument.ts",
+        "docs/fieldEditors.ts",
+        "docs/docsScreen.ts"
+       ],
+       "preconditions": "a working library the author may contribute to; a file to upload",
+       "steps": [
+        "Open the working library → Add document.",
+        "Pick the file; fill the required fields (the ✱ ones); leave an optional one blank.",
+        "Add."
+       ],
+       "expected": "the required fields block Add until filled and the line under the button names what is missing; the document lands in the library with its properties and opens in the viewer",
+       "hash": "db9da839",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-026",
+       "title": "Add refuses a duplicate name and a duplicate document id",
+       "journey": "Journey 3 — Add, edit and replace",
+       "persona": "author",
+       "modules": [
+        "docs/addDocument.ts",
+        "docs/model.ts"
+       ],
+       "preconditions": "an existing document name and document id in the library",
+       "steps": [
+        "Add document with the same file name.",
+        "Add document with a different name but the same document id."
+       ],
+       "expected": "both are refused before anything is written, each with a plain reason naming the clash",
+       "hash": "6c814251",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-027",
+       "title": "Edit properties",
+       "journey": "Journey 3 — Add, edit and replace",
+       "persona": "owner",
+       "modules": [
+        "docs/editProperties.ts",
+        "docs/fieldEditors.ts"
+       ],
+       "preconditions": "a draft standard you own",
+       "steps": [
+        "Open the document → ⋯ → Edit properties…",
+        "Change a text field, a date, a taxonomy field and a person field.",
+        "Save."
+       ],
+       "expected": "the dialog's footer stays pinned while the body scrolls; each editor fits its column type; Save writes the values and the details pane shows them without reopening",
+       "hash": "334e6e29",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-028",
+       "title": "Cascading organisation and process pickers",
+       "journey": "Journey 3 — Add, edit and replace",
+       "persona": "owner",
+       "modules": [
+        "docs/fieldEditors.ts",
+        "docs/model.ts"
+       ],
+       "preconditions": "the Organisation and Process area columns mapped",
+       "steps": [
+        "Edit properties → Organisation: pick a company, then a site, then a department.",
+        "Process area: pick a type, then an area, then a process."
+       ],
+       "expected": "each level offers only the children of the level above; the saved value is the deepest pick; the register and filters read it back",
+       "hash": "ba7af6a8",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-029",
+       "title": "Management of change records",
+       "journey": "Journey 3 — Add, edit and replace",
+       "persona": "owner",
+       "modules": [
+        "docs/mocEditor.ts",
+        "docs/fieldEditors.ts",
+        "docs/model.ts"
+       ],
+       "preconditions": "the management-of-change role mapped to a note column",
+       "steps": [
+        "Edit properties → the Management of change rows: add a record with a number, a link typed without https, and what changed.",
+        "Add a second record; remove the first; Save."
+       ],
+       "expected": "each record is two lines (number and link, then what changed) and not cramped; a scheme-less link is accepted; the saved value shows as chips",
+       "hash": "9c42b23f",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-030",
+       "title": "Linked documents editor",
+       "journey": "Journey 3 — Add, edit and replace",
+       "persona": "owner",
+       "modules": [
+        "docs/linksEditor.ts",
+        "docs/editProperties.ts"
+       ],
+       "preconditions": "the linked-documents column mapped; another document to link to",
+       "steps": [
+        "Edit properties → Linked documents → Add link… search for a document, pick a relationship.",
+        "Remove a link; Save."
+       ],
+       "expected": "the picker finds documents across the exposed libraries; the relationship is stored; the viewer's Linked documents section and the \"n links\" register cell follow",
+       "hash": "a61816e8",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-031",
+       "title": "Check out, check in, discard",
+       "journey": "Journey 3 — Add, edit and replace",
+       "persona": "owner",
+       "modules": [
+        "docs/lifecycleCmds.ts",
+        "docs/docsScreen.ts"
+       ],
+       "preconditions": "a draft standard you own, not checked out",
+       "steps": [
+        "Open it → Check out.",
+        "Read the register row and the Document tasks panel.",
+        "Check in… with a comment; then check out again and Discard check-out."
+       ],
+       "expected": "the row shows the lock and your name; \"Checked out to you\" lists it in Document tasks; Check in writes a minor version with the comment; Discard releases it without a version",
+       "hash": "eb34f653",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-032",
+       "title": "Replace content",
+       "journey": "Journey 3 — Add, edit and replace",
+       "persona": "owner",
+       "modules": [
+        "docs/replaceContent.ts",
+        "docs/lifecycleCmds.ts"
+       ],
+       "preconditions": "a draft standard you own; a new file",
+       "steps": [
+        "Open it → ⋯ → Replace content…",
+        "Pick the new file; Replace."
+       ],
+       "expected": "the file is swapped, the properties stay, a new minor version appears with the replace comment; the viewer shows the new content",
+       "hash": "09921214",
+       "changed": "2026-10-19"
+      }
+     ]
+    },
+    {
+     "title": "Journey 4 — Lifecycle",
+     "cases": [
+      {
+       "id": "UAT-DOC-033",
+       "title": "Submit for review sends the reviewers' card at once",
+       "journey": "Journey 4 — Lifecycle",
+       "persona": "owner",
+       "modules": [
+        "docs/lifecycleCmds.ts",
+        "docs/notifyPanel.ts",
+        "docs/notifyModel.ts"
+       ],
+       "preconditions": "a draft standard you own with two reviewers named and a reviewer who can check Teams",
+       "steps": [
+        "Open it → Submit for review.",
+        "Read the done line.",
+        "As a reviewer, check Teams."
+       ],
+       "expected": "the status becomes the mapped \"in review\" value; the done line names the status and ends \"Reviewers notified ✓\" without the notify panel asking first; each reviewer has a card with the document link",
+       "hash": "a1463283",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-034",
+       "title": "Check in and submit for review as one flow",
+       "journey": "Journey 4 — Lifecycle",
+       "persona": "owner",
+       "modules": [
+        "docs/lifecycleCmds.ts"
+       ],
+       "preconditions": "a draft standard you own, checked out to you",
+       "steps": [
+        "Open it → Check in…",
+        "Click \"Check in & submit for review\"."
+       ],
+       "expected": "one dialog does both; the version lands and the status moves to in review; the reviewers' card goes",
+       "hash": "0d618bd8",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-035",
+       "title": "Review complete",
+       "journey": "Journey 4 — Lifecycle",
+       "persona": "reviewer",
+       "modules": [
+        "docs/lifecycleCmds.ts",
+        "docs/model.ts",
+        "docs/notifyModel.ts"
+       ],
+       "preconditions": "a standard in review that names you as a reviewer",
+       "steps": [
+        "Open it → Review complete.",
+        "Read the versions."
+       ],
+       "expected": "a minor version with the comment \"Review complete by <you>\"; the owner gets a Teams card; the action disappears for you once recorded",
+       "hash": "2d67acc6",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-036",
+       "title": "Submit for approval warns while reviewers are outstanding",
+       "journey": "Journey 4 — Lifecycle",
+       "persona": "owner",
+       "modules": [
+        "docs/model.ts",
+        "docs/docsScreen.ts"
+       ],
+       "preconditions": "a standard in review with one reviewer done and one not",
+       "steps": [
+        "Open it → Submit for approval.",
+        "Cancel at the warning; then run it again and confirm."
+       ],
+       "expected": "the warning names the reviewer who has not marked review complete; Cancel leaves the document untouched; Confirm proceeds to awaiting approval and the approvers' card goes",
+       "hash": "2e2508d7",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-037",
+       "title": "Approve and publish",
+       "journey": "Journey 4 — Lifecycle",
+       "persona": "approver",
+       "modules": [
+        "docs/lifecycleCmds.ts",
+        "docs/model.ts"
+       ],
+       "preconditions": "a standard awaiting approval that names you as approver; a cadence mapped to its importance",
+       "steps": [
+        "Open it → Approve.",
+        "Read the status, the version, the effective date and the next review date."
+       ],
+       "expected": "a major version is published and approved; the effective date is today; the next review date is the effective date plus the cadence for its importance; the owner and reviewers get the courtesy card",
+       "hash": "dd946db8",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-038",
+       "title": "Owner approval and an owner outside the group",
+       "journey": "Journey 4 — Lifecycle",
+       "persona": "owner",
+       "modules": [
+        "docs/model.ts",
+        "docs/docsScreen.ts",
+        "docs/viewer.ts"
+       ],
+       "preconditions": "a standard awaiting owner approval whose owner is NOT in the owners & approvers group",
+       "steps": [
+        "As that owner, open it.",
+        "Read the decision card."
+       ],
+       "expected": "\"Awaiting your approval\" with the reason the owner cannot approve and no Approve button; the controllers see the same document in health with \"Add X to the group\"",
+       "hash": "61051010",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-039",
+       "title": "Mark reviewed",
+       "journey": "Journey 4 — Lifecycle",
+       "persona": "owner",
+       "modules": [
+        "docs/lifecycleCmds.ts",
+        "docs/docsScreen.ts"
+       ],
+       "preconditions": "an approved standard you own with a review date within 30 days",
+       "steps": [
+        "Document tasks → Review due → open it → Mark reviewed.",
+        "Read the dates and the version comment."
+       ],
+       "expected": "the effective date refreshes, the next review date moves by the cadence, a minor version \"Periodic review — no changes\" is written; the task leaves the list",
+       "hash": "a7b4f9c9",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-040",
+       "title": "Cancel a revision",
+       "journey": "Journey 4 — Lifecycle",
+       "persona": "owner",
+       "modules": [
+        "docs/lifecycleCmds.ts"
+       ],
+       "preconditions": "an approved standard with a draft revision in progress (a minor version after the major)",
+       "steps": [
+        "Open it → ⋯ → Cancel revision…",
+        "Confirm."
+       ],
+       "expected": "the last approved major is restored as current, the status returns to approved, the draft versions stay in history",
+       "hash": "12588507",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-041",
+       "title": "Supersede and obsolete",
+       "journey": "Journey 4 — Lifecycle",
+       "persona": "controller",
+       "modules": [
+        "docs/lifecycleCmds.ts",
+        "docs/model.ts"
+       ],
+       "preconditions": "two approved standards",
+       "steps": [
+        "On one: ⋯ → Supersede… naming the other.",
+        "On another approved standard: ⋯ → Make obsolete…"
+       ],
+       "expected": "the superseded document carries the mapped status and a link to its successor; the obsolete one carries its status; both leave the approved-only register and show when \"Show only approved\" is unticked",
+       "hash": "2bbb29ce",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-042",
+       "title": "The notify panel: Teams and email, people chips",
+       "journey": "Journey 4 — Lifecycle",
+       "persona": "owner",
+       "modules": [
+        "docs/notifyPanel.ts",
+        "docs/notify.ts",
+        "docs/notifyModel.ts"
+       ],
+       "preconditions": "a lifecycle step whose panel asks before sending (Submit for approval)",
+       "steps": [
+        "Run the step; in the panel remove one recipient chip, add a note, choose Teams.",
+        "Run another step and choose Email."
+       ],
+       "expected": "the chips show who hears and why; the removed person gets nothing; the note rides the card; the email arrives with the link; a refused send is reported with its reason, never silently",
+       "hash": "cb6b8b5c",
+       "changed": "2026-10-19"
+      }
+     ]
+    },
+    {
+     "title": "Journey 5 — Access requests",
+     "cases": [
+      {
+       "id": "UAT-DOC-043",
+       "title": "Ask to work on a document",
+       "journey": "Journey 5 — Access requests",
+       "persona": "reader",
+       "modules": [
+        "docs/accessRequests.ts",
+        "docs/viewer.ts"
+       ],
+       "preconditions": "a working-library document the reader cannot edit",
+       "steps": [
+        "Open it → Ask to work on this…; give a reason; Send.",
+        "Read Document tasks → Your access requests."
+       ],
+       "expected": "the request is recorded with the reason; the owner gets a Teams card; the reader sees it listed as pending",
+       "hash": "f0680036",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-044",
+       "title": "Grant and decline",
+       "journey": "Journey 5 — Access requests",
+       "persona": "owner",
+       "modules": [
+        "docs/accessRequests.ts",
+        "docs/docsScreen.ts"
+       ],
+       "preconditions": "a pending request on a document you own",
+       "steps": [
+        "Document tasks → Edit-access requests → Approve.",
+        "On a second request: Decline with a reason."
+       ],
+       "expected": "Approve adds the person to the revision editors and the requester's card says so; Decline carries the reason; both leave the queue; the requester's \"Your access requests\" shows the outcome",
+       "hash": "e4cef1f8",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-045",
+       "title": "Revoke a grant",
+       "journey": "Journey 5 — Access requests",
+       "persona": "owner",
+       "modules": [
+        "docs/accessRequests.ts",
+        "docs/docsScreen.ts"
+       ],
+       "preconditions": "a grant you made earlier",
+       "steps": [
+        "Document tasks → Edit access you granted → Revoke."
+       ],
+       "expected": "the person leaves the revision editors; the row leaves the list; the badge never counted this group",
+       "hash": "b7735242",
+       "changed": "2026-10-19"
+      }
+     ]
+    },
+    {
+     "title": "Journey 6 — Document tasks",
+     "cases": [
+      {
+       "id": "UAT-DOC-046",
+       "title": "The badge equals the panel",
+       "journey": "Journey 6 — Document tasks",
+       "persona": "owner",
+       "modules": [
+        "docs/docsScreen.ts",
+        "docs/taskRows.ts",
+        "taskBadge.ts"
+       ],
+       "preconditions": "a mix of items awaiting you (approval, review, checked out, review due, a request)",
+       "steps": [
+        "Read the Documents tab label and the \"Document tasks · n\" button.",
+        "Open the panel; count the rows across the groups."
+       ],
+       "expected": "the hub tab, the button and the panel agree on one number; the groups appear in order: requests, awaiting approval, awaiting review, checked out, review due, flagged, your requests, grants you made",
+       "hash": "65ec7aa1",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-047",
+       "title": "Open a task and show them all in the register",
+       "journey": "Journey 6 — Document tasks",
+       "persona": "owner",
+       "modules": [
+        "docs/docsScreen.ts"
+       ],
+       "preconditions": "at least two task rows",
+       "steps": [
+        "Click a task row.",
+        "Reopen the panel → \"Show all n in register\"."
+       ],
+       "expected": "the row opens the document with its details pane and the action ready; \"Show all\" scopes the register with the chip \"Document tasks · n\", filters set aside; the chip's × restores the register",
+       "hash": "ba3ed024",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-048",
+       "title": "Ingestion tasks from the register",
+       "journey": "Journey 6 — Document tasks",
+       "persona": "controller",
+       "modules": [
+        "docs/docsScreen.ts",
+        "docs/ingestionScreen.ts"
+       ],
+       "preconditions": "an open ingestion task",
+       "steps": [
+        "Read the \"Ingestion tasks\" button beside Document tasks.",
+        "Open it; open a task."
+       ],
+       "expected": "the button counts the open tasks you prepare or oversee; the panel lists them; a click opens the task sheet",
+       "hash": "8e8af285",
+       "changed": "2026-10-19"
+      }
+     ]
+    },
+    {
+     "title": "Journey 7 — Tag proposals",
+     "cases": [
+      {
+       "id": "UAT-DOC-049",
+       "title": "Suggest a tag from the properties",
+       "journey": "Journey 7 — Tag proposals",
+       "persona": "reader",
+       "modules": [
+        "docs/viewer.ts",
+        "docs/docsScreen.ts",
+        "docs/tagProposals.ts"
+       ],
+       "preconditions": "the Tags column mapped to a term set",
+       "steps": [
+        "Open a document → Details → Properties → under Tags, \"Suggest a tag…\".",
+        "Type a new tag and why; Send proposal."
+       ],
+       "expected": "the link sits with the Tags property (a document with no tags still gets a Tags row holding it); the proposal is recorded and the status line says a controller decides; a duplicate label is refused",
+       "hash": "1c9ec3a6",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-050",
+       "title": "The controllers' tag queue",
+       "journey": "Journey 7 — Tag proposals",
+       "persona": "controller",
+       "modules": [
+        "docs/tagQueue.ts",
+        "docs/tagProposals.ts"
+       ],
+       "preconditions": "a pending proposal raised on a DRAFT document",
+       "steps": [
+        "Register kebab → \"Tag proposals (n)…\".",
+        "Approve the proposal."
+       ],
+       "expected": "the menu item counts the pending proposals; Approve mints the term, puts the tag on the draft document, and the proposer gets a Teams card saying so",
+       "hash": "6e67587c",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-051",
+       "title": "A tag on an approved document waits for its revision",
+       "journey": "Journey 7 — Tag proposals",
+       "persona": "controller",
+       "modules": [
+        "docs/tagProposals.ts",
+        "docs/tagQueue.ts"
+       ],
+       "preconditions": "a pending proposal raised on an APPROVED document",
+       "steps": [
+        "Tag proposals → Approve it.",
+        "Read the queue; click \"Tag now\".",
+        "Start a revision on the document (check out), then \"Tag now\" again."
+       ],
+       "expected": "the term is minted but the document is not written; the proposal moves to \"To tag at next revision\" and the proposer's card says the tag goes on at the next revision; \"Tag now\" while approved says it is still approved; once in revision the tag lands and the proposal clears",
+       "hash": "7b139167",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-052",
+       "title": "Decline a proposal",
+       "journey": "Journey 7 — Tag proposals",
+       "persona": "controller",
+       "modules": [
+        "docs/tagQueue.ts",
+        "docs/tagProposals.ts"
+       ],
+       "preconditions": "a pending proposal from another person",
+       "steps": [
+        "Tag proposals → Decline… → give a reason."
+       ],
+       "expected": "the reason is required; the proposer's Teams card carries it; the proposal leaves the queue and stays on record as declined",
+       "hash": "8e785385",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-053",
+       "title": "Tags in Settings",
+       "journey": "Journey 7 — Tag proposals",
+       "persona": "superadmin",
+       "modules": [
+        "docs/settingsTab.ts",
+        "docs/tagProposals.ts"
+       ],
+       "preconditions": "a pending proposal; tags in use",
+       "steps": [
+        "Settings → Documents → Tags: read \"Tags in use\"; rename one; approve a pending proposal."
+       ],
+       "expected": "the rename keeps the term's id so tagged documents follow; approval behaves exactly as the controllers' queue (a tag on an approved document waits)",
+       "hash": "f3e528e7",
+       "changed": "2026-10-19"
+      }
+     ]
+    },
+    {
+     "title": "Journey 8 — Document flags",
+     "cases": [
+      {
+       "id": "UAT-DOC-054",
+       "title": "Flag a document for review",
+       "journey": "Journey 8 — Document flags",
+       "persona": "reader",
+       "modules": [
+        "docs/flagDialog.ts",
+        "docs/docFlags.ts",
+        "docs/viewer.ts"
+       ],
+       "preconditions": "a document owned by someone else; a screenshot on the clipboard",
+       "steps": [
+        "Open it → under the buttons, \"⚑ Flag for review…\".",
+        "Pick a level, write a comment, paste the screenshot; Flag it."
+       ],
+       "expected": "the dialog names who will hear (the owner by name); a comment is required; the flag is written and the owner gets a Teams card quoting the comment with an \"Open in LeanBoard\" link; the owners are read fresh even when the register row never fetched them",
+       "hash": "25b2b86b",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-055",
+       "title": "A flag with no owner goes to the controllers",
+       "journey": "Journey 8 — Document flags",
+       "persona": "reader",
+       "modules": [
+        "docs/docsScreen.ts",
+        "docs/flagDialog.ts"
+       ],
+       "preconditions": "a document with no owner named",
+       "steps": [
+        "Flag it."
+       ],
+       "expected": "the dialog says no owner is named and lists the controllers by name; the controllers get the card",
+       "hash": "e74cade5",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-056",
+       "title": "The flag chip and the flags list",
+       "journey": "Journey 8 — Document flags",
+       "persona": "owner",
+       "modules": [
+        "docs/viewer.ts",
+        "docs/flagQueue.ts",
+        "docs/docFlags.ts"
+       ],
+       "preconditions": "a document you own carrying an open flag",
+       "steps": [
+        "Open it → read the \"⚑ level\" chip under the buttons; click it.",
+        "In the list: read the screenshot; \"Close flag…\" with a note."
+       ],
+       "expected": "the chip names the level (or \"n open flags\"); the list shows level, flagger, when, comment and the screenshot full-size on click; closing asks for a note and the chip disappears; the closed flag stays listed for the record",
+       "hash": "33255a19",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-057",
+       "title": "Flags in the register",
+       "journey": "Journey 8 — Document flags",
+       "persona": "reader",
+       "modules": [
+        "docs/registerCells.ts",
+        "docs/docsScreen.ts"
+       ],
+       "preconditions": "open flags on several documents",
+       "steps": [
+        "Choose columns → tick Flags.",
+        "Kebab → \"Show flagged documents\"."
+       ],
+       "expected": "the Flags column reads \"⚑ level\" or \"⚑ n open flags\"; the scope lists only the flagged documents with the chip \"Flagged for review · n\"; the chip's × restores the register",
+       "hash": "0e790d1d",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-058",
+       "title": "Flags in Document tasks and in health",
+       "journey": "Journey 8 — Document flags",
+       "persona": "owner",
+       "modules": [
+        "docs/docsScreen.ts",
+        "docs/healthReport.ts"
+       ],
+       "preconditions": "an open flag on a document you own; another on a document you do not own",
+       "steps": [
+        "Document tasks → \"Flagged for review\".",
+        "As a controller: the same group; and Document control health."
+       ],
+       "expected": "an owner sees the flags on their own documents only; a controller sees every open flag; the row shows level, flagger and the start of the comment and opens the document; health lists the flagged documents under \"Flagged for review\"",
+       "hash": "1a2d6782",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-059",
+       "title": "The controllers' flags queue",
+       "journey": "Journey 8 — Document flags",
+       "persona": "controller",
+       "modules": [
+        "docs/flagQueue.ts",
+        "docs/docsScreen.ts",
+        "docs/settingsTab.ts"
+       ],
+       "preconditions": "open flags on the site",
+       "steps": [
+        "Register kebab → \"Document flags (n)…\".",
+        "Open document; Close flag… with a note.",
+        "Settings → Documents → \"Document flags…\"."
+       ],
+       "expected": "the queue lists every open flag with its screenshot; Open document opens the overlay; Close asks for a note and records who closed it; the Settings button opens the same queue",
+       "hash": "3b82e753",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-060",
+       "title": "Review levels are an app-managed list",
+       "journey": "Journey 8 — Document flags",
+       "persona": "superadmin",
+       "modules": [
+        "docs/settingsTab.ts",
+        "docs/docFlagsModel.ts",
+        "docs/model.ts"
+       ],
+       "preconditions": "Settings → Documents open",
+       "steps": [
+        "Review levels: read the defaults marked \"default\"; add a level; Save.",
+        "Flag a document and read the level list."
+       ],
+       "expected": "adding a level replaces the defaults with your list (× on each); the flag dialog offers your list; an emptied list falls back to the defaults",
+       "hash": "6d9dcc25",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-061",
+       "title": "Mark reviewed offers to close the flags",
+       "journey": "Journey 8 — Document flags",
+       "persona": "owner",
+       "modules": [
+        "docs/docsScreen.ts",
+        "docs/docFlags.ts"
+       ],
+       "preconditions": "an approved standard you own with two open flags and a review date within 30 days",
+       "steps": [
+        "Mark reviewed.",
+        "At the prompt, Close flags."
+       ],
+       "expected": "after the review the prompt names each flag; confirming closes them with \"Closed at Mark reviewed\"; the chip clears and the tasks badge drops",
+       "hash": "46a29379",
+       "changed": "2026-10-19"
+      }
+     ]
+    },
+    {
+     "title": "Journey 9 — Ingestion",
+     "cases": [
+      {
+       "id": "UAT-DOC-062",
+       "title": "Create an ingestion task",
+       "journey": "Journey 9 — Ingestion",
+       "persona": "controller",
+       "modules": [
+        "docs/ingestionScreen.ts",
+        "docs/ingestionStore.ts"
+       ],
+       "preconditions": "the ingestion library exposed; a destination standards library",
+       "steps": [
+        "Register kebab → New ingestion task…: name, destination, assignees, defaults; Create.",
+        "Open the task sheet; Open folder ↗."
+       ],
+       "expected": "a sub-folder of the ingestion library is created and linked; the assignees get a Teams card; the sheet shows the destination, assignees and status chip",
+       "hash": "b5daf5d4",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-063",
+       "title": "Fill the grid",
+       "journey": "Journey 9 — Ingestion",
+       "persona": "author",
+       "modules": [
+        "docs/ingestionScreen.ts",
+        "docs/ingestionDraft.ts",
+        "docs/ingestionModel.ts"
+       ],
+       "preconditions": "an open task you are assigned to with three files in its folder",
+       "steps": [
+        "Refresh; read the ✱ required columns and the ⚠ marks.",
+        "Edit cells; Fill blanks from defaults; Set for selected… on two rows; Save."
+       ],
+       "expected": "required cells drive the ✓/⚠ mark and its tooltip; dirty cells and rows are marked until Save; Save writes the values to the ingestion items and the marks turn ✓; the Run button is greyed until every file is ready and saved",
+       "hash": "1a216f38",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-064",
+       "title": "Edit a task without losing its people",
+       "journey": "Journey 9 — Ingestion",
+       "persona": "controller",
+       "modules": [
+        "docs/ingestionScreen.ts",
+        "docs/ingestionStore.ts"
+       ],
+       "preconditions": "an open task with assignees",
+       "steps": [
+        "Edit task… → change the name; Save.",
+        "Reopen the task."
+       ],
+       "expected": "the name changes and the assignees, defaults and log are intact; a stale copy is never saved over a newer one",
+       "hash": "69fbc985",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-065",
+       "title": "Status on landing",
+       "journey": "Journey 9 — Ingestion",
+       "persona": "controller",
+       "modules": [
+        "docs/ingestionScreen.ts",
+        "docs/model.ts"
+       ],
+       "preconditions": "the status column in the grid; one file marked Approved, one Superseded, one Draft",
+       "steps": [
+        "Run ingestion for the three.",
+        "Open each in the destination."
+       ],
+       "expected": "Approved and Superseded land as published majors with that status; Draft lands as a minor with the draft status; each file's version comment names the ingestion",
+       "hash": "618708c3",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-066",
+       "title": "Flag a file during ingestion",
+       "journey": "Journey 9 — Ingestion",
+       "persona": "author",
+       "modules": [
+        "docs/ingestionScreen.ts",
+        "docs/docFlags.ts"
+       ],
+       "preconditions": "an open task with a file",
+       "steps": [
+        "In the \"Flag for review\" column (after the name column), \"⚑ Flag…\"; pick a level and comment.",
+        "Run the ingestion for that file; open it in the destination."
+       ],
+       "expected": "the pill shows in the column with the flagger and comment in its tooltip; the controllers get the card; after landing the flag is on the destination document with \"raised in ingestion\"",
+       "hash": "e14849fe",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-067",
+       "title": "Refusals are honest",
+       "journey": "Journey 9 — Ingestion",
+       "persona": "controller",
+       "modules": [
+        "docs/ingestionScreen.ts"
+       ],
+       "preconditions": "a file whose name already exists in the destination; a file whose document id is already used",
+       "steps": [
+        "Run ingestion including both."
+       ],
+       "expected": "each is refused with the reason in its ⚠ tooltip and the run log; the other files land; nothing half-moves",
+       "hash": "75a2134c",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-068",
+       "title": "Message assignees and close the task",
+       "journey": "Journey 9 — Ingestion",
+       "persona": "controller",
+       "modules": [
+        "docs/ingestionScreen.ts"
+       ],
+       "preconditions": "an open task whose files have all moved",
+       "steps": [
+        "Message assignees… → send a note.",
+        "Close task…"
+       ],
+       "expected": "each assignee gets the Teams card; the task closes with its log, leaves the open lists and the badge, and reopens from Settings if needed",
+       "hash": "92aa4799",
+       "changed": "2026-10-19"
+      }
+     ]
+    },
+    {
+     "title": "Journey 10 — Health and the term store",
+     "cases": [
+      {
+       "id": "UAT-DOC-069",
+       "title": "Document control health",
+       "journey": "Journey 10 — Health and the term store",
+       "persona": "controller",
+       "modules": [
+        "docs/healthReport.ts",
+        "docs/model.ts"
+       ],
+       "preconditions": "documents with a missing owner, a missing status, an overdue review, no tags, a review date the app cannot read",
+       "steps": [
+        "Register kebab → Document control health…",
+        "Expand each finding; click a document."
+       ],
+       "expected": "each finding lists its documents with a reason and the fix; a date the feed rendered but the app cannot read is \"unreadable\", never \"missing\"; a document opens from the report; the summary counts clean documents",
+       "hash": "e7cde3b6",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-070",
+       "title": "People findings: leavers, outside the group, replace a person",
+       "journey": "Journey 10 — Health and the term store",
+       "persona": "controller",
+       "modules": [
+        "docs/healthReport.ts",
+        "docs/roleReassign.ts",
+        "docs/accessGates.ts"
+       ],
+       "preconditions": "a document naming a person who left the directory; an owner outside the owners & approvers group",
+       "steps": [
+        "Health → the people findings: \"Add X to the group\" on the outsider; \"Replace X…\" on the leaver with a successor.",
+        "Teams digest to controllers; Export CSV."
+       ],
+       "expected": "Add puts the person in the group and the finding clears on refresh; Replace rewrites the role on every listed document; the digest card reaches the controllers; the CSV carries a People column; a directory lookup that failed is reported as \"Not checked\", never as absent",
+       "hash": "dd9bb048",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-071",
+       "title": "Organisation term sync and the drift report",
+       "journey": "Journey 10 — Health and the term store",
+       "persona": "superadmin",
+       "modules": [
+        "docs/orgSync.ts",
+        "docs/termAlign.ts",
+        "docs/termWrite.ts",
+        "docs/settingsTab.ts"
+       ],
+       "preconditions": "Settings → Organisation with sites under companies; the Organisation term set bound",
+       "steps": [
+        "Settings → Documents → Term store → Load drift report.",
+        "Read matched / to create / orphans; Apply.",
+        "Change a department name in Settings → Organisation; Save; reload the drift report."
+       ],
+       "expected": "the walk reads the whole set (never a cut-short walk); companies are top-level terms when the set starts at company level; ampersand and dash variants match; the rename is written through to the term; orphans offer Leave / Retire / \"This is…\"",
+       "hash": "be44cb92",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-072",
+       "title": "Process area sync",
+       "journey": "Journey 10 — Health and the term store",
+       "persona": "superadmin",
+       "modules": [
+        "docs/processSync.ts",
+        "processes/settingsTab.ts"
+       ],
+       "preconditions": "the process model with a type, areas and processes; the Process area set bound",
+       "steps": [
+        "Settings → Documents → Term store → Load process drift report → Apply.",
+        "Archive a process node; reload the report."
+       ],
+       "expected": "every node is a term in order; local names ride as synonyms; an archived node's term is retired, never deleted",
+       "hash": "ca8391bb",
+       "changed": "2026-10-19"
+      }
+     ]
+    },
+    {
+     "title": "Journey 11 — Settings → Documents",
+     "cases": [
+      {
+       "id": "UAT-DOC-073",
+       "title": "Connection and libraries",
+       "journey": "Journey 11 — Settings → Documents",
+       "persona": "superadmin",
+       "modules": [
+        "docs/settingsTab.ts",
+        "docs/docsStore.ts"
+       ],
+       "preconditions": "the SharePoint site url known",
+       "steps": [
+        "Settings → Documents → SharePoint connection: test it.",
+        "Libraries: discover; expose a library as Standard; set its title; Save."
+       ],
+       "expected": "the test reports the site and the groups it can read; a newly exposed library appears as a register tile with the site columns it carries ticked",
+       "hash": "f4c5da5c",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-074",
+       "title": "Document columns and roles",
+       "journey": "Journey 11 — Settings → Documents",
+       "persona": "superadmin",
+       "modules": [
+        "docs/settingsTab.ts",
+        "docs/model.ts"
+       ],
+       "preconditions": "the site columns created in SharePoint",
+       "steps": [
+        "Document columns: map each role; set a label; reorder by drag; Save.",
+        "Open a document's details."
+       ],
+       "expected": "every role maps to one column and the duplicate-role check refuses a second; labels and order are what the viewer and the add form show",
+       "hash": "33037f3f",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-075",
+       "title": "Lifecycle mapping and review cadence",
+       "journey": "Journey 11 — Settings → Documents",
+       "persona": "superadmin",
+       "modules": [
+        "docs/settingsTab.ts",
+        "docs/model.ts"
+       ],
+       "preconditions": "the Status term set with one term per stage",
+       "steps": [
+        "Lifecycle: map each stage to its term; Save.",
+        "Review cadence: set months per importance term; Save."
+       ],
+       "expected": "the lifecycle commands appear on documents according to their status; a document's next review date follows the cadence of its importance on approval and Mark reviewed",
+       "hash": "56979097",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-076",
+       "title": "Default filters, write access and the move road",
+       "journey": "Journey 11 — Settings → Documents",
+       "persona": "superadmin",
+       "modules": [
+        "docs/settingsTab.ts",
+        "docs/writeProbe.ts",
+        "docs/moveProbe.ts"
+       ],
+       "preconditions": "Settings → Documents open",
+       "steps": [
+        "Default filters: set a default organisation; Save; open the register as a reader.",
+        "Write access: run the probe. Move road: run the probe."
+       ],
+       "expected": "the reader's register opens on the default organisation; each probe reports what it tried and what SharePoint answered, in plain words",
+       "hash": "1faf2eb7",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-077",
+       "title": "Access control groups",
+       "journey": "Journey 11 — Settings → Documents",
+       "persona": "superadmin",
+       "modules": [
+        "docs/settingsTab.ts",
+        "docs/accessGates.ts",
+        "store/accessGroup.ts"
+       ],
+       "preconditions": "the controllers and owners & approvers groups exist",
+       "steps": [
+        "Settings → Documents → the groups: pick each; Save.",
+        "Sign in as a controller; as a plain owner."
+       ],
+       "expected": "the controller sees the controller-only kebab items (Tag proposals, Document flags, health, ingestion); the owner outside the group cannot approve; a group that cannot be read is reported, never assumed empty",
+       "hash": "1a20408c",
+       "changed": "2026-10-19"
+      }
+     ]
+    },
+    {
+     "title": "Journey 12 — Boards and links",
+     "cases": [
+      {
+       "id": "UAT-DOC-078",
+       "title": "Documentation & links card",
+       "journey": "Journey 12 — Boards and links",
+       "persona": "owner",
+       "modules": [
+        "controls/LinksCard/editor.ts",
+        "improvement/workingFolder.ts"
+       ],
+       "preconditions": "an initiative board with a Documentation & links card and a working folder set",
+       "steps": [
+        "On the card, expand a sub-folder; open a file.",
+        "Add a link; remove it."
+       ],
+       "expected": "sub-folders expand in place with carets; files open in SharePoint; links save on the board and the register's \"n links\" follows when the card is bound to a document",
+       "hash": "5e413f21",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-079",
+       "title": "Document cards on a board",
+       "journey": "Journey 12 — Boards and links",
+       "persona": "owner",
+       "modules": [
+        "docs/docsCards.ts"
+       ],
+       "preconditions": "a ritual board with a Document health card and a Standard documents card",
+       "steps": [
+        "Open the board; read both cards.",
+        "Click a row on the health card."
+       ],
+       "expected": "the health card shows the same task rows as Document tasks for that scope; the documents card lists the configured documents; a click opens the document in the viewer",
+       "hash": "acc76967",
+       "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-080",
+       "title": "The Documents panel resizes",
+       "journey": "Journey 12 — Boards and links",
+       "persona": "reader",
+       "modules": [
+        "docs/docsScreen.ts",
+        "docs/views.ts"
+       ],
+       "preconditions": "the register open on a desktop",
+       "steps": [
+        "Drag the panel's right edge narrower, then wider.",
+        "Reload."
+       ],
+       "expected": "the Folders pane follows the drag between its limits, labels wrap instead of clipping, and the width is remembered",
+       "hash": "83325db3",
        "changed": "2026-10-19"
       }
      ]
