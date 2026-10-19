@@ -2188,6 +2188,11 @@ a.app-docs-menuitem { text-decoration: none; color: inherit; box-sizing: border-
 .app-docs-textlink:hover { color: #1a1e24; }
 /* R1 utility row: 4-up, fixed, identical whatever the document's state */
 .app-docs-utilrow { display: flex; gap: 8px; }
+/* the reader's row (2026-10-19): flag for review · suggest a tag, a
+   discrete section between the buttons and the properties */
+.app-docs-readerrow { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 10px 0; border-top: 1px solid #ece8e0; border-bottom: 1px solid #ece8e0; }
+.app-docs-readerrow[hidden] { display: none; }
+.app-docs-readerbtn { font-size: 12.5px; min-height: 32px; padding: 0 12px; }
 .app-docs-utilrow .app-btn { flex: 1; min-width: 0; justify-content: center; white-space: nowrap; }
 .app-docs-utilrow .app-docs-utilmore { flex: 0 0 44px; }
 .app-docs-utilrow .app-docs-favbtn { flex: 0 0 44px; font-size: 16px; }

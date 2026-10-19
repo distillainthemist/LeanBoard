@@ -972,13 +972,23 @@ export function mountDocs(
     const openFlagRow = (row: DocRow) => {
       void (async () => {
         const [{ openFlagDialog }, { controllerMembers }] = await Promise.all([import("./flagDialog"), import("./accessGates")]);
-        const owners = rolePeople(row, libInternal(byListId.get(row.listId), "owner", ownerInternal)).filter((p) => p.email.toLowerCase() !== myEmail);
+        const ownerCol = libInternal(byListId.get(row.listId), "owner", ownerInternal);
+        // the register row carries the owner's email only when the view
+        // fetched that column — read it fresh otherwise (Ben, 2026-10-19:
+        // the card went to a controller because the owner was unread)
+        let src = row;
+        if (ownerCol !== "" && (row.values[`${ownerCol}#email`] ?? "") === "") {
+          const page = await renderListPage(app.siteUrl, row.listId, buildRenderViewXml({ idIn: [row.id], fields: [ownerCol], rowLimit: 1 })).catch(() => ({ rows: [] as DocRow[] }));
+          if (page.rows.length > 0) src = page.rows[0];
+        }
+        const owners = rolePeople(src, ownerCol).filter((p) => p.email.toLowerCase() !== myEmail);
         let recipients = owners;
-        let recipientsLabel = owners.length === 1 ? `${owners[0].name} (the owner) will` : "The owners";
+        let recipientsLabel = `${owners.map((p) => p.name).join(", ")} (${owners.length === 1 ? "the owner" : "the owners"}) will`;
         if (recipients.length === 0) {
           const ctl = await controllerMembers().catch(() => []);
           recipients = ctl.filter((m) => m.email !== "" && m.email.toLowerCase() !== myEmail).map((m) => ({ name: m.name, email: m.email }));
-          recipientsLabel = "The document controllers";
+          const named = rolePeople(src, ownerCol).length > 0;
+          recipientsLabel = `${named ? "You are the owner" : "No owner is named on this document"} — the document controllers (${recipients.map((p) => p.name).join(", ") || "none found"}) will`;
         }
         openFlagDialog({
           host: dialogHost,

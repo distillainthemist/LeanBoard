@@ -669,7 +669,38 @@ export function openDocViewer(opts: ViewerOpts): () => void {
   });
   util.appendChild(moreBtn);
 
-  aside.append(decision, actions, util);
+  // the reader's own row (Ben, 2026-10-19): flags for review and tag
+  // proposals as a discrete section under the buttons, above the
+  // properties — open flags as a chip, then the two roads
+  const reader = el("div", "app-docs-readerrow");
+  const paintReader = () => {
+    clear(reader);
+    if (opts.flags !== undefined) {
+      const t = opts.flags.chip();
+      if (t !== "") {
+        const chip = tonePill(t, "amber");
+        chip.classList.add("app-docs-flagchip");
+        chip.title = "See the flags on this document";
+        chip.setAttribute("role", "button");
+        chip.tabIndex = 0;
+        chip.addEventListener("click", () => opts.flags?.show());
+        reader.appendChild(chip);
+      }
+      const fl = el("button", "app-btn app-docs-readerbtn", "⚑ Flag for review…") as HTMLButtonElement;
+      fl.title = "Flag it for review — a level, a comment, a screenshot; the owners hear on Teams";
+      fl.addEventListener("click", () => opts.flags?.raise());
+      reader.appendChild(fl);
+    }
+    if (opts.suggestTag !== undefined) {
+      const sug = el("button", "app-btn app-docs-readerbtn", "# Suggest a tag…") as HTMLButtonElement;
+      sug.title = "Propose a tag for this document — a document controller decides";
+      sug.addEventListener("click", () => opts.suggestTag?.());
+      reader.appendChild(sug);
+    }
+    reader.hidden = reader.children.length === 0;
+  };
+  paintReader();
+  aside.append(decision, actions, util, reader);
 
   // PROPERTIES + VERSION HISTORY (the old properties dialog, folded in)
   const propsBox = el("div", "app-docs-detailprops");
@@ -885,32 +916,10 @@ export function openDocViewer(opts: ViewerOpts): () => void {
             : tonePill("Regulator-approved — copy not linked", "amber")
       );
     }
-    // open flags on this document (issue 23) — loud, the list behind it
-    if (opts.flags !== undefined) {
-      const t = opts.flags.chip();
-      if (t !== "") {
-        const chip = tonePill(t, "amber");
-        chip.classList.add("app-docs-flagchip");
-        chip.title = "See the flags on this document";
-        chip.setAttribute("role", "button");
-        chip.tabIndex = 0;
-        chip.addEventListener("click", () => opts.flags?.show());
-        flags.appendChild(chip);
-      }
-    }
     if (flags.children.length > 0) propsBox.appendChild(flags);
-    if (opts.flags !== undefined) {
-      const fl = el("button", "app-link app-docs-suggesttag", "Flag this document…") as HTMLButtonElement;
-      fl.title = "Flag it for review — a level, a comment, a screenshot; the owners hear on Teams";
-      fl.addEventListener("click", () => opts.flags?.raise());
-      propsBox.appendChild(fl);
-    }
-    if (opts.suggestTag !== undefined) {
-      const sug = el("button", "app-link app-docs-suggesttag", "Suggest a tag…") as HTMLButtonElement;
-      sug.title = "Propose a tag for this document — a document controller decides";
-      sug.addEventListener("click", () => opts.suggestTag?.());
-      propsBox.appendChild(sug);
-    }
+    // the reader's row follows the flags (a details repaint runs after
+    // a flag is raised or closed)
+    paintReader();
 
     // ---- L1: linked documents — grouped, uid-anchored ------------------
     if (linksInternal !== "") {
