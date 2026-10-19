@@ -276,10 +276,13 @@ const PROP_SKIP = new Set([
 export function openDocViewer(opts: ViewerOpts): () => void {
   const { site, row } = opts;
   let blobUrl = "";
+  let printFrame: HTMLIFrameElement | null = null;
   const { panel, close } = overlay(
     row.name,
     () => {
       if (blobUrl !== "") URL.revokeObjectURL(blobUrl);
+      printFrame?.remove();
+      printFrame = null;
       opts.onClose?.();
     },
     true,
@@ -325,6 +328,20 @@ export function openDocViewer(opts: ViewerOpts): () => void {
     head.appendChild(detailsBtn);
     paintHooks.push(() => (detailsBtn.style.display = detailsOpen ? "none" : ""));
     head.appendChild(linkBtn(viewOnly ? "Open in viewer ↗" : "Open in new tab ↗", openUrl, false));
+    // one-click print (issue 18, 2026-10-18 round): the PDF rendition in a
+    // hidden same-origin frame, printed; a refused fetch falls back to
+    // the new tab, where Ctrl+P works. Paper size stays the printer's.
+    if (!viewOnly) {
+      const printBtn = el("button", "app-btn app-docs-headprint", "Print") as HTMLButtonElement;
+      printBtn.title = "Print the document (the PDF rendition)";
+      printBtn.addEventListener("click", () => {
+        printBtn.disabled = true;
+        void printDocument().finally(() => {
+          printBtn.disabled = false;
+        });
+      });
+      head.appendChild(printBtn);
+    }
     // R4: ONE close control — ✕ alone; the details door lives on the
     // pane itself
     const x = el("button", "app-btn app-docs-viewclose", "✕") as HTMLButtonElement;
@@ -1182,6 +1199,45 @@ export function openDocViewer(opts: ViewerOpts): () => void {
   /** Save the document under ITS name (A4): the PDF rendition or the
    *  original bytes, fetched to a blob so the download attribute holds;
    *  a tenant whose policy refuses the fetch gets the URL in a new tab. */
+  /** The PDF bytes as a same-origin blob URL ("" = not obtainable). */
+  const pdfBlobUrl = async (): Promise<string> => {
+    if (row.ext === "pdf" && blobUrl !== "") return blobUrl;
+    const p = await presigned();
+    const url = row.ext === "pdf" ? p.downloadUrl : transformPdfUrl(p.thumbUrl, row.ext);
+    if (url === "") return "";
+    try {
+      const res = await fetch(url);
+      if (!res.ok) return "";
+      const bytes = await res.blob();
+      return URL.createObjectURL(bytes.type === "application/pdf" ? bytes : new Blob([bytes], { type: "application/pdf" }));
+    } catch {
+      return ""; // a player CSP connect-src can refuse the fetch
+    }
+  };
+  const printDocument = async (): Promise<void> => {
+    const url = await pdfBlobUrl();
+    if (url === "") {
+      // nothing to print from here: the new tab, where the browser prints
+      window.open(openUrl, "_blank", "noopener");
+      return;
+    }
+    printFrame?.remove();
+    const f = el("iframe", "app-docs-printframe") as HTMLIFrameElement;
+    f.title = `Print ${row.name}`;
+    f.setAttribute("aria-hidden", "true");
+    printFrame = f;
+    f.addEventListener("load", () => {
+      try {
+        f.contentWindow?.focus();
+        f.contentWindow?.print();
+      } catch {
+        window.open(url, "_blank", "noopener");
+      }
+    });
+    f.src = url;
+    document.body.appendChild(f);
+  };
+
   const downloadNamed = async (_what: "pdf"): Promise<void> => {
     const p = await presigned();
     const base = row.name.replace(/\.[^.]+$/, "");

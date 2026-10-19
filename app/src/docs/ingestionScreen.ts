@@ -47,6 +47,7 @@ import {
   spErrorText,
   splitAddWrites,
   termForStage,
+  stageOfTerm,
   todayYmd,
   validateItemErrors,
 } from "./model";
@@ -404,8 +405,11 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
     const cadenceInternal = ctx.internalForRole("reviewCadence");
     // the grid's columns (proposal §9): EVERY column the destination type
     // offers, in the site dictionary's order — the Edit-properties form's
-    // set — minus the status (the run sets it) and the two derived dates
-    const derived = new Set([statusInternal, reviewInternal, cadenceInternal].filter((x) => x !== ""));
+    // set — minus the two derived dates. The STATUS column is in the grid
+    // since issue 25 (Ben, 2026-10-19): a legacy batch lands as
+    // Superseded or Obsolete with its history, a draft as a minor
+    // version; blank = Approved, as before.
+    const derived = new Set([reviewInternal, cadenceInternal].filter((x) => x !== ""));
     const gridFields = columnsForTypes(ctx.cellCtx.dict, [dest.libType])
       .map((i) => destFields.find((f) => f.internal === i))
       .filter((f): f is SpField => f !== undefined && carried.has(f.internal) && !derived.has(f.internal) && editorKind(f) !== null);
@@ -1032,10 +1036,27 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
       }
       await reload();
       const ready = rows.filter((r) => missingFor(r.values, required).length === 0);
+      /** The status a file lands with: its grid value, else Approved;
+       *  approved / superseded / obsolete publish as a major version,
+       *  any other stage (draft, in review) lands as a minor, unpublished. */
+      const landing = (row: DocRow): { term: { id: string; label: string } | null; publish: boolean; stage: string } => {
+        if (statusInternal === "" || approved === null) return { term: null, publish: true, stage: "approved" };
+        const chosen = (row.values[statusInternal] ?? "").split(";")[0].trim().toLowerCase();
+        const term = chosen === "" ? approved : (statusTerms.find((t) => t.label.trim().toLowerCase() === chosen) ?? approved);
+        const stage = stageOfTerm(ctx.cellCtx.dict, term.id) || (term.id === approved.id ? "approved" : "");
+        const publish = stage === "approved" || stage === "superseded" || stage === "obsolete";
+        return { term, publish, stage: stage || term.label };
+      };
+      const byStage = new Map<string, number>();
+      for (const r of ready) {
+        const l = landing(r);
+        byStage.set(l.stage, (byStage.get(l.stage) ?? 0) + 1);
+      }
+      const stageNote = [...byStage.entries()].map(([s, n]) => `${n} as ${s}`).join(", ");
       const notReady = rows.length - ready.length;
       const ok = await promptConfirm({
         title: "Run the ingestion?",
-        note: `${ready.length} file${ready.length === 1 ? "" : "s"} will be copied into ${libName(dest)}, published as an approved version 1 and removed from the folder.${notReady > 0 ? ` ${notReady} with missing details stay${notReady === 1 ? "s" : ""} here.` : ""} Keep this window open until it finishes.`,
+        note: `${ready.length} file${ready.length === 1 ? "" : "s"} will be copied into ${libName(dest)} (${stageNote}; approved, superseded and obsolete publish as version 1, a draft lands as a minor version) and removed from the folder.${notReady > 0 ? ` ${notReady} with missing details stay${notReady === 1 ? "s" : ""} here.` : ""} Keep this window open until it finishes.`,
         confirmLabel: "Run",
       });
       if (!ok || dead) return;
@@ -1097,8 +1118,9 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
           return;
         }
         let bracketErr = "";
-        if (approved !== null) {
-          const r = await connectorPatchItem(ctx.site, dest.listId, itemId, { [statusInternal]: { Value: approved.label, TermGuid: approved.id, WssId: -1 } });
+        const land = landing(row);
+        if (land.term !== null) {
+          const r = await connectorPatchItem(ctx.site, dest.listId, itemId, { [statusInternal]: { Value: land.term.label, TermGuid: land.term.id, WssId: -1 } });
           if (!r.ok) bracketErr = `status: ${spErrorText(r.status)}`;
         }
         if (bracketErr === "" && (effInternal !== "" || reviewInternal !== "")) {
@@ -1132,12 +1154,12 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
           refuse(`Copied, but ${bracketErr} — the draft is checked out in ${libName(dest)}; finish or discard it there`);
           return;
         }
-        const ci = await checkInFile(ctx.site, destUrl, ingestComment(task.name, by), true);
+        const ci = await checkInFile(ctx.site, destUrl, ingestComment(task.name, by), land.publish);
         if (!ci.ok) {
-          refuse(`Copied, but the major check-in was refused: ${spErrorText(ci.status)}`);
+          refuse(`Copied, but the ${land.publish ? "major" : "minor"} check-in was refused: ${spErrorText(ci.status)}`);
           return;
         }
-        if (moderated) {
+        if (moderated && land.publish) {
           const pub = await validateUpdateListItem(ctx.site, dest.listId, itemId, [{ FieldName: "_ModerationStatus", FieldValue: "0" }], false);
           if (!pub.ok || validateItemErrors(pub.data).length > 0) {
             refuse(`Moved, but the publish was refused — it is PENDING in ${libName(dest)}: approve it in SharePoint`);
@@ -1403,11 +1425,12 @@ export function openIngestionTaskEditor(o: IngestionEditorOpts): void {
         else if (d.kind === "person") initial.set(d.internal, { people: d.people ?? [] });
         else initial.set(d.internal, { text: d.text ?? "" });
       }
-      const statusInternal = ctx!.internalForRole("status");
+      // the status rides the defaults too (issue 25): a legacy batch
+      // can default to Superseded and the grid shows it per file
       editors = buildFieldEditors({
         site: ctx!.site,
         box: defaultsBox,
-        fields: fields.filter((f) => f.internal !== statusInternal),
+        fields,
         columns: dest.config.columns,
         dictBy: ctx!.dictBy,
         onChange: () => undefined,
