@@ -1455,6 +1455,10 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-10-19 (after v0.73.2, dev)**: issue round tranche C — filters
+  that reach every level (13), the organisation's own order in the
+  pane and pills (12), folders that drill down with a resizable panel
+  (17), linked documents shown in the register (3).
 - **2026-10-19 (after v0.73.2, dev)**: issue round tranche B — the
   Version column (19), the permission-aware viewer for Restricted View
   readers (7/14/15), the movable Document column (20), Back to

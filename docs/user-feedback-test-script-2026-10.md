@@ -273,6 +273,37 @@ On a desktop.
 |---|---|
 | 1–13 | _Ben's pass pending_ |
 
+## Issue round tranche C — after v0.73.2 (2026-10-19, dev)
+
+1. **(13) Filters reach every level** — Filters → a parent term such
+   as SMELTER or MOS returns the documents tagged anywhere beneath it;
+   Procedure and Form still work; "Something refused" never appears
+   for a library that lacks the filtered column (it simply contributes
+   nothing). If the term store is slow, the popover reads "loaded only
+   partly" and recovers on reopening.
+2. **(13) Descriptions** — add a description to a criticality term in
+   the term manager; hover its pill in Filters: the description shows
+   above the path.
+3. **(12) Organisation order** — the Folders pane lists departments
+   and areas in the order Settings → Organisation has them (drag one
+   there, Save, reopen Documents); the Organisation pills in Filters
+   follow the same order.
+4. **(17a) Links card folders** — on a board's Documentation & links
+   card, Show contents: a sub-folder has ▸ and expands in place;
+   long names wrap.
+5. **(17b) Panel width** — drag the Documents panel's right edge: it
+   resizes (220–640px) and keeps the width next visit; long folder
+   labels wrap instead of ending in "…".
+6. **(3) Linked documents in the register** — open a document with
+   links → Details → "Show these in the register": the overlay closes,
+   the register shows only those documents with a "Linked to: <name>"
+   chip; × restores the register. Choose columns → the links column
+   reads "2 links".
+
+| Item | Outcome |
+|---|---|
+| 1–6 | _Ben's pass pending_ |
+
 ## Issue round tranche B — after v0.73.2 (2026-10-19, dev)
 
 1. **(19) Version column** — Kebab → Choose columns → tick Version: a

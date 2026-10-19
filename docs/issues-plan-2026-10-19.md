@@ -103,6 +103,25 @@ should share ONE solution-carrying release.
   publish, other stages minor and unpublished; the confirm counts per
   stage; status allowed as a task default).
 
+- **Tranche C — BUILT 2026-10-19 (dev, unreleased):** 13 (the id-match
+  CAML was NOT built — unverifiable on this tenant; the label road is
+  kept and its real faults fixed: every filter walk uses depth 6 /
+  budget 6000 with the budget in both cache keys, a truncated or
+  part-failed walk is never stored, the popover and the pane say
+  "loaded only partly", `termFiltersFor(carried)` cuts each filter to
+  the columns a library carries on the feed, the count and the export
+  and SKIPS a library that cannot match (`canMatch`), and the walk
+  reads term `descriptions` (retrying without them on a refusal) shown
+  as pill tooltips), 12 (`termTreeOrder(nodes, cmp)`; `orgTermCompare`
+  ranks by `termBindings` then label path from `orgTreePaths[WithCompany]`,
+  for the Folders pane and the Organisation pills), 17 (links card
+  sub-folders expand in place with a caret, names wrap; the Documents
+  panel has a drag grip, `navWidth` 220–640 in DocUiPrefs, tree labels
+  wrap), 3 (viewer "Show these in the register" → `scopeToLinks`:
+  uids → item ids via `itemDetails`, the task-scope map with
+  `scopeLabel` "Linked to: X"; the links column renders "n links" via
+  `linkCount`).
+
 ## Order (proposed)
 
 1. **Tranche A — bugs, app-only (≈25 h):** 1, 28, 30, 26, 27, 31, 34, 33/35,
