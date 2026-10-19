@@ -390,6 +390,41 @@ export const TABLES = [
     role: { delete: false },
   },
   {
+    // Document flags (issue 23, Ben 2026-10-19): any reader flags a
+    // SharePoint document for review — a level from the app-managed
+    // list, a comment, an optional screenshot — without a check-out;
+    // the owners hear on Teams, controllers triage, Mark reviewed
+    // offers to close. A flag raised in an ingestion task is re-pointed
+    // at the destination item when the file lands. Closed, never
+    // deleted: the flag is the record.
+    schema: "ben_LTKDocFlag",
+    logical: "ben_ltkdocflag",
+    display: "LeanBoard Document Flag",
+    plural: "LeanBoard Document Flags",
+    primaryNameMax: 300, // "<level> — <document>"
+    columns: {
+      ben_docsite: { ...text(500), display: "Document site url" },
+      ben_doclistid: { ...text(40), display: "Document list id" },
+      ben_docitemid: { ...text(20), display: "Document item id" },
+      ben_docuid: { ...text(40), display: "Document unique id" },
+      ben_docname: { ...text(255), display: "Document name (display)" },
+      ben_docversion: { ...text(20), display: "Document version when flagged" },
+      ben_level: { ...text(100), display: "Review level" },
+      ben_comment: { ...memo(20000), display: "Comment" },
+      ben_status: { ...text(10), display: "Status (open|closed)" },
+      ben_source: { ...text(12), display: "Raised from (register|ingestion)" },
+      ben_flaggeremail: { ...text(200), display: "Flagged by (email)" },
+      ben_flaggername: { ...text(200), display: "Flagged by (name)" },
+      ben_flaggedat: { ...text(40), display: "Flagged at (ISO)" },
+      ben_closedbyemail: { ...text(200), display: "Closed by (email)" },
+      ben_closedbyname: { ...text(200), display: "Closed by (name)" },
+      ben_closedat: { ...text(40), display: "Closed at (ISO)" },
+      ben_resolution: { ...memo(4000), display: "Closing note" },
+      ben_screenshot: { kind: "file", maxKB: 8192, display: "Screenshot" },
+    },
+    role: { delete: false },
+  },
+  {
     // Document ingestion (document-ingestion-proposal-2026-10.md, decision
     // 2): one row per ingestion task — a named sub-folder of the site's
     // ingestion library, its destination library, who prepares it, the

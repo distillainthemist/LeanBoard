@@ -185,6 +185,10 @@
         "boards": {
           "entitySetName": "ben_ltkboards",
           "logicalName": "ben_ltkboard"
+        },
+        "leanboarddocumentflags": {
+          "entitySetName": "ben_ltkdocflags",
+          "logicalName": "ben_ltkdocflag"
         }
       },
       "environmentVariableName": ""
