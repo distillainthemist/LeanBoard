@@ -2377,9 +2377,11 @@ button.app-docs-navterm.app-docs-navterm-on {
 }
 .app-docs-caret-none { width: 44px; flex: none; display: inline-block; }
 /* the saved-views menu (register kebab) */
-.app-docs-viewsmenu { width: 280px; }
-.app-docs-saverow { display: flex; gap: 6px; padding: 4px; }
-.app-docs-saverow .app-input { flex: 1; min-width: 0; }
+.app-docs-viewsmenu { width: 340px; }
+/* the name on its own line, the save buttons beneath (Ben, 2026-10-19:
+   a third button had squeezed the box) */
+.app-docs-saverow { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px; }
+.app-docs-saverow .app-input { flex: 1 1 100%; min-width: 0; }
 .app-docs-viewrow .app-docs-menuitem { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .app-docs-chooser { width: min(420px, 92vw); }
 .app-docs-colslist { display: flex; flex-direction: column; }
