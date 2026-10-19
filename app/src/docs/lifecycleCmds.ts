@@ -128,7 +128,9 @@ export function openLifecycleCommand(opts: LifecycleRunOpts): void {
         ? `Checks the document out to you and sets it to “${opts.targetTerm.label}”. ` +
             "Everyone else keeps seeing the approved version until you submit; " +
             "Discard check-out abandons the revision entirely."
-        : `Sets the status to “${opts.targetTerm.label}”` +
+        : command.key === "reviewComplete"
+          ? "Records that your review is complete — a minor version with your name in the comment. The status stays “In review”; Submit for approval warns while any reviewer has not done this."
+          : `Sets the status to “${opts.targetTerm.label}”` +
             (command.major ? " and records a MAJOR version." : ".")
     )
   );
@@ -272,11 +274,25 @@ export function openLifecycleCommand(opts: LifecycleRunOpts): void {
   const showNotifyPanel = (): boolean => {
     const n = opts.notify;
     if (n === undefined) return false;
+    // the done line says what happened and what comes next (issue 4:
+    // "no clear confirmation that it had gone anywhere"); submit for
+    // review sends the reviewers' Teams card at once
+    const doneLine = (sent: string) =>
+      command.key === "submitReview"
+        ? `✓ Submitted for review — status is now “${opts.targetTerm.label}”. Each reviewer marks “Review complete”; Submit for approval warns while any has not. ${sent}`
+        : command.key === "reviewComplete"
+          ? `✓ Your review is recorded. ${sent}`
+          : `✓ ${command.label} — status is now “${opts.targetTerm.label}”. ${sent}`;
     const attached = attachNotifyPanel({
       body: dlg.body,
       context: n,
       extra: command.key === "submitReview" ? added : [],
       reason: reason.value,
+      autoSend: command.key === "submitReview" ? "teams" : undefined,
+      onSent: (line, ok) => {
+        status.textContent = doneLine(ok ? `Reviewers notified ${line.replace(/^✓ /, "")}` : line);
+        if (!ok) status.classList.add("app-docs-addstatus-warn");
+      },
     });
     if (!attached) return false;
     // the command is DONE — the dialog's own buttons say so
@@ -284,7 +300,7 @@ export function openLifecycleCommand(opts: LifecycleRunOpts): void {
     if (closeBtn !== null) closeBtn.textContent = "Close";
     goBtn.style.display = "none";
     running = false;
-    status.textContent = "✓ Done.";
+    status.textContent = doneLine(command.key === "submitReview" ? "Sending the reviewers' Teams card…" : "Not yet notified — send below.");
     return true;
   };
 
@@ -304,8 +320,11 @@ export function openLifecycleCommand(opts: LifecycleRunOpts): void {
 
     // approve's comment names the approver — the version history is the
     // audit trail, and "Approved" without a who explains nothing
+    // approve's and review-complete's comments name the person — the
+    // version history is the audit trail, and the submit gate reads
+    // "Review complete by X" (issue 4)
     const base =
-      command.key === "approve" && opts.actorName !== ""
+      (command.key === "approve" || command.key === "reviewComplete") && opts.actorName !== ""
         ? `${command.comment} by ${opts.actorName}`
         : command.comment;
     const note = reason.value.trim();

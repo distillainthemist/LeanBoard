@@ -21,6 +21,12 @@ export function attachNotifyPanel(opts: {
   /** The typed reason — appended to the editable message, because the
    *  dialog is the only party that has it. */
   reason?: string;
+  /** Send the Teams card at once (issue 4: submit-for-review's
+   *  reviewers must hear, a review nobody hears of was the complaint);
+   *  the panel stays for a second send or an email. */
+  autoSend?: "teams";
+  /** The outcome line, for the caller's own status. */
+  onSent?: (line: string, ok: boolean) => void;
 }): boolean {
   const n = opts.context;
   const seen = new Set(n.recipients.map((p) => p.email.toLowerCase()));
@@ -84,6 +90,7 @@ export function attachNotifyPanel(opts: {
           outLine.textContent = `✓ Sent by ${label} to ${recips.length} ${
             recips.length === 1 ? "person" : "people"
           }.`;
+          opts.onSent?.(outLine.textContent, true);
           btnRow.remove();
           msg.disabled = true;
           return;
@@ -91,10 +98,12 @@ export function attachNotifyPanel(opts: {
         // the ACTION already succeeded — a send failure must never read
         // as its failure, so it reports here, in its own line
         outLine.textContent = `Not sent: ${spErrorText(r.error).slice(0, 250)} — the change itself is done.`;
+        opts.onSent?.(outLine.textContent, false);
       } catch (e) {
         outLine.textContent = `Not sent: ${spErrorText(
           e instanceof Error ? e.message : String(e)
         ).slice(0, 250)} — the change itself is done.`;
+        opts.onSent?.(outLine.textContent, false);
       }
       teamsBtn.disabled = false;
       mailBtn.disabled = false;
@@ -109,5 +118,6 @@ export function attachNotifyPanel(opts: {
     btnRow,
     outLine
   );
+  if (opts.autoSend === "teams") send("teams");
   return true;
 }

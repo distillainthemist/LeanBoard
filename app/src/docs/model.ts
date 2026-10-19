@@ -545,6 +545,10 @@ export function termsForStage(dict: SiteDictionary, stage: LifecycleStage): stri
 
 export type LifecycleCommandKey =
   | "submitReview"
+  /** A named reviewer records that their review is done (issue 4,
+   *  2026-10-18 round): a minor version whose comment names them; the
+   *  submit-for-approval gate reads those comments. */
+  | "reviewComplete"
   | "submitApproval"
   | "approve"
   | "requestRevision"
@@ -581,6 +585,15 @@ export const LIFECYCLE_COMMANDS: LifecycleCommandDef[] = [
     to: "inReview",
     major: false,
     comment: "Submitted for review",
+    needsReason: false,
+    primary: true,
+  },
+  {
+    key: "reviewComplete",
+    label: "Review complete",
+    to: "inReview",
+    major: false,
+    comment: "Review complete",
     needsReason: false,
     primary: true,
   },
@@ -673,6 +686,8 @@ export interface LifecycleGates {
   /** The document names ANY reviewer — which makes the review round
    *  MANDATORY before approval (Ben, 2026-08-04). */
   hasReviewers: boolean;
+  /** The acting user is a named reviewer (issue 4). */
+  isReviewer?: boolean;
   /** The acting user is the owner. */
   isOwner: boolean;
   /** The acting user is the named owner but NOT in the owners &
@@ -731,7 +746,10 @@ export function lifecycleCommandsFor(
         ? [by("submitReview")]
         : [by("submitReview"), submitApproval];
     case "inReview":
-      return [submitApproval, by("requestRevision")];
+      // a named reviewer's own act first; the submit stays open to all
+      // (the gate at submit warns when reviews are outstanding — Ben,
+      // 2026-10-19: warn-and-confirm, not a hard block)
+      return [...(g.isReviewer === true ? [by("reviewComplete")] : []), submitApproval, by("requestRevision")];
     case "inApproval":
       // the approvers' step: an endorsement, minor — the owner's word
       // is the major
@@ -3428,6 +3446,30 @@ export function orgSyncPlan(
     matched,
     error: "",
   };
+}
+
+/** Which named reviewers have NOT recorded "Review complete" since the
+ *  latest submit for review (issue 4). `versions` newest first, as the
+ *  history endpoint returns them; a reviewer is done when a version
+ *  after the submit carries a "Review complete" comment made by them
+ *  (the editor, or the name the comment itself carries). Names match
+ *  case-insensitively, which is what a person column's display text
+ *  allows. No submit marker = every version counts. */
+export function reviewsOutstanding(
+  versions: { comment: string; author: string }[],
+  reviewerNames: string[]
+): string[] {
+  const norm = (s: string) => s.trim().toLowerCase();
+  const submitAt = versions.findIndex((v) => /^submitted for review/i.test(v.comment.trim()));
+  const since = submitAt >= 0 ? versions.slice(0, submitAt) : versions;
+  const done = new Set<string>();
+  for (const v of since) {
+    const m = v.comment.trim().match(/^review complete(?:\s+by\s+([^—]+))?/i);
+    if (!m) continue;
+    if (v.author.trim() !== "") done.add(norm(v.author));
+    if (m[1] !== undefined && m[1].trim() !== "") done.add(norm(m[1]));
+  }
+  return reviewerNames.map((n) => n.trim()).filter((n) => n !== "" && !done.has(norm(n)));
 }
 
 /** SharePoint's date column types — what a from/to filter can bind to. */

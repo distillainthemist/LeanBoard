@@ -24,7 +24,7 @@ import {
   listItemCount,
   renderListPage,
   searchPage,
-  tileThumbFor, itemDetails } from "./data";
+  tileThumbFor, itemDetails, itemVersions } from "./data";
 import { markTiming, now as tnow, summarizeTimings, timingsSince } from "./timing";
 import { parseOrgTree } from "../../../shared/schema/meeting";
 import { DocList, ListColumn, mountDocList } from "./listView";
@@ -64,7 +64,7 @@ import {
   spErrorText,
   stageOfTerm,
   termForStage,
-  termsForStage, isRegisterLibrary, libRoleInternal, SiteColumn, orgTreePaths, orgTreePathsWithCompany, pathKey } from "./model";
+  termsForStage, isRegisterLibrary, libRoleInternal, SiteColumn, reviewsOutstanding, orgTreePaths, orgTreePathsWithCompany, pathKey } from "./model";
 import { viewerInPool, viewerIsController } from "./accessGates";
 import {
   TermNode,
@@ -106,7 +106,7 @@ import {
   serializeDocViews,
   toCsv,
 } from "./views";
-import { promptText } from "../prompts";
+import { promptConfirm, promptText } from "../prompts";
 import {
   deleteDocView,
   docPrefs,
@@ -540,6 +540,7 @@ export function mountDocs(
         hasApprovers: outsideApprovers,
         hasReviewers,
         isOwner: myEmail !== "" && owners.includes(myEmail),
+        isReviewer: myEmail !== "" && emails(reviewersInternal).includes(myEmail),
         // named owner, not in the group (issue 8): Approve would fail at
         // check-out — the overlay explains instead (unknown pool = open)
         ownerOutsidePool: myEmail !== "" && owners.includes(myEmail) && meInPool === false && !docAdmin(),
@@ -579,6 +580,25 @@ export function mountDocs(
         };
       }
       void import("./lifecycleCmds").then(async ({ openLifecycleCommand }) => {
+        // the review gate (issue 4, warn-and-confirm): submitting for
+        // approval while a named reviewer has not recorded "Review
+        // complete" asks first — the version comments are the record
+        if (cmd.key === "submitApproval" && stageOfRow(row) === "inReview" && reviewersInternal !== "") {
+          const names = (row.values[reviewersInternal] ?? "").split(";").map((s) => s.trim()).filter((s) => s !== "");
+          if (names.length > 0) {
+            const vres = await itemVersions(app.siteUrl, row.listId, row.id).catch(() => ({ versions: [], error: "unreadable" }));
+            const outstanding = vres.error === "" ? reviewsOutstanding(vres.versions, names) : names;
+            if (outstanding.length > 0) {
+              const ok = await promptConfirm({
+                title: "Reviews outstanding",
+                note: `${outstanding.join(", ")} ${outstanding.length === 1 ? "has" : "have"} not marked their review complete${vres.error !== "" ? " (the version history could not be read)" : ""}. Submit for approval anyway?`,
+                confirmLabel: "Submit anyway",
+                danger: true,
+              });
+              if (!ok) return;
+            }
+          }
+        }
         // the date model stamps ride the owner's Approve alone
         const lib = byListId.get(row.listId);
         const dates =
@@ -4200,28 +4220,38 @@ export function mountDocs(
       const comment = el("textarea", "app-input app-docs-cicomment") as HTMLTextAreaElement;
       comment.rows = 3;
       comment.placeholder = "What changed?";
+      // a draft standard checks in and goes straight to Submit for
+      // review in one flow (issue 4: fewer draft versions, one road)
+      const ciLib = byListId.get(row.listId);
+      const submitReviewCmd = lifecycleActionsFor(row, ciLib).find((c) => c.key === "submitReview") ?? null;
+      const checkIn = async (thenSubmit: boolean) => {
+        const text = comment.value.trim();
+        if (text === "") return;
+        dlg.close();
+        if ((await liveCheckout(row)) === "none") {
+          await staleNotice(row, "Check-in");
+          return;
+        }
+        const res = await checkInFile(app.siteUrl, row.serverUrl, text, major);
+        if (!res.ok) {
+          commandFailed("Check-in", res.status);
+          return;
+        }
+        await refreshRow(row);
+        if (thenSubmit && submitReviewCmd !== null) runLifecycle(row, submitReviewCmd);
+      };
       const dlg = openDialog({
         host: dialogHost,
         title: `Check in ${row.name}`,
         buttons: [
           { label: "Cancel", kind: "secondary", onClick: () => dlg.close() },
+          ...(submitReviewCmd !== null
+            ? [{ label: "Check in & submit for review", kind: "secondary" as const, onClick: () => void checkIn(true) }]
+            : []),
           {
             label: "Check in",
             kind: "primary",
-            onClick: () => {
-              const text = comment.value.trim();
-              if (text === "") return;
-              dlg.close();
-              void (async () => {
-                if ((await liveCheckout(row)) === "none") {
-                  await staleNotice(row, "Check-in");
-                  return;
-                }
-                const res = await checkInFile(app.siteUrl, row.serverUrl, text, major);
-                if (!res.ok) commandFailed("Check-in", res.status);
-                else await refreshRow(row);
-              })();
-            },
+            onClick: () => void checkIn(false),
           },
         ],
       });

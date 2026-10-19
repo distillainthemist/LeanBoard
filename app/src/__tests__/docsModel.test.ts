@@ -17,6 +17,8 @@ import {
   orgSyncPlan,
   libRoleInternal,
   orgTreePaths,
+  lifecycleCommandsFor,
+  reviewsOutstanding,
   serializeMocRecords,
   parseMocRecords,
   pathKey,
@@ -2313,5 +2315,29 @@ describe("management of change records (issue 10, 2026-10-19)", () => {
     expect(parseMocRecords('[{"ref":"","url":"ftp://bad"},{"ref":" MOC-9 ","url":"https://ok","date":"nope"}]')).toEqual([{ ref: "MOC-9", url: "https://ok", title: "", date: "" }]);
     expect(parseMocRecords("MOC-77 see the register")).toBeNull();
     expect(parseMocRecords("")).toBeNull();
+  });
+});
+
+describe("the review gate (issue 4, 2026-10-19)", () => {
+  it("names the reviewers who have not recorded Review complete since the latest submit", () => {
+    const v = (comment: string, author = "") => ({ comment, author });
+    const versions = [
+      v("Review complete by Kat Stojakovic", "Stojakovic, Kat (RTA)"),
+      v("Properties updated", "Dugre, Marie (RTA)"),
+      v("Submitted for review", "Dugre, Marie (RTA)"),
+      v("Review complete", "Lefebure, Christelle (RTA)"), // before the submit: does not count
+      v("Submitted for review", "Dugre, Marie (RTA)"),
+    ];
+    expect(reviewsOutstanding(versions, ["Stojakovic, Kat (RTA)", "Lefebure, Christelle (RTA)"])).toEqual(["Lefebure, Christelle (RTA)"]);
+    // the comment's own name counts when the editor expand was refused
+    expect(reviewsOutstanding([v("Review complete by Sam Duncan"), v("Submitted for review")], ["Sam Duncan", "Kat"])).toEqual(["Kat"]);
+    // no submit marker: every version counts
+    expect(reviewsOutstanding([v("Review complete", "A")], ["A"])).toEqual([]);
+    expect(reviewsOutstanding([], ["A"])).toEqual(["A"]);
+  });
+  it("offers Review complete to a named reviewer in review, and never to others", () => {
+    const base = { isApprover: false, hasApprovers: false, hasReviewers: true, isOwner: false, isAdmin: false, isEditor: false, isRevisionEditor: false } as unknown as Parameters<typeof lifecycleCommandsFor>[1];
+    expect(lifecycleCommandsFor("inReview", { ...base, isReviewer: true }).map((c) => c.key)).toEqual(["reviewComplete", "submitApproval", "requestRevision"]);
+    expect(lifecycleCommandsFor("inReview", base).map((c) => c.key)).toEqual(["submitApproval", "requestRevision"]);
   });
 });

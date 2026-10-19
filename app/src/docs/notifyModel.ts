@@ -80,6 +80,14 @@ export function notifyPlanFor(opts: {
         `Hi — ${who} has submitted “${docName}” for review in LeanBoard. ` +
           `Please review it when you have a moment.`
       );
+    case "reviewComplete":
+      // the owner hears that a review is in (issue 4); the submitter
+      // is the owner more often than not
+      return plan(
+        people(myEmail, roles.owners),
+        `Review complete — ${docName}`,
+        `Hi — ${who} has completed their review of “${docName}” in LeanBoard.`
+      );
     case "submitApproval":
       return to === "inOwnerApproval"
         ? plan(
