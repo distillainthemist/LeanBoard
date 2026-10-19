@@ -29,6 +29,8 @@ export * as Ben_ltkpriorityeventsModel from './models/Ben_ltkpriorityeventsModel
 export * as Ben_ltkprocessnodesModel from './models/Ben_ltkprocessnodesModel';
 export * as Ben_ltksitesettingsesModel from './models/Ben_ltksitesettingsesModel';
 export * as Ben_ltktagproposalsModel from './models/Ben_ltktagproposalsModel';
+export * as Ben_ltkuatresultsModel from './models/Ben_ltkuatresultsModel';
+export * as Ben_ltkuatrunsModel from './models/Ben_ltkuatrunsModel';
 export * as Ben_ltkuploadsModel from './models/Ben_ltkuploadsModel';
 export * as Ben_ltkuserprefsesModel from './models/Ben_ltkuserprefsesModel';
 export * as Ben_ltkvaluedriversModel from './models/Ben_ltkvaluedriversModel';
@@ -66,6 +68,8 @@ export * from './services/Ben_ltkpriorityeventsService';
 export * from './services/Ben_ltkprocessnodesService';
 export * from './services/Ben_ltksitesettingsesService';
 export * from './services/Ben_ltktagproposalsService';
+export * from './services/Ben_ltkuatresultsService';
+export * from './services/Ben_ltkuatrunsService';
 export * from './services/Ben_ltkuploadsService';
 export * from './services/Ben_ltkuserprefsesService';
 export * from './services/Ben_ltkvaluedriversService';

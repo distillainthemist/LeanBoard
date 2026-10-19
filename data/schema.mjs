@@ -425,6 +425,54 @@ export const TABLES = [
     role: { delete: false },
   },
   {
+    // UAT runs (uat-proposal-2026-10.md, Ben 2026-10-19): a run picks
+    // components, people and personas; its case snapshot is the list as
+    // it stood at the start, so a later build cannot change what a run
+    // tested. Never deleted: the run is the record.
+    schema: "ben_LTKUatRun",
+    logical: "ben_ltkuatrun",
+    display: "LeanBoard UAT Run",
+    plural: "LeanBoard UAT Runs",
+    primaryNameMax: 200,
+    columns: {
+      ben_status: { ...text(10), display: "Status (planned|running|closed)" },
+      ben_componentsjson: { ...memo(4000), display: "Components (JSON keys)" },
+      ben_appversion: { ...text(40), display: "App version at start" },
+      ben_environment: { ...text(200), display: "Environment label" },
+      ben_assigneesjson: { ...memo(100000), display: "Assignees (JSON [{whoId,email,name,personas}])" },
+      ben_casesjson: { ...memo(1048576), display: "Case snapshot (JSON)" },
+      ben_scope: { ...text(200), display: "Scope (all | since <version>)" },
+      ben_createdbyemail: { ...text(200), display: "Created by (email)" },
+      ben_createdbyname: { ...text(200), display: "Created by (name)" },
+      ben_createdat: { ...text(40), display: "Created at (ISO)" },
+      ben_closedbyemail: { ...text(200), display: "Closed by (email)" },
+      ben_closedbyname: { ...text(200), display: "Closed by (name)" },
+      ben_closedat: { ...text(40), display: "Closed at (ISO)" },
+      ben_closingnote: { ...memo(20000), display: "Closing note" },
+    },
+    role: { delete: false },
+  },
+  {
+    // One row per run + case + TESTER (decision 1): two people test the
+    // same case independently. A fail carries the issue it raised.
+    schema: "ben_LTKUatResult",
+    logical: "ben_ltkuatresult",
+    display: "LeanBoard UAT Result",
+    plural: "LeanBoard UAT Results",
+    primaryNameMax: 300,
+    columns: {
+      ben_caseid: { ...text(40), display: "Case id" },
+      ben_outcome: { ...text(10), display: "Outcome (pass|fail|blocked|skipped)" },
+      ben_note: { ...memo(20000), display: "Note" },
+      ben_testeremail: { ...text(200), display: "Tester email" },
+      ben_testername: { ...text(200), display: "Tester name" },
+      ben_at: { ...text(40), display: "Recorded at (ISO)" },
+      ben_issueid: { ...text(40), display: "Issue raised (ben_ltkissue id)" },
+    },
+    // a tester takes a tick back
+    role: { delete: true },
+  },
+  {
     // Document ingestion (document-ingestion-proposal-2026-10.md, decision
     // 2): one row per ingestion task — a named sub-folder of the site's
     // ingestion library, its destination library, who prepares it, the
@@ -828,6 +876,13 @@ export const LOOKUPS = [
     referencing: "ben_ltkissuemessage",
     lookupSchema: "ben_Issue",
     display: "Issue",
+  },
+  {
+    schemaName: "ben_ltkuatrun_results",
+    referenced: "ben_ltkuatrun",
+    referencing: "ben_ltkuatresult",
+    lookupSchema: "ben_Run",
+    display: "UAT run",
   },
   {
     schemaName: "ben_ltkissue_watches",

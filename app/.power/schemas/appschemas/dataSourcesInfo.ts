@@ -131,6 +131,20 @@ export const dataSourcesInfo = {
     "dataSourceType": "Dataverse",
     "apis": {}
   },
+  "ben_ltkuatresults": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "ben_ltkuatresultid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "ben_ltkuatruns": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "ben_ltkuatrunid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
   "ben_ltkuploads": {
     "tableId": "",
     "version": "",

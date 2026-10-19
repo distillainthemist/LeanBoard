@@ -104,11 +104,13 @@ reviews per persona).
 About 17 h of build plus the content. The release that carries it is
 solution-carrying (two tables).
 
-## Decisions needed
+## Decisions (Ben, 2026-10-19)
 
-1. One result per case per run (latest tester wins) — or per tester,
-   so two people can test the same case independently?
-2. The UAT tab as a hub tab for assignees, or under Settings?
-3. Fail always raises an issue, or "Fail without an issue" too?
-4. Start with the Documents script only; the other components get
-   their files as they come up.
+1. One result per case PER TESTER — two people can test the same case
+   independently; the run reports both.
+2. Management lives in Settings → UAT; the testers' checklist is a hub
+   tab shown to assignees (they are not super admins).
+3. A Fail ALWAYS raises an issue through the issue reporter; the
+   issue carries the run and case in its context, so Settings → Issues
+   can filter to one UAT run and export that run's issues as PDF.
+4. Documents script first; the other components get their files later.

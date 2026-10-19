@@ -189,6 +189,14 @@
         "leanboarddocumentflags": {
           "entitySetName": "ben_ltkdocflags",
           "logicalName": "ben_ltkdocflag"
+        },
+        "leanboarduatruns": {
+          "entitySetName": "ben_ltkuatruns",
+          "logicalName": "ben_ltkuatrun"
+        },
+        "leanboarduatresults": {
+          "entitySetName": "ben_ltkuatresults",
+          "logicalName": "ben_ltkuatresult"
         }
       },
       "environmentVariableName": ""
