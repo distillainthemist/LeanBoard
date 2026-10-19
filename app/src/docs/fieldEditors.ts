@@ -18,7 +18,7 @@ import {
   sortByDictionary,
   tagLabelProblems,
 } from "./model";
-import { POOL_ROLES, PeopleSource, poolPeopleSource, reviewerPeopleSource, viewerIsController } from "./accessGates";
+import { POOL_ROLES, PeopleSource, controllerLookupFailed, poolPeopleSource, reviewerPeopleSource, viewerIsController } from "./accessGates";
 import { currentViewer } from "../runtime";
 import { fetchTermPaths } from "./sp";
 import { buildMocEditor } from "./mocEditor";
@@ -88,6 +88,9 @@ export interface FieldEditorOpts {
    *  renders as a titled section, in the manager's order; a column
    *  the library does not carry is skipped as always. */
   sections?: { heading: string; columns: string[] }[];
+  /** The document this form edits (issue 2): a tag proposal raised
+   *  here names it, so approval can tag it. */
+  proposalDoc?: { site: string; listId: string; uid: string; name: string };
 }
 
 export function buildFieldEditors(opts: FieldEditorOpts): BuiltEditor[] {
@@ -304,7 +307,12 @@ export function buildFieldEditors(opts: FieldEditorOpts): BuiltEditor[] {
         // the spot and it lands on the document — no proposal round
         let mintDirect = false;
         void viewerIsController(currentViewer()?.objectId ?? "").then((isC) => {
-          if (!isC) return;
+          if (!isC) {
+            // a failed lookup reads as "not a controller" (fail closed):
+            // say so rather than silently offering the propose road
+            if (controllerLookupFailed()) st.textContent = "The controllers group could not be read just now — proposing instead of adding.";
+            return;
+          }
           mintDirect = true;
           proposeBtn.textContent = "Add a new tag…";
           send.textContent = "Add tag";
@@ -345,7 +353,7 @@ export function buildFieldEditors(opts: FieldEditorOpts): BuiltEditor[] {
             }
             st.textContent = "Sending…";
             const { submitTagProposal } = await import("./tagProposals");
-            const err = await submitTagProposal(lbl.value, why.value);
+            const err = await submitTagProposal(lbl.value, why.value, opts.proposalDoc);
             if (err !== "") {
               st.textContent = `⚠ ${err}`;
               send.disabled = false;

@@ -64,7 +64,7 @@ import {
   spErrorText,
   stageOfTerm,
   termForStage,
-  termsForStage, isRegisterLibrary, libRoleInternal, orgTreePaths, orgTreePathsWithCompany, pathKey } from "./model";
+  termsForStage, isRegisterLibrary, libRoleInternal, SiteColumn, orgTreePaths, orgTreePathsWithCompany, pathKey } from "./model";
 import { viewerInPool, viewerIsController } from "./accessGates";
 import {
   TermNode,
@@ -879,6 +879,39 @@ export function mountDocs(
       }
       return permsByLib.get(row.listId.toLowerCase())?.edit ?? false;
     };
+    /** The tags column with a term set, when the site maps one. */
+    const tagsColOf = (): SiteColumn | null => siteDict.columns.find((c) => c.role === "tags" && c.termSetId !== "" && columnOffered(c)) ?? null;
+    /** A reader's tag proposal for one document (issue 2). */
+    const openSuggestTag = (row: DocRow) => {
+      const dlg = openDialog({
+        host: dialogHost,
+        title: `Suggest a tag for “${row.name}”`,
+        maxWidth: 460,
+        buttons: [
+          { label: "Cancel", kind: "secondary", onClick: () => dlg.close() },
+          { label: "Send proposal", kind: "primary", onClick: () => void send() },
+        ],
+      });
+      const lbl = el("input", "app-input") as HTMLInputElement;
+      lbl.placeholder = "The tag, e.g. Crane Ops";
+      const why = el("input", "app-input") as HTMLInputElement;
+      why.placeholder = "Why it's needed (helps the reviewer)";
+      const st = el("div", "app-field-hint", "A document controller decides; you hear back on Teams either way.");
+      dlg.body.append(lbl, why, st);
+      lbl.focus();
+      const send = async () => {
+        const { submitTagProposal } = await import("./tagProposals");
+        st.textContent = "Sending…";
+        const err = await submitTagProposal(lbl.value, why.value, { site: app.siteUrl, listId: row.listId, uid: row.uniqueId, name: row.name });
+        if (err !== "") {
+          st.textContent = `⚠ ${err}`;
+          return;
+        }
+        dlg.close();
+        status.textContent = `Tag “${lbl.value.trim().replace(/^#/, "")}” proposed for “${row.name}” — a document controller decides.`;
+      };
+    };
+
     const openEditPropertiesRow = (row: DocRow) => {
       const lib = byListId.get(row.listId);
       if (lib === undefined) return;
@@ -3658,6 +3691,8 @@ export function mountDocs(
           // document this user holds, arrives with work to do
           detailsOpen: openOpts?.details ?? needsMyActivity(row, lib),
           share: () => openShareDoc(row),
+          // a reader proposes a tag from here (issue 2)
+          suggestTag: tagsColOf() !== null ? () => openSuggestTag(row) : undefined,
           askToWork: lib?.libType === "working",
           // details pane (Vault V4): the register's fields, never
           // SharePoint's plumbing — exactly the available-ticked columns
@@ -5269,7 +5304,7 @@ export function mountDocs(
         return;
       }
       menu = el("div", "app-docs-menu");
-      const item = (label: string, title: string, onPick: (() => void) | null) => {
+      const item = (label: string, title: string, onPick: (() => void) | null): HTMLButtonElement => {
         const b = el("button", "app-docs-menuitem", label) as HTMLButtonElement;
         b.title = title;
         if (onPick) {
@@ -5281,7 +5316,21 @@ export function mountDocs(
           b.disabled = true;
         }
         menu!.appendChild(b);
+        return b;
       };
+      // document controllers decide tag proposals here (issue 2): the
+      // Settings block is super-admin only, so this is their queue
+      if (docAdmin() && tagsColOf() !== null) {
+        const tc = tagsColOf()!;
+        const b = item("Tag proposals…", "Approve or decline the tags people have proposed.", () => {
+          void import("./tagQueue").then(({ openTagQueue }) =>
+            openTagQueue({ host: dialogHost, site: app.siteUrl, setId: tc.termSetId, tagsInternal: tc.internal, onChanged: () => void load(true) })
+          );
+        });
+        void import("./tagProposals").then(({ listProposals }) => listProposals("pending")).then((pending) => {
+          if (b.isConnected && pending.length > 0) b.textContent = `Tag proposals (${pending.length})…`;
+        }).catch(() => undefined);
+      }
       // "Show only approved" (Ben, 2026-10-19): ticked, the register
       // assumes approved and the status filter is out of the way;
       // unticked, the status filter is available again

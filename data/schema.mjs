@@ -380,6 +380,12 @@ export const TABLES = [
       ben_proposername: { ...text(200), display: "Proposer name" },
       ben_decision: { ...memo(4000), display: "Decision note" },
       ben_termid: { ...text(40), display: "Created term id (on approve)" },
+      // the document the proposal was raised on (issue 2, 2026-10-19):
+      // approval puts the minted tag on it
+      ben_docsite: { ...text(500), display: "Document site url" },
+      ben_doclistid: { ...text(40), display: "Document list id" },
+      ben_docuid: { ...text(40), display: "Document unique id" },
+      ben_docname: { ...text(255), display: "Document name (display)" },
     },
     role: { delete: false },
   },

@@ -20,6 +20,20 @@ export interface TagProposal {
   decision: string;
   termId: string;
   when: string;
+  /** The document it was raised on (issue 2): approval tags it. "" =
+   *  raised without one (the field editor before 2026-10-19). */
+  docSite: string;
+  docListId: string;
+  docUid: string;
+  docName: string;
+}
+
+/** The document a proposal is raised on. */
+export interface ProposalDoc {
+  site: string;
+  listId: string;
+  uid: string;
+  name: string;
 }
 
 type Row = Awaited<ReturnType<typeof Ben_ltktagproposalsService.getAll>> extends {
@@ -28,20 +42,28 @@ type Row = Awaited<ReturnType<typeof Ben_ltktagproposalsService.getAll>> extends
   ? T
   : never;
 
-const shape = (r: Row): TagProposal => ({
-  id: (r as { ben_ltktagproposalid?: string }).ben_ltktagproposalid ?? "",
-  label: r.ben_name ?? "",
-  note: r.ben_note ?? "",
-  status: r.ben_status ?? "",
-  proposerEmail: r.ben_proposeremail ?? "",
-  proposerName: r.ben_proposername ?? "",
-  decision: r.ben_decision ?? "",
-  termId: r.ben_termid ?? "",
-  when: (r as { createdon?: string }).createdon ?? "",
-});
+const shape = (r: Row): TagProposal => {
+  const x = r as Row & { ben_docsite?: string; ben_doclistid?: string; ben_docuid?: string; ben_docname?: string };
+  return {
+    id: (r as { ben_ltktagproposalid?: string }).ben_ltktagproposalid ?? "",
+    label: r.ben_name ?? "",
+    note: r.ben_note ?? "",
+    status: r.ben_status ?? "",
+    proposerEmail: r.ben_proposeremail ?? "",
+    proposerName: r.ben_proposername ?? "",
+    decision: r.ben_decision ?? "",
+    termId: r.ben_termid ?? "",
+    when: (r as { createdon?: string }).createdon ?? "",
+    docSite: x.ben_docsite ?? "",
+    docListId: (x.ben_doclistid ?? "").toLowerCase(),
+    docUid: (x.ben_docuid ?? "").toLowerCase(),
+    docName: x.ben_docname ?? "",
+  };
+};
 
-/** File a proposal. "" = filed; otherwise the plain-words refusal. */
-export async function submitTagProposal(label: string, note: string): Promise<string> {
+/** File a proposal. "" = filed; otherwise the plain-words refusal.
+ *  `doc` names the document it was raised on, so approval can tag it. */
+export async function submitTagProposal(label: string, note: string, doc?: ProposalDoc): Promise<string> {
   const t = label.trim().replace(/^#/, "");
   const problems = tagLabelProblems(t);
   if (problems.length > 0) return `this tag cannot be minted: ${problems.join("; ")}`;
@@ -62,6 +84,9 @@ export async function submitTagProposal(label: string, note: string): Promise<st
     ben_status: "pending",
     ben_proposeremail: (me?.email ?? "").toLowerCase(),
     ben_proposername: me?.name ?? "",
+    ...(doc
+      ? { ben_docsite: doc.site, ben_doclistid: doc.listId.toLowerCase(), ben_docuid: doc.uid.toLowerCase(), ben_docname: doc.name.slice(0, 255) }
+      : {}),
   } as Parameters<typeof Ben_ltktagproposalsService.create>[0]);
   return r.success === false ? (r.error?.message ?? "the proposal was refused").slice(0, 200) : "";
 }
@@ -95,22 +120,82 @@ export async function mintTag(site: string, setId: string, label: string): Promi
   return { error: "", termId };
 }
 
+/** Put a minted tag on the document a proposal named (issue 2): the
+ *  current tags plus the new one, through the connector's typed item
+ *  surface; a library that demands check-out gets the bracket. */
+async function applyTagToDocument(p: TagProposal, tagsInternal: string, term: { label: string; termId: string }): Promise<string> {
+  if (tagsInternal === "" || p.docUid === "" || p.docListId === "") return "";
+  const site = p.docSite;
+  const { fetchListItem, connectorPatchItem, checkOutFile, checkInFile, fetchFileItemId } = await import("./sp");
+  const { spErrorText } = await import("./model");
+  const { spRequest } = await import("./sp");
+  // the item by its unique id: id, server-relative url, current tags
+  const r = await spRequest(site, "GET", `_api/web/GetFileById('${p.docUid}')/ListItemAllFields?$select=Id,FileRef,${tagsInternal}`);
+  if (!r.ok) return `the document could not be read: ${spErrorText(r.status).slice(0, 120)}`;
+  const item = (r.data ?? {}) as Record<string, unknown>;
+  const itemId = Number(item.Id ?? 0);
+  const fileRef = String(item.FileRef ?? "");
+  if (itemId === 0) return "the document's item could not be read";
+  const current = Array.isArray(item[tagsInternal]) ? (item[tagsInternal] as { Label?: string; TermGuid?: string }[]) : [];
+  const kept = current.filter((t) => typeof t.TermGuid === "string" && t.TermGuid.toLowerCase() !== term.termId.toLowerCase()).map((t) => ({ Value: t.Label ?? "", TermGuid: t.TermGuid ?? "", WssId: -1 }));
+  const value = [...kept, { Value: term.label, TermGuid: term.termId, WssId: -1 }];
+  let w = await connectorPatchItem(site, p.docListId, itemId, { [tagsInternal]: value });
+  if (!w.ok && /check(ed)? ?out/i.test(spErrorText(w.status)) && fileRef !== "") {
+    // the bracket: check-out → write → minor check-in
+    const out = await checkOutFile(site, fileRef);
+    if (!out.ok && !/already checked out/i.test(spErrorText(out.status))) return `check-out refused: ${spErrorText(out.status).slice(0, 120)}`;
+    w = await connectorPatchItem(site, p.docListId, itemId, { [tagsInternal]: value });
+    const ci = await checkInFile(site, fileRef, `Tag "${term.label}" added (proposal approved)`, false);
+    if (!ci.ok) return `the tag was written but the check-in was refused: ${spErrorText(ci.status).slice(0, 120)}`;
+  }
+  void fetchListItem;
+  void fetchFileItemId;
+  return w.ok ? "" : `the tag could not be put on the document: ${spErrorText(w.status).slice(0, 120)}`;
+}
+
+/** Approve: mint the term, record the decision, tag the document the
+ *  proposal named, tell the proposer (issue 2). error = the proposal
+ *  stays pending; warn = approved, but a later step did not land. */
 export async function approveProposal(
   p: TagProposal,
   site: string,
-  setId: string
-): Promise<string> {
+  setId: string,
+  tagsInternal = ""
+): Promise<{ error: string; warn: string; applied: boolean }> {
   const minted = await mintTag(site, setId, p.label);
-  if (minted.error !== "") return minted.error;
+  if (minted.error !== "") return { error: minted.error, warn: "", applied: false };
   const termId = minted.termId;
   const upd = await Ben_ltktagproposalsService.update(p.id, {
     ben_status: "approved",
     ben_termid: termId,
     ben_decision: "Approved",
   });
-  return upd.success === false
-    ? `the term was created but the ledger update was refused: ${upd.error?.message ?? ""}`
-    : "";
+  if (upd.success === false) return { error: `the term was created but the ledger update was refused: ${upd.error?.message ?? ""}`, warn: "", applied: false };
+  const warns: string[] = [];
+  let applied = false;
+  if (p.docUid !== "" && tagsInternal !== "") {
+    const applyErr = await applyTagToDocument(p, tagsInternal, { label: p.label, termId }).catch((e) => (e instanceof Error ? e.message : String(e)));
+    if (applyErr === "") applied = true;
+    else warns.push(`not added to “${p.docName}”: ${applyErr}`);
+  }
+  // the proposer hears, as they do on a decline
+  const me = currentViewer();
+  if (p.proposerEmail !== "" && p.proposerEmail !== (me?.email ?? "").toLowerCase()) {
+    try {
+      const { sendNotifyTeams } = await import("./notify");
+      const { appLinkUrl } = await import("../links");
+      const r = await sendNotifyTeams(
+        [{ email: p.proposerEmail, name: p.proposerName || p.proposerEmail }],
+        `Your tag proposal was approved: ${p.label}`,
+        applied ? `“${p.label}” is now a tag and is on “${p.docName}”.` : `“${p.label}” is now a tag — you can add it from the document's properties.`,
+        appLinkUrl()
+      );
+      if (r.error !== "") warns.push(`the Teams message did not go: ${r.error}`);
+    } catch (e) {
+      warns.push(`the Teams message did not go: ${String(e instanceof Error ? e.message : e).slice(0, 120)}`);
+    }
+  }
+  return { error: "", warn: warns.join("; "), applied };
 }
 
 /** Decline with the controller's message (required — never silent).

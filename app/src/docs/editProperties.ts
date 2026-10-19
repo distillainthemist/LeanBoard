@@ -218,6 +218,8 @@ export function openEditProperties(opts: EditPropertiesOpts): void {
       initial,
       sections: opts.sections,
       includeSystemDates: opts.ingestion === true,
+      // a tag proposed from this form names this document (issue 2)
+      proposalDoc: { site, listId: row.listId, uid: row.uniqueId, name: row.name },
     });
     // the links editor (L1): part of THIS form, saved with it
     if (opts.links !== undefined && opts.links.internal !== "") {

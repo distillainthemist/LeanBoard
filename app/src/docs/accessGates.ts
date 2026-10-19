@@ -23,6 +23,12 @@ export interface PoolState {
 
 let poolCache: Promise<PoolState> | null = null;
 const controllerCache = new Map<string, Promise<boolean>>();
+let controllerLookupErr = false;
+/** Did the last controllers-group lookup FAIL (as opposed to answer
+ *  no)? A surface that fails closed can then say why (issue 2). */
+export function controllerLookupFailed(): boolean {
+  return controllerLookupErr;
+}
 
 /** Settings saves call this so a relink lands without a reload. */
 export function invalidateAccessGates(): void {
@@ -159,8 +165,13 @@ export function viewerIsController(entraId: string): Promise<boolean> {
     hit = (async () => {
       const cfg = await appDocsConfig();
       if (cfg.controllersGroupId === "") return false;
-      return await isGroupMember(cfg.controllersGroupId, entraId);
-    })().catch(() => false);
+      const yes = await isGroupMember(cfg.controllersGroupId, entraId);
+      controllerLookupErr = false;
+      return yes;
+    })().catch(() => {
+      controllerLookupErr = true;
+      return false;
+    });
     controllerCache.set(entraId, hit);
   }
   return hit;

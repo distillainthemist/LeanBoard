@@ -2009,11 +2009,12 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
         ok.addEventListener("click", () => {
           void (async () => {
             ok.disabled = true;
-            const err = await approveProposal(prop, app.siteUrl, tagCol.termSetId);
-            if (err !== "") {
-              fail(`Could not approve "${prop.label}": ${err}`);
+            const r = await approveProposal(prop, app.siteUrl, tagCol.termSetId, tagCol.internal);
+            if (r.error !== "") {
+              fail(`Could not approve "${prop.label}": ${r.error}`);
               ok.disabled = false;
             } else {
+              if (r.warn !== "") fail(`Approved "${prop.label}" — ${r.warn}`);
               paintTags();
             }
           })();

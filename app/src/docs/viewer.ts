@@ -121,6 +121,9 @@ interface ViewerOpts {
   /** Share this document (5I) — the screen owns the dialog (permalink +
    *  QR); the viewer only offers the button. */
   share?: () => void;
+  /** Suggest a tag for this document (issue 2): a reader's road to a
+   *  proposal, since only editors reach the tag editor. */
+  suggestTag?: () => void;
   /** Status value for this row ("" = none) + the screen's palette-aware
    *  chip renderer. A getter is re-read on every details repaint — a
    *  lifecycle command changes the status while the overlay is open,
@@ -872,6 +875,12 @@ export function openDocViewer(opts: ViewerOpts): () => void {
       );
     }
     if (flags.children.length > 0) propsBox.appendChild(flags);
+    if (opts.suggestTag !== undefined) {
+      const sug = el("button", "app-link app-docs-suggesttag", "Suggest a tag…") as HTMLButtonElement;
+      sug.title = "Propose a tag for this document — a document controller decides";
+      sug.addEventListener("click", () => opts.suggestTag?.());
+      propsBox.appendChild(sug);
+    }
 
     // ---- L1: linked documents — grouped, uid-anchored ------------------
     if (linksInternal !== "") {
