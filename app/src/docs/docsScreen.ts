@@ -27,6 +27,7 @@ import {
   tileThumbFor,
 } from "./data";
 import { markTiming, now as tnow, summarizeTimings, timingsSince } from "./timing";
+import { parseOrgTree } from "../../../shared/schema/meeting";
 import { DocList, ListColumn, mountDocList } from "./listView";
 import { mountDocTiles } from "./docsTiles";
 import {
@@ -39,7 +40,7 @@ import {
   isNonCurrentStatus,
   pdfViewUrlFor,
   pickBrowseHead,
-  taxonomySearchProperty, KEPT_SYSTEM_FIELDS, NAME_SLOT, VERSION_FIELD, viewerPageUrl } from "./rows";
+  taxonomySearchProperty, KEPT_SYSTEM_FIELDS, NAME_SLOT, VERSION_FIELD, termTreeOrder, viewerPageUrl } from "./rows";
 import { DocLibrary, docsConfig } from "./docsStore";
 import {
   BasePermissions,
@@ -64,7 +65,7 @@ import {
   spErrorText,
   stageOfTerm,
   termForStage,
-  termsForStage, isRegisterLibrary, libRoleInternal } from "./model";
+  termsForStage, isRegisterLibrary, libRoleInternal, orgTreePaths, orgTreePathsWithCompany, pathKey } from "./model";
 import { viewerInPool, viewerIsController } from "./accessGates";
 import {
   TermNode,
@@ -2245,6 +2246,36 @@ export function mountDocs(
     };
     const treeBox = el("div", "app-docs-navorgbox");
 
+    /** The organisation's own order (Settings → Organisation: company,
+     *  site order, the departments and areas as dragged), as a sibling
+     *  comparator over term nodes — by binding first, then by label
+     *  path; unranked terms trail, alphabetical (issue 12). */
+    let orgRankCache: Promise<Map<string, number>> | null = null;
+    const orgTermCompare = async (): Promise<(a: TermNode, b: TermNode) => number> => {
+      orgRankCache ??= (async () => {
+        const rank = new Map<string, number>();
+        try {
+          const { orgJson, siteCompanies } = await import("../store/config");
+          const tree = parseOrgTree(await orgJson());
+          const siteCo = app.orgSetCompanyLevel ? await siteCompanies() : {};
+          const paths = app.orgSetCompanyLevel ? orgTreePathsWithCompany(tree, siteCo) : orgTreePaths(tree);
+          const bindings = app.termBindings[app.orgSetId] ?? {};
+          paths.forEach((p, i) => {
+            const key = pathKey(p);
+            rank.set(`k:${key}`, i);
+            const id = bindings[key];
+            if (id) rank.set(`id:${id.toLowerCase()}`, i);
+          });
+        } catch {
+          /* no order known: the store's order stands */
+        }
+        return rank;
+      })();
+      const rank = await orgRankCache;
+      const of = (n: TermNode) => rank.get(`id:${n.id.toLowerCase()}`) ?? rank.get(`k:${pathKey(n.labels)}`) ?? Number.MAX_SAFE_INTEGER;
+      return (a, b) => of(a) - of(b) || a.labels[a.labels.length - 1].localeCompare(b.labels[b.labels.length - 1]);
+    };
+
     const paintTree = () => {
       clear(treeBox);
       treeButtons.clear();
@@ -2256,13 +2287,18 @@ export function mountDocs(
       }
       collapsed = new Set(uiState.collapsed[setId] ?? []);
       treeBox.appendChild(el("div", "app-field-hint", "Loading…"));
-      void cachedTermPaths(app.siteUrl, setId, 4, 60).then(async ({ nodes, error }) => {
+      void cachedTermPaths(app.siteUrl, setId, 6, 6000).then(async (walk) => {
+        if (dead || setFor(groupBy) !== setId) return;
+        const { error } = walk;
+        // the organisation pane follows the app's order (issue 12)
+        const nodes = groupBy === "" ? termTreeOrder(walk.nodes, await orgTermCompare()) : walk.nodes;
         if (dead || setFor(groupBy) !== setId) return;
         clear(treeBox);
         if (error !== "" || nodes.length === 0) {
           treeBox.appendChild(el("div", "app-field-hint", "No terms yet."));
           return;
         }
+        if (walk.truncated || (walk.failed ?? 0) > 0) treeBox.appendChild(el("div", "app-field-hint", "Deepest levels not loaded — the term store was slow; reopen Documents in a minute."));
         treeNodes = nodes;
         // F2 (Ben, 2026-08-14): the pane shows the viewer's mapped
         // branches (their site + configured functional branches) plus
@@ -2462,7 +2498,7 @@ export function mountDocs(
     for (const [col, termIds] of bootByCol) {
       const setId = setFor(col);
       if (setId === "" || filterFor(col) !== null) continue;
-      void cachedTermPaths(app.siteUrl, setId, 4, 60).then(({ nodes }) => {
+      void cachedTermPaths(app.siteUrl, setId, 6, 6000).then(({ nodes }) => {
         if (dead) return;
         const picks = termIds.map((id) => nodes.find((n) => n.id === id)).filter((n): n is TermNode => n !== undefined);
         if (picks.length > 0 && filterFor(col) === null) {
@@ -2683,7 +2719,7 @@ export function mountDocs(
       for (const col of want) {
         if (!phoneNodes.has(col)) {
           phoneNodes.set(col, []);
-          void cachedTermPaths(app.siteUrl, setFor(col), 4, 60).then(({ nodes }) => {
+          void cachedTermPaths(app.siteUrl, setFor(col), 6, 6000).then(({ nodes }) => {
             if (dead || nodes.length === 0) return;
             phoneNodes.set(col, nodes);
             paintPhoneFilters();
@@ -2865,12 +2901,19 @@ export function mountDocs(
           g.appendChild(pills);
           pills.appendChild(el("span", "app-field-hint", "Loading…"));
           const setId = setFor(col);
-          void cachedTermPaths(app.siteUrl, setId, 4, 60).then(({ nodes, error }) => {
+          void cachedTermPaths(app.siteUrl, setId, 6, 6000).then(async (walk) => {
+            if (dead || !menu || !menu.contains(pills)) return;
+            const { error } = walk;
+            // the organisation's terms in the app's order (issue 12)
+            const nodes = col === "" ? termTreeOrder(walk.nodes, await orgTermCompare()) : walk.nodes;
             if (dead || !menu || !menu.contains(pills)) return;
             clear(pills);
             if (error !== "" || nodes.length === 0) {
               pills.appendChild(el("span", "app-field-hint", "No terms."));
               return;
+            }
+            if (walk.truncated || (walk.failed ?? 0) > 0) {
+              pills.before(el("div", "app-field-hint", "The vocabulary loaded only partly (the term store was slow) — deeper terms may be missing; reopen Filters in a minute."));
             }
             // top two levels as pills; deeper active picks still show
             const shallow = nodes.filter((n) => n.labels.length <= 2);
@@ -2903,7 +2946,7 @@ export function mountDocs(
                   `app-docs-fpill${on ? " app-docs-fpill-on" : ""}`,
                   n.labels[n.labels.length - 1]
                 ) as HTMLButtonElement;
-                pb.title = `${n.labels.join(" › ")} — tick several to match any of them`;
+                pb.title = `${n.description ? `${n.description}\n` : ""}${n.labels.join(" › ")} — tick several to match any of them`;
                 pb.setAttribute("aria-pressed", String(on));
                 pb.addEventListener("click", () => {
                   // B1: several per column, OR'd — a second pick adds
@@ -4263,6 +4306,23 @@ export function mountDocs(
      * there — a working library simply shows nothing until its drafts
      * are approved, which is the honest answer.
      */
+    /** The term filters as a LIBRARY can take them: each filter's
+     *  columns cut to the ones it carries. null = this library cannot
+     *  match (a filtered column it lacks — SharePoint would refuse a
+     *  query naming it, and the honest answer is no rows; issue 13). */
+    const termFiltersFor = (carried: Set<string>): { cols: string[]; labels: string[] }[] | null => {
+      const out: { cols: string[]; labels: string[] }[] = [];
+      const asked = [
+        ...filters.map((f) => ({ cols: f.col === "" ? [...orgCols] : [f.col], labels: [...f.labels] })),
+        ...approvedFilterFor(),
+      ];
+      for (const f of asked) {
+        const cols = f.cols.filter((c) => carried.has(c));
+        if (cols.length === 0) return null;
+        out.push({ cols, labels: f.labels });
+      }
+      return out;
+    };
     // suspended while the task scope holds: task documents are
     // mid-workflow by nature
     const approvedFilterFor = (): { cols: string[]; labels: string[] }[] =>
@@ -4352,7 +4412,7 @@ export function mountDocs(
       }
       const words = query.trim() === "" ? undefined : query.trim().split(/\s+/);
       void Promise.all(
-        libs.map((lib) => {
+        libs.filter((lib) => termFiltersFor(new Set(lib.config.columns.map((c) => c.internal))) !== null).map((lib) => {
           const carried = new Set(lib.config.columns.map((c) => c.internal));
           return renderListPage(
             app.siteUrl,
@@ -4364,13 +4424,7 @@ export function mountDocs(
                 taskFilter?.get(lib.listId.toLowerCase()) ??
                 contentIds.get(lib.listId.toLowerCase()) ??
                 [],
-              termFilters: [
-                ...filters.map((f) => ({
-                  cols: f.col === "" ? [...orgCols] : [f.col],
-                  labels: [...f.labels],
-                })),
-                ...approvedFilterFor(),
-              ],
+              termFilters: termFiltersFor(carried) ?? [],
               dateRanges: dateFilters.filter((d) => carried.has(d.col)),
               personFilters: personFilters.filter((p) => carried.has(p.col)),
               presentCols: presentCols.filter((c) => carried.has(c)),
@@ -4570,7 +4624,11 @@ export function mountDocs(
             taskFilter === null
               ? browseIds
               : allListIds.filter((id) => (taskFilter?.get(id.toLowerCase())?.length ?? 0) > 0);
-          feeds = feedIds.map((id) => {
+          const canMatch = (id: string): boolean => {
+            const lib = byListId.get(id.toLowerCase());
+            return termFiltersFor(new Set((lib?.config.columns ?? []).map((c) => c.internal))) !== null;
+          };
+          feeds = feedIds.filter(canMatch).map((id) => {
             const lib = byListId.get(id.toLowerCase());
             // ONLY the fields the register renders: SharePoint throttles
             // any query touching >12 lookup-type columns (taxonomy and
@@ -4642,15 +4700,9 @@ export function mountDocs(
               modifiedAfterIso: modifiedIso(),
               nameWords: words,
               idIn: taskFilter?.get(id.toLowerCase()) ?? contentIds.get(id.toLowerCase()) ?? [],
-              termFilters: [
-                ...filters.map((f) => ({
-                  cols: f.col === "" ? [...orgCols] : [f.col],
-                  labels: [...f.labels],
-                })),
-                // applied silently: no chip, no filter row — the toggle
-                // says it (Ben, 2026-08-03)
-                ...approvedFilterFor(),
-              ],
+              // the toggle's filter rides silently (Ben, 2026-08-03);
+              // a library lacking a filtered column was excluded above
+              termFilters: termFiltersFor(carried) ?? [],
               // only bind a date column the library actually carries
               dateRanges: dateFilters.filter((d) => carried.has(d.col)),
               personFilters: personFilters.filter((p) => carried.has(p.col)),
@@ -4879,6 +4931,7 @@ export function mountDocs(
         // projection, so the old export could differ from the screen
         for (const lib of scopeLibs) {
           const carried = new Set(lib.config.columns.map((c) => c.internal));
+          if (termFiltersFor(carried) === null) continue; // it cannot match
           // the export answers the SAME question the register shows
           // (Ben, 2026-10-06: it had ignored every filter) — search
           // words, the status / term filters, dates, people, presence,
@@ -4889,10 +4942,7 @@ export function mountDocs(
             modifiedAfterIso: modifiedIso(),
             nameWords: query.trim() === "" ? undefined : query.trim().split(/\s+/),
             idIn: taskFilter?.get(lib.listId.toLowerCase()) ?? [],
-            termFilters: [
-              ...filters.map((f) => ({ cols: f.col === "" ? [...orgCols] : [f.col], labels: [...f.labels] })),
-              ...approvedFilterFor(),
-            ],
+            termFilters: termFiltersFor(carried) ?? [],
             dateRanges: dateFilters.filter((d) => carried.has(d.col)),
             personFilters: personFilters.filter((p) => carried.has(p.col)),
             presentCols: presentCols.filter((c) => carried.has(c)),

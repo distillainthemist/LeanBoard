@@ -713,12 +713,15 @@ export function fetchRegionalSettings(site: string): Promise<SpResult> {
 export function fetchTermChildren(
   site: string,
   setId: string,
-  parentId: string
+  parentId: string,
+  /** The term descriptions too (issue 13: "what does High mean?") —
+   *  the walk retries without them if the road refuses the select. */
+  withDescriptions = true
 ): Promise<SpResult> {
   const base = parentId === ""
     ? `_api/v2.1/termStore/sets/${setId}/children`
     : `_api/v2.1/termStore/sets/${setId}/terms/${parentId}/children`;
-  return spRequest(site, "GET", `${base}?$select=id,labels`, {
+  return spRequest(site, "GET", `${base}?$select=id,labels${withDescriptions ? ",descriptions" : ""}`, {
     headers: { Accept: "application/json" },
   });
 }
@@ -838,6 +841,9 @@ export interface TermNode {
   id: string;
   /** Full label path from the set root, e.g. ["Bell Bay", "Casting"]. */
   labels: string[];
+  /** The term's description in the store's language ("" = none) —
+   *  shown as a tooltip on filter pills (issue 13). */
+  description?: string;
 }
 
 export interface TermWalk {
@@ -888,7 +894,10 @@ export function cachedTermPaths(
   maxDepth = 4,
   maxRequests = 120
 ): Promise<TermWalk> {
-  const key = `${WALK_STORE}|${site}|${setId}|${maxDepth}`;
+  // the budget is in the key: a 60-request walk must never serve a
+  // 6000-request ask (issue 13 — a truncated walk, cached, left parent
+  // terms with no descendants and filters matching nothing)
+  const key = `${WALK_STORE}|${site}|${setId}|${maxDepth}|${maxRequests}`;
   let stored: TermWalk | null = null;
   try {
     const raw = localStorage.getItem(key);
@@ -902,7 +911,9 @@ export function cachedTermPaths(
     /* unreadable = no cache */
   }
   const live = fetchTermPaths(site, setId, maxDepth, maxRequests).then((r) => {
-    if (r.error === "" && r.nodes.length > 0) {
+    // only a WHOLE walk is kept: a cut-short or part-failed one would
+    // be served again and again
+    if (r.error === "" && r.nodes.length > 0 && !r.truncated && (r.failed ?? 0) === 0) {
       try {
         localStorage.setItem(key, JSON.stringify({ nodes: r.nodes, truncated: r.truncated }));
       } catch {
@@ -920,7 +931,7 @@ export function fetchTermPaths(
   maxDepth = 4,
   maxRequests = 120
 ): Promise<TermWalk> {
-  const key = `${site}|${setId}|${maxDepth}`;
+  const key = `${site}|${setId}|${maxDepth}|${maxRequests}`;
   let hit = termCache.get(key);
   if (hit === undefined) {
     const t0 = tnow();
@@ -967,12 +978,26 @@ async function walkTermSet(
   // the sync refused), and the connector throttles a burst past ~600 a
   // minute — so the budget is now large and the burst is bounded
   const CHUNK = 16;
+  let describe = true;
   const fetchOnce = async (parentId: string): Promise<SpResult> => {
-    const r = await fetchTermChildren(site, setId, parentId);
+    const r = await fetchTermChildren(site, setId, parentId, describe);
     if (r.ok) return r;
+    // a road that refuses the descriptions select answers 400 at once:
+    // drop them for the rest of the walk rather than lose the walk
+    if (describe && /400|bad request|property/i.test(r.status)) {
+      describe = false;
+      const again = await fetchTermChildren(site, setId, parentId, false);
+      if (again.ok) return again;
+    }
     // one retry after a breath: a throttled request usually lands then
     await new Promise((res) => setTimeout(res, 1500));
-    return fetchTermChildren(site, setId, parentId);
+    return fetchTermChildren(site, setId, parentId, describe);
+  };
+  const descriptionOf = (t: Record<string, unknown>): string => {
+    const ds = t.descriptions as { description?: string; languageTag?: string }[] | undefined;
+    if (!Array.isArray(ds)) return "";
+    const hit = ds.find((d) => (d.description ?? "").trim() !== "");
+    return (hit?.description ?? "").trim();
   };
   let frontier: { id: string; labels: string[] }[] = [{ id: "", labels: [] }];
   while (frontier.length > 0) {
@@ -1003,7 +1028,8 @@ async function walkTermSet(
         const id = typeof t.id === "string" ? t.id : "";
         if (name === "" || id === "") continue;
         const labels = [...parents[i].labels, name];
-        nodes.push({ id, labels });
+        const description = descriptionOf(t);
+        nodes.push(description !== "" ? { id, labels, description } : { id, labels });
         next.push({ id, labels });
       }
     }

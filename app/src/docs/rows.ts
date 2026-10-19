@@ -526,7 +526,7 @@ export interface SearchOpts {
  * painted every grandchild after the LAST top-level term (Ben's
  * screenshot: Bell Bay's areas indented under Boyne).
  */
-export function termTreeOrder<T extends { labels: string[] }>(nodes: T[]): T[] {
+export function termTreeOrder<T extends { labels: string[] }>(nodes: T[], siblingOrder?: (a: T, b: T) => number): T[] {
   const SEP = "\u0000"; // labels contain spaces; a NUL cannot appear in one
   const byParent = new Map<string, T[]>();
   for (const n of nodes) {
@@ -535,6 +535,9 @@ export function termTreeOrder<T extends { labels: string[] }>(nodes: T[]): T[] {
     siblings.push(n);
     byParent.set(key, siblings);
   }
+  // an optional sibling order (issue 12: the app's organisation order
+  // over the term store's) — a stable sort, so ties keep the walk order
+  if (siblingOrder !== undefined) for (const list of byParent.values()) list.sort(siblingOrder);
   const out: T[] = [];
   const emit = (parentKey: string) => {
     for (const n of byParent.get(parentKey) ?? []) {

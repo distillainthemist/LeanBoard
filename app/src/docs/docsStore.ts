@@ -237,7 +237,7 @@ export async function warmDocsCaches(): Promise<void> {
     // same depth/request caps the screen uses, so these are the very
     // promises it will find waiting rather than a near-miss
     await Promise.all(
-      [...sets].map((setId) => fetchTermPaths(app.siteUrl, setId, 4, 60).catch(() => null))
+      [...sets].map((setId) => fetchTermPaths(app.siteUrl, setId, 6, 6000).catch(() => null))
     );
   } catch {
     /* a warm-up never fails loudly */

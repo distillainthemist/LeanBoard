@@ -816,3 +816,21 @@ describe("parseRenderPage — the kept system fields (issues 7 and 19, 2026-10-1
     expect(page.rows[0].values._Level).toBeUndefined();
   });
 });
+
+describe("termTreeOrder with a sibling order (issue 12, 2026-10-19)", () => {
+  it("orders siblings by the comparator and keeps children under their parent", async () => {
+    const { termTreeOrder } = await import("../docs/rows");
+    const nodes = [
+      { id: "a", labels: ["Bell Bay"] },
+      { id: "z", labels: ["Bell Bay", "Zinc"] },
+      { id: "h", labels: ["Bell Bay", "HSE"] },
+      { id: "c", labels: ["Bell Bay", "Casting"] },
+      { id: "c1", labels: ["Bell Bay", "Casting", "Line 1"] },
+    ];
+    const rank: Record<string, number> = { h: 0, c: 1 };
+    const cmp = (x: { id: string }, y: { id: string }) => (rank[x.id] ?? 99) - (rank[y.id] ?? 99);
+    expect(termTreeOrder(nodes, cmp).map((n) => n.id)).toEqual(["a", "h", "c", "c1", "z"]);
+    // no comparator: the walk's order, as before
+    expect(termTreeOrder(nodes).map((n) => n.id)).toEqual(["a", "z", "h", "c", "c1"]);
+  });
+});
