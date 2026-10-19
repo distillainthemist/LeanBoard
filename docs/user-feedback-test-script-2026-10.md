@@ -316,7 +316,8 @@ On a desktop.
 
 | Item | Outcome |
 |---|---|
-| 1–6 | _Ben's pass pending_ |
+| 1 | PASS (Ben, 2026-10-19) |
+| 2–6 | _Ben's pass pending_ |
 
 ## Issue round tranche D — after v0.73.2 (2026-10-19, dev)
 
