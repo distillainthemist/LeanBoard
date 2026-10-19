@@ -3574,10 +3574,13 @@ export function mountDocs(
         return;
       }
       closeViewer?.();
+      // the scope IS the question: every standing filter steps aside
       query = "";
       search.value = "";
       filters = [];
       dateFilters = [];
+      personFilters = [];
+      presentCols = [];
       modifiedDays = 0;
       taskFilter = map;
       taskFilterN = [...map.values()].reduce((a, b) => a + b.length, 0);
