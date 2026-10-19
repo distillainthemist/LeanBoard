@@ -183,6 +183,9 @@ interface ViewerOpts {
     actions: () => { key: string; label: string; primary: boolean }[];
     run: (key: string) => void;
     register?: (repaint: () => void) => void;
+    /** A reason the decision is withheld (issue 8: the named owner is
+     *  not in the approvers group) — painted in the decision card. */
+    blocked?: () => string;
   } | null;
 }
 
@@ -451,9 +454,13 @@ export function openDocViewer(opts: ViewerOpts): () => void {
       s?.checkedOut === true && !s.mine ? `🔒 Checked out by ${s.by}` : "";
     held.style.display = held.textContent === "" ? "none" : "";
 
-    const pending = primaryAct !== undefined || heldMine;
+    const blocked = primaryAct === undefined && !heldMine ? (lc?.blocked?.() ?? "") : "";
+    const pending = primaryAct !== undefined || heldMine || blocked !== "";
     decision.style.display = pending ? "" : "none";
-    if (pending) {
+    if (blocked !== "") {
+      decision.appendChild(el("div", "app-docs-decision-head", "Awaiting your approval"));
+      decision.appendChild(el("div", "app-field-hint app-docs-decision-why", blocked));
+    } else if (pending) {
       const heading =
         primaryAct?.key === "approve"
           ? "Awaiting your approval"

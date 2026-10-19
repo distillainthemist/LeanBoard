@@ -672,6 +672,10 @@ export interface LifecycleGates {
   hasReviewers: boolean;
   /** The acting user is the owner. */
   isOwner: boolean;
+  /** The acting user is the named owner but NOT in the owners &
+   *  approvers group (issue 8): Approve would be offered and then
+   *  refused at check-out, so the overlay says why instead. */
+  ownerOutsidePool?: boolean;
   /** A Document Controllers member — the documents domain's admin
    *  standing (NOT the app's site/super admins — Ben, 2026-08-28). */
   isAdmin: boolean;
@@ -732,7 +736,7 @@ export function lifecycleCommandsFor(
         ? [by("approve", { to: "inOwnerApproval", major: false }), by("requestRevision")]
         : [by("requestRevision")];
     case "inOwnerApproval":
-      return g.isOwner || g.isAdmin
+      return (g.isOwner && g.ownerOutsidePool !== true) || g.isAdmin
         ? [by("approve"), by("requestRevision")]
         : [by("requestRevision")];
     case "approved": {

@@ -538,6 +538,9 @@ export function mountDocs(
         hasApprovers: outsideApprovers,
         hasReviewers,
         isOwner: myEmail !== "" && owners.includes(myEmail),
+        // named owner, not in the group (issue 8): Approve would fail at
+        // check-out — the overlay explains instead (unknown pool = open)
+        ownerOutsidePool: myEmail !== "" && owners.includes(myEmail) && meInPool === false && !docAdmin(),
         isAdmin: docAdmin(),
         // a granted revision editor (5G3) — may drive THIS document's
         // next cycle, never sign anything off
@@ -3724,6 +3727,14 @@ export function mountDocs(
           lifecycle:
             lib?.libType === "standard"
               ? {
+                  // why no decision is offered, when there is a reason
+                  // worth saying (issue 8)
+                  blocked: () => {
+                    const g = lifecycleGatesFor(row);
+                    return stageOfRow(row) === "inOwnerApproval" && g.ownerOutsidePool === true
+                      ? "You are the named owner but not in the owners & approvers group, so SharePoint would refuse your approval — ask a document controller to add you to the group."
+                      : "";
+                  },
                   actions: () => [
                     ...lifecycleActionsFor(row, lib).map((c) => ({
                       key: c.key,

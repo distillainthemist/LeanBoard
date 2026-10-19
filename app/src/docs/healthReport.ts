@@ -63,6 +63,8 @@ export interface ControlHealthOpts {
  *  sample. Ids and a handful of fields, so this is a cheap read — but a
  *  corpus past it must not be described as if it were whole. */
 const SCAN_CAP = 2000;
+/** Directory lookups per scan (issue 11: raised from 300). */
+const PEOPLE_CAP = 600;
 /** Documents listed under one finding before it collapses to a count. */
 const LIST_CAP = 25;
 
@@ -99,11 +101,12 @@ export function openControlHealth(opts: ControlHealthOpts): void {
           d.owner,
           d.documentId,
           d.reviewIso === "" ? "" : formatDayMonthYear(d.reviewIso),
+          (flaggedPeople.get(`${issue.key}|${docKey(d)}`) ?? []).join("; "),
         ]);
       }
     }
     const csv = toCsv(
-      ["Level", "Finding", "Document", "Library", "Owner", "Document ID", "Next review"],
+      ["Level", "Finding", "Document", "Library", "Owner", "Document ID", "Next review", "People"],
       rows
     );
     const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
@@ -212,6 +215,9 @@ export function openControlHealth(opts: ControlHealthOpts): void {
   /** C1: which people a flagged document carries, per finding key —
    *  painted on the row ("owner Jane Doe not in the group"). */
   const flaggedPeople = new Map<string, string[]>();
+  /** The same people with their emails — the per-row fixes (issue 8)
+   *  and the digest (issue 11) need the address, not the display line. */
+  const flaggedPersons = new Map<string, { role: string; name: string; email: string }[]>();
   const docKey = (d: ControlDoc) => `${d.listId.toLowerCase()}:${d.itemId}`;
 
   /** C1 (feedback round 1): the roles checks that need the directory —
@@ -233,15 +239,20 @@ export function openControlHealth(opts: ControlHealthOpts): void {
         const hits: ControlDoc[] = [];
         for (const d of withPeople) {
           const names: string[] = [];
+          const persons: { role: string; name: string; email: string }[] = [];
           for (const p of d.people) {
             if (p.role === "reviewers") continue;
             p.emails.forEach((e, i) => {
-              if (!inPool.has(e)) names.push(`${p.role === "owner" ? "owner" : "approver"} ${p.names[i] ?? e}`);
+              if (!inPool.has(e)) {
+                names.push(`${p.role === "owner" ? "owner" : "approver"} ${p.names[i] ?? e}`);
+                persons.push({ role: p.role, name: p.names[i] ?? e, email: e });
+              }
             });
           }
           if (names.length > 0) {
             hits.push(d);
             flaggedPeople.set(`notInPool|${docKey(d)}`, names);
+            flaggedPersons.set(`notInPool|${docKey(d)}`, persons);
           }
         }
         if (hits.length > 0) {
@@ -262,7 +273,7 @@ export function openControlHealth(opts: ControlHealthOpts): void {
     // the directory: every named email, looked up once (capped)
     try {
       const { directoryProfile, searchEntra } = await import("../store/people");
-      const emails = [...new Set(withPeople.flatMap((d) => d.people.flatMap((p) => p.emails)))].slice(0, 300);
+      const emails = [...new Set(withPeople.flatMap((d) => d.people.flatMap((p) => p.emails)))].slice(0, PEOPLE_CAP);
       const gone = new Set<string>();
       const unchecked: string[] = [];
       let at = 0;
@@ -294,10 +305,17 @@ export function openControlHealth(opts: ControlHealthOpts): void {
       const hits: ControlDoc[] = [];
       for (const d of withPeople) {
         const names: string[] = [];
-        for (const p of d.people) p.emails.forEach((e, i) => gone.has(e) && names.push(`${p.role === "owner" ? "owner" : p.role === "approvers" ? "approver" : "reviewer"} ${p.names[i] ?? e}`));
+        const persons: { role: string; name: string; email: string }[] = [];
+        for (const p of d.people)
+          p.emails.forEach((e, i) => {
+            if (!gone.has(e)) return;
+            names.push(`${p.role === "owner" ? "owner" : p.role === "approvers" ? "approver" : "reviewer"} ${p.names[i] ?? e}`);
+            persons.push({ role: p.role, name: p.names[i] ?? e, email: e });
+          });
         if (names.length > 0) {
           hits.push(d);
           flaggedPeople.set(`leftDirectory|${docKey(d)}`, names);
+          flaggedPersons.set(`leftDirectory|${docKey(d)}`, persons);
         }
       }
       if (hits.length > 0) {
@@ -311,7 +329,7 @@ export function openControlHealth(opts: ControlHealthOpts): void {
           docs: hits,
         });
       }
-      if (emails.length === 300) skipped.push("Directory check capped at 300 people.");
+      if (emails.length === PEOPLE_CAP) skipped.push(`Directory check capped at ${PEOPLE_CAP} people.`);
     } catch {
       skipped.push("The directory could not be read — the left-the-business check did not run.");
     }
@@ -359,32 +377,68 @@ export function openControlHealth(opts: ControlHealthOpts): void {
       );
     }
     for (const s of r.skipped) body.appendChild(el("div", "app-field-hint", `Not checked: ${s}`));
+    /** Replace a person across the scanned documents, optionally
+     *  prefilled with the person a finding named (issue 11). */
+    const openReplace = (from = "") => {
+      void import("./roleReassign").then(({ openReplacePerson }) => {
+        openReplacePerson({
+          host: opts.host,
+          site: opts.site,
+          from,
+          docs: docs
+            .filter((d) => d.people.length > 0)
+            .map((d) => {
+              const live = rowsById.get(docKey(d));
+              return { listId: d.listId, itemId: d.itemId, name: d.name, libName: d.libName, serverUrl: live?.serverUrl ?? "", readerFacing: d.stage === "approved", people: d.people };
+            })
+            .filter((d) => d.serverUrl !== ""),
+          onDone: (changed) => {
+            if (changed > 0) {
+              opts.onReassigned?.();
+              dlg.close();
+            }
+          },
+        });
+      });
+    };
     if (opts.canReassign === true) {
       const tools = el("div", "app-docs-hrtools");
       const rep = el("button", "app-btn", "Replace a person…") as HTMLButtonElement;
       rep.title = "Swap one named owner, approver or reviewer for another across the scanned documents";
-      rep.addEventListener("click", () => {
-        void import("./roleReassign").then(({ openReplacePerson }) => {
-          openReplacePerson({
-            host: opts.host,
-            site: opts.site,
-            docs: docs
-              .filter((d) => d.people.length > 0)
-              .map((d) => {
-                const live = rowsById.get(docKey(d));
-                return { listId: d.listId, itemId: d.itemId, name: d.name, libName: d.libName, serverUrl: live?.serverUrl ?? "", readerFacing: d.stage === "approved", people: d.people };
-              })
-              .filter((d) => d.serverUrl !== ""),
-            onDone: (changed) => {
-              if (changed > 0) {
-                opts.onReassigned?.();
-                dlg.close();
-              }
-            },
-          });
-        });
-      });
+      rep.addEventListener("click", () => openReplace());
       tools.appendChild(rep);
+      // the leavers digest (issue 11): the people findings, as one Teams
+      // card to every document controller, sent on demand — the app has
+      // no scheduler, so "periodic" is a controller's click
+      const digest = el("button", "app-btn", "Teams digest to controllers") as HTMLButtonElement;
+      digest.title = "Send the people findings (left the directory, not in the group) to the document controllers as a Teams card";
+      digest.addEventListener("click", () => {
+        void (async () => {
+          digest.disabled = true;
+          const people = r.issues.filter((i) => i.key === "leftDirectory" || i.key === "notInPool");
+          if (people.length === 0) {
+            digest.textContent = "Nothing to send";
+            return;
+          }
+          const { controllerMembers } = await import("./accessGates");
+          const { sendNotifyTeams } = await import("./notify");
+          const { docsViewUrl } = await import("../links");
+          const { encodeDocView, emptyDocView } = await import("./views");
+          const members = await controllerMembers().catch(() => []);
+          const recipients = members.filter((m) => m.email !== "").map((m) => ({ email: m.email, name: m.name }));
+          if (recipients.length === 0) {
+            digest.textContent = "No controllers group";
+            return;
+          }
+          const lines = people.map((i) => {
+            const who = [...new Set(i.docs.flatMap((d) => flaggedPeople.get(`${i.key}|${docKey(d)}`) ?? []))];
+            return `${i.title}: ${i.docs.length} document${i.docs.length === 1 ? "" : "s"} — ${who.slice(0, 6).join(", ")}${who.length > 6 ? ", …" : ""}`;
+          });
+          const out = await sendNotifyTeams(recipients, "Document control: people findings", lines.join("\n"), docsViewUrl(encodeDocView(emptyDocView())));
+          digest.textContent = out.error === "" ? `Sent to ${recipients.length} controller${recipients.length === 1 ? "" : "s"} ✓` : `Not sent: ${out.error.slice(0, 80)}`;
+        })();
+      });
+      tools.appendChild(digest);
       body.appendChild(tools);
     }
 
@@ -459,6 +513,47 @@ export function openControlHealth(opts: ControlHealthOpts): void {
           row.disabled = true;
         }
         list.appendChild(row);
+        // the fixes on the row (issue 8 / 11): add to the group, or
+        // replace the person — one click from the finding itself
+        const persons = flaggedPersons.get(`${issue.key}|${docKey(d)}`) ?? [];
+        if (opts.canReassign === true && persons.length > 0) {
+          const fixes = el("div", "app-docs-hrfixes");
+          for (const p of persons) {
+            if (issue.key === "notInPool") {
+              const add = el("button", "app-link", `Add ${p.name} to the group`) as HTMLButtonElement;
+              add.title = "Add this person to the owners & approvers group (you must own the group)";
+              add.addEventListener("click", () => {
+                void (async () => {
+                  add.disabled = true;
+                  add.textContent = `Adding ${p.name}…`;
+                  try {
+                    const [{ appDocsConfig }, { searchEntra }, { addMember }, { invalidateAccessGates }] = await Promise.all([
+                      import("./docsStore"),
+                      import("../store/people"),
+                      import("../store/accessGroup"),
+                      import("./accessGates"),
+                    ]);
+                    const cfg = await appDocsConfig();
+                    if (cfg.ownersGroupId === "") throw new Error("no owners & approvers group is linked");
+                    const hit = (await searchEntra(p.email)).find((h) => h.mail.toLowerCase() === p.email.toLowerCase());
+                    if (!hit) throw new Error("the person was not found in the directory");
+                    await addMember(cfg.ownersGroupId, hit.objectId);
+                    invalidateAccessGates();
+                    add.textContent = `${p.name} added ✓`;
+                  } catch (e) {
+                    add.disabled = false;
+                    add.textContent = `Could not add ${p.name}: ${(e instanceof Error ? e.message : String(e)).slice(0, 100)}`;
+                  }
+                })();
+              });
+              fixes.appendChild(add);
+            }
+            const rep = el("button", "app-link", `Replace ${p.name}…`) as HTMLButtonElement;
+            rep.addEventListener("click", () => openReplace(p.email));
+            fixes.appendChild(rep);
+          }
+          list.appendChild(fixes);
+        }
       }
       if (issue.docs.length > LIST_CAP) {
         list.appendChild(

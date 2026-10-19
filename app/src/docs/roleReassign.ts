@@ -30,6 +30,8 @@ export function openReplacePerson(opts: {
   host: HTMLElement;
   site: string;
   docs: ReassignDoc[];
+  /** The person to replace, prefilled (a finding's row, issue 11). */
+  from?: string;
   /** How many documents were changed. */
   onDone: (changed: number) => void;
 }): void {
@@ -67,6 +69,7 @@ export function openReplacePerson(opts: {
     o.value = email;
     fromSel.appendChild(o);
   }
+  if (opts.from !== undefined && named.has(opts.from)) fromSel.value = opts.from;
   body.appendChild(fieldRow("Replace", fromSel));
   const roles = new Set<ReassignDoc["people"][number]["role"]>(["owner", "approvers", "reviewers"]);
   // to — the pool (owners & approvers group), searched; the reviewer
