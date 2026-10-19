@@ -15,6 +15,7 @@ export function runPdfBlocks(run: UatRun, results: UatResult[]): Block[] {
   const b: Block[] = [];
   b.push({ kind: "title", text: `UAT run — ${run.name}` });
   b.push({ kind: "meta", text: `${run.status} · app v${run.appVersion} · ${run.environment} · ${run.cases.length} cases · exported ${when(new Date().toISOString())}` });
+  if (run.description.trim() !== "") b.push({ kind: "p", text: run.description });
   b.push({ kind: "kv", key: "Components", value: run.components.join(", ") });
   b.push({ kind: "kv", key: "Scope", value: run.scope });
   b.push({ kind: "kv", key: "Started", value: `${run.createdByName} ${when(run.createdAt)}` });

@@ -436,6 +436,7 @@ export const TABLES = [
     primaryNameMax: 200,
     columns: {
       ben_status: { ...text(10), display: "Status (planned|running|closed)" },
+      ben_description: { ...memo(20000), display: "Instructions for the testers" },
       ben_componentsjson: { ...memo(4000), display: "Components (JSON keys)" },
       ben_appversion: { ...text(40), display: "App version at start" },
       ben_environment: { ...text(200), display: "Environment label" },

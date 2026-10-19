@@ -55,6 +55,10 @@ export interface UatRunCase {
 export interface UatRun {
   rowId: string;
   name: string;
+  /** Instructions for the testers (Ben, 2026-10-19): the environment,
+   *  the test accounts, what to focus on — shown on the UAT tab and in
+   *  the card. */
+  description: string;
   status: "planned" | "running" | "closed";
   components: string[];
   appVersion: string;

@@ -98,6 +98,14 @@
           "x-ms-schema-name": "ben_createdbyname",
           "maxLength": 200
         },
+        "ben_description": {
+          "type": "string",
+          "title": "Instructions for the testers",
+          "x-ms-dataverse-attribute": "ben_description",
+          "x-ms-dataverse-type": "MemoType",
+          "x-ms-schema-name": "ben_description",
+          "maxLength": 20000
+        },
         "ben_environment": {
           "type": "string",
           "title": "Environment label",

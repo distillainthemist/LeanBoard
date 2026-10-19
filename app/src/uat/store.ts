@@ -19,6 +19,7 @@ function runFromRow(r: Ben_ltkuatruns): UatRun {
   return {
     rowId: r.ben_ltkuatrunid,
     name: r.ben_name ?? "",
+    description: r.ben_description ?? "",
     status: r.ben_status === "closed" ? "closed" : r.ben_status === "planned" ? "planned" : "running",
     components: parseComponentKeys(r.ben_componentsjson ?? ""),
     appVersion: r.ben_appversion ?? "",
@@ -68,10 +69,11 @@ export async function getRun(rowId: string): Promise<UatRun | null> {
   return runFromRow(r.data);
 }
 
-export async function createRun(o: { name: string; components: string[]; environment: string; assignees: UatAssignee[]; cases: UatRunCase[]; scope: string }): Promise<string> {
+export async function createRun(o: { name: string; description: string; components: string[]; environment: string; assignees: UatAssignee[]; cases: UatRunCase[]; scope: string }): Promise<string> {
   const me = currentViewer();
   const r = await Ben_ltkuatrunsService.create({
     ben_name: o.name.slice(0, 200),
+    ben_description: o.description,
     ben_status: "running",
     ben_componentsjson: JSON.stringify(o.components),
     ben_appversion: typeof __APP_VERSION__ === "string" ? __APP_VERSION__ : "unknown",
@@ -87,6 +89,11 @@ export async function createRun(o: { name: string; components: string[]; environ
   const id = String((r.data as { ben_ltkuatrunid?: unknown } | undefined)?.ben_ltkuatrunid ?? "");
   if (id === "") throw new Error("The run was created but its id did not come back — refresh the list.");
   return id;
+}
+
+export async function updateDescription(run: UatRun, description: string): Promise<void> {
+  const r = await Ben_ltkuatrunsService.update(run.rowId, { ben_description: description });
+  if (r.success === false) fail("Could not save the instructions", r.error);
 }
 
 export async function updateAssignees(run: UatRun, assignees: UatAssignee[]): Promise<void> {

@@ -91,7 +91,7 @@ const scripts: UatScripts = {
   },
 };
 const run = (over: Partial<UatRun> = {}): UatRun => ({
-  rowId: "r", name: "Run", status: "running", components: ["documents"], appVersion: "0.74.0", environment: "test",
+  rowId: "r", name: "Run", description: "", status: "running", components: ["documents"], appVersion: "0.74.0", environment: "test",
   assignees: [{ whoId: "a", email: "ann@x.com", name: "Ann", personas: ["reader"] }, { whoId: "b", email: "ben@x.com", name: "Ben", personas: [] }],
   cases: snapshotCases(casesFor(scripts, ["documents"])), scope: "all", createdByEmail: "", createdByName: "", createdAt: "", closedByName: "", closedAt: "", closingNote: "", ...over,
 });

@@ -25,6 +25,7 @@ export interface Ben_ltkuatrunsBase {
   ben_createdat?: string;
   ben_createdbyemail?: string;
   ben_createdbyname?: string;
+  ben_description?: string;
   ben_environment?: string;
   ben_ltkuatrunid: string;
   ben_name?: string;

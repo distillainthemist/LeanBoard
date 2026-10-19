@@ -13,7 +13,7 @@ import { listPeople } from "../store/people";
 import type { RosterPerson } from "../store/mappers";
 import { appLinkUrl } from "../links";
 import { UAT_COMPONENTS, UatAssignee, UatResult, UatRun, UatRunCase, UatScripts, casesFor, changedSince, failedCases, progressByPersona, progressByTester, snapshotCases } from "./model";
-import { closeRun, createRun, listResults, listRuns, loadScripts, reopenRun, updateAssignees } from "./store";
+import { closeRun, createRun, listResults, listRuns, loadScripts, reopenRun, updateAssignees, updateDescription } from "./store";
 
 const note = (text: string) => el("div", "app-settings-note", text);
 const btn = (label: string, cls = "app-btn"): HTMLButtonElement => {
@@ -71,7 +71,8 @@ export async function renderUatSettings(body: HTMLElement): Promise<void> {
           [{ email: a.email, name: a.name || a.email }],
           `UAT: ${run.name}`,
           `You are on the UAT run “${run.name}” as ${a.personas.join(", ") || "every persona"} — open LeanBoard, the UAT tab lists your cases. Pass, Fail (it raises an issue) or Blocked each one.`,
-          `${appLinkUrl()}#/uat`
+          `${appLinkUrl()}#/uat`,
+          run.description.trim() !== "" ? { label: "Instructions", text: run.description } : undefined
         );
         if (r.error !== "") failed.push(`${a.name}: ${r.error}`);
       }
@@ -159,7 +160,19 @@ export async function renderUatSettings(body: HTMLElement): Promise<void> {
       host.appendChild(el("div", "app-field-hint", "The issues raised from this run: Settings → Issues → origin “UAT: " + run.name + "”, tick and Export to PDF."));
     }
     if (run.closingNote !== "") host.appendChild(el("div", "app-field-hint", `Closed by ${run.closedByName} ${when(run.closedAt)} — ${run.closingNote}`));
+    if (run.description.trim() !== "") host.appendChild(el("div", "app-uat-desc", run.description));
     const acts = el("div", "app-uat-acts");
+    const descBtn = btn("Edit instructions…");
+    descBtn.addEventListener("click", () => {
+      void promptText({ title: `Instructions — ${run.name}`, note: "What the testers need to know: the environment, test accounts, where to focus. Shown on their UAT tab.", initial: run.description, multiline: true, confirmLabel: "Save" }).then(async (v) => {
+        if (v === null) return;
+        await updateDescription(run, v);
+        run.description = v;
+        status.textContent = "Instructions saved.";
+        await paintDetail(run, host);
+      });
+    });
+    acts.appendChild(descBtn);
     const people = btn("Edit people…");
     people.addEventListener("click", () => openPeople(run, async (assignees) => {
       await updateAssignees(run, assignees);
@@ -195,7 +208,7 @@ export async function renderUatSettings(body: HTMLElement): Promise<void> {
         void (async () => {
           const ok = await promptConfirm({ title: `Re-run ${bad.length} failed or blocked case${bad.length === 1 ? "" : "s"}?`, note: `A new run “${run.name} — re-run” with the same people and only those cases. The assignees get a Teams card.`, confirmLabel: "Start re-run" });
           if (!ok) return;
-          const id = await createRun({ name: `${run.name} — re-run`, components: run.components, environment: run.environment, assignees: run.assignees, cases: bad, scope: `re-run of ${run.name}` });
+          const id = await createRun({ name: `${run.name} — re-run`, description: run.description, components: run.components, environment: run.environment, assignees: run.assignees, cases: bad, scope: `re-run of ${run.name}` });
           const made: UatRun = { ...run, rowId: id, name: `${run.name} — re-run`, cases: bad };
           const warn = await sendCards(made, run.assignees);
           status.textContent = warn !== "" ? `Re-run started — some Teams cards did not go: ${warn}` : "Re-run started — the testers have their cards.";
@@ -284,7 +297,7 @@ export async function renderUatSettings(body: HTMLElement): Promise<void> {
   const openNew = () => {
     const dlgHost = el("div", "app-dlghost");
     body.appendChild(dlgHost);
-    const draft = { name: "", environment: window.location.host.includes("powerplatformusercontent") ? "production test site" : window.location.host, components: [] as string[], scope: "all", assignees: [] as UatAssignee[] };
+    const draft = { name: "", description: "", environment: window.location.host.includes("powerplatformusercontent") ? "production test site" : window.location.host, components: [] as string[], scope: "all", assignees: [] as UatAssignee[] };
     const dlg = openDialog({
       host: dlgHost,
       title: "New UAT run",
@@ -299,6 +312,9 @@ export async function renderUatSettings(body: HTMLElement): Promise<void> {
     name.placeholder = "e.g. Documents UAT — October 2026";
     const env = el("input", "app-input") as HTMLInputElement;
     env.value = draft.environment;
+    const desc = el("textarea", "app-input") as HTMLTextAreaElement;
+    desc.rows = 4;
+    desc.placeholder = "What the testers need to know — the site, test accounts, what to focus on, how to report. Shown at the top of their UAT tab and in the Teams card.";
     const comps = el("div", "app-uat-comps");
     const scope = el("select", "app-input") as HTMLSelectElement;
     scope.appendChild(new Option("Every case", "all"));
@@ -337,12 +353,13 @@ export async function renderUatSettings(body: HTMLElement): Promise<void> {
     });
     const st = el("div", "app-docs-addstatus");
     const lab = (t: string) => el("div", "app-field-label", t);
-    dlg.body.append(lab("Name"), name, lab("Environment"), env, lab("Components"), comps, lab("Scope"), scope, caseCount, lab("People"), peopleBtn, peopleLine, st);
+    dlg.body.append(lab("Name"), name, lab("Environment"), env, lab("Instructions for the testers"), desc, lab("Components"), comps, lab("Scope"), scope, caseCount, lab("People"), peopleBtn, peopleLine, st);
     recount();
     let running = false;
     const start = async () => {
       if (running) return;
       draft.name = name.value.trim();
+      draft.description = desc.value.trim();
       draft.environment = env.value.trim();
       if (draft.name === "") {
         st.textContent = "A name is needed.";
@@ -366,9 +383,9 @@ export async function renderUatSettings(body: HTMLElement): Promise<void> {
       st.textContent = "Starting…";
       try {
         const snap: UatRunCase[] = snapshotCases(cases);
-        const id = await createRun({ name: draft.name, components: draft.components, environment: draft.environment, assignees: draft.assignees, cases: snap, scope: scope.value === "all" ? "every case" : `changed since ${scope.value}` });
+        const id = await createRun({ name: draft.name, description: draft.description, components: draft.components, environment: draft.environment, assignees: draft.assignees, cases: snap, scope: scope.value === "all" ? "every case" : `changed since ${scope.value}` });
         st.textContent = "Telling the testers on Teams…";
-        const made: UatRun = { rowId: id, name: draft.name, status: "running", components: draft.components, appVersion: "", environment: draft.environment, assignees: draft.assignees, cases: snap, scope: "", createdByEmail: "", createdByName: "", createdAt: "", closedByName: "", closedAt: "", closingNote: "" };
+        const made: UatRun = { rowId: id, name: draft.name, description: draft.description, status: "running", components: draft.components, appVersion: "", environment: draft.environment, assignees: draft.assignees, cases: snap, scope: "", createdByEmail: "", createdByName: "", createdAt: "", closedByName: "", closedAt: "", closingNote: "" };
         const warn = await sendCards(made, draft.assignees);
         dlg.close();
         status.textContent = warn !== "" ? `Run started — some Teams cards did not go: ${warn}` : `“${draft.name}” started — the testers have their cards.`;

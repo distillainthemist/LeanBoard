@@ -79,6 +79,9 @@ export function mountUat(host: HTMLElement): () => void {
       } else head.appendChild(el("div", "app-uat-runtitle", run.name));
       const meta = run.assignees.find((a) => a.email === myEmail);
       head.appendChild(el("div", "app-field-hint", `v${run.appVersion} · ${run.environment} · you test as ${meta?.personas.join(", ") || "every persona"} · ${p.total - p.untested} of ${p.total} recorded${p.fail > 0 ? ` · ${p.fail} fail` : ""}${p.blocked > 0 ? ` · ${p.blocked} blocked` : ""}`));
+      // the run's instructions (Ben, 2026-10-19) — what the testers
+      // need before the first case
+      if (run.description.trim() !== "") head.appendChild(el("div", "app-uat-desc", run.description));
       const bar = el("div", "app-uat-barbar app-uat-barbar-wide");
       const seg = (n: number, cls: string) => {
         if (n === 0) return;

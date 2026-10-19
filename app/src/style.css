@@ -4774,6 +4774,9 @@ input.app-vg-in.app-vg-folded { background: #fff7e0; }
 .app-uat-personname { font-weight: 600; font-size: 13px; }
 .app-uat-personas { display: flex; gap: 6px; flex-wrap: wrap; }
 .app-uat { padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; max-width: 900px; }
+/* the tab scrolls inside the hub's extra-tab host (Ben, 2026-10-19) */
+.ltk-lh-ext > .app-uat { flex: 1 1 auto; min-height: 0; overflow-y: auto; max-width: none; }
+.app-uat-desc { background: #f7f5f0; border-left: 3px solid var(--app-accent); border-radius: 6px; padding: 8px 12px; font-size: 13px; white-space: pre-wrap; max-width: 900px; }
 .app-uat-head { display: flex; flex-direction: column; gap: 4px; }
 .app-uat-runtitle { font-size: 18px; font-weight: 700; }
 .app-uat-runsel { max-width: 420px; }
