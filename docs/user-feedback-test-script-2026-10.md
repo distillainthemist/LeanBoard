@@ -273,6 +273,51 @@ On a desktop.
 |---|---|
 | 1–13 | _Ben's pass pending_ |
 
+## Issue round tranche E — after v0.73.2 (2026-10-19, dev)
+
+1. **(29) Every template card** — add an optional card (e.g.
+   Documentation & links) to an initiative template, create an
+   initiative from it: the card is on the new board. Reset board to
+   template keeps it; "Add card from template" says every card is
+   already there.
+2. **(36) Stage descriptions** — Settings → initiative template →
+   Stages: each stage row has a second line "What happens in this
+   stage"; save. On an initiative: the band segment's tooltip ends with
+   the description, and Details → Stages & gates shows it under the
+   current stage. Changing it in the template changes it on the
+   initiative at once (no copy).
+3. **(32) Priority popup initiatives** — Priorities → open a priority
+   → Initiatives: every row has ⋮ with Open · Edit details… · Flag ·
+   Escalate to sponsor · Archive — the same menu as the Improvement
+   tab; Edit details saves and the row updates. Metrics tab: values can
+   be updated (a role on the initiative or an admin, initiative
+   active); the card scrolls, nothing is clipped.
+4. **(37) Year control** — the Priorities header reads ‹ FY26 ▾ ›
+   Cascaded Priorities: ‹ › step the year, the pill opens the list
+   with a "current" badge; another year tints the pill and shows
+   "Back to FY26". Opening the screen lands on the current year.
+5. **(38) Issue merge messaging** — Settings → Issues: an issue with a
+   follower and a merged-in report shows "To: A, B, C" chips above the
+   compose box and "Send to reporters (3)"; each gets their own Teams
+   card quoting their own report. Decline does the same. Merging an
+   issue that already includes others moves those across too.
+6. **(23) Document flags** — Documents: open a document → details →
+   "Flag this document…": level, comment, pasted screenshot → the
+   owners get a Teams card. The details chip "⚑ level" opens the
+   flags; the register's Flags column (Choose columns) shows it;
+   kebab → "Show flagged documents" scopes the register; Document
+   tasks → "Flagged for review"; Document control health → "Flagged
+   for review"; kebab → "Document flags (n)…" (controllers) → Close
+   flag… with a note; Settings → Documents → Review levels edits the
+   list, "Document flags…" opens the same queue. Mark reviewed on a
+   flagged document offers to close its flags. Ingestion task: each
+   file has a ⚑; flag one, run the ingestion — the flag now points at
+   the landed document.
+
+| Item | Outcome |
+|---|---|
+| 1–6 | _Ben's pass pending_ |
+
 ## Issue round tranche D — after v0.73.2 (2026-10-19, dev)
 
 1. **(8) Owner outside the group** — as a named owner who is not in

@@ -1455,6 +1455,12 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-10-19 (after v0.73.2, dev)**: issue round tranche E — document
+  flags (23, SCHEMA-CARRYING: `ben_ltkdocflag`, deployed to dev),
+  every template card on a new board (29), the shared initiative row
+  menu and a writable Metrics card in the priority popup (32), stage
+  descriptions (36), the ‹ FY ▾ › year control (37), and issue
+  messages to every reporter and follower, one card each (38).
 - **2026-10-19 (after v0.73.2, dev)**: issue round tranche D — the
   owner-group guard and per-row fixes (8), the leavers digest (11),
   view rename / active / edited / site views (5, 6), the Management of

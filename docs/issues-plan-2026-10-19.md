@@ -153,7 +153,46 @@ should share ONE solution-carrying release.
   confirms; `attachNotifyPanel` `autoSend: "teams"` + `onSent` — submit
   for review sends the reviewers' card at once; stage-specific done
   lines; Check in & submit for review as one flow; a notify plan for
-  reviewComplete to the owner).
+  reviewComplete to the owner). PASSED by Ben 2026-10-19 (6/6; the
+  tag-proposal schema deployed to dev the same day).
+
+- **Tranche E — BUILT 2026-10-19 (dev, unreleased; SCHEMA deployed to
+  dev):** 23 (SCHEMA: `ben_ltkdocflag` — site/list/item/uid/name/
+  version, level, comment, status open|closed, source
+  register|ingestion, flagger, closed-by, resolution, `ben_screenshot`
+  file column; `docs/docFlagsModel.ts` pure + tested
+  (`DEFAULT_REVIEW_LEVELS`, `reviewLevelsOf`, `flagKey`, `flagsByDoc`,
+  `flagsForTasks`, `flagChipText`, `flagNotice`); `docs/docFlags.ts`
+  store (`listOpenFlags`, `listFlagsForDoc`, `raiseFlag` + screenshot
+  upload, `closeFlag`, `repointFlags`, `flagScreenshotUrl`);
+  `docs/flagDialog.ts` (level · comment · one screenshot, owners' Teams
+  card else the controllers'); `docs/flagQueue.ts` (open + closed,
+  Open document, Close flag… with a note); the screen's `openFlags`
+  map → overlay chip "⚑ level / n open flags" + "Flag this document…",
+  register column `FLAGS_FIELD` "__flags", kebab "Document flags
+  (n)…" for controllers + "Show flagged documents" scope, Document
+  tasks group "Flagged for review" (controllers all, owners theirs),
+  health finding "Flagged for review", Mark reviewed offers to close;
+  `AppDocsConfig.reviewLevels` edited under Settings → Documents →
+  Review levels + "Document flags…" queue; ingestion ⚑ per file and
+  `repointFlags` on landing (`fetchFileItemId` now selects GUID)),
+  29 (`slotsFromTemplate` keeps EVERY template card, one Metrics
+  card; reset and Add card from template follow; wording), 32a/b
+  (`improvement/rowMenu.ts` `openInitiativeRowMenu` shared by the
+  Improvement tab and the priority popup rows; `LifecycleCtx`
+  `initiativeById` / `viewerIsAdmin` / `initiativesChanged`; the
+  popup's Metrics card mounts writable for a role-holder or admin on
+  an active initiative — `saveCard` + `upsertActions`), 36
+  (`TemplateStage.description?` parsed in `parseStages` /
+  `parseSnapshot`; wizard row second line; band tooltip; Details rail
+  under the current stage, read live from the template), 37
+  (`renderYearControl` ‹ FY ▾ › with the current year filled, others
+  tinted + "Back to FYxx"; a fresh mount already opens on the current
+  year), 38 (`issues/audience.ts` `issueAudience` pure + tested —
+  reporter, merged-in reporters, followers, sender dropped; "To:"
+  chips; "Send to reporters (n)"; ONE CARD PER PERSON quoting their own
+  report; Decline the same; merge copies the child's watches and
+  re-points grandchildren).
 
 ## Order (proposed)
 
