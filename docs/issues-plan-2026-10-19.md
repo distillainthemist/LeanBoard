@@ -122,6 +122,39 @@ should share ONE solution-carrying release.
   `scopeLabel` "Linked to: X"; the links column renders "n links" via
   `linkCount`).
 
+- **Tranche D — BUILT 2026-10-19 (dev, unreleased; the schema part
+  PENDING deploy):** 8 (`LifecycleGates.ownerOutsidePool`; no Approve
+  for a named owner outside the pool, the overlay's decision card says
+  why via `lifecycle.blocked()`; health report per-row "Add X to the
+  group" (searchEntra → addMember, invalidateAccessGates) and "Replace
+  X…" prefilled; CSV People column), 11 (`PEOPLE_CAP` 600; "Teams
+  digest to controllers" button in the report — one card to
+  `controllerMembers()` with the people findings; no scheduler, so
+  periodic = a controller's click), 5/6 (`renameDocView`; ✓ on the
+  active view; title "View · name · edited" via `viewDrifted()`; SITE
+  VIEWS on `AppDocsConfig.sharedViewsJson` — "Save for the site",
+  Update site view, rename / delete for controllers, listed under
+  "Site views" for everyone), 10 (`managementOfChange` role;
+  `MocRecord` / `parseMocRecords` / `serializeMocRecords`;
+  `docs/mocEditor.ts` rows editor inside `buildFieldEditors`; ref chips
+  in `registerCells` and the overlay; ingestion requires it where
+  carried; the duplicate `tags` role removed), 2 (SCHEMA: `ben_docsite`
+  / `ben_doclistid` / `ben_docuid` / `ben_docname` on
+  `ben_ltktagproposal` — deploy + `pac code add-data-source` pending;
+  `submitTagProposal(label, note, doc)`; `approveProposal` → mint +
+  `applyTagToDocument` (connector patch, bracket on a check-out
+  refusal) + the proposer's Teams card, returns {error, warn,
+  applied}; `docs/tagQueue.ts` from the register kebab "Tag proposals
+  (n)…" for controllers; overlay "Suggest a tag…" (`openSuggestTag`);
+  `controllerLookupFailed()` hint; Settings' approve reads the new
+  shape), 4 (`reviewComplete` command for `isReviewer` in review, a
+  minor version "Review complete by X"; `reviewsOutstanding(versions,
+  names)` pure + tested; Submit for approval from in-review warns and
+  confirms; `attachNotifyPanel` `autoSend: "teams"` + `onSent` — submit
+  for review sends the reviewers' card at once; stage-specific done
+  lines; Check in & submit for review as one flow; a notify plan for
+  reviewComplete to the owner).
+
 ## Order (proposed)
 
 1. **Tranche A — bugs, app-only (≈25 h):** 1, 28, 30, 26, 27, 31, 34, 33/35,

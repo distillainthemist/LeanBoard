@@ -1455,6 +1455,13 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-10-19 (after v0.73.2, dev)**: issue round tranche D — the
+  owner-group guard and per-row fixes (8), the leavers digest (11),
+  view rename / active / edited / site views (5, 6), the Management of
+  change role (10), tag proposals with the controllers' queue, apply on
+  approve and Suggest a tag (2, SCHEMA-CARRYING: four columns on
+  `ben_ltktagproposal`), and the review round's Review complete action
+  and warn-and-confirm gate (4).
 - **2026-10-19 (after v0.73.2, dev)**: issue round tranche C — filters
   that reach every level (13), the organisation's own order in the
   pane and pills (12), folders that drill down with a resizable panel

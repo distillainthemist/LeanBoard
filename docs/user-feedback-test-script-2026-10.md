@@ -273,6 +273,46 @@ On a desktop.
 |---|---|
 | 1–13 | _Ben's pass pending_ |
 
+## Issue round tranche D — after v0.73.2 (2026-10-19, dev)
+
+1. **(8) Owner outside the group** — as a named owner who is not in
+   the owners & approvers group, open a standard awaiting owner
+   approval: the decision card reads "Awaiting your approval" with the
+   reason and no Approve button. Document control health → a "Named
+   owner … not in the group" row offers "Add X to the group" (works
+   when you own the group) and "Replace X…" prefilled; Export CSV has
+   a People column.
+2. **(11) Leavers** — the report's "Teams digest to controllers" sends
+   one card listing the people findings to every document controller.
+3. **(5/6) Views** — Kebab → Saved views: ✓ marks the view you are in;
+   ✎ renames; the title reads "View · name" and "· edited" once you
+   change a filter; a controller sees "Save for the site" and the
+   result appears under "Site views" for everyone, with Update site
+   view while it is active.
+4. **(10) Management of change** — map a Note column to the
+   "Management of change" role (Settings → Documents → Document
+   columns): Edit properties shows rows of MoC number / link / what
+   changed; the register and the overlay show the numbers as chips
+   that open the link; ingestion marks the column required where the
+   destination carries it.
+5. **(2) Tag proposals** — AFTER the schema deploy: Details → "Suggest
+   a tag…" on a document; as a controller, Kebab → "Tag proposals
+   (1)…" → Approve: the tag is minted, lands on that document, and the
+   proposer gets a Teams card; Decline asks for the reason. Settings →
+   Documents → Tags still approves too.
+6. **(4) Review round** — on a draft with reviewers, Submit for review:
+   the done line names the status and the reviewers' Teams card is
+   sent at once ("Reviewers notified ✓"). As a reviewer, the overlay
+   offers "Review complete" (a minor version "Review complete by you").
+   As the submitter, Submit for approval before every reviewer has done
+   so warns "X has not marked their review complete — submit anyway?".
+   On a checked-out draft, Check in… offers "Check in & submit for
+   review" as one flow.
+
+| Item | Outcome |
+|---|---|
+| 1–6 | _Ben's pass pending_ |
+
 ## Issue round tranche C — after v0.73.2 (2026-10-19, dev)
 
 1. **(13) Filters reach every level** — Filters → a parent term such
