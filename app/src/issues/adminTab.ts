@@ -662,17 +662,17 @@ export async function renderIssuesAdmin(body: HTMLElement): Promise<void> {
     const sendRep = el("button", "app-btn", sendLabel(audience.length)) as HTMLButtonElement;
     sendRep.disabled = audience.length === 0;
     const sendInt = el("button", "app-btn", "Internal note") as HTMLButtonElement;
-    const sendIt = (audience: "reporter" | "internal") => {
+    const sendIt = (kind: "reporter" | "internal") => {
       const text = compose.value.trim();
       if (text === "") return;
       void (async () => {
         sendRep.disabled = sendInt.disabled = true;
         try {
-          await writeMessage(id, text, audience);
+          await writeMessage(id, text, kind);
           // reporter messages also go out as a Teams chat — the thread
           // is the record, Teams is the doorbell
           compose.value = "";
-          if (audience === "reporter") {
+          if (kind === "reporter") {
             status.textContent = audience.length > 1 ? `Sending ${audience.length} Teams cards…` : "Sending the Teams message…";
             const warn = await deliverTeams(issue, audience, text);
             if (warn !== "") {
