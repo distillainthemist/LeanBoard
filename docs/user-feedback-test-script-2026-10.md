@@ -311,7 +311,9 @@ On a desktop.
 
 | Item | Outcome |
 |---|---|
-| 1–6 | _Ben's pass pending_ |
+| 1–3 | PASS (Ben, 2026-10-19) — views menu name box widened to 340px after 3 |
+| 4 | PASS (Ben, 2026-10-19) — after two follow-ups: the details chip opens its link (the pane had swallowed the click; scheme-less links are now accepted), and the editor row became two lines |
+| 5–6 | _Ben's pass pending_ |
 
 ## Issue round tranche C — after v0.73.2 (2026-10-19, dev)
 
