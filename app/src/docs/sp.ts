@@ -427,9 +427,10 @@ export function restoreFileVersion(site: string, url: string, label: string): Pr
   );
 }
 
-/** The list item behind a file — its id is what metadata writes address. */
+/** The list item behind a file — its id is what metadata writes
+ *  address; the GUID rides along so a flag can follow the file (issue 23). */
 export function fetchFileItemId(site: string, url: string): Promise<SpResult> {
-  return spRequest(site, "GET", `${filePath(url)}/ListItemAllFields?$select=Id`);
+  return spRequest(site, "GET", `${filePath(url)}/ListItemAllFields?$select=Id,GUID`);
 }
 
 /**

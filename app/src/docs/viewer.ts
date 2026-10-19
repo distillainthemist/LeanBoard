@@ -124,6 +124,10 @@ interface ViewerOpts {
   /** Suggest a tag for this document (issue 2): a reader's road to a
    *  proposal, since only editors reach the tag editor. */
   suggestTag?: () => void;
+  /** Document flags (issue 23): the open-flags chip text (a getter,
+   *  re-read on every details repaint), the reader's "Flag this
+   *  document…" road, and the flags list behind the chip. */
+  flags?: { chip: () => string; raise: () => void; show: () => void };
   /** Status value for this row ("" = none) + the screen's palette-aware
    *  chip renderer. A getter is re-read on every details repaint — a
    *  lifecycle command changes the status while the overlay is open,
@@ -881,7 +885,26 @@ export function openDocViewer(opts: ViewerOpts): () => void {
             : tonePill("Regulator-approved — copy not linked", "amber")
       );
     }
+    // open flags on this document (issue 23) — loud, the list behind it
+    if (opts.flags !== undefined) {
+      const t = opts.flags.chip();
+      if (t !== "") {
+        const chip = tonePill(t, "amber");
+        chip.classList.add("app-docs-flagchip");
+        chip.title = "See the flags on this document";
+        chip.setAttribute("role", "button");
+        chip.tabIndex = 0;
+        chip.addEventListener("click", () => opts.flags?.show());
+        flags.appendChild(chip);
+      }
+    }
     if (flags.children.length > 0) propsBox.appendChild(flags);
+    if (opts.flags !== undefined) {
+      const fl = el("button", "app-link app-docs-suggesttag", "Flag this document…") as HTMLButtonElement;
+      fl.title = "Flag it for review — a level, a comment, a screenshot; the owners hear on Teams";
+      fl.addEventListener("click", () => opts.flags?.raise());
+      propsBox.appendChild(fl);
+    }
     if (opts.suggestTag !== undefined) {
       const sug = el("button", "app-link app-docs-suggesttag", "Suggest a tag…") as HTMLButtonElement;
       sug.title = "Propose a tag for this document — a document controller decides";

@@ -914,6 +914,10 @@ export interface AppDocsConfig {
    *  reader sees, curated by document controllers; the serialised
    *  DocView list (views.ts parses it — kept opaque here). */
   sharedViewsJson: string;
+  /** The review levels a flag can carry (issue 23) — an app-managed
+   *  list edited under Settings → Documents; empty = the defaults in
+   *  docFlagsModel.ts. */
+  reviewLevels: string[];
   /** siteUrl → that site's shared column mapping and palettes. A map,
    *  so exposing a second site later adds a key rather than a schema. */
   sites: Record<string, SiteDictionary>;
@@ -957,6 +961,7 @@ export function emptyAppDocsConfig(): AppDocsConfig {
     termWritesOwed: {},
     stagingLibrary: "",
     sharedViewsJson: "",
+    reviewLevels: [],
     sites: {},
   };
 }
@@ -1091,6 +1096,7 @@ export function parseAppDocsConfig(raw: string | null | undefined): AppDocsConfi
     }
     out.stagingLibrary = asStr(o.stagingLibrary);
     out.sharedViewsJson = asStr(o.sharedViewsJson);
+    out.reviewLevels = Array.isArray(o.reviewLevels) ? (o.reviewLevels as unknown[]).map((x) => asStr(x).trim()).filter((x) => x !== "") : [];
     if (o.sites && typeof o.sites === "object") {
       for (const [key, val] of Object.entries(o.sites as Record<string, unknown>)) {
         const k = siteKey(key);
@@ -1253,6 +1259,7 @@ export function serializeAppDocsConfig(cfg: AppDocsConfig): string {
   if (Object.keys(cfg.termWritesOwed).length > 0) o.termWritesOwed = cfg.termWritesOwed;
   if (cfg.stagingLibrary !== "") o.stagingLibrary = cfg.stagingLibrary;
   if (cfg.sharedViewsJson !== "") o.sharedViewsJson = cfg.sharedViewsJson;
+  if (cfg.reviewLevels.length > 0) o.reviewLevels = cfg.reviewLevels;
   const sites: Record<string, unknown> = {};
   for (const [key, dict] of Object.entries(cfg.sites)) {
     const body = serializeSiteDictionary(dict);

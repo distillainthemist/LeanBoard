@@ -39,7 +39,8 @@ import {
   isNonCurrentStatus,
   pdfViewUrlFor,
   pickBrowseHead,
-  taxonomySearchProperty, KEPT_SYSTEM_FIELDS, NAME_SLOT, VERSION_FIELD, termTreeOrder, viewerPageUrl } from "./rows";
+  taxonomySearchProperty, FLAGS_FIELD, KEPT_SYSTEM_FIELDS, NAME_SLOT, VERSION_FIELD, termTreeOrder, viewerPageUrl } from "./rows";
+import { DocFlag, flagChipText, flagKey, flagsByDoc, flagsForTasks, reviewLevelsOf } from "./docFlagsModel";
 import { DocLibrary, docsConfig, patchAppDocsConfig } from "./docsStore";
 import {
   BasePermissions,
@@ -288,6 +289,22 @@ export function mountDocs(
     const dialogHost = el("div", "app-dlghost");
     document.body.appendChild(dialogHost);
     innerCleanups.push(() => dialogHost.remove());
+
+    /** Open document flags on this site (issue 23), keyed list:item —
+     *  the overlay chip, the register column, the tasks group and the
+     *  health report all read this one map. Re-read after any flag
+     *  write; an unreadable table reads as "no flags", never a broken
+     *  register. */
+    let openFlags = new Map<string, DocFlag[]>();
+    const reloadFlags = async (): Promise<void> => {
+      try {
+        const { listOpenFlags } = await import("./docFlags");
+        openFlags = flagsByDoc(await listOpenFlags(app.siteUrl));
+      } catch {
+        /* the flags table unreadable = no flags shown */
+      }
+    };
+    const flagsOnRow = (row: DocRow): DocFlag[] => openFlags.get(flagKey(row.listId, row.id)) ?? [];
 
     /** The open document overlay's repaints, while one is open. A
      *  command run from the overlay changes state the overlay is
@@ -715,7 +732,25 @@ export function mountDocs(
           // the importance mapping (Ben, 2026-08-10)
           dates: lib !== undefined ? await resolveDatesFor(row, lib) : undefined,
           host: dialogHost,
-          onDone: () => void refreshRow(row),
+          onDone: () => {
+            void refreshRow(row);
+            // a review answers the open flags (issue 23) — offer to close them
+            const open = flagsOnRow(row);
+            if (open.length === 0) return;
+            void promptConfirm({
+              title: `Close ${open.length === 1 ? "the open flag" : `${open.length} open flags`} on “${row.name}”?`,
+              note: `${open.map((f) => `${f.level} — ${f.flaggerName || f.flaggerEmail}`).join("\n")}\n\nThe review you just recorded becomes each flag's closing note.`,
+              confirmLabel: "Close flags",
+            }).then(async (ok) => {
+              if (!ok) return;
+              const { closeFlag } = await import("./docFlags");
+              for (const f of open) await closeFlag(f.id, "Closed at Mark reviewed");
+              await reloadFlags();
+              void refreshRow(row);
+              refreshTasksBadge();
+              viewerRepaints.forEach((fn) => fn());
+            });
+          },
         });
       });
     };
@@ -930,6 +965,104 @@ export function mountDocs(
         dlg.close();
         status.textContent = `Tag “${lbl.value.trim().replace(/^#/, "")}” proposed for “${row.name}” — a document controller decides.`;
       };
+    };
+
+    /** Flag this document (issue 23): the owners hear, else the
+     *  controllers; the flag lands in the map and on the row. */
+    const openFlagRow = (row: DocRow) => {
+      void (async () => {
+        const [{ openFlagDialog }, { controllerMembers }] = await Promise.all([import("./flagDialog"), import("./accessGates")]);
+        const owners = rolePeople(row, libInternal(byListId.get(row.listId), "owner", ownerInternal)).filter((p) => p.email.toLowerCase() !== myEmail);
+        let recipients = owners;
+        let recipientsLabel = owners.length === 1 ? `${owners[0].name} (the owner) will` : "The owners";
+        if (recipients.length === 0) {
+          const ctl = await controllerMembers().catch(() => []);
+          recipients = ctl.filter((m) => m.email !== "" && m.email.toLowerCase() !== myEmail).map((m) => ({ name: m.name, email: m.email }));
+          recipientsLabel = "The document controllers";
+        }
+        openFlagDialog({
+          host: dialogHost,
+          doc: { site: app.siteUrl, listId: row.listId, itemId: row.id, uid: row.uniqueId, name: row.name, version: row.values[VERSION_FIELD] ?? "" },
+          levels: reviewLevelsOf(app),
+          source: "register",
+          recipients,
+          recipientsLabel,
+          link: docLinkUrlWork(row.listId, row.id),
+          onRaised: () => {
+            status.textContent = `“${row.name}” flagged for review.`;
+            void reloadFlags().then(() => {
+              void refreshRow(row);
+              viewerRepaints.forEach((fn) => fn());
+            });
+          },
+        });
+      })();
+    };
+    /** The flags on one document — open and closed. */
+    const openFlagsForRow = (row: DocRow) => {
+      void import("./flagQueue").then(({ openFlagQueue }) => {
+        const g = lifecycleGatesFor(row);
+        openFlagQueue({
+          host: dialogHost,
+          title: `Flags — ${row.name}`,
+          flags: () => import("./docFlags").then((m) => m.listFlagsForDoc(app.siteUrl, row.listId, row.id)),
+          canClose: () => g.isOwner || g.isAdmin,
+          onChanged: () => {
+            void reloadFlags().then(() => {
+              void refreshRow(row);
+              viewerRepaints.forEach((fn) => fn());
+            });
+          },
+        });
+      });
+    };
+    /** Every open flag on the site — the controllers' queue (and a
+     *  super admin's, from Settings). */
+    const openFlagQueueAll = () => {
+      void import("./flagQueue").then(({ openFlagQueue }) => {
+        openFlagQueue({
+          host: dialogHost,
+          title: "Document flags",
+          flags: () => import("./docFlags").then((m) => m.listOpenFlags(app.siteUrl)),
+          canClose: () => docAdmin(),
+          onOpenDoc: (f) => {
+            void (async () => {
+              const lib = byListId.get(f.listId);
+              if (lib === undefined) return;
+              const page = await renderListPage(app.siteUrl, lib.listId, buildRenderViewXml({ idIn: [f.itemId], fields: [], rowLimit: 1 })).catch(() => ({ rows: [] as DocRow[] }));
+              if (page.rows.length > 0) onRowOpen(page.rows[0], { details: true });
+              else status.textContent = `“${f.docName}” could not be read — it may have moved or been deleted.`;
+            })();
+          },
+          onChanged: () => {
+            void reloadFlags().then(() => {
+              refreshTasksBadge();
+              void load(true);
+            });
+          },
+        });
+      });
+    };
+    /** The register scoped to the flagged documents (issue 23). */
+    const scopeToFlags = () => {
+      const map = new Map<string, number[]>();
+      for (const [k] of openFlags) {
+        const [listId, id] = k.split(":");
+        map.set(listId, [...(map.get(listId) ?? []), Number(id)]);
+      }
+      query = "";
+      search.value = "";
+      filters = [];
+      dateFilters = [];
+      modifiedDays = 0;
+      personFilters = [];
+      presentCols = [];
+      taskFilter = map;
+      taskFilterN = openFlags.size;
+      scopeLabel = `Flagged for review · ${openFlags.size}`;
+      paintChips();
+      paintTreeSelection();
+      void load(true);
     };
 
     const openEditPropertiesRow = (row: DocRow) => {
@@ -1192,6 +1325,10 @@ export function mountDocs(
       /** Open ingestion tasks the viewer prepares (assignees, the
        *  creator) or oversees (controllers see all) — 2026-10-08. */
       ingestion: IngestionTask[];
+      /** Open document flags (issue 23): every one for a controller,
+       *  the flags on documents they own for anyone else — the row
+       *  fetched live so a click opens the overlay armed. */
+      flagged: { flag: DocFlag; row: DocRow | null; libName: string }[];
     }
     /** "Near" for a review date: due within this many days counts. */
     const REVIEW_HORIZON_DAYS = 30;
@@ -1206,6 +1343,7 @@ export function mountDocs(
         outgoing: [],
         grantedByMe: [],
         ingestion: [],
+        flagged: [],
       };
       const nameOf = (l: DocLibrary) => l.config.title || l.name;
       /** every column the opened overlay's gates and chips lean on — a
@@ -1237,6 +1375,40 @@ export function mountDocs(
           return cols.every((c) => set.has(c));
         });
       const jobs: Promise<void>[] = [];
+      // flagged documents (issue 23): the rows behind the open flags,
+      // then the owner test — a controller keeps every one
+      jobs.push(
+        (async () => {
+          try {
+            await reloadFlags();
+            await adminReady;
+            const all = [...openFlags.values()].flat();
+            if (all.length === 0) return;
+            const rowFor = new Map<string, DocRow>();
+            const byList = new Map<string, DocFlag[]>();
+            for (const f of all) byList.set(f.listId, [...(byList.get(f.listId) ?? []), f]);
+            for (const [k, fl] of byList) {
+              const l = byListId.get(k);
+              if (l === undefined) continue;
+              const ids = [...new Set(fl.map((f) => f.itemId).filter((n) => n > 0))];
+              const page = await renderListPage(app.siteUrl, l.listId, buildRenderViewXml({ idIn: ids, fields: gateFieldsFor(l), rowLimit: 50 })).catch(() => ({ rows: [] as DocRow[] }));
+              for (const r of page.rows) rowFor.set(flagKey(k, r.id), r);
+            }
+            const ownerCol = (f: DocFlag) => libInternal(byListId.get(f.listId), "owner", ownerInternal);
+            const keep = flagsForTasks(all, {
+              myEmail,
+              isController: docAdmin(),
+              ownerEmailsOf: (f) => {
+                const r = rowFor.get(flagKey(f.listId, f.itemId));
+                return r === undefined ? null : rolePeople(r, ownerCol(f)).map((p) => p.email);
+              },
+            });
+            out.flagged = keep.map((f) => ({ flag: f, row: rowFor.get(flagKey(f.listId, f.itemId)) ?? null, libName: byListId.has(f.listId) ? nameOf(byListId.get(f.listId)!) : "" }));
+          } catch {
+            /* the flags unreadable = no flagged rows, never a broken panel */
+          }
+        })()
+      );
       if (ingestionLib !== null) {
         jobs.push(
           (async () => {
@@ -1453,7 +1625,8 @@ export function mountDocs(
       t.review.length +
       t.requests.length +
       t.outgoing.length +
-      t.grantedByMe.length;
+      t.grantedByMe.length +
+      t.flagged.length;
     const taskVisible = (t: MyTasks) => taskCount(t) > 0;
 
     let tasksBadgeGen = 0;
@@ -1658,6 +1831,26 @@ export function mountDocs(
           group("Review due", t.review, (tr) =>
             tr.overdue ? tonePill("⚑ Overdue", "red") : tonePill("● Due soon", "amber")
           );
+          // flagged for review (issue 23): someone asked; the owner (or
+          // a controller) answers from the overlay's flag chip
+          if (t.flagged.length > 0) {
+            bodyEl.appendChild(taskGroupHeader("Flagged for review", t.flagged.length));
+            for (const ft of t.flagged) {
+              const liveRow = ft.row;
+              bodyEl.appendChild(
+                taskRowEl({
+                  pill: tonePill(`⚑ ${ft.flag.level}`, "amber"),
+                  name: ft.flag.docName,
+                  meta: `${ft.flag.flaggerName || ft.flag.flaggerEmail}${ft.flag.comment !== "" ? ` — ${ft.flag.comment.slice(0, 80)}` : ""}`,
+                  onOpen: () => {
+                    closePanel();
+                    if (liveRow !== null) onRowOpen(liveRow, { details: true });
+                    else openFlagQueueAll();
+                  },
+                })
+              );
+            }
+          }
           // your OWN requests, every state — the outcome reaches you
           // here, not only buried in the document overlay
           if (t.outgoing.length > 0) {
@@ -3336,6 +3529,7 @@ export function mountDocs(
       labelToId,
       statusCol,
       myEmail,
+      flagsOf: (row) => flagChipText(flagsOnRow(row)),
     };
     const statusChip = makeStatusChip(cellCtx);
 
@@ -3396,7 +3590,7 @@ export function mountDocs(
         wanted:
           chosenColumns.length > 0
             ? chosenColumns.filter((i) => {
-                  if (i === "Modified" || i === VERSION_FIELD || i === NAME_SLOT) return true;
+                  if (i === "Modified" || i === VERSION_FIELD || i === NAME_SLOT || i === FLAGS_FIELD) return true;
                   const c = dictBy.get(i);
                   return c !== undefined && columnOffered(c);
                 })
@@ -3713,6 +3907,8 @@ export function mountDocs(
           share: () => openShareDoc(row),
           // a reader proposes a tag from here (issue 2)
           suggestTag: tagsColOf() !== null ? () => openSuggestTag(row) : undefined,
+          // …or flags the document for review (issue 23)
+          flags: { chip: () => flagChipText(flagsOnRow(row)), raise: () => openFlagRow(row), show: () => openFlagsForRow(row) },
           askToWork: lib?.libType === "working",
           // details pane (Vault V4): the register's fields, never
           // SharePoint's plumbing — exactly the available-ticked columns
@@ -5264,6 +5460,7 @@ export function mountDocs(
           .map((c) => ({ internal: c.internal, label: c.label !== "" ? c.label : c.internal })),
         { internal: "Modified", label: "Modified" },
         { internal: VERSION_FIELD, label: "Version" },
+        { internal: FLAGS_FIELD, label: "Flags" },
       ];
       // ordered model: the shown columns first in their current order,
       // the rest after — ticks choose, drag sets the order (Ben,
@@ -5360,6 +5557,15 @@ export function mountDocs(
         void import("./tagProposals").then(({ listProposals }) => listProposals("pending")).then((pending) => {
           if (b.isConnected && pending.length > 0) b.textContent = `Tag proposals (${pending.length})…`;
         }).catch(() => undefined);
+      }
+      // document flags (issue 23): controllers triage every open flag;
+      // anyone scopes the register to the flagged documents
+      if (docAdmin()) {
+        const n = openFlags.size;
+        item(n > 0 ? `Document flags (${n})…` : "Document flags…", "Open flags on this site's documents — read, open the document, close with a note.", () => openFlagQueueAll());
+      }
+      if (openFlags.size > 0) {
+        item("Show flagged documents", "The register scoped to the documents carrying an open flag.", () => scopeToFlags());
       }
       // "Show only approved" (Ben, 2026-10-19): ticked, the register
       // assumes approved and the status filter is out of the way;
@@ -5477,6 +5683,8 @@ export function mountDocs(
                 stageOf: stageOfRow,
                 host: dialogHost,
                 onOpenDoc: (row) => onRowOpen(row, { details: true }),
+                // open flags (issue 23) are a finding too
+                flagsOf: (listId, itemId) => (openFlags.get(flagKey(listId, itemId)) ?? []).length,
               });
             });
           }
@@ -5528,7 +5736,7 @@ export function mountDocs(
     // arrive unfiltered and blink — and the work link waits for it too,
     // so the overlay's lifecycle commands see the mapped terms
     const workDoc = takePendingWorkDoc();
-    void readStatusTerms().finally(() => {
+    void Promise.all([readStatusTerms(), reloadFlags()]).finally(() => {
       // …and the task count waits for it too. The queues ask their
       // questions IN that vocabulary — which labels mean approved, in
       // review, awaiting approval — so counting before it lands asks a

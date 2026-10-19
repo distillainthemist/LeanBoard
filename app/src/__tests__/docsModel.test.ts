@@ -94,6 +94,7 @@ describe("app docs config", () => {
     termBindings: {},
     retiredTerms: {},
     sharedViewsJson: "",
+    reviewLevels: [],
     orgSetCompanyLevel: false,
     termWritesOwed: {},
     processSetId: "",

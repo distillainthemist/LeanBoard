@@ -2041,6 +2041,18 @@ input[type="color"].app-color:disabled { opacity: 0.4; cursor: default; }
 .app-docs-mocadd { align-self: flex-start; font-size: 12.5px; }
 /* the tag proposals queue (issue 2) */
 .app-docs-tagqueue { display: flex; flex-direction: column; gap: 8px; }
+/* document flags (issue 23): the queue, the register cell, the overlay chip, the ingestion ⚑ */
+.app-docs-flagqueue { display: flex; flex-direction: column; gap: 8px; }
+.app-docs-flagrow { border: 1px solid #e4dfd6; border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; }
+.app-docs-flagrow-closed { opacity: 0.75; }
+.app-docs-flaghead { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.app-docs-flagdoc { font-weight: 600; font-size: 13.5px; text-align: left; }
+.app-docs-flagcomment { font-size: 13px; white-space: pre-wrap; }
+.app-docs-flagcell { color: #92610f; font-weight: 600; font-size: 12.5px; white-space: nowrap; }
+.app-docs-flagchip { cursor: pointer; }
+.app-docs-levels { display: flex; flex-direction: column; gap: 4px; max-width: 420px; }
+.app-ing-flagmark { font-size: 14px; padding: 0 4px; color: #a39c90; text-decoration: none; }
+.app-ing-flagmark-on { color: #92610f; font-weight: 700; }
 .app-docs-tagprop { border: 1px solid #e4dfd6; border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; }
 .app-docs-tagproplabel { font-weight: 600; }
 .app-docs-tagpropacts { display: flex; gap: 8px; margin-top: 4px; }

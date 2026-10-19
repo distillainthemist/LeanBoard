@@ -20,7 +20,7 @@ import { fileTypeChip, withStatusGlyph } from "../../../shared/ui/format";
 import { resolvePaletteColor } from "../../../shared/palette";
 import { textOn } from "../../../shared/tokens";
 import type { ListColumn } from "./listView";
-import { DocRow, formatWhen, linkCount, splitNameForEllipsis, NAME_SLOT, VERSION_FIELD, versionLabel } from "./rows";
+import { DocRow, formatWhen, linkCount, splitNameForEllipsis, FLAGS_FIELD, NAME_SLOT, VERSION_FIELD, versionLabel } from "./rows";
 import {
   SiteDictionary,
   paletteEntryFor,
@@ -44,6 +44,10 @@ export interface RegisterCellCtx {
   statusCol: { internal: string; termSetId: string } | null;
   /** The signed-in viewer's email, "" when unknown — MINE by email. */
   myEmail: string;
+  /** Open flags on a row (issue 23): "" for none, else the chip text.
+   *  Captured BY REFERENCE — the screen fills its map after the first
+   *  paint. Absent = the flags column is never offered. */
+  flagsOf?: (row: DocRow) => string;
 }
 
 /** The palette's verdict on one status value — colour, glyph, and the
@@ -293,6 +297,19 @@ export function buildRegisterColumns(
     }
     if (internal === VERSION_FIELD) {
       columns.push(versionCol);
+      continue;
+    }
+    if (internal === FLAGS_FIELD) {
+      columns.push({
+        key: FLAGS_FIELD,
+        label: "Flags",
+        width: "minmax(90px, 1fr)",
+        sortKey: FLAGS_FIELD,
+        render: (row) => {
+          const t = ctx.flagsOf?.(row) ?? "";
+          return t === "" ? "" : el("span", "app-docs-flagcell", t);
+        },
+      });
       continue;
     }
     const role = roleOf(internal);

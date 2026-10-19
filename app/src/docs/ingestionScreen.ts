@@ -76,6 +76,7 @@ import { IngestionAssignee, IngestionTask, RunLogEntry, blanksToFill, ingestComm
 import { saveIngestionTask, deleteIngestionTask, getIngestionTask, listIngestionTasks } from "./ingestionStore";
 import { listPeople } from "../store/people";
 import { promptConfirm } from "../prompts";
+import { DocFlag, flagKey, reviewLevelsOf } from "./docFlagsModel";
 
 const btn = (label: string, cls = "app-btn"): HTMLButtonElement => {
   const b = el("button", cls, label) as HTMLButtonElement;
@@ -576,6 +577,54 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
       attachTip(mark, text);
       return mark;
     };
+    /** Open flags on the files in this task (issue 23), keyed list:item
+     *  — a ⚑ at the end of the Document cell raises one, lit when the
+     *  file already carries some; a flag follows the file when it lands. */
+    let fileFlags = new Map<string, DocFlag[]>();
+    const reloadFileFlags = async () => {
+      try {
+        const { listOpenFlags } = await import("./docFlags");
+        const all = await listOpenFlags(ctx.site);
+        fileFlags = new Map();
+        for (const f of all) {
+          if (f.listId !== src.listId.toLowerCase()) continue;
+          const k = flagKey(f.listId, f.itemId);
+          fileFlags.set(k, [...(fileFlags.get(k) ?? []), f]);
+        }
+      } catch {
+        /* unreadable = no flags shown */
+      }
+    };
+    const flagMark = (row: DocRow): HTMLElement => {
+      const open = fileFlags.get(flagKey(src.listId, row.id)) ?? [];
+      const b = btn("⚑", "app-link app-ing-flagmark" + (open.length > 0 ? " app-ing-flagmark-on" : ""));
+      const text = open.length === 0 ? "Flag this file for review" : `${open.length} open flag${open.length === 1 ? "" : "s"}: ${open.map((f) => f.level).join(", ")} — click to add another`;
+      b.setAttribute("aria-label", text);
+      attachTip(b, text);
+      b.addEventListener("click", (e) => {
+        e.stopPropagation();
+        void (async () => {
+          const [{ openFlagDialog }, { controllerMembers }, { docsConfig: readCfg }] = await Promise.all([import("./flagDialog"), import("./accessGates"), import("./docsStore")]);
+          const me = (currentViewer()?.email ?? "").toLowerCase();
+          const ctl = await controllerMembers().catch(() => []);
+          const cfg = await readCfg();
+          openFlagDialog({
+            host: sheet,
+            doc: { site: ctx.site, listId: src.listId, itemId: row.id, uid: row.uniqueId, name: row.name, version: "" },
+            levels: reviewLevelsOf(cfg.app),
+            source: "ingestion",
+            recipients: ctl.filter((m) => m.email !== "" && m.email.toLowerCase() !== me).map((m) => ({ name: m.name, email: m.email })),
+            recipientsLabel: "The document controllers",
+            link: appLinkUrl(),
+            onRaised: () => {
+              status.textContent = `“${row.name}” flagged for review — the flag follows the file into ${libName(dest ?? undefined)}.`;
+              void reloadFileFlags().then(() => paintGrid());
+            },
+          });
+        })();
+      });
+      return b;
+    };
     const repaintReady = (row: DocRow) => {
       const old = gridHost.querySelector<HTMLElement>(`[data-row="${row.uniqueId}"] .app-ing-readymark`);
       if (old) old.replaceWith(readyMark(row));
@@ -874,7 +923,7 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
           else selected.delete(row.uniqueId);
           paintSel();
         });
-        doc.append(box, el("span", "app-ing-dirtydot", "●"), nameCell(row), readyMark(row));
+        doc.append(box, el("span", "app-ing-dirtydot", "●"), nameCell(row), readyMark(row), flagMark(row));
         rowEl.appendChild(doc);
         for (const f of gridCols) {
           const c = el("div", "app-ing-cell app-ing-cell-edit" + (draft.get(row.uniqueId)?.has(f.internal) ? " app-ing-cell-dirty" : ""));
@@ -894,6 +943,8 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
         return;
       }
       rows = page.rows;
+      await reloadFileFlags();
+      if (dead) return;
       for (const r of rows) r.values.__name = stemOf(r.name);
       for (const id of [...selected]) if (!rows.some((r) => r.uniqueId === id)) selected.delete(id);
       for (const id of [...draft.keys()]) if (!rows.some((r) => r.uniqueId === id)) draft.delete(id);
@@ -1113,6 +1164,13 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
         if (itemId === 0) {
           refuse("Copied, but the copy's item could not be read — check the destination by hand");
           return;
+        }
+        // a flag raised on the file in this task follows it (issue 23)
+        if ((fileFlags.get(flagKey(src.listId, row.id)) ?? []).length > 0) {
+          const guid = String(((idRes.data ?? {}) as { GUID?: unknown }).GUID ?? "");
+          await import("./docFlags")
+            .then((m) => m.repointFlags(ctx.site, { listId: src.listId, itemId: row.id }, { listId: dest.listId, itemId, uid: guid, name: row.name }))
+            .catch(() => 0);
         }
         const out = await checkOutFile(ctx.site, destUrl);
         if (!out.ok && !/already checked out/i.test(spErrorText(out.status))) {

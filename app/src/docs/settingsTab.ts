@@ -13,6 +13,7 @@
 
 import { appPalettes } from "../store/config";
 import { settingsSection } from "../settingsSection";
+import * as levelsModel from "./docFlagsModel";
 import { el, clear } from "../../../shared/ui/dom";
 import { statusGlyph } from "../../../shared/ui/format";
 import { draggableRow } from "../../../shared/ui/dragList";
@@ -1424,6 +1425,79 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
   // thing that looks. The org drift report and the search-filter
   // diagnostic move in here too — they were always health checks sitting
   // in the term store section because that is where they were written.
+  // ---- document flags (issue 23) -----------------------------------------
+  body.appendChild(section("Review levels"));
+  body.appendChild(
+    note(
+      "The levels a reader picks when flagging a document for review (the overlay's " +
+        "\u201cFlag this document\u2026\u201d, and the \u2691 on each file in an ingestion task). " +
+        "An app-managed list \u2014 nothing in SharePoint carries it. Empty = the app's defaults."
+    )
+  );
+  const levelsBox = el("div", "app-docs-levels");
+  body.appendChild(levelsBox);
+  const paintLevels = () => {
+    clear(levelsBox);
+    const { DEFAULT_REVIEW_LEVELS } = levelsModel;
+    const own = app.reviewLevels;
+    const shown = own.length > 0 ? own : DEFAULT_REVIEW_LEVELS;
+    for (const [i, lvl] of shown.entries()) {
+      const r = el("div", "app-org-row");
+      r.appendChild(el("span", "app-docs-colname", lvl));
+      if (own.length === 0) r.appendChild(el("span", "app-field-hint", "default"));
+      else {
+        const x = el("button", "app-org-x", "\u00d7") as HTMLButtonElement;
+        x.type = "button";
+        x.title = "Remove this level";
+        x.addEventListener("click", () => {
+          app.reviewLevels.splice(i, 1);
+          ctx.markDirty();
+          paintLevels();
+        });
+        r.appendChild(x);
+      }
+      levelsBox.appendChild(r);
+    }
+    const add = el("div", "app-org-row");
+    const input = el("input", "app-input") as HTMLInputElement;
+    input.placeholder = own.length === 0 ? "Add a level (replaces the defaults)" : "Add a level";
+    const plus = el("button", "app-btn", "\uFF0B") as HTMLButtonElement;
+    plus.type = "button";
+    const commit = () => {
+      const v = input.value.trim();
+      if (v === "" || app.reviewLevels.some((l) => l.toLowerCase() === v.toLowerCase())) return;
+      app.reviewLevels.push(v);
+      input.value = "";
+      ctx.markDirty();
+      paintLevels();
+    };
+    plus.addEventListener("click", commit);
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        commit();
+      }
+    });
+    add.append(input, plus);
+    levelsBox.appendChild(add);
+  };
+  paintLevels();
+  const flagsBtn = el("button", "app-btn", "Document flags\u2026") as HTMLButtonElement;
+  flagsBtn.type = "button";
+  flagsBtn.title = "Every open flag on this site's documents \u2014 the same queue the controllers see";
+  flagsBtn.addEventListener("click", () => {
+    void import("./flagQueue").then(({ openFlagQueue }) =>
+      openFlagQueue({
+        host: body,
+        title: "Document flags",
+        flags: () => import("./docFlags").then((m) => m.listOpenFlags(app.siteUrl)),
+        canClose: () => true,
+        onChanged: () => undefined,
+      })
+    );
+  });
+  body.appendChild(field("Open flags", flagsBtn, "Read the flags, close them with a note. Opening a document from here is the register's job (kebab \u2192 Document flags)."));
+
   body.appendChild(section("Health"));
   body.appendChild(
     note(

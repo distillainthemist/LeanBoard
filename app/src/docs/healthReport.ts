@@ -57,6 +57,9 @@ export interface ControlHealthOpts {
   canReassign?: boolean;
   /** After a replace run touched documents — the register re-reads. */
   onReassigned?: () => void;
+  /** Open flags per document (issue 23): the count for a list + item
+   *  (0 = none). Absent = flags are not checked. */
+  flagsOf?: (listId: string, itemId: number) => number;
 }
 
 /** Rows read per library before the report admits it is showing a
@@ -336,11 +339,31 @@ export function openControlHealth(opts: ControlHealthOpts): void {
     return { issues, skipped };
   };
 
+  /** Documents carrying an open flag (issue 23) — someone asked for a
+   *  review and nobody has closed it. */
+  const flagIssues = (docs: ControlDoc[]): ControlIssue[] => {
+    if (opts.flagsOf === undefined) return [];
+    const hits = docs.filter((d) => (opts.flagsOf?.(d.listId, d.itemId) ?? 0) > 0);
+    if (hits.length === 0) return [];
+    return [
+      {
+        key: "flagged",
+        level: "warn",
+        title: "Flagged for review",
+        detail: "Someone flagged these documents for review and the flag is still open. Open the document to read the flag; Mark reviewed or Close flag records what was done.",
+        docs: hits,
+      },
+    ];
+  };
+
   const paint = (docs: ControlDoc[], extra?: { issues: ControlIssue[]; skipped: string[] }) => {
     const r = controlHealth(docs, roleFlags(opts.roles), Date.now(), opts.site);
+    r.issues.push(...flagIssues(docs));
     if (extra !== undefined) {
       r.issues.push(...extra.issues);
       r.skipped.push(...extra.skipped);
+    }
+    {
       const warned = new Set(r.issues.filter((i) => i.level === "warn").flatMap((i) => i.docs.map(docKey)));
       r.clean = r.scanned - warned.size;
     }
