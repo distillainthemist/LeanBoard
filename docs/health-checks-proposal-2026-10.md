@@ -119,3 +119,5 @@ meeting and initiative boards, the Documents kebab, after ＋ Priority.
     standard criteria — no drafted questions; Ben writes them in
     Settings. Self-answered questions (pre-filled from the app's data)
     are PARKED for a later stage.
+11. **Notifications and sharing** (Ben, 2026-10-21): NONE at this stage —
+    no Teams card on submit, no PDF, no reminders.
