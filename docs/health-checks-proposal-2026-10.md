@@ -1,0 +1,40 @@
+# Health checks — analysis and plan (2026-10-21)
+
+Ben's scope ("Scope for health checks", 2026-10-21): define and complete
+maturity health checks on the use of the application — priorities (per
+pillar, several at once), initiatives (per initiative), cadence (per
+meeting), documents (per organisational level). Standard criteria per
+module plus site-specific criteria; sites enable each check type
+(default off). Criteria = title · description · questions (single /
+multi select, yes/no, all/some/no) with a weight per answer; a score
+normalised 0–5 = chosen weights ÷ possible; two comments (what went
+well, even better if); actions; the trend of recent checks in the
+popup. Entry points: a Health check button left of "Live board" on
+meeting and initiative boards, the Documents kebab, after ＋ Priority.
+
+## What already exists
+
+- **An initiative health check** (decision 12, 2026-08-20):
+  `ImprovementSettings.healthQuestions` (yes/no or 1–5, a weight each,
+  edited under Settings → Improvement), a popup from the initiative
+  Details pane ("Health check" button, `boardHeader.ts openHealth`),
+  the result on the initiative (`fieldValues.__health` = score /10 +
+  date) and a `health` event with the answers. One question set for
+  every initiative, no site criteria, no comments, no actions, no
+  trend beyond the events.
+- The initiative row menu carries a "Health check (next update)"
+  stub; Document control health is a different thing (a scan, not an
+  assessment) and keeps its name.
+- Building blocks to reuse: the org tree and `pickOrg`; the standard
+  action dialog (`openActionDialog`) and `upsertActions`; the issues
+  PDF writer; site settings rows (APP_ROW for app-level JSON, one row
+  per site); the settings strip and section patterns; the UAT tables
+  as the pattern for "a definition frozen into each record".
+
+## Critique and open questions (decided one by one with Ben)
+
+(filled in as decided)
+
+## Decisions
+
+(filled in as decided)
