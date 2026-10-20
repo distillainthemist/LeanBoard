@@ -177,6 +177,10 @@ export const TABLES = [
       // types survive template versions); standard roles (e.g. Finance
       // lead) are addable to any template as roles / gate approvers.
       ben_improvementsettings: { ...memo(8000), display: "Improvement settings (JSON)" },
+      // Health checks (health-checks-proposal-2026-10.md, decision 1):
+      // on the APP_ROW {standard:{<type>:Criterion[]}}; on a site row
+      // {enabled:{<type>:bool}, criteria:{<type>:Criterion[]}}
+      ben_healthchecks: { ...memo(1048576), display: "Health checks (JSON)" },
       ben_isarchived: { kind: "bool", display: "Archived", default: false },
       // sites reorder by drag within their company (Ben, 2026-08-19);
       // unset sorts after the ordered ones, then by row order
@@ -423,6 +427,47 @@ export const TABLES = [
       ben_screenshot: { kind: "file", maxKB: 8192, display: "Screenshot" },
     },
     role: { delete: false },
+  },
+  {
+    // Health checks (health-checks-proposal-2026-10.md, Ben 2026-10-21):
+    // one row per completed (or draft) maturity check on a scope — a
+    // sub-pillar at an org, an initiative, a meeting board, an org
+    // level for documents — with the criteria FROZEN into it. One per
+    // scope per day; editable 7 days then locked; never deleted once
+    // submitted (void with a reason instead); a draft row may be
+    // discarded.
+    schema: "ben_LTKHealthCheck",
+    logical: "ben_ltkhealthcheck",
+    display: "LeanBoard Health Check",
+    plural: "LeanBoard Health Checks",
+    primaryNameMax: 300,
+    columns: {
+      ben_type: { ...text(20), display: "Type (priorities|initiative|cadence|documents)" },
+      ben_site: { ...text(100), display: "Site" },
+      ben_scopekey: { ...text(200), display: "Scope key" },
+      ben_scopelabel: { ...text(300), display: "Scope label" },
+      ben_scopejson: { ...memo(4000), display: "Scope (JSON)" },
+      ben_date: { ...text(10), display: "Check date (ISO)" },
+      ben_status: { ...text(10), display: "Status (draft|submitted|void)" },
+      ben_criteriajson: { ...memo(1048576), display: "Criteria as frozen (JSON)" },
+      ben_answersjson: { ...memo(100000), display: "Answers (JSON)" },
+      ben_score: { ...text(10), display: "Score 0–5 (one decimal)" },
+      ben_scorejson: { ...memo(8000), display: "Score detail (JSON)" },
+      ben_wentwell: { ...memo(20000), display: "What went well" },
+      ben_betterif: { ...memo(20000), display: "Even better if" },
+      ben_assessoremail: { ...text(200), display: "Assessor email" },
+      ben_assessorname: { ...text(200), display: "Assessor name" },
+      ben_createdat: { ...text(40), display: "Created at (ISO)" },
+      ben_submittedat: { ...text(40), display: "Submitted at (ISO)" },
+      ben_editedbyemail: { ...text(200), display: "Last edited by (email)" },
+      ben_editedbyname: { ...text(200), display: "Last edited by (name)" },
+      ben_editedat: { ...text(40), display: "Last edited at (ISO)" },
+      ben_voidedbyname: { ...text(200), display: "Voided by (name)" },
+      ben_voidedat: { ...text(40), display: "Voided at (ISO)" },
+      ben_voidreason: { ...memo(4000), display: "Void reason" },
+    },
+    // a DRAFT may be discarded (the app never deletes a submitted check)
+    role: { delete: true },
   },
   {
     // UAT runs (uat-proposal-2026-10.md, Ben 2026-10-19): a run picks
