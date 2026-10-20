@@ -37,4 +37,10 @@ meeting and initiative boards, the Documents kebab, after ＋ Priority.
 
 ## Decisions
 
-(filled in as decided)
+1. **Storage** (Ben, 2026-10-21): definitions as JSON on the settings
+   rows (standard criteria per module on the APP_ROW; site criteria and
+   the per-site enable switches on each site's row, one new long-text
+   column); completed checks in ONE new table, one row per check with
+   the criteria frozen into it. The existing initiative health check
+   (`healthQuestions`, `__health`, the `health` event, the Details
+   button, the row-menu stub) is REMOVED, not migrated — never used.
