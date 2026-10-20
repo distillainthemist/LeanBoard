@@ -51,3 +51,9 @@ meeting and initiative boards, the Documents kebab, after ＋ Priority.
    or the sum of its positive options (multi); an optional per-question
    "Not applicable" (set in the editor) drops it from both numerator
    and denominator.
+3. **Score** (Ben, 2026-10-21): 0–5 to one decimal; per criterion and
+   overall, the overall = chosen ÷ possible across every applicable
+   question (a weighted whole, not an average of criteria); shown as
+   the number plus a quiet five-segment bar, no colour in the first
+   stage; Submit only when every applicable question is answered, the
+   line under it naming how many remain.
