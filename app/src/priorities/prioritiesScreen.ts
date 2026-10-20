@@ -735,6 +735,54 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
         note.title = "This site's cascade setting keeps priorities at a higher level — this org accepts what cascades down rather than writing its own (Settings → Organisation → the site's Cascade customisation).";
         bar.appendChild(note);
       }
+      // the health check (decision 9): per SUB-PILLAR at this org, one at a
+      // time — a picker of the org's sub-pillars with their last score
+      if (canManage() && state.org.site !== "") {
+        const hcHost = el("span", "app-cp-hchost");
+        bar.appendChild(hcHost);
+        void import("../health/entry").then(async ({ healthEnabled, latestFor }) => {
+          if (!(await healthEnabled(state.org.site, "priorities")) || !hcHost.isConnected) return;
+          const hb = el("button", "app-btn app-cp-tvbtn app-hc-btn", "Health check…") as HTMLButtonElement;
+          hb.type = "button";
+          hb.title = "A maturity check of one sub-pillar at this organisation";
+          hb.addEventListener("click", () => {
+            document.querySelectorAll(".app-cp-menu").forEach((m) => m.remove());
+            const menu = el("div", "app-cp-menu");
+            menu.appendChild(el("div", "app-cp-menu-h", `Sub-pillars at ${orgName(state.org)}`));
+            const subs = objectiveColumns(livePillars(), null);
+            if (subs.length === 0) menu.appendChild(el("div", "app-cp-menu-h", "No sub-pillars in this period"));
+            for (const col of subs) {
+              const b = el("button", "app-cp-menu-item", col.name) as HTMLButtonElement;
+              b.type = "button";
+              const scope = { type: "priorities" as const, site: state.org.site, pillarId: col.id, org: { ...state.org }, label: `${col.name} — ${orgName(state.org)}` };
+              void latestFor(scope).then(({ today, latest }) => {
+                const s = today ?? latest;
+                if (s !== null && b.isConnected) b.appendChild(el("span", "app-cp-orgmenu-badge", `${s.status === "draft" ? "draft" : s.score.value === null ? "—" : s.score.value.toFixed(1)} · ${s.date.slice(5)}`));
+              });
+              b.addEventListener("click", () => {
+                menu.remove();
+                void import("../health/checkDialog").then(({ openHealthCheck }) =>
+                  openHealthCheck({ host: wrap, scope, mayRun: canManage(), isAdmin: viewer.role !== "user", onChanged: () => render() })
+                );
+              });
+              menu.appendChild(b);
+            }
+            const r = hb.getBoundingClientRect();
+            menu.style.top = `${r.bottom + 4}px`;
+            menu.style.left = `${Math.min(r.left, window.innerWidth - 300)}px`;
+            document.body.appendChild(menu);
+            const off = (e: PointerEvent) => {
+              if (!menu.contains(e.target as Node)) {
+                menu.remove();
+                document.removeEventListener("pointerdown", off, true);
+              }
+            };
+            setTimeout(() => document.addEventListener("pointerdown", off, true), 0);
+            cleanups.push(() => menu.remove());
+          });
+          hcHost.appendChild(hb);
+        });
+      }
       const more = el("button", "app-btn app-cp-more app-cp-tvbtn", "⋮") as HTMLButtonElement;
       more.type = "button";
       more.title = "Period · status · view · roll-up rule · more";
@@ -1272,6 +1320,18 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
         head.addEventListener("click", () => {
           state.lastColumn = col.id;
         });
+        // the sub-pillar's latest health score, quietly (decision 9)
+        if (state.org.site !== "") {
+          void import("../health/entry").then(async ({ healthEnabled, latestFor }) => {
+            if (!(await healthEnabled(state.org.site, "priorities")) || !head.isConnected) return;
+            const { latest } = await latestFor({ type: "priorities", site: state.org.site, pillarId: col.id, org: { ...state.org }, label: col.name });
+            if (latest !== null && head.isConnected) {
+              const chip = el("span", "app-cp-hcchip", `${latest.score.value === null ? "—" : latest.score.value.toFixed(1)} · ${latest.date.slice(5).replace("-", "/")}`);
+              chip.title = `Health check ${latest.date}: ${latest.score.value === null ? "no score" : `${latest.score.value.toFixed(1)} of 5`}`;
+              head.appendChild(chip);
+            }
+          });
+        }
         grid.appendChild(head);
       }
       if (columns.length === 0) {

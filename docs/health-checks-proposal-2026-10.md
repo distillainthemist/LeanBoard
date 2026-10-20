@@ -129,3 +129,41 @@ meeting and initiative boards, the Documents kebab, after ＋ Priority.
     trend and the recent list, un-voidable).
 
 Ben: "build it" (2026-10-21).
+
+## Built (2026-10-21, dev; SCHEMA deployed to dev)
+
+- `data/schema.mjs`: `ben_ltkhealthcheck` (one row per check, criteria
+  frozen; delete allowed for drafts) and `ben_healthchecks` on
+  `ben_ltksitesettings` (APP_ROW standard criteria; site rows switches +
+  site criteria). Data sources added.
+- `app/src/health/model.ts` (pure, tested): types, presets, parse /
+  serialise, `criteriaFor`, `criteriaProblems`, `scopeKey`, `scoreFor`
+  (chosen ÷ possible, N/A, remaining, per criterion), `answer`,
+  `editable` (7 days), `todaysCheck`, `trendFor`.
+- `app/src/health/store.ts`: definitions through `store/config.ts`
+  (`healthStandardJson` / `healthSiteJson` + saves), `listChecks`,
+  `createDraft`, `saveCheck` (autosave + submit, edit stamps),
+  `discardDraft`, `voidCheck` / `unvoidCheck`.
+- `app/src/health/checkDialog.ts`: the popup — header strip (type,
+  scope, date editable backwards on a draft, assessor), trend strip,
+  criteria cards with pills and per-card score, comments, the check's
+  actions + ＋ Add action (board channel or personal list), footer with
+  the live score / remaining line / Discard draft · Reset · Submit or
+  Save changes; past checks read-only; admins Void / Restore.
+- `app/src/health/settingsTab.ts` + Settings → Health checks (site and
+  super admins): per type — Enabled switch, standard criteria (super
+  edit / site read), site criteria, one criterion editor (presets,
+  multi, N/A, options with guidance and weight, ▲▼, ×), Save bar,
+  Recent checks (site picker for super admins).
+- `app/src/health/entry.ts`: `mountHealthButton` ("Health check" /
+  "· 3.4" / "· draft"), `healthEnabled`, `latestFor`.
+- Entry points: `screens/board.ts` (meeting + initiative, left of Live
+  board), `priorities/prioritiesScreen.ts` ("Health check…" after
+  ＋ Priority → sub-pillar picker with last scores; a chip on the column
+  head), `docs/docsScreen.ts` (kebab "Health check…" for controllers,
+  org picker from the person's site).
+- The old initiative health check removed (`healthQuestions`,
+  `__health`, the Details button, the Improvement list's Health column,
+  the wizard's editor).
+- UAT: `docs/uat/healthchecks.md` (13 cases, personas assessor ·
+  siteadmin · superadmin), `UAT-DOC-081`.

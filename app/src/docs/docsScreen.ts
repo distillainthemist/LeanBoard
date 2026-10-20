@@ -5691,6 +5691,40 @@ export function mountDocs(
           }
         );
       }
+      // the documents health CHECK (health-checks-proposal-2026-10.md):
+      // a maturity assessment of an organisational level — distinct from
+      // Document control health, which is a scan
+      if (docAdmin()) {
+        item("Health check…", "A maturity check of this site's document control — a level of the organisation, scored against the criteria under Settings → Health checks.", () => {
+          void (async () => {
+            const [{ healthEnabled }, { openHealthCheck }, me, { orgJson, siteCompanies }] = await Promise.all([
+              import("../health/entry"),
+              import("../health/checkDialog"),
+              viewerPerson(whoId).catch(() => null),
+              import("../store/config"),
+            ]);
+            const site = me?.site ?? "";
+            if (site === "" || !(await healthEnabled(site, "documents"))) {
+              status.textContent = site === "" ? "Your profile names no site — set it under Settings → My profile." : `Documents health checks are not enabled for ${site} — Settings → Health checks.`;
+              return;
+            }
+            // the org level: the person's site by default, any level below from the picker
+            const { buildTree, pickOrg } = await import("../priorities/dialogs");
+            const { orgName } = await import("../priorities/model");
+            const siteCo = await siteCompanies().catch(() => ({}) as Record<string, string>);
+            const tree = buildTree(await orgJson(), siteCo, [...new Set(Object.values(siteCo).filter((c) => c !== ""))]);
+            const start = { company: siteCo[site] ?? "", site, department: "", area: "" };
+            const org = (await pickOrg(dialogHost, tree, start)) ?? null;
+            if (org === null) return;
+            openHealthCheck({
+              host: dialogHost,
+              scope: { type: "documents", site, org, label: orgName(org) },
+              mayRun: true,
+              isAdmin: me?.role === "superadmin" || me?.role === "siteadmin",
+            });
+          })();
+        });
+      }
       if (docAdmin() && healthLibs.length > 0) {
         item(
           "Document control health…",

@@ -728,6 +728,14 @@ steps:
 2. Sign in as a controller; as a plain owner.
 expected: the controller sees the controller-only kebab items (Tag proposals, Document flags, health, ingestion); the owner outside the group cannot approve; a group that cannot be read is reported, never assumed empty
 
+### UAT-DOC-081 — Documents health check from the kebab
+persona: controller
+modules: docs/docsScreen.ts health/entry.ts
+preconditions: Documents health checks enabled for the site (Settings → Health checks)
+steps:
+1. Register kebab → "Health check…"; keep the site in the picker; run and submit.
+expected: the item shows for controllers only; the check is scoped to the site; the full behaviour is in the Health checks script
+
 ## Journey 12 — Boards and links
 
 ### UAT-DOC-078 — Documentation & links card

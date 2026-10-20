@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-20",
+ "generatedAt": "2026-10-21",
  "releases": [
   {
    "tag": "v0.75.1",
@@ -1898,6 +1898,23 @@
        "expected": "the controller sees the controller-only kebab items (Tag proposals, Document flags, health, ingestion); the owner outside the group cannot approve; a group that cannot be read is reported, never assumed empty",
        "hash": "1a20408c",
        "changed": "2026-10-19"
+      },
+      {
+       "id": "UAT-DOC-081",
+       "title": "Documents health check from the kebab",
+       "journey": "Journey 11 — Settings → Documents",
+       "persona": "controller",
+       "modules": [
+        "docs/docsScreen.ts",
+        "health/entry.ts"
+       ],
+       "preconditions": "Documents health checks enabled for the site (Settings → Health checks)",
+       "steps": [
+        "Register kebab → \"Health check…\"; keep the site in the picker; run and submit."
+       ],
+       "expected": "the item shows for controllers only; the check is scoped to the site; the full behaviour is in the Health checks script",
+       "hash": "736773ea",
+       "changed": "2026-10-21"
       }
      ]
     },
@@ -1956,6 +1973,263 @@
        "expected": "the Folders pane follows the drag between its limits, labels wrap instead of clipping, and the width is remembered",
        "hash": "83325db3",
        "changed": "2026-10-19"
+      }
+     ]
+    }
+   ]
+  },
+  "healthchecks": {
+   "title": "Health checks",
+   "journeys": [
+    {
+     "title": "Journey 1 — Settings",
+     "cases": [
+      {
+       "id": "UAT-HC-001",
+       "title": "Define standard criteria",
+       "journey": "Journey 1 — Settings",
+       "persona": "superadmin",
+       "modules": [
+        "health/settingsTab.ts",
+        "health/model.ts"
+       ],
+       "preconditions": "Settings → Health checks open as a super admin",
+       "steps": [
+        "Under Cadence health check → Standard criteria → ＋ Add standard criterion; title and description.",
+        "Add a question with the Yes / no preset; another with All / some / no; another with the 0–5 scale; a multi-select with two options.",
+        "Edit an option's weight and guidance; tick N/A on one question; reorder criteria with ▲▼.",
+        "Save."
+       ],
+       "expected": "every edit buffers until Save; a criterion with no title, a question with fewer than two options or no option worth anything refuses the save naming the problem; after Save the criteria reload as entered, marked \"standard\"",
+       "hash": "3bba1166",
+       "changed": "2026-10-21"
+      },
+      {
+       "id": "UAT-HC-002",
+       "title": "Site criteria and the enable switch",
+       "journey": "Journey 1 — Settings",
+       "persona": "siteadmin",
+       "modules": [
+        "health/settingsTab.ts"
+       ],
+       "preconditions": "a site admin at a site; standard criteria exist",
+       "steps": [
+        "Settings → Health checks: read the standard criteria (no editing, no hiding).",
+        "Under the site's criteria → ＋ Add the site criterion with a question.",
+        "Tick \"Enabled for <site>\" on Cadence; Save."
+       ],
+       "expected": "the standard criteria are read-only for a site admin with no way to hide one; the site criterion saves marked with the site; the switch turns the type on for the site only",
+       "hash": "153727b7",
+       "changed": "2026-10-21"
+      },
+      {
+       "id": "UAT-HC-003",
+       "title": "Recent checks per site",
+       "journey": "Journey 1 — Settings",
+       "persona": "superadmin",
+       "modules": [
+        "health/settingsTab.ts"
+       ],
+       "preconditions": "checks exist at two sites",
+       "steps": [
+        "Settings → Health checks: use the site picker at the top.",
+        "Read \"Recent checks\" under a type; Open one."
+       ],
+       "expected": "a super admin switches sites and sees each site's recent checks (date, scope, score, assessor); a site admin sees their own site only; Open shows the check read-only",
+       "hash": "0fdd8208",
+       "changed": "2026-10-21"
+      }
+     ]
+    },
+    {
+     "title": "Journey 2 — Running a check",
+     "cases": [
+      {
+       "id": "UAT-HC-004",
+       "title": "Meeting health check from the board",
+       "journey": "Journey 2 — Running a check",
+       "persona": "assessor",
+       "modules": [
+        "screens/board.ts",
+        "health/entry.ts",
+        "health/checkDialog.ts"
+       ],
+       "preconditions": "Cadence checks enabled for the site; a ritual you own or attend",
+       "steps": [
+        "Open the ritual's board: a \"Health check\" button sits left of Live board.",
+        "Click it; answer every question; type What went well and Even better if.",
+        "Submit."
+       ],
+       "expected": "the popup shows the criteria as cards with pills, the score live in the footer, \"n questions to answer\" under Submit until none remain; Submit records the check and the button reads \"Health check · 3.4\"; the button is absent when the type is off for the site",
+       "hash": "ded2fc9a",
+       "changed": "2026-10-21"
+      },
+      {
+       "id": "UAT-HC-005",
+       "title": "Draft, Reset, Discard",
+       "journey": "Journey 2 — Running a check",
+       "persona": "assessor",
+       "modules": [
+        "health/checkDialog.ts",
+        "health/store.ts"
+       ],
+       "preconditions": "a scope with no check today",
+       "steps": [
+        "Start a check, answer some questions, Close.",
+        "Reopen: the answers are there (a draft); the button reads \"Health check · draft\".",
+        "Reset → confirm: every answer clears, the comments stay.",
+        "Discard draft → confirm."
+       ],
+       "expected": "a draft is kept and reopened as the day's check on that scope; Reset clears the pills only; Discard removes it and the button reads \"Health check\" again",
+       "hash": "ec5427c7",
+       "changed": "2026-10-21"
+      },
+      {
+       "id": "UAT-HC-006",
+       "title": "N/A and the score",
+       "journey": "Journey 2 — Running a check",
+       "persona": "assessor",
+       "modules": [
+        "health/model.ts",
+        "health/checkDialog.ts"
+       ],
+       "preconditions": "a criterion with an N/A-allowed question",
+       "steps": [
+        "Answer every question but the N/A one; read the footer.",
+        "Mark it N/A.",
+        "Read each card's own score and the overall."
+       ],
+       "expected": "an unanswered question blocks Submit; N/A removes it from both numerator and denominator; each card shows its own 0–5 and the footer the weighted whole to one decimal with the five-segment bar",
+       "hash": "3f374317",
+       "changed": "2026-10-21"
+      },
+      {
+       "id": "UAT-HC-007",
+       "title": "One check per scope per day; edit for seven days",
+       "journey": "Journey 2 — Running a check",
+       "persona": "assessor",
+       "modules": [
+        "health/model.ts",
+        "health/checkDialog.ts"
+       ],
+       "preconditions": "a check submitted today on a scope by another person",
+       "steps": [
+        "Open the scope's Health check button as a different assessor.",
+        "Change an answer; Save changes.",
+        "On a check submitted more than seven days ago (or a void one), open it from the trend."
+       ],
+       "expected": "the button opens today's existing check, not a second one; a submitted check is editable by anyone who may run it, and the header names who edited it; a check older than seven days is read-only (\"locked\")",
+       "hash": "249cb806",
+       "changed": "2026-10-21"
+      },
+      {
+       "id": "UAT-HC-008",
+       "title": "Trend and past checks",
+       "journey": "Journey 2 — Running a check",
+       "persona": "assessor",
+       "modules": [
+        "health/checkDialog.ts"
+       ],
+       "preconditions": "a scope with three submitted checks",
+       "steps": [
+        "Open the check: read the Trend strip.",
+        "Click an earlier chip; read it; \"← Back to today's check\"."
+       ],
+       "expected": "the strip lists the last six submitted checks newest first with date and score; an earlier check opens read-only in the same dialog; Back returns to today's",
+       "hash": "4f4493c4",
+       "changed": "2026-10-21"
+      },
+      {
+       "id": "UAT-HC-009",
+       "title": "Actions from a check",
+       "journey": "Journey 2 — Running a check",
+       "persona": "assessor",
+       "modules": [
+        "health/checkDialog.ts",
+        "store/actions.ts"
+       ],
+       "preconditions": "a meeting check open",
+       "steps": [
+        "＋ Add action; fill it in; save.",
+        "Read the Actions row; open the board's Actions card."
+       ],
+       "expected": "the action lands on the board's channel and shows on the board's Actions card; the check lists it with its status; for a priorities or documents check the action lands on the assessor's own list instead",
+       "hash": "938a84d3",
+       "changed": "2026-10-21"
+      },
+      {
+       "id": "UAT-HC-010",
+       "title": "Initiative health check",
+       "journey": "Journey 2 — Running a check",
+       "persona": "assessor",
+       "modules": [
+        "screens/board.ts",
+        "health/entry.ts"
+       ],
+       "preconditions": "Initiative checks enabled; an initiative you hold a role on",
+       "steps": [
+        "Open the initiative board: Health check left of Live board.",
+        "Run and submit.",
+        "Open the initiative's Details pane and the Improvement list."
+       ],
+       "expected": "the check runs against the Initiative criteria; the Details pane no longer has the old \"Health check\" button and the Improvement list no longer has a Health column",
+       "hash": "6438bec8",
+       "changed": "2026-10-21"
+      },
+      {
+       "id": "UAT-HC-011",
+       "title": "Priorities health check per sub-pillar",
+       "journey": "Journey 2 — Running a check",
+       "persona": "assessor",
+       "modules": [
+        "priorities/prioritiesScreen.ts",
+        "health/entry.ts"
+       ],
+       "preconditions": "Priorities checks enabled; an org you manage with sub-pillars",
+       "steps": [
+        "Priorities → \"Health check…\" after ＋ Priority: a picker of the org's sub-pillars with their last score and date.",
+        "Pick one; run and submit.",
+        "Read the sub-pillar's column header."
+       ],
+       "expected": "one sub-pillar at a time; the check is scoped to the sub-pillar at this organisation; the column header carries a quiet \"3.4 · 10/21\" chip after a check",
+       "hash": "58812932",
+       "changed": "2026-10-21"
+      },
+      {
+       "id": "UAT-HC-012",
+       "title": "Documents health check",
+       "journey": "Journey 2 — Running a check",
+       "persona": "assessor",
+       "modules": [
+        "docs/docsScreen.ts",
+        "health/entry.ts"
+       ],
+       "preconditions": "Documents checks enabled; signed in as a document controller",
+       "steps": [
+        "Documents → kebab → \"Health check…\".",
+        "In the org picker, keep your site or pick a department; run and submit."
+       ],
+       "expected": "the kebab item is there for controllers only; the picker opens on the person's site; the check is scoped to the chosen organisational level",
+       "hash": "ac9caab3",
+       "changed": "2026-10-21"
+      },
+      {
+       "id": "UAT-HC-013",
+       "title": "Void and restore",
+       "journey": "Journey 2 — Running a check",
+       "persona": "siteadmin",
+       "modules": [
+        "health/checkDialog.ts",
+        "health/store.ts"
+       ],
+       "preconditions": "a submitted check",
+       "steps": [
+        "Open it; Void… with a reason.",
+        "Read the trend; open the void check from \"n void\"; Restore."
+       ],
+       "expected": "a void check leaves the trend and the recent list and stays on record marked void with who and why; Restore puts it back; a submitted check is never deleted",
+       "hash": "03a3896d",
+       "changed": "2026-10-21"
       }
      ]
     }

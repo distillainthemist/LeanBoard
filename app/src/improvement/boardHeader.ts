@@ -1012,5 +1012,3 @@ export function mountInitiativePane(o: InitiativePaneOpts): InitiativePaneHandle
   };
 }
 
-
-export type { HealthQuestion };

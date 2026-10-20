@@ -170,8 +170,7 @@ export async function saveCheck(c: HealthCheck, o: { answers: HealthAnswers; wen
 /** A draft is discardable (decision 13); a submitted check never is. */
 export async function discardDraft(c: HealthCheck): Promise<void> {
   if (c.status !== "draft") throw new Error("Only a draft can be discarded — void a submitted check instead.");
-  const r = await writing("health", Ben_ltkhealthchecksService.delete(c.rowId));
-  if (r.success === false) fail("Could not discard the draft", r.error);
+  await writing("health", Ben_ltkhealthchecksService.delete(c.rowId));
 }
 
 export async function voidCheck(c: HealthCheck, reason: string): Promise<void> {

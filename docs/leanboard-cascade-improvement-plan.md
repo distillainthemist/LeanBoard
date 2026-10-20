@@ -1455,6 +1455,14 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-10-21 (after v0.75.1, dev; SCHEMA deployed to dev)**: HEALTH
+  CHECKS (`docs/health-checks-proposal-2026-10.md`, 13 decisions with
+  Ben): maturity checks on a sub-pillar at an org, an initiative, a
+  meeting, an org level for documents — criteria (standard per module +
+  site) with weighted options, a 0–5 score, comments, actions, a trend,
+  drafts, a 7-day edit window, admin void; Settings → Health checks;
+  entry points on boards, Priorities and the Documents kebab; the old
+  initiative health check removed. Next release SOLUTION-CARRYING.
 - **2026-10-20 — released as v0.75.1** (app-only): the residual round
   of 2026-10-19 (`docs/issues-plan-2026-10-19.md`, "Residual round"):
   Download in the viewer header (R1); Cancel revision through the

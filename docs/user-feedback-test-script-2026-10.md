@@ -273,6 +273,17 @@ On a desktop.
 |---|---|
 | 1–13 | _Ben's pass pending_ |
 
+## Health checks — after v0.75.1 (2026-10-21, dev)
+
+The walkthrough IS the UAT script `docs/uat/healthchecks.md`
+(UAT-HC-001 … 013), presented one by one. Suggested order: 001 → 002
+(enable Cadence) → 004 → 005 → 006 → 008 → 009 → 007 → 010 → 011 →
+012 → 013 → 003.
+
+| Item | Outcome |
+|---|---|
+| HC-001–013 | _Ben's pass pending_ |
+
 ## UAT in the app — after v0.74.0 (2026-10-19, dev)
 
 1. **Settings → UAT** — as a super admin: the tab lists runs (none yet)

@@ -293,6 +293,16 @@ export function mountSettings(parent: HTMLElement, initialTab = ""): () => void 
         label: "Site cadence",
         render: () => renderSiteCadence(body, me, ctx),
       });
+      tabs.push({
+        key: "health",
+        label: "Health checks",
+        // maturity health checks (health-checks-proposal-2026-10.md):
+        // criteria per module, the site's switches, recent checks
+        render: async () => {
+          const { renderHealthSettings } = await import("../health/settingsTab");
+          await renderHealthSettings(body, me, ctx);
+        },
+      });
     }
     if (me.role === "superadmin") {
       // cascaded priorities: pillars + period / roll-up rule — super admin

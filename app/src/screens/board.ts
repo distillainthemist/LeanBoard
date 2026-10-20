@@ -189,6 +189,50 @@ async function renderBoard(
   const paneKebab = el("span", "app-ib-controls"); // ⋮ is the right-most control (Ben, 2026-09-03)
   bar.append(title, titleBits, status, el("span", "app-bar-gap"), paneControls, liveBtn, scheduleBtn, sheetBtn, paneKebab);
   parent.appendChild(bar);
+  // the health check (health-checks-proposal-2026-10.md, decision 9):
+  // a meeting board checks the ritual, an initiative board the
+  // initiative — the button sits left of Live board when the type is
+  // on for the site; who may run it: the ritual's owner or a
+  // participant / a role holder, and site or super admins
+  if (!board.isTemplate && (initBoard || board.kind === "meeting")) {
+    void (async () => {
+      const [{ mountHealthButton }, viewerRow] = await Promise.all([import("../health/entry"), viewerPerson(currentViewer()?.objectId ?? "").catch(() => null)]);
+      const whoId = currentViewer()?.objectId ?? "";
+      const isAdmin = viewerRow?.role === "superadmin" || viewerRow?.role === "siteadmin";
+      const host = el("div", "app-dlghost");
+      document.body.appendChild(host);
+      cleanups.push(() => host.remove());
+      if (initBoard) {
+        const { listInitiatives } = await import("../store/initiatives");
+        const { myRoles } = await import("../improvement/initiativeModel");
+        const i = (await listInitiatives().catch(() => [])).find((x) => x.boardId === board.boardId) ?? null;
+        if (i === null) return;
+        await mountHealthButton({
+          host,
+          parent: bar,
+          before: liveBtn,
+          scope: { type: "initiative", site: i.org.site || board.site, initiativeId: i.id, boardId: board.boardId, label: i.title },
+          mayRun: async () => i.status === "active" && (myRoles(i, whoId).length > 0 || isAdmin),
+          isAdmin,
+          actionBoardId: board.boardId,
+        });
+      } else {
+        const info = parseMeetingInfo(board.occurrenceSettingsRaw);
+        const { parsePeople } = await import("../../../shared/schema/people");
+        const people = parsePeople(board.peopleRaw);
+        const mine = info?.owner?.whoId === whoId || people.some((p) => p.whoId === whoId);
+        await mountHealthButton({
+          host,
+          parent: bar,
+          before: liveBtn,
+          scope: { type: "cadence", site: board.site, boardId: board.boardId, instanceId: current?.id ?? "", label: board.name },
+          mayRun: async () => mine || isAdmin,
+          isAdmin,
+          actionBoardId: board.boardId,
+        });
+      }
+    })();
+  }
 
   const split = el("div", "app-board-split");
   parent.appendChild(split);

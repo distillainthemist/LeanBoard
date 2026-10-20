@@ -132,8 +132,6 @@ describe("standard fields", () => {
   });
 });
 
-});
-
 describe("hidden standard roles (2026-09-13)", () => {
   it("parse keeps the hidden flag; activeRoles leaves hidden ones out", async () => {
     const { activeRoles } = await import("../improvement/templateModel");
