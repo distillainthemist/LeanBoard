@@ -33,6 +33,13 @@ export const dataSourcesInfo = {
     "dataSourceType": "Dataverse",
     "apis": {}
   },
+  "ben_ltkhealthchecks": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "ben_ltkhealthcheckid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
   "ben_ltkingestiontasks": {
     "tableId": "",
     "version": "",

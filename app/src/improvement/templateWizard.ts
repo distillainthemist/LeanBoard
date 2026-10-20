@@ -33,7 +33,6 @@ import {
   FIELD_KINDS,
   fieldKindLabel,
   kindHasOptions,
-  HealthQuestion,
   Gate,
   GoodDirection,
   InitiativeTemplate,
@@ -1099,72 +1098,6 @@ export async function renderImprovementSettings(body: HTMLElement, isSuper: bool
     paintFields();
     fBox.appendChild(fieldList);
 
-    const hBox = section("Health-check questions", "The company question set every initiative's health check answers (run from the initiative board's header). Yes/no counts 0–1; a 1–5 scale counts as scored; weight multiplies a question's share.");
-    const hList = el("div", "app-tw-methods");
-    const paintHealth = () => {
-      clear(hList);
-      imp.healthQuestions.forEach((q, i) => {
-        const rowEl = el("div", "app-tw-method");
-        rowEl.appendChild(el("span", "app-tw-method-name", q.label));
-        const scale = el("select", "app-input app-tw-role-tc") as HTMLSelectElement;
-        for (const [v, l] of [["scale5", "1–5 scale"], ["yesno", "Yes / no"]] as const) {
-          const opt = el("option", undefined, l) as HTMLOptionElement;
-          opt.value = v;
-          scale.appendChild(opt);
-        }
-        scale.value = q.scale;
-        scale.addEventListener("change", () => {
-          q.scale = scale.value as HealthQuestion["scale"];
-          persist();
-        });
-        rowEl.appendChild(scale);
-        const weight = el("select", "app-input app-tw-role-tc") as HTMLSelectElement;
-        for (const w of [1, 2, 3]) {
-          const opt = el("option", undefined, `weight ${w}`) as HTMLOptionElement;
-          opt.value = String(w);
-          weight.appendChild(opt);
-        }
-        weight.value = String(q.weight);
-        weight.addEventListener("change", () => {
-          q.weight = Number(weight.value) || 1;
-          persist();
-        });
-        rowEl.appendChild(weight);
-        const x = el("button", "app-org-x", "\u00d7") as HTMLButtonElement;
-        x.type = "button";
-        x.addEventListener("click", () => {
-          void confirmRemoval(`the health-check question “${q.label}”`, "Past health checks keep their answers; new ones stop asking it. This saves straight away.").then((ok) => {
-            if (!ok) return;
-            imp.healthQuestions.splice(i, 1);
-            persist();
-            paintHealth();
-          });
-        });
-        rowEl.appendChild(x);
-        hList.appendChild(rowEl);
-      });
-      const addRow = el("div", "app-org-row");
-      const input = el("input", "app-input") as HTMLInputElement;
-      input.placeholder = "Add question (e.g. Is the team meeting weekly?)";
-      const commit = () => {
-        const v = input.value.trim();
-        if (v === "") return;
-        imp.healthQuestions.push({ key: keyFor(v, imp.healthQuestions.map((x) => x.key)), label: v, scale: "scale5", weight: 1 });
-        input.value = "";
-        persist();
-        paintHealth();
-      };
-      input.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") commit();
-      });
-      const add = el("button", "app-btn", "\uFF0B") as HTMLButtonElement;
-      add.type = "button";
-      add.addEventListener("click", commit);
-      addRow.append(input, add);
-      hList.appendChild(addRow);
-    };
-    paintHealth();
-    hBox.appendChild(hList);
   }
   const all = await listTemplates();
   // every initiative, for the per-template counts and the delete guard

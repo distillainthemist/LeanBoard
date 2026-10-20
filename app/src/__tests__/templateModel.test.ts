@@ -132,13 +132,6 @@ describe("standard fields", () => {
   });
 });
 
-describe("health questions", () => {
-  it("parse/serialize with scale + weight defaults", async () => {
-    const m = await import("../improvement/templateModel");
-    const s = m.parseImprovementSettings('{"healthQuestions":[{"key":"weekly","label":"Team meets weekly?","scale":"yesno","weight":2},{"key":"bad"}]}');
-    expect(s.healthQuestions).toEqual([{ key: "weekly", label: "Team meets weekly?", scale: "yesno", weight: 2 }]);
-    expect(m.parseImprovementSettings(m.serializeImprovementSettings(s)).healthQuestions).toEqual(s.healthQuestions);
-  });
 });
 
 describe("hidden standard roles (2026-09-13)", () => {

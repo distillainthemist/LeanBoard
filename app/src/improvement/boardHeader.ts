@@ -38,7 +38,7 @@ import { BandGate, BandStage, renderStatusBand } from "./statusBand";
 import { actionBelongsTo, LtkAction } from "../../../shared/schema/actions";
 import { endorsementOn, endorserIds } from "./endorsers";
 import { applyRevert, gateDeclined, mayRevert, mayWithdraw, revertTargets, standingRevert, StageViewer, undoneApproverRoles } from "./stageRevert";
-import { HealthQuestion, parseImprovementSettings, PDCA_TOKENS, roleFillersAt, PDCA_ORDER } from "./templateModel";
+import { parseImprovementSettings, PDCA_TOKENS, roleFillersAt, PDCA_ORDER } from "./templateModel";
 
 const btn = (label: string, cls = "app-btn"): HTMLButtonElement => {
   const b = el("button", cls, label) as HTMLButtonElement;
@@ -304,16 +304,6 @@ export function mountInitiativePane(o: InitiativePaneOpts): InitiativePaneHandle
         folderBox.appendChild(set);
       }
       line("Folder", folderBox);
-      // health
-      const health = parseHealth(i.fieldValues.__health ?? "");
-      const healthBtn = btn(health ? `Health ${health.score} / ${health.of} · ${health.at.slice(5, 7)}/${health.at.slice(2, 4)}` : "Health check", "app-btn app-ib-health");
-      healthBtn.title = imp.healthQuestions.length === 0 ? "No health questions set — Settings → Improvement" : "Run a health check";
-      healthBtn.disabled = imp.healthQuestions.length === 0 || !mine() || i.status !== "active";
-      healthBtn.addEventListener("click", () => openHealth());
-      const hrow = el("div", "app-ib-keyrow");
-      hrow.appendChild(el("span", "app-ib-keyk", "Health"));
-      hrow.appendChild(healthBtn);
-      box.appendChild(hrow);
       return box;
     };
 
@@ -811,64 +801,6 @@ export function mountInitiativePane(o: InitiativePaneOpts): InitiativePaneHandle
       });
     };
 
-    // ---- health check (§2.4; questions from Settings → Improvement) --------------
-    const openHealth = () => {
-      const scrim = el("div", "app-modal-overlay");
-      const box = el("div", "app-modal");
-      box.appendChild(el("div", "app-modal-title", "Health check"));
-      box.appendChild(el("div", "app-modal-note", "The company question set — answer as things stand today."));
-      const answers = new Map<string, number>();
-      for (const q of imp.healthQuestions) {
-        const f = el("div", "app-field");
-        f.appendChild(el("span", "app-field-label", q.label));
-        const rowEl = el("div", "app-cp-reasons");
-        const opts = q.scale === "yesno" ? [["0", "No"], ["1", "Yes"]] : [["1", "1"], ["2", "2"], ["3", "3"], ["4", "4"], ["5", "5"]];
-        for (const [v, l] of opts) {
-          const chip = btn(l, "app-cp-reason");
-          chip.addEventListener("click", () => {
-            answers.set(q.key, Number(v));
-            rowEl.querySelectorAll(".app-cp-reason").forEach((x) => x.classList.remove("app-cp-reason-on"));
-            chip.classList.add("app-cp-reason-on");
-          });
-          rowEl.appendChild(chip);
-        }
-        f.appendChild(rowEl);
-        box.appendChild(f);
-      }
-      const err = el("div", "app-cp-err", "");
-      box.appendChild(err);
-      const foot = el("div", "app-modal-footer");
-      const cancel = btn("Cancel", "app-link");
-      cancel.addEventListener("click", () => scrim.remove());
-      const save = btn("Save", "app-btn app-btn-primary");
-      save.addEventListener("click", () => {
-        if (answers.size < imp.healthQuestions.length) {
-          err.textContent = "Answer every question.";
-          return;
-        }
-        void (async () => {
-          // score = achieved / possible, weighted
-          let got = 0;
-          let of = 0;
-          for (const q of imp.healthQuestions) {
-            const max = q.scale === "yesno" ? 1 : 5;
-            got += (answers.get(q.key) ?? 0) * q.weight;
-            of += max * q.weight;
-          }
-          const score = Math.round((got / Math.max(1, of)) * 10);
-          i.fieldValues.__health = JSON.stringify({ score, of: 10, at: todayIso() });
-          await persist();
-          await appendInitiativeEvent(i, "health", { score, of: 10, answers: Object.fromEntries(answers) }, actor());
-          scrim.remove();
-          render();
-        })();
-      });
-      foot.append(cancel, save);
-      box.appendChild(foot);
-      scrim.appendChild(box);
-      document.body.appendChild(scrim);
-    };
-
     // ---- ⋮ + escalation (notify via the docs road) -------------------------------
     const openMenu = (anchor: HTMLElement) => {
       document.querySelectorAll(".app-cp-menu").forEach((m) => m.remove());
@@ -1080,14 +1012,5 @@ export function mountInitiativePane(o: InitiativePaneOpts): InitiativePaneHandle
   };
 }
 
-function parseHealth(raw: string): { score: number; of: number; at: string } | null {
-  try {
-    const o = JSON.parse(raw || "null") as { score?: unknown; of?: unknown; at?: unknown };
-    if (typeof o?.score !== "number") return null;
-    return { score: o.score, of: typeof o.of === "number" ? o.of : 10, at: typeof o.at === "string" ? o.at : "" };
-  } catch {
-    return null;
-  }
-}
 
 export type { HealthQuestion };

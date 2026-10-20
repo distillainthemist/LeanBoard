@@ -197,6 +197,10 @@
         "leanboarduatresults": {
           "entitySetName": "ben_ltkuatresults",
           "logicalName": "ben_ltkuatresult"
+        },
+        "leanboardhealthchecks": {
+          "entitySetName": "ben_ltkhealthchecks",
+          "logicalName": "ben_ltkhealthcheck"
         }
       },
       "environmentVariableName": ""

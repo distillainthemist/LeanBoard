@@ -58,6 +58,14 @@
           "x-ms-schema-name": "ben_departments",
           "maxLength": 10000
         },
+        "ben_healthchecks": {
+          "type": "string",
+          "title": "Health checks (JSON)",
+          "x-ms-dataverse-attribute": "ben_healthchecks",
+          "x-ms-dataverse-type": "MemoType",
+          "x-ms-schema-name": "ben_healthchecks",
+          "maxLength": 1048576
+        },
         "ben_hubtabs": {
           "type": "string",
           "title": "Hub tabs (JSON)",

@@ -20,6 +20,7 @@ export interface Ben_ltksitesettingsesBase {
   ben_companies?: string;
   ben_company?: string;
   ben_departments?: string;
+  ben_healthchecks?: string;
   ben_hubtabs?: string;
   ben_improvementsettings?: string;
   ben_isarchived?: boolean;

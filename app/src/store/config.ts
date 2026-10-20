@@ -411,6 +411,38 @@ export async function saveImprovementSettingsJson(json: string): Promise<void> {
   );
 }
 
+// ---- health checks (health-checks-proposal-2026-10.md, decision 1) ----
+// The standard criteria on the APP_ROW; a site's switches and its own
+// criteria on the site's row — one JSON column either way.
+
+export async function healthStandardJson(): Promise<string> {
+  const rows = await allWhere(Ben_ltksitesettingsesService.getAll, eq("ben_site", APP_ROW));
+  return rows[0]?.ben_healthchecks ?? "";
+}
+
+export async function saveHealthStandardJson(json: string): Promise<void> {
+  await writing("health", upsertWhere(
+    Ben_ltksitesettingsesService,
+    eq("ben_site", APP_ROW),
+    (row) => row.ben_ltksitesettingsid,
+    { ben_site: APP_ROW, ben_name: "App branding", ben_healthchecks: json }
+  ));
+}
+
+export async function healthSiteJson(site: string): Promise<string> {
+  const rows = await allWhere(Ben_ltksitesettingsesService.getAll, eq("ben_site", site));
+  return rows[0]?.ben_healthchecks ?? "";
+}
+
+export async function saveHealthSiteJson(site: string, json: string): Promise<void> {
+  await writing("health", upsertWhere(
+    Ben_ltksitesettingsesService,
+    eq("ben_site", site),
+    (row) => row.ben_ltksitesettingsid,
+    { ben_site: site, ben_name: site, ben_healthchecks: json }
+  ));
+}
+
 export async function prioritySettingsJson(): Promise<string> {
   const rows = await allWhere(Ben_ltksitesettingsesService.getAll, eq("ben_site", APP_ROW));
   return rows[0]?.ben_prioritysettings ?? "";

@@ -236,22 +236,12 @@ export interface ImprovementSettings {
    *  2026-08-20) — the counterpart of standard roles. Templates add their
    *  own on top in the wizard's Fields step. */
   standardFields: TemplateField[];
-  /** The company health-check question set (decision 12) — periodic
-   *  evaluations against these from any initiative board. */
-  healthQuestions: HealthQuestion[];
   /** Value driver tree (P9): the standard role whose site fillers may
    *  Edit values / Adopt as forecast alongside superadmins ("" = superadmins only). */
   vdtEditorRole: string;
   /** Built-in standard fields a site has removed (keys) — the built-ins
    *  are seeded on read, so a removal must be remembered (2026-10-08). */
   hiddenBuiltins: string[];
-}
-
-export interface HealthQuestion {
-  key: string;
-  label: string;
-  scale: "yesno" | "scale5";
-  weight: number;
 }
 
 /** The people who may act for a role on a SITE's initiative: the role's
@@ -293,24 +283,13 @@ export function parseImprovementSettings(raw: string): ImprovementSettings {
     const fields = Array.isArray((o as { standardFields?: unknown }).standardFields)
       ? parseFields(JSON.stringify((o as { standardFields?: unknown }).standardFields))
       : [];
-    const health = Array.isArray((o as { healthQuestions?: unknown }).healthQuestions)
-      ? ((o as { healthQuestions?: unknown }).healthQuestions as unknown[])
-          .map((x) => (x && typeof x === "object" ? (x as Record<string, unknown>) : {}))
-          .map((x) => ({
-            key: typeof x.key === "string" ? x.key : "",
-            label: typeof x.label === "string" ? x.label : "",
-            scale: (x.scale === "yesno" ? "yesno" : "scale5") as HealthQuestion["scale"],
-            weight: typeof x.weight === "number" && x.weight > 0 ? x.weight : 1,
-          }))
-          .filter((q) => q.key !== "" && q.label !== "")
-      : [];
     const vdtEditorRole = typeof (o as { vdtEditorRole?: unknown }).vdtEditorRole === "string" ? ((o as { vdtEditorRole: string }).vdtEditorRole) : "";
     const hiddenBuiltins = Array.isArray((o as { hiddenBuiltins?: unknown }).hiddenBuiltins)
       ? ((o as { hiddenBuiltins: unknown[] }).hiddenBuiltins).filter((k): k is string => typeof k === "string")
       : [];
-    return { methods: methods.length > 0 ? methods : [...METHODS], standardRoles: roles, standardFields: withBuiltinFields(fields, hiddenBuiltins), healthQuestions: health, vdtEditorRole, hiddenBuiltins };
+    return { methods: methods.length > 0 ? methods : [...METHODS], standardRoles: roles, standardFields: withBuiltinFields(fields, hiddenBuiltins), vdtEditorRole, hiddenBuiltins };
   } catch {
-    return { methods: [...METHODS], standardRoles: [], standardFields: withBuiltinFields([], []), healthQuestions: [], vdtEditorRole: "", hiddenBuiltins: [] };
+    return { methods: [...METHODS], standardRoles: [], standardFields: withBuiltinFields([], []), vdtEditorRole: "", hiddenBuiltins: [] };
   }
 }
 
@@ -338,7 +317,6 @@ export function serializeImprovementSettings(s: ImprovementSettings): string {
     // a site keeps only its own fields and the keys it removed
     standardFields: s.standardFields.filter((f) => !isBuiltinField(f.key) || JSON.stringify(f) !== JSON.stringify(BUILTIN_STANDARD_FIELDS.find((b) => b.key === f.key))),
     hiddenBuiltins: s.hiddenBuiltins,
-    healthQuestions: s.healthQuestions,
     vdtEditorRole: s.vdtEditorRole,
   });
 }

@@ -311,7 +311,6 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
         el("span", undefined, "Stage"),
         el("span", undefined, "Primary metric"),
         el("span", undefined, "Actions"),
-        el("span", undefined, "Health"),
         el("span", undefined, "")
       );
       return h;
@@ -680,15 +679,8 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
         }
       }
       row.appendChild(actCell);
-      // health — last check stored on the row (boardHeader writes it)
-      let healthText = "Not checked";
-      try {
-        const h = JSON.parse(i.fieldValues.__health ?? "null") as { score?: number; of?: number; at?: string } | null;
-        if (h && typeof h.score === "number") healthText = `${h.score} / ${h.of ?? 10} · ${(h.at ?? "").slice(5, 7)}/${(h.at ?? "").slice(2, 4)}`;
-      } catch {
-        /* not checked */
-      }
-      row.appendChild(el("div", "app-im-cell" + (healthText === "Not checked" ? " app-cp-muted" : ""), healthText));
+      // (the per-row health column left with the old initiative health
+      // check — health checks are their own feature now, 2026-10-21)
       // kebab
       const kebab = btn("⋮", "app-cp-kebab app-im-kebab");
       kebab.addEventListener("click", (e) => {
