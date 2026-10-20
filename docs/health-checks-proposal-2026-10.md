@@ -64,3 +64,12 @@ meeting and initiative boards, the Documents kebab, after ＋ Priority.
    meeting (board + the occurrence it was done in); a documents check
    to an organisational level — site, department or area ("team" =
    area), the person's site by default.
+5. **Who** (Ben, 2026-10-21): run it — priorities: whoever manages the
+   org's priorities (org owner, site/super admins); initiative: a role
+   holder, site/super admins; cadence: the board's owner or a
+   participant, site/super admins; documents: controllers, site/super
+   admins. See it — anyone who can open the scope (controllers and
+   admins for documents). ONE check per scope per day (not per person):
+   the button on a scope checked today opens that check. A submitted
+   check stays EDITABLE for 7 days by anyone who may run it (the edit
+   stamps who and when), then LOCKS.
