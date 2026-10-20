@@ -8,7 +8,7 @@ the per-feature plans (linked throughout); when this page and a plan
 disagree, fix this page — it is meant to be current, the plans are
 meant to be history.
 
-Last reviewed: 2026-10-20 (v0.75.1).
+Last reviewed: 2026-10-21 (after v0.75.1: health checks).
 
 ---
 
@@ -55,6 +55,8 @@ app/            the code app (vanilla TypeScript, Vite, no framework)
   src/issues/        report dialog + admin triage tab + the PDF export (pdf.ts writer, exportPdf.ts);
                      audience.ts = who hears a message (reporter, merged-in
                      reporters, followers — one Teams card each)
+  src/health/        health checks (§3.8): model (pure), store, the popup,
+                     Settings → Health checks, the entry-point button
   src/uat/           UAT in the app (§6): model (pure), store, Settings → UAT,
                      the testers' tab, the run PDF; components.json is the
                      component registry; scripts.generated.json is compiled
@@ -455,6 +457,46 @@ the Priorities header (the current year filled, another year tinted
 with "Back to FY26"; a fresh mount opens on the current year); a template
 with initiatives refuses Delete; a new template's board is usable at
 once; and the Improvement list opens at the person's site.
+
+### 3.8 Health checks (2026-10-21, [health-checks-proposal-2026-10.md](health-checks-proposal-2026-10.md))
+
+Maturity checks on the USE of the app, defined under Settings → Health
+checks and run from four places. **Definitions** are JSON on the
+settings rows (`ben_healthchecks`: the APP_ROW holds the standard
+criteria per type — priorities · initiative · cadence · documents —
+a site's row its Enabled switches and its own criteria); a criterion
+is a title, a description and questions, each question a list of
+options {label, guidance, weight ≥ 0} with `multi` and `allowNa`; the
+yes/no, all/some/no, 0–5 and multi presets fill options. Super admins
+edit the standard criteria, site admins read them (and cannot hide
+one) and add the site's own; the app ships with EMPTY standard
+criteria. **Checks** are rows of `ben_ltkhealthcheck`, one per check
+with the criteria FROZEN in (as a UAT run freezes its cases), scoped
+by `scopeKey` — a SUB-PILLAR at an organisation (`pillar:<id>|org:…`),
+an initiative, a meeting board, or an org level for documents. One
+check per scope per DAY (the button opens today's), editable for
+seven days by anyone who may run it with the edit stamped, then
+locked; a draft is kept (and discardable), a submitted check is never
+deleted — admins VOID it with a reason (out of the trend, restorable).
+**Score** = chosen weights ÷ possible (highest option for a single
+select, the sum of positive options for a multi), N/A out of both
+sides, 0–5 to one decimal, per criterion and overall as a weighted
+whole, shown as the number plus a five-segment bar — no colour.
+**The popup** (`health/checkDialog.ts`): header strip, the trend strip
+(last six submitted checks on the scope, each opening read-only),
+criteria cards with pills, "What went well" / "Even better if", the
+check's actions (＋ Add action through the standard action dialog — a
+board check's action lands on the board's channel, a priorities or
+documents check's on the assessor's own list, the check in its
+context), the live score and remaining-count line in the pinned
+footer with Discard draft · Reset · Submit / Save changes. **Entry
+points** (`health/entry.ts`): "Health check" left of Live board on
+meeting and initiative boards (ritual owner / participant, role
+holder, admins), "Health check…" after ＋ Priority with a sub-pillar
+picker and a quiet score chip on the column head (whoever manages the
+org), and the Documents kebab for controllers with the org picker.
+No notifications, no calendar or Improvement-list score. The old
+initiative health check (`healthQuestions`, `__health`) was removed.
 
 ### 3.4 Actions
 
@@ -1177,7 +1219,7 @@ the app can never do what its user cannot.
    approval) — the hard gate; the app cannot grant anything SP denies.
 2. Dataverse security roles — the **LeanBoard User** role carries
    explicit per-table privileges (granted declaratively at schema
-   deploy). Issue, proposal, document-flag and UAT tables are
+   deploy). Issue, proposal, document-flag, UAT and health-check tables are
    org-readable by decision (internal transparency powers dedupe, the
    known-issues culture, controllers' triage and run progress); flags,
    issues and runs are never deleted — closed, declined or merged is the
@@ -1268,6 +1310,7 @@ no ad-hoc credential handling.
 | Issues/reporting | [leanboard-issues-plan.md](leanboard-issues-plan.md) |
 | The 2026-10-18 issue round — 38 findings, decisions, five tranches, the residual round | [issues-plan-2026-10-19.md](issues-plan-2026-10-19.md) |
 | UAT in the app — the proposal, decisions, format; the scripts | [uat-proposal-2026-10.md](uat-proposal-2026-10.md), [uat/](uat/) |
+| Health checks — the scope, the 13 decisions, what was built | [health-checks-proposal-2026-10.md](health-checks-proposal-2026-10.md) |
 | What shipped when — the running ledger | [leanboard-cascade-improvement-plan.md](leanboard-cascade-improvement-plan.md) |
 | Pilot feedback round 1 — plan, status, test script | [user-feedback-plan-2026-10.md](user-feedback-plan-2026-10.md), [user-feedback-test-script-2026-10.md](user-feedback-test-script-2026-10.md) |
 | Phone layouts — the review, tranches M1–M5, card follow-ups | [mobile-review-2026-10.md](mobile-review-2026-10.md) |
