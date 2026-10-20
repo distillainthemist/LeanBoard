@@ -1,6 +1,8 @@
-# LeanToolKit — how to work in this repo
+# LeanBoard — how to work in this repo
 
-LeanBoard is a Power Apps **code app** (`app/`) plus retired PCF controls
+The repository is `distillainthemist/LeanBoard` (LeanToolKitPCF until
+2026-10-20; the local folder keeps the old name). LeanBoard is a Power
+Apps **code app** (`app/`) plus retired PCF controls
 (`controls/`, kept for the shared model code) and a declarative Dataverse
 schema (`data/`). Ben's Power Apps identity is partnership@pecheydistilling.com;
 his chat identity is ben@pecheydistilling.com.

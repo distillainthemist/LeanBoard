@@ -8,7 +8,7 @@ touch nothing outside `app/src/docs/*` and the `.app-docs-*` /
 docs-specific blocks of `style.css`. Critique and keep/adapt/drop
 decisions: section 2a of `LeanBoard Design Review.dc.html`.
 
-Repo: `distillainthemist/LeanToolKitPCF@main`. Docs code lives in
+Repo: `distillainthemist/LeanBoard@main` (LeanToolKitPCF until 2026-10-20). Docs code lives in
 `app/src/docs/` — `docsScreen.ts` (screen), `model.ts` (derived state),
 `docsStore.ts` + `sp.ts` (SharePoint data), `rows.ts` (list rows),
 `docsCards.ts` (tiles), `views.ts` (saved views), `viewer.ts` (open

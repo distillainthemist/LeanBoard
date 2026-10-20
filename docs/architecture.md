@@ -8,7 +8,7 @@ the per-feature plans (linked throughout); when this page and a plan
 disagree, fix this page — it is meant to be current, the plans are
 meant to be history.
 
-Last reviewed: 2026-08-18 (v0.46.0).
+Last reviewed: 2026-10-20 (v0.75.1).
 
 ---
 
@@ -29,11 +29,16 @@ running in the Power Apps player) with three areas sharing one shell:
   controlled standards.
 
 Plus cross-cutting features: Teams/Outlook notifications, an in-app
-issue/idea reporting system with triage, and diagnostics probes.
+issue/idea reporting system with triage, **UAT in the app** (test
+scripts shipped with the build, runs started from Settings, a UAT tab
+for the testers — §6), and diagnostics probes.
 
 Environments: **dev** (`pecheydistillingdev.crm6.dynamics.com`, SP site
-`…/sites/Dev`) and **prod**. Code reaches dev via `pac code push`;
-prod only via tagged releases (§6).
+`…/sites/Dev`), **prod**, and the production tenant's **test site**
+where UAT runs. Code reaches dev via `pac code push`; the others only
+via tagged releases (§6). The repository is
+`distillainthemist/LeanBoard` (renamed from LeanToolKitPCF on
+2026-10-20; GitHub redirects the old name).
 
 ## 2. Repository structure
 
@@ -47,7 +52,13 @@ app/            the code app (vanilla TypeScript, Vite, no framework)
                      value driver tree, grid entry, KPI card links
   src/actions/       ＋ Add action (quick capture), link targets and the
                      endorsement lookup the action dialog reads
-  src/issues/        report dialog + admin triage tab + the PDF export (pdf.ts writer, exportPdf.ts)
+  src/issues/        report dialog + admin triage tab + the PDF export (pdf.ts writer, exportPdf.ts);
+                     audience.ts = who hears a message (reporter, merged-in
+                     reporters, followers — one Teams card each)
+  src/uat/           UAT in the app (§6): model (pure), store, Settings → UAT,
+                     the testers' tab, the run PDF; components.json is the
+                     component registry; scripts.generated.json is compiled
+                     from docs/uat/*.md by tools/uat-compile.mjs (committed)
   src/saver.ts       the debounced card save every card type uses
                      (flushed when its screen is left)
   src/tileActions.ts what a board tile shows: its card's actions, or
@@ -66,7 +77,10 @@ app/            the code app (vanilla TypeScript, Vite, no framework)
 shared/         UI kit + tokens shared with the (retired) PCF controls
 controls/       retired PCF controls — kept for shared model code
 data/           declarative Dataverse schema + admin scripting tools
-docs/           plans (history), runbooks, this page
+docs/           plans (history), runbooks, this page; docs/uat/ = the UAT scripts
+tools/          uat-parse.mjs / uat-compile.mjs / uat-delta.mjs (the UAT
+                script compiler the build runs, and the "changed since
+                release" delta)
 ```
 
 **The import gate** (`app/tools/import-gate.mjs`, runs in CI and
@@ -135,8 +149,9 @@ model section) — the canvas/PCF sections there are historical.
   on a day/week grid — rituals may be listed under several
   organisations via `alsoOrgs`), Priorities, Improvement, Value
   drivers, Actions (the same Person | Organisation scope as Cadence,
-  opening on the viewer each load) and Documents. App-screen tabs mount
-  lazily and scroll inside the tab. **Doc cards** (Standard documents, Document
+  opening on the viewer each load) and Documents — plus a **UAT** tab
+  that appears, last, for anyone assigned to an open UAT run (§6).
+  App-screen tabs mount lazily and scroll inside the tab. **Doc cards** (Standard documents, Document
   health) render register-true rows inside boards, configured by
   pasting a register view link; they load via the dynamic-import door
   and fetch after paint with jitter so a wall of boards can't
@@ -418,6 +433,28 @@ reload never mints a second reading (the double entry's cause).
 no controls (`src/priorities/pdfPoster.ts`, pure and tested, on the
 issues export's writer with a size-agnostic `buildPagesPdf`).
 Priorities design §18 has the page anatomy and the paging rules.
+
+**The 2026-10-18 issue round** (v0.74.0, 36 items —
+[issues-plan-2026-10-19.md](issues-plan-2026-10-19.md) has every
+finding and decision). On this side of the app: **every template card**
+comes to a new initiative board (`slotsFromTemplate` no longer keeps
+mandatory cards only — "mandatory" means undeletable; reset and "Add
+card from template" follow); **stage descriptions**
+(`TemplateStage.description`, a second line per stage in the wizard,
+shown in the band segment's tooltip and under the current stage in the
+Details rail, read LIVE from the template with the snapshot as the
+fallback); the **shared initiative row menu** (`improvement/rowMenu.ts`:
+Open · Edit details · Flag · Escalate · Archive, used by the Improvement
+tab and the priority popup's rows — `LifecycleCtx.initiativeById /
+viewerIsAdmin / initiativesChanged`); the popup's **Metrics card is
+writable** for a role-holder or admin on an active initiative
+(`saveCard` + `upsertActions`), starring a primary asks first, and the
+popup survives the screen repaint every popup write triggers (`render()`
+lifts `.app-cp-scrim` out and back); the **year control** ‹ FY26 ▾ › in
+the Priorities header (the current year filled, another year tinted
+with "Back to FY26"; a fresh mount opens on the current year); a template
+with initiatives refuses Delete; a new template's board is usable at
+once; and the Improvement list opens at the person's site.
 
 ### 3.4 Actions
 
@@ -875,7 +912,106 @@ Key concepts (details: [leanboard-standard-documents-plan.md](leanboard-standard
   the version history AND the moderation state, so a moved file was
   reader-visible on arrival; the probe settled it), the approve bracket,
   recycle the source. Refusals stay with their reason; the task closes
-  when its folder is empty.
+  when its folder is empty. Since the 2026-10-18 round: a **status
+  column in the grid** decides the landing (approved / superseded /
+  obsolete land as published majors with that status, anything else as
+  a draft minor), an edited task re-reads its row before writing (no
+  stale copy over a newer one), the Management of change column can be
+  required, and a **"Flag for review" column** after the name column
+  raises a document flag on the file that follows it into the
+  destination (`repointFlags` on landing; `fetchFileItemId` selects the
+  GUID too).
+- **Term-set cutover and the one-way rule** (v0.72.0–v0.73.2, proposal
+  §7–§8): full alignment tools (reconcile orphans with Leave / Retire /
+  "This is…", carry documents, one-click align, rebuild —
+  `docs/termAlignModel.ts` pure, `docs/termAlign.ts`), write-through of
+  Organisation and Process edits to the term sets with an owed-writes
+  queue (`docs/termWrite.ts`, `AppDocsConfig.termWritesOwed`), term
+  retirement (`isDeprecated`, `retiredTerms`), a company-level
+  Organisation set (`orgSetCompanyLevel`, `orgTreePathsWithCompany`),
+  and the hardening production's first sync taught: a walk budget with
+  chunked reads and retry, a partial walk never planned from or
+  cached, a shape guard either way round, stray-term removal, the
+  config row merged on save (`saveAppDocsConfigKeepingSync` /
+  `patchAppDocsConfig`), and labels compared through `labelKey`
+  (fullwidth ＆, dashes, NBSP and spaces normalised) and written
+  through `storeLabel`.
+- **The 2026-10-18 issue round in the DMS** (v0.74.0;
+  [issues-plan-2026-10-19.md](issues-plan-2026-10-19.md)):
+  - *Viewer and permissions*: `BasePermissions.open` / `viewVersions`
+    read per library (`permsByLib`); a Restricted View reader gets
+    SharePoint's own viewer (`viewerPageUrl`), no download, and the
+    current version line in place of a refused history; Download
+    sits in the viewer header beside Open in new tab (the frame's own
+    save icon cannot name a blob — v0.75.1); Print was tried and
+    withdrawn (the player's CSP refuses the rendition fetch).
+  - *Register*: a Version column (`VERSION_FIELD`, minors muted), the
+    Document column draggable with Library beside it (`NAME_SLOT`), a
+    Flags column (`FLAGS_FIELD`), every chosen column kept at any
+    width with sideways scroll and classic scrollbars, "Show only
+    approved" back in the kebab (`onlyApproved`), "Back to libraries"
+    from Favourites, filters that reach every term level
+    (`termFiltersFor` skips a library that cannot match), Organisation
+    pills and the Folders pane in the sync's order (`orgTermCompare`),
+    the links column as "n links", "Show these in the register" from
+    a document's links (`scopeToLinks`), view rename / active ✓ /
+    "edited", **site views** (`sharedViewsJson`, controllers save for
+    the site), a drag-resizable Documents panel (`navWidth`), and the
+    Documents view link given the same 20 s grace window as the
+    Priorities one.
+  - *Lifecycle*: Submit for review sends the reviewers' card at once
+    (`attachNotifyPanel autoSend`), **Review complete** for a named
+    reviewer (a minor version "Review complete by X"; `reviewsOutstanding`
+    pure), Submit for approval warns-and-confirms while reviewers are
+    outstanding, "Check in & submit for review" as one flow, and a
+    named owner OUTSIDE the owners & approvers group cannot approve
+    (`LifecycleGates.ownerOutsidePool`, the decision card says why).
+    Cancel revision runs the check-out bracket — check out, restore
+    the last major, check in as a MAJOR, publish on a moderated
+    library — because SharePoint restores a version only on a
+    checked-out file (v0.75.1).
+  - *Management of change*: a column role (`managementOfChange`) over a
+    note column holding JSON records (number, link, what changed —
+    `MocRecord`, `docs/mocEditor.ts`), chips in the register and the
+    overlay that open the link.
+  - *Tag proposals carry their document* (`ben_docsite` / `ben_doclistid`
+    / `ben_docuid` / `ben_docname`, solution-carrying): "Suggest a tag…"
+    beside the Tags property; the controllers' queue from the register
+    kebab (`docs/tagQueue.ts`); approval mints the term and writes the
+    tag on the document ONLY WHILE IT IS IN REVISION — on an approved
+    document the proposal waits (status `minted`, "To tag at next
+    revision", Tag now / Done), because a metadata write would drop
+    the document out of the approved state (`docInRevision`).
+  - *Document flags* (`ben_ltkdocflag`, solution-carrying, with a file
+    column for the screenshot): any reader flags a document for review
+    with a level from an app-managed list (`AppDocsConfig.reviewLevels`,
+    Settings → Documents → Review levels), a comment and a screenshot,
+    no check-out needed; the owners get a Teams card (read fresh from
+    SharePoint when the register row lacks the owner's email, else the
+    controllers); open flags show as the overlay chip, the Flags column,
+    a "Show flagged documents" scope, a Document tasks group
+    (controllers all, owners theirs — `flagsForTasks`), a health finding;
+    controllers triage from the kebab and super admins from Settings
+    (`docs/flagQueue.ts`, close with a note); Mark reviewed offers to
+    close the open flags. Pure side `docs/docFlagsModel.ts`, store
+    `docs/docFlags.ts`.
+  - *Health*: leavers and outsiders per row with "Add X to the group"
+    and "Replace X…", a "Teams digest to controllers", `PEOPLE_CAP` 600,
+    a CSV People column; and since v0.75.1 a review date the feed
+    renders without its ISO twin is read in the SITE's day/month order
+    (`parseSiteDate`, also under the register's Review due), with a
+    "Review source" CSV column saying which road each date came from
+    (production's feed carries no twin — cause unknown).
+  - *Timing readout* (super admins): the register's status line names
+    every load's trigger and time (`docs/timing.ts`), which found the
+    production open stall (a stray page before the first load, the
+    status vocabulary wait — v0.72.0).
+- **Issue reporting since the round** (v0.74.0): a message from the
+  triage desk reaches the reporter, the reporters of the reports merged
+  into it and its followers, ONE Teams card per person quoting their own
+  report (`issues/audience.ts`); Decline does the same; a merge copies
+  the child's followers and re-points reports already merged into the
+  child. Settings → Issues filters by UAT run (§6).
 
 ## 5. SharePoint interfacing (the connector roads)
 
@@ -933,8 +1069,9 @@ Operating instructions of record: [../CLAUDE.md](../CLAUDE.md) (agent),
 [deployment-cookbook.md](deployment-cookbook.md) (operational recipes).
 
 - **Gates before any push**: `tsc --noEmit`, the import gate, the
-  native-dialog gate, vitest (~730 tests), `npm run build`, chunk
-  report — plus repo-root
+  native-dialog gate, vitest (886 tests at v0.75.1), `npm run build`
+  (which first compiles the UAT scripts — a bad script fails the
+  build), chunk report — plus repo-root
   typecheck when `shared/`/`controls/` change. Check the test COUNT
   line, not just exit codes, when chaining, and `set -o pipefail`
   (`tsc | tail` reports tail's exit). The chunk report's ceiling on
@@ -986,6 +1123,34 @@ Operating instructions of record: [../CLAUDE.md](../CLAUDE.md) (agent),
 - **Settings → Organisation** (2026-10-02): a site admin sees only
   their site; a superadmin's sites open collapsed to their heads, a
   site admin's departments likewise, with a chevron per row.
+- **UAT in the app** (v0.75.0, [uat-proposal-2026-10.md](uat-proposal-2026-10.md)).
+  Test scripts are markdown under `docs/uat/<component>.md`, one case
+  per `###` block (persona · modules · preconditions · steps ·
+  expected); `tools/uat-compile.mjs` compiles them into
+  `app/src/uat/scripts.generated.json` (committed; each case carries a
+  hash and its last-change date, and the release tag list rides along)
+  and `uatModel.test.ts` parses every script. `app/src/uat/components.json`
+  registers each component with its personas and source globs (only
+  Documents has a script so far — 80 cases, 12 journeys, 7 personas).
+  Two tables: `ben_ltkuatrun` (components, scope, environment,
+  instructions, assignees with personas, the CASE SNAPSHOT frozen at
+  the start) and `ben_ltkuatresult` (one row per run · case · TESTER —
+  the latest wins, earlier rows are the trail). **Settings → UAT** (super
+  admins) starts a run — components with case counts, scope "every
+  case" or "changed since <release>", testers from the roster with
+  personas — and sends each assignee a Teams card; it shows progress by
+  persona and by tester, the fails, Close / Reopen / Re-run the fails /
+  Edit people / Edit instructions / Export PDF (`uat/exportPdf.ts` on
+  the issues writer). **The UAT tab** rides the hub for assignees of an
+  open run: their personas' cases by journey, Pass · Fail… · Blocked… ·
+  Skip · Take it back, Next untested; a **Fail always raises an issue**
+  — the issue reporter opens prefilled (`ReportPrefill`, the run and
+  case in the issue's context) and the result lands once the issue is
+  sent; Settings → Issues filters by run so a run's issues export
+  together. `tools/uat-delta.mjs [tag]` lists the cases whose modules
+  changed since a release (coarse today — the register screen is one
+  file named by sixty cases). The rule in CLAUDE.md: a behaviour change
+  updates its UAT case in the same commit.
 
 ## 7. Security, authentication & data-loss prevention
 
@@ -1012,8 +1177,12 @@ the app can never do what its user cannot.
    approval) — the hard gate; the app cannot grant anything SP denies.
 2. Dataverse security roles — the **LeanBoard User** role carries
    explicit per-table privileges (granted declaratively at schema
-   deploy). Issue/proposal tables are org-readable by decision
-   (internal transparency powers dedupe and known-issues culture).
+   deploy). Issue, proposal, document-flag and UAT tables are
+   org-readable by decision (internal transparency powers dedupe, the
+   known-issues culture, controllers' triage and run progress); flags,
+   issues and runs are never deleted — closed, declined or merged is the
+   record (`role: { delete: false }`), while a watch, a tester's result
+   and an ingestion task may be (the person takes their own tick back).
 3. In-app gates (superadmin/siteadmin roles in `ben_ltkpeoples`,
    controller/pool Entra groups) — these only *hide affordances* and
    route workflows; they are UX, not security. **Confidentiality of
@@ -1037,9 +1206,9 @@ all five connectors must sit in the same (business) group in the
 environment's policy, and any DLP change that splits them breaks the
 app loudly rather than leaking quietly. All data at rest stays in the
 tenant: documents in SharePoint, configuration/issues in Dataverse.
-Screenshots pasted into issue reports are stored in Dataverse file
-columns (tenant-bound), never in SharePoint libraries where DMS
-readers might browse them.
+Screenshots pasted into issue reports and document flags are stored in
+Dataverse file columns (tenant-bound), never in SharePoint libraries
+where DMS readers might browse them.
 
 **Client-side state.** localStorage on the user's own profile holds
 only UX state: term-set walks, UI preferences (collapse state, view
@@ -1097,6 +1266,9 @@ no ad-hoc credential handling.
 | SharePoint write mechanics | [sharepoint-writes.md](sharepoint-writes.md) |
 | Links, audit view, tags | [leanboard-relationships-plan.md](leanboard-relationships-plan.md) |
 | Issues/reporting | [leanboard-issues-plan.md](leanboard-issues-plan.md) |
+| The 2026-10-18 issue round — 38 findings, decisions, five tranches, the residual round | [issues-plan-2026-10-19.md](issues-plan-2026-10-19.md) |
+| UAT in the app — the proposal, decisions, format; the scripts | [uat-proposal-2026-10.md](uat-proposal-2026-10.md), [uat/](uat/) |
+| What shipped when — the running ledger | [leanboard-cascade-improvement-plan.md](leanboard-cascade-improvement-plan.md) |
 | Pilot feedback round 1 — plan, status, test script | [user-feedback-plan-2026-10.md](user-feedback-plan-2026-10.md), [user-feedback-test-script-2026-10.md](user-feedback-test-script-2026-10.md) |
 | Phone layouts — the review, tranches M1–M5, card follow-ups | [mobile-review-2026-10.md](mobile-review-2026-10.md) |
 | Settings in-page navigation — options and the built strip | [settings-nav-proposal-2026-10.md](settings-nav-proposal-2026-10.md) |

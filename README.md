@@ -12,7 +12,7 @@ It is code-first (vanilla TypeScript, Vite, no framework), ships through
 tables delivered as a managed solution, and talks to SharePoint, Teams and
 Outlook through the standard Power Platform connectors. There is no
 backend of its own. Current release: see the
-[releases page](https://github.com/distillainthemist/LeanToolKitPCF/releases).
+[releases page](https://github.com/distillainthemist/LeanBoard/releases).
 
 The maintained technical overview is
 [docs/architecture.md](docs/architecture.md). This page is the tour.
