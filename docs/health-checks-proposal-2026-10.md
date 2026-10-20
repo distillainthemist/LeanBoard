@@ -121,3 +121,9 @@ meeting and initiative boards, the Documents kebab, after ＋ Priority.
     are PARKED for a later stage.
 11. **Notifications and sharing** (Ben, 2026-10-21): NONE at this stage —
     no Teams card on submit, no PDF, no reminders.
+12. **Build order** (Ben, 2026-10-21): schema → pure model + tests →
+    Settings → the popup → the four entry points (and the old initiative
+    check removed) → docs (architecture, runbook row, a new UAT script
+    `docs/uat/healthchecks.md` with personas assessor · siteadmin ·
+    superadmin; one Documents case for the kebab entry). ~22–26 h;
+    solution-carrying.
