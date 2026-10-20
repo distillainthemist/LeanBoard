@@ -105,3 +105,13 @@ meeting and initiative boards, the Documents kebab, after ＋ Priority.
    carries the check in its context (`source: "healthcheck"`,
    `sourceId: <check id>`), so the dialog lists the check's actions
    with their status.
+9. **Entry points** (Ben, 2026-10-21): meeting and initiative boards —
+   "Health check" left of Live board ("Health check · 3.4" when today's
+   check exists; absent when the type is off for the site; the old
+   Details-pane button and the row-menu stub go); Priorities — "Health
+   check…" after ＋ Priority opening a picker of the current org's
+   sub-pillars with their last score and date, and a quiet score chip
+   on a checked sub-pillar's column header; Documents — a kebab item
+   "Health check…" (controllers), the person's site by default with
+   the org picker in the header strip. NO score on the Cadence
+   calendar rows and NO chip on the Improvement list.
