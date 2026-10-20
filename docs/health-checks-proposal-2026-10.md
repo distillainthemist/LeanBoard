@@ -115,3 +115,7 @@ meeting and initiative boards, the Documents kebab, after ＋ Priority.
    "Health check…" (controllers), the person's site by default with
    the org picker in the header strip. NO score on the Cadence
    calendar rows and NO chip on the Improvement list.
+10. **Standard criteria** (Ben, 2026-10-21): the app ships with EMPTY
+    standard criteria — no drafted questions; Ben writes them in
+    Settings. Self-answered questions (pre-filled from the app's data)
+    are PARKED for a later stage.
