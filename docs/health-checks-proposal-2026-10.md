@@ -57,3 +57,10 @@ meeting and initiative boards, the Documents kebab, after ＋ Priority.
    the number plus a quiet five-segment bar, no colour in the first
    stage; Submit only when every applicable question is answered, the
    line under it naming how many remain.
+4. **Scope** (Ben, 2026-10-21): a priorities check is scoped to a
+   SUB-PILLAR at an organisational level (the Priorities screen's
+   current org by default), ONE at a time — no multi-pillar sitting;
+   an initiative check to the initiative; a cadence check to the
+   meeting (board + the occurrence it was done in); a documents check
+   to an organisational level — site, department or area ("team" =
+   area), the person's site by default.
