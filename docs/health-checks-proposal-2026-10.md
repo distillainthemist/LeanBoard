@@ -84,3 +84,16 @@ meeting and initiative boards, the Documents kebab, after ＋ Priority.
    Save bar; a "Recent checks" list per section (date, scope, score,
    assessor, Open) — a site admin's own site, a super admin every
    site through a site picker.
+7. **The popup** (Ben, 2026-10-21): one dialog, one scroller, pinned
+   footer (Cancel · Reset behind a confirm · Submit with the
+   remaining-count line and the live score + five-segment bar); a
+   header strip (type, scope, date — today, editable backwards —,
+   assessor); criteria as cards in two columns (phone: stacked) with
+   pills for every form (one chosen for single / yes-no / all-some-no,
+   toggling for multi, a quiet N/A pill where allowed) and the card's
+   own score; "What went well" and "Even better if" text areas; an
+   Actions row (＋ Add action → the standard action dialog; the check's
+   actions listed with status); a trend strip above the criteria — the
+   last six checks on the scope, newest first, each opening read-only
+   in the same dialog with "Back to this check"; an unfinished check is
+   KEPT AS A DRAFT (it is the day's check for that scope).
