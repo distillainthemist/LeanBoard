@@ -31,10 +31,6 @@ meeting and initiative boards, the Documents kebab, after ＋ Priority.
   per site); the settings strip and section patterns; the UAT tables
   as the pattern for "a definition frozen into each record".
 
-## Critique and open questions (decided one by one with Ben)
-
-(filled in as decided)
-
 ## Decisions
 
 1. **Storage** (Ben, 2026-10-21): definitions as JSON on the settings
@@ -127,3 +123,9 @@ meeting and initiative boards, the Documents kebab, after ＋ Priority.
     `docs/uat/healthchecks.md` with personas assessor · siteadmin ·
     superadmin; one Documents case for the kebab entry). ~22–26 h;
     solution-carrying.
+13. **Deleting** (Ben, 2026-10-21): a draft is discardable by whoever
+    runs it (beside Reset); a submitted check is NEVER deleted; site and
+    super admins may VOID one with a reason (kept, marked, out of the
+    trend and the recent list, un-voidable).
+
+Ben: "build it" (2026-10-21).
