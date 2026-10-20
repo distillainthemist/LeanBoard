@@ -97,3 +97,11 @@ meeting and initiative boards, the Documents kebab, after ＋ Priority.
    last six checks on the scope, newest first, each opening read-only
    in the same dialog with "Back to this check"; an unfinished check is
    KEPT AS A DRAFT (it is the day's check for that scope).
+8. **Actions** (Ben, 2026-10-21): a meeting or initiative check's action
+   lands on that board's channel (the quick-add road; it shows on the
+   board's Actions card and counts in the initiative's RAG); a
+   priorities or documents check's action lands on the assessor's
+   personal list, assigned to whoever they pick. Every such action
+   carries the check in its context (`source: "healthcheck"`,
+   `sourceId: <check id>`), so the dialog lists the check's actions
+   with their status.
