@@ -73,3 +73,14 @@ meeting and initiative boards, the Documents kebab, after ＋ Priority.
    the button on a scope checked today opens that check. A submitted
    check stays EDITABLE for 7 days by anyone who may run it (the edit
    stamps who and when), then LOCKS.
+6. **Settings → Health checks** (Ben, 2026-10-21): one section per
+   type (Priorities · Initiatives · Cadence · Documents) with the
+   site's "Enabled" switch (off by default), the STANDARD criteria
+   (super admins edit; site admins read them, marked "standard", and
+   CANNOT hide one) and the SITE criteria beneath (site/super admins
+   add, marked with the site); one criterion editor for both (title,
+   description, questions with options and weights, the yes/no and
+   all/some/no presets, Not applicable, drag order); saves through the
+   Save bar; a "Recent checks" list per section (date, scope, score,
+   assessor, Open) — a site admin's own site, a super admin every
+   site through a site picker.
