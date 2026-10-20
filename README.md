@@ -1,120 +1,186 @@
-# LeanToolKit
+# LeanBoard
 
-A suite of lean-board cards with a shared Flat 2.0 design system and common
-JSON contracts, shipped as the **LeanBoard code app** (`app/`).
+LeanBoard is a **Power Apps code app** for running a lean management
+system on Microsoft 365: meeting rituals and problem-solving boards,
+cascaded priorities, improvement initiatives with their metrics and value
+drivers, a central actions register, and a SharePoint-backed controlled
+documents system — in one shell, with Teams and Outlook notifications,
+in-app issue reporting and in-app user acceptance testing.
 
-> **The PCF/canvas target is retired.** These cards began as PowerApps
-> Component Framework controls; the code app is now the sole product. The
-> wrappers, manifests, generated types and solution project have been
-> removed — the last importable `LeanToolKit_*.zip` pair is on the
-> **v0.12.0** release, the permanent archive. Rationale and phases:
-> [docs/leanboard-pcf-retirement-plan.md](docs/leanboard-pcf-retirement-plan.md).
-> The cards themselves were untouched by the removal.
+It is code-first (vanilla TypeScript, Vite, no framework), ships through
+`pac code push` and tagged GitHub releases, stores its data in Dataverse
+tables delivered as a managed solution, and talks to SharePoint, Teams and
+Outlook through the standard Power Platform connectors. There is no
+backend of its own. Current release: see the
+[releases page](https://github.com/distillainthemist/LeanToolKitPCF/releases).
 
-See [LeanToolKit_ImplementationPlan.md](LeanToolKit_ImplementationPlan.md)
-for the full architecture, component specs and roadmap, and
-[docs/controls](docs/controls/README.md) for per-control reference — what each
-control does and the exact schema of its `outputJSON` and `actionsOutputJSON`.
+The maintained technical overview is
+[docs/architecture.md](docs/architecture.md). This page is the tour.
 
-## Controls
+## The hub
 
-| Control | Status |
-| --- | --- |
-| **FiveWhys** — problem → why-chains → root causes, drag reorder/re-chain, inline action capture | ✅ Phase 0 |
-| **Fishbone** — Ishikawa diagram (votes, statuses, drag between bones), action capture on causes | ✅ Phase 1 |
-| **FaultTree** — top-down gated tree (AND/OR pills on connectors), drag to re-parent, collapse, root causes + actions | ✅ Phase 1 |
-| **ActionBoard** — the central action register as a list, kanban (status/issue columns) or gantt (start→due bars) | ✅ Phase 1 |
-| **StatusTile** — tap-to-cycle state tile with reason; the cascade's line-of-sight element | ✅ Phase 2 |
-| **ParetoCard** — descending bars + cumulative % line; accepts cause/vote exports directly | ✅ Phase 2 |
-| **KpiTrendCard** — run chart with target line and RAG readout of the latest value | ✅ Phase 2 |
-| **BenefitEffort** — 2×2 drag canvas (benefit ↑, effort →) for prioritising solutions | ✅ Phase 2 |
-| **RiskMatrix** — 5×5 likelihood × consequence, post-control movement, treatment actions | ✅ Phase 2 |
-| **SqdpcCard** — month grid of good/issue ratings per dimension, day/weekday/two-shift | ✅ Phase 2 |
-| **ConditionsCard** — rolling 7 days × conditions + next-shift forecast column | ✅ Phase 2 |
-| **CaptureCard** — config-driven grid: typed columns, multi-select and two-layer picklists with icons, free or fixed rows | ✅ Phase 2 |
-| **HeatmapCard** — pin issues onto a fixed image, severity-coloured, actions at pin time | ✅ Phase 2 |
-| **ProcessMap** — flowchart, swimlane map, SIPOC or value stream map in one control; drag-drop nodes, connectors, kaizen bursts raise actions | ✅ Phase 3 |
-| **Raci** — responsibility matrix, cells cycle R/A/C/I; warns unless exactly one Accountable per row | ✅ Phase 3 |
-| **SkillsMatrix** — skills × people proficiency 1–4 as quarter-filled discs, gap rings against target levels | ✅ Phase 3 |
-| **MeetingScheduler** — cadence-driven meeting-instance selector (annually → shiftly, incl. crew rosters); emits the tapped instance | ✅ Phase 3 |
-| **EscalationViewer** — read/acknowledge view over escalated actions, grouped by source card | ✅ Phase 3 |
-| **MeetingWizard** — guided meeting setup (identity, org, cadence, crews, participants); emits a MeetingScheduler settings blob | ✅ Master board |
-| **LeanHub** — the person's home: cadence calendar (scoped, protected-time bands), my-actions list, preferences | ✅ Master board |
-| **AgendaCard** — runs a meeting from one card: pre-work checklist, timed agenda with per-item actions, outputs checklist | ✅ Master board |
-| **BoardGrid** — the master-leanboard tile wall: renders each card's stored snapshot in a grid, taps and drags become outputs | ✅ Master board |
-| **EmbedCard** — embedded Power BI report or any https page with a refresh button; the frame only reloads when it must | ✅ Master board |
-| **CardSettings** — settings composer for the other cards; typed fields emit a complete `settingsJSON` per card type | ✅ Master board |
-| BoardChrome — board title/agenda strip, escalation count, edit/display toggle | Not built (Phase 3) |
+The app opens on a hub whose tabs a site can switch on per site:
 
-## The standard surface
+| Tab | What it is |
+|---|---|
+| **My day** | The person's day: their rituals for the day and their actions bucketed late, due today, due this week. |
+| **Cadence** | The site's meeting cadence — a scoped calendar of ritual instances with protected-time bands, crew rosters and the person's own filters; each instance opens its board. |
+| **Priorities** | The cascaded priorities: company pillars, priorities cascaded down the organisation, the review queue, a walk-through presentation mode, an A3 poster, a year control, and a per-priority popup with its initiatives, actions, commentary, metrics and charter. |
+| **Improvement** | Initiatives on templates (stages, gates, roles, fields, metrics), each with its own board; list and tile views, flags, escalation to sponsors, archive, a Gantt of their actions. |
+| **Value drivers** | The site's value driver tree with KPI value entry, plan / forecast / actual by period, scenarios and links to the initiatives that move each driver. |
+| **Actions** | The person's actions across every board, with parts per assignee, due dates, endorsements and escalation. |
+| **Documents** | The controlled documents system (below). |
 
-Every control exposes the same properties:
+Settings sit behind the header cog: rituals, users, organisation, process
+model, site cadence, priorities, improvement templates, value drivers,
+access control, branding, documents, UAT and issue triage, each gated by
+role (user, site admin, super admin). Phone layouts exist for the hub, the
+boards, the register and the UAT tab.
 
-- `inputJSON` (input) — preload card document, a LeanToolKit envelope:
-  `{ "schema": "ltk/<component>@1", "meta": {...}, "data": {...} }`
-- `outputJSON` (output) — the edited card document; read in `OnChange` and
-  `Patch` to Dataverse
-- `actionsInputJSON` (input) — this card's actions from the central actions
-  table: `JSON(Filter(Actions, InstanceId = ...))`
-- `actionsOutputJSON` (output) — the full current action set, each stamped
-  with `instanceId`; upsert by action `id`. Actions are never hard-deleted —
-  deleting their host element cancels them.
-- `instanceId` (input) — the card instance identity (e.g. its Dataverse row
-  GUID), stamped on every emitted action
-- `resetTrigger` (input) — reloads both inputs whenever the **value
-  changes**: `Set(varReset, Text(Now()))`
-- `peopleJSON` (input) — `[{whoId, who}]` for action assignment
-- `cardTitle` / `prompts` (inputs) — optional self-describing chrome and
-  coaching prompts (plain text or `[{field, hint}]`)
-- `backgroundColor` / `foregroundColor` / `accentColor` / `titleBarColor` /
-  `legendColors` / `fontFamily` — theming (`titleBarColor` fills just the
-  title strip — one colour across related cards associates them on a board)
-- `readOnly` — display mode
-- `pngExport` (output) — PNG snapshot as a data URI
+## Boards and cards
 
-Actions share one canonical schema across all controls (id, instanceId,
-issue, description, assignees with per-person done flags, optional start
-date, due, status, comments, escalated, context with source provenance) and sync with a central
-Dataverse actions table keyed by `(instanceId, id)`. Causes share one node
-model across all RCA tools (fishbone categories, five-whys chains, fault-tree
-parents). A legacy combined document with embedded actions is accepted on
-input and migrated onto the actions channel.
+A board is a grid of tile snapshots; tapping a tile opens that card's full
+editor. Meeting boards run per occurrence, project and initiative boards
+have one living instance with gate snapshots, and a composer and card
+studio let a site admin lay boards out and author standard content. The
+card catalogue:
 
-## Layout
+- **Rituals** — Agenda, Capture card, Capture rollup, Meeting scheduler.
+- **Action management** — Actions (list, kanban or Gantt), Escalation viewer.
+- **Performance** — Status tile, KPI trend, Initiative metrics, Pareto, SQDPC, Winning conditions, Heatmap, Embed (Power BI or any https page).
+- **Problem solving** — Five whys, Fishbone, Fault tree, Process map (flowchart, swimlane, SIPOC, value stream), Benefit–effort.
+- **Project management** — Canvas (the initiative charter), Canvas rollup, RACI, Skills matrix, Benefit–effort quadrants.
+- **Reference** — Documentation & links, Standard documents, Document health, Priorities, Actions Gantt, Linked card.
+
+Every card writes one JSON document and raises actions into the central
+register; causes share one node model across the root-cause tools, and a
+card's tile repaints from its saved snapshot.
+
+## The improvement system
+
+- **Cascaded priorities** — pillars and priorities with spans across
+  financial years, cascade to child organisations with accept / customise
+  / hold / reject decisions, RAG roll-ups from the initiatives and actions
+  beneath, a primary initiative per priority, and shareable views.
+- **Initiatives** — created from templates (methods, PDCA stages with
+  descriptions and target weeks, gates with approver roles, standard
+  roles and fields, metric rules); a charter card bound to the header
+  fields, a Metrics card, commentary updates with staleness, stage
+  reverts with history, escalation cards to sponsors, confidential
+  initiatives, and the working folder in SharePoint.
+- **Value drivers** — the tree, the KPI value grid, KPI cards that link
+  back to drivers, and the roll-up into the priorities' RAG.
+
+## Controlled documents
+
+A document management system over SharePoint libraries, read and written
+through the SharePoint connector, with the app's own vocabulary held in
+the term store.
+
+- **Register** — libraries as tiles, folders by organisation, search,
+  filters by status, organisation (at any level), document type, process,
+  person, dates and links; chosen and ordered columns, personal and site
+  views, favourites, a Flags column, "Show only approved", and a phone
+  register.
+- **Viewer** — the document with its details pane: properties by section,
+  versions, linked documents, management-of-change records, flags and
+  tag proposals; copy link, download, share with a QR code, open in a new
+  tab; permission-aware for Restricted View readers.
+- **Lifecycle** — check-out / check-in, replace content, submit for
+  review with the reviewers' Teams card, review complete, submit for
+  approval with a warn-and-confirm gate, approve and publish through
+  content approval, mark reviewed with cadence-driven review dates,
+  cancel revision, supersede and obsolete; every step with Teams or
+  email notifications from one notify panel.
+- **People and access** — owners, approvers, reviewers and revision
+  editors from the site columns; edit-access requests with grant and
+  revoke; the controllers and owners & approvers groups; an owner outside
+  the group cannot approve.
+- **Document tasks** — one badge and one panel: awaiting your approval or
+  review, checked out to you, review due, flagged for review, access
+  requests and grants; a "show all in register" scope.
+- **Flags and tags** — any reader flags a document for review with a
+  level, a comment and a screenshot; owners hear on Teams, controllers
+  triage, Mark reviewed offers to close. Readers propose tags; controllers
+  approve, and a tag is written only on a document in revision.
+- **Ingestion** — bulk-drop tasks with assignees, a grid of required
+  details with defaults, per-file flags, and a run that lands files in
+  their destination library with the right status and version.
+- **Health** — document control health across the libraries: missing
+  owners, statuses, IDs and tags, reviews overdue, people who left or sit
+  outside the group, open flags; replace a person, add to the group, a
+  Teams digest and a CSV export.
+- **Term store** — Organisation and Process area term sets kept in step
+  with the app's organisation and process model: drift reports, one-way
+  write-through, orphan handling, retirement.
+
+## Cross-cutting
+
+- **Notifications** — Teams cards and Outlook mail through the
+  connectors, with deep links that open the right screen.
+- **Issue reporting** — anyone reports a bug or idea from the app with
+  screenshots; super admins triage, merge, decline and message every
+  reporter and follower, and export issues as PDF.
+- **UAT in the app** — test scripts live as markdown under
+  [docs/uat](docs/uat) and compile into the build; a super admin starts a
+  run with components, scope and testers per persona; testers get a UAT
+  tab with their cases, and a Fail raises an issue. Runs report progress
+  by persona and tester and export as PDF.
+- **Diagnostics** — probes for the SharePoint write road, the move road,
+  the feed and notifications, and a timing readout for super admins.
+
+## Repository layout
 
 ```
-shared/          design tokens, JSON schemas, UI kit, pointer/drag, PNG export
-controls/<Name>/ one folder per card (editor, styles, types, model)
-app/             the LeanBoard code app — mounts the editors, owns the data
+app/        the code app (TypeScript, Vite): src/screens, src/docs,
+            src/priorities, src/improvement, src/issues, src/uat,
+            src/store (Dataverse), src/generated (pac-generated services)
+controls/   the card editors and the shared card model (platform-free
+            classes the app mounts directly)
+shared/     design tokens, JSON schemas, UI kit, pointer/drag, PNG export
+data/       the declarative Dataverse schema and its deployer
+docs/       architecture, runbooks, design records, UAT scripts
+tools/      the UAT script compiler and delta tool
 ```
 
-Each card is a platform-free editor class: it owns its DOM, takes plain
-strings and callbacks, and knows nothing about its host. The app mounts them
-directly (`app/src/cardRegistry.ts`).
+## Build, test and gates
 
-## Build & test
+Node 22. From `app/`:
 
 ```bash
-cd app && npm install && npm run build
+npm install
+npm run build      # compiles the UAT scripts, type-checks, bundles
+npm test           # vitest — the pure model, parsing, date math, scripts
+npm run gate       # import gate + native-dialog gate
+npm run chunks     # chunk report
 ```
 
-```bash
-cd app && npm test
-```
+The repo-root `npm run typecheck` covers `shared/` and `controls/`. All of
+these run in CI on every push.
 
-Typecheck the shared design system and card editors from the repo root:
+## Deploy and release
 
-```bash
-npx tsc --noEmit -p tsconfig.json
-```
+- **Dev**: `cd app && pac code push`.
+- **Release**: `./release.sh x.y.z` then `git push origin main --tags`. The
+  tag runs the Release workflow, which attaches the code-app package and
+  the managed `LeanToolKitData` solution to a GitHub Release.
+- **Another environment**: import the managed solution, then the app
+  package; the SharePoint site steps and the per-release schema notes are
+  in [docs/deploy-to-new-org.md](docs/deploy-to-new-org.md).
 
-## Deploy
+## Documentation
 
-`pac code push` from `app/`. The receiving-org runbook is
-[docs/deploy-to-new-org.md](docs/deploy-to-new-org.md).
+- [docs/architecture.md](docs/architecture.md) — structure, connectors, SharePoint interfacing, deployment, security and DLP.
+- [docs/deploy-to-new-org.md](docs/deploy-to-new-org.md) — the receiving-org runbook.
+- [docs/sharepoint-writes.md](docs/sharepoint-writes.md) — the SharePoint write cookbook.
+- [docs/ui-standard.md](docs/ui-standard.md) — the visual standard.
+- [docs/uat-proposal-2026-10.md](docs/uat-proposal-2026-10.md) and [docs/uat](docs/uat) — UAT in the app and the scripts.
+- [docs/controls](docs/controls/README.md) — per-card reference and JSON contracts.
+- [docs/leanboard-cascade-improvement-plan.md](docs/leanboard-cascade-improvement-plan.md) — the running ledger of what shipped when.
 
-## Release
+## History
 
-`./release.sh 0.1.0` commits and tags; pushing the tag makes the GitHub
-Release workflow attach the code-app package and the managed
-LeanToolKitData tables solution.
+The cards began as Power Apps Component Framework controls; the PCF
+target was retired at v0.12.0, the permanent archive of that form, and
+the code app has been the sole product since. The rationale is in
+[docs/leanboard-pcf-retirement-plan.md](docs/leanboard-pcf-retirement-plan.md).
