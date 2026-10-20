@@ -1455,6 +1455,13 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-10-20 — released as v0.75.1** (app-only): the residual round
+  of 2026-10-19 (`docs/issues-plan-2026-10-19.md`, "Residual round"):
+  Download in the viewer header (R1); Cancel revision through the
+  check-out bracket, restored as the next major and published (R2);
+  review dates read in the site's locale when the feed carries no ISO
+  twin, in health and Review due, with a Review source CSV column (R3).
+  All three passed by Ben the same day.
 - **2026-10-19 — released as v0.75.0** (SOLUTION-CARRYING: `ben_ltkuatrun`
   + `ben_ltkuatresult`): UAT in the app, every test passed by Ben on dev
   the same day; follow-ups folded in: the tab scrolls in the hub, run
