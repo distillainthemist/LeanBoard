@@ -44,3 +44,10 @@ meeting and initiative boards, the Documents kebab, after ＋ Priority.
    the criteria frozen into it. The existing initiative health check
    (`healthQuestions`, `__health`, the `health` event, the Details
    button, the row-menu stub) is REMOVED, not migrated — never used.
+2. **Question shape** (Ben, 2026-10-21): one shape — options
+   {label, guidance?, weight} + `multi`; yes/no and all/some/no are
+   editor presets. Weights are whole numbers ≥ 0, invisible to the
+   assessor; a question's possible score = its highest option (single)
+   or the sum of its positive options (multi); an optional per-question
+   "Not applicable" (set in the editor) drops it from both numerator
+   and denominator.
