@@ -118,7 +118,7 @@ export async function renderHealthSettings(body: HTMLElement, me: RosterPerson, 
     const head = el("div", "app-hc-defhead");
     if (editableHere) {
       // drag by the handle to reorder (the column chooser's road), or ▲▼
-      const handle = el("span", "app-drag-handle", "⋮⋮");
+      const handle = el("span", "app-drag-handle", "⠿");
       handle.title = "Drag to reorder the criteria";
       head.appendChild(handle);
       draggableRow(card, handle, `hc-crit-${c.site || "std"}`, list.indexOf(c), list, () => {
@@ -215,7 +215,7 @@ export async function renderHealthSettings(body: HTMLElement, me: RosterPerson, 
     const top = el("div", "app-hc-defqtop");
     if (editableHere) {
       const qi = c.questions.indexOf(q);
-      const handle = el("span", "app-drag-handle", "⋮⋮");
+      const handle = el("span", "app-drag-handle", "⠿");
       handle.title = "Drag to reorder the questions";
       top.appendChild(handle);
       draggableRow(row, handle, `hc-q-${c.key}`, qi, c.questions, () => {
