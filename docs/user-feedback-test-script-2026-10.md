@@ -283,7 +283,8 @@ The walkthrough IS the UAT script `docs/uat/healthchecks.md`
 | Item | Outcome |
 |---|---|
 | HC-001 | PASS (Ben, 2026-10-21) — after follow-ups: the sections sit on the body (the strip's carding pass churned), named controls, three single-select forms with default weights and checkbox answers, drag/▲▼ reorder, the app's spinner, light list reads, N/A as a small toggle, questions as cards |
-| HC-002–013 | _Ben's pass pending_ |
+| HC-002 | PASS (Ben, 2026-10-21) |
+| HC-003–013 | _Ben's pass pending_ |
 
 ## UAT in the app — after v0.74.0 (2026-10-19, dev)
 
