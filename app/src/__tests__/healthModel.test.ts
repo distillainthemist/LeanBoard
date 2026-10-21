@@ -1,14 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
   HealthCriterion,
+  HealthQuestionKind,
   answer,
+  defaultOptions,
+  newQuestion,
+  withKind,
   criteriaFor,
   criteriaProblems,
   editable,
   keyFor,
   parseHealthSiteConfig,
   parseHealthStandard,
-  presetOptions,
   questionPossible,
   scopeKey,
   scoreFor,
@@ -18,29 +21,37 @@ import {
   trendFor,
 } from "../health/model";
 
-const q = (key: string, opts: [string, number][], multi = false, allowNa = false) => ({
+const q = (key: string, opts: [string, number][], kind: HealthQuestionKind = "list", allowNa = false) => ({
   key,
   text: key,
-  multi,
+  kind,
   allowNa,
   options: opts.map(([label, weight]) => ({ key: label.toLowerCase(), label, guidance: "", weight })),
 });
 const crit = (key: string, questions: ReturnType<typeof q>[]): HealthCriterion => ({ key, title: key, description: "", questions, site: "" });
 
 describe("health checks — definitions", () => {
-  it("presets fill options with weights; keys are unique", () => {
-    const yn = presetOptions("yesno");
-    expect(yn.multi).toBe(false);
-    expect(yn.options.map((o) => [o.key, o.weight])).toEqual([["yes", 1], ["no", 0]]);
-    expect(presetOptions("allsomeno").options.map((o) => o.weight)).toEqual([2, 1, 0]);
-    expect(presetOptions("scale5").options.length).toBe(6);
-    expect(presetOptions("multi").multi).toBe(true);
+  it("the forms' defaults: Yes 1 / No 0; All 1 / Some 0.5 / No 0; a list of two rows", () => {
+    expect(defaultOptions("yesno").map((o) => [o.key, o.weight])).toEqual([["yes", 1], ["no", 0]]);
+    expect(defaultOptions("allsomeno").map((o) => [o.key, o.weight])).toEqual([["all", 1], ["some", 0.5], ["no", 0]]);
+    expect(defaultOptions("list").length).toBe(2);
+    const nq = newQuestion("Ritual started on time?", "yesno", ["ritual-started-on-time"]);
+    expect(nq.key).toBe("ritual-started-on-time-2");
+    expect(withKind(nq, "allsomeno").options.map((o) => o.key)).toEqual(["all", "some", "no"]);
+    expect(withKind(nq, "list").options.map((o) => o.key)).toEqual(["yes", "no"]); // kept as rows
     expect(keyFor("Ritual started on time?", ["ritual-started-on-time"])).toBe("ritual-started-on-time-2");
   });
   it("standard and site configs round-trip; site criteria carry their site; a bad blob is empty", () => {
-    const std = { standard: { priorities: [crit("a", [q("q1", [["Yes", 1], ["No", 0]])])], initiative: [], cadence: [], documents: [] } };
+    const std = { standard: { priorities: [crit("a", [q("q1", [["Yes", 1], ["No", 0]], "yesno")])], initiative: [], cadence: [], documents: [] } };
     const back = parseHealthStandard(serializeHealthStandard(std));
     expect(back.standard.priorities[0].questions[0].options[0]).toEqual({ key: "yes", label: "Yes", guidance: "", weight: 1 });
+    expect(back.standard.priorities[0].questions[0].kind).toBe("yesno");
+    // a blob from before `kind` infers it from the option keys; a fixed
+    // form keeps its rows with the stored weights
+    const old = parseHealthStandard('{"standard":{"cadence":[{"key":"c","title":"C","questions":[{"key":"q","text":"Q","options":[{"key":"all","label":"All","weight":2},{"key":"some","label":"Some","weight":1},{"key":"no","label":"No","weight":0}]}]}]}}');
+    const oq = old.standard.cadence[0].questions[0];
+    expect(oq.kind).toBe("allsomeno");
+    expect(oq.options.map((o) => o.weight)).toEqual([2, 1, 0]);
     const site = { enabled: { priorities: true, initiative: false, cadence: false, documents: false }, criteria: { priorities: [crit("b", [q("q2", [["All", 2], ["No", 0]])])], initiative: [], cadence: [], documents: [] } };
     const sb = parseHealthSiteConfig(serializeHealthSiteConfig(site), "Bell Bay");
     expect(sb.enabled.priorities).toBe(true);
@@ -49,60 +60,55 @@ describe("health checks — definitions", () => {
     expect(parseHealthStandard("garbage").standard.cadence).toEqual([]);
   });
   it("names the problems that block a save", () => {
-    const bad = [crit("", []), crit("x", [q("", [["Yes", 0]])]), crit("x", [q("q", [["A", 1], ["B", 1]])])];
+    const bad = [crit("", []), crit("x", [q("", [["Yes", 0]])]), crit("x", [q("q", [["A", 1], ["", 1]])])];
     const p = criteriaProblems(bad);
     expect(p.join("|")).toMatch(/no title/);
     expect(p.join("|")).toMatch(/no questions/);
     expect(p.join("|")).toMatch(/no text/);
-    expect(p.join("|")).toMatch(/at least two options/);
+    expect(p.join("|")).toMatch(/at least two choices/);
     expect(p.join("|")).toMatch(/worth anything/);
+    expect(p.join("|")).toMatch(/has no title/);
     expect(p.join("|")).toMatch(/used twice/);
-    expect(criteriaProblems([crit("ok", [q("q", [["Yes", 1], ["No", 0]])])])).toEqual([]);
+    expect(criteriaProblems([crit("ok", [q("q", [["Yes", 1], ["No", 0]], "yesno")])])).toEqual([]);
   });
 });
 
 describe("health checks — score (decision 3)", () => {
   const criteria = [
-    crit("c1", [q("a", [["Yes", 1], ["No", 0]]), q("b", [["All", 2], ["Some", 1], ["No", 0]])]),
-    crit("c2", [q("m", [["X", 1], ["Y", 1], ["Z", 1]], true), q("n", [["Yes", 1], ["No", 0]], false, true)]),
+    crit("c1", [q("a", [["Yes", 1], ["No", 0]], "yesno"), q("b", [["All", 1], ["Some", 0.5], ["No", 0]], "allsomeno")]),
+    crit("c2", [q("m", [["Poor", 0], ["Developing", 2], ["Excellent", 5]]), q("n", [["Yes", 1], ["No", 0]], "yesno", true)]),
   ];
-  it("possible = highest (single) or sum of positives (multi)", () => {
-    expect(questionPossible(q("b", [["All", 2], ["Some", 1], ["No", 0]]))).toBe(2);
-    expect(questionPossible(q("m", [["X", 1], ["Y", 1], ["Z", 1]], true))).toBe(3);
+  it("possible = the highest-weighted answer; halves count", () => {
+    expect(questionPossible(q("b", [["All", 1], ["Some", 0.5], ["No", 0]], "allsomeno"))).toBe(1);
+    expect(questionPossible(q("m", [["Poor", 0], ["Developing", 2], ["Excellent", 5]]))).toBe(5);
   });
   it("the overall is a weighted whole; per criterion too; remaining counts unanswered", () => {
-    const s = scoreFor(criteria, { a: ["yes"], b: ["some"], m: ["x", "z"], n: ["no"] });
-    expect(s.got).toBe(1 + 1 + 2 + 0);
-    expect(s.possible).toBe(1 + 2 + 3 + 1);
-    expect(s.value).toBe(2.9);
+    const s = scoreFor(criteria, { a: ["yes"], b: ["some"], m: ["developing"], n: ["no"] });
+    expect(s.got).toBe(1 + 0.5 + 2 + 0);
+    expect(s.possible).toBe(1 + 1 + 5 + 1);
+    expect(s.value).toBe(2.2);
     expect(s.remaining).toBe(0);
-    expect(s.perCriterion.map((p) => p.value)).toEqual([3.3, 2.5]);
+    expect(s.perCriterion.map((p) => p.value)).toEqual([3.8, 1.7]);
   });
   it("N/A drops a question from both sides only where allowed; unanswered stays in the denominator", () => {
-    const s = scoreFor(criteria, { a: ["yes"], b: ["all"], m: ["x", "y", "z"], n: "na" });
-    expect(s.possible).toBe(6);
+    const s = scoreFor(criteria, { a: ["yes"], b: ["all"], m: ["excellent"], n: "na" });
+    expect(s.possible).toBe(7);
     expect(s.value).toBe(5);
-    const s2 = scoreFor(criteria, { a: "na", b: ["all"], m: ["x", "y", "z"], n: "na" });
+    const s2 = scoreFor(criteria, { a: "na", b: ["all"], m: ["excellent"], n: "na" });
     expect(s2.remaining).toBe(1); // "a" does not allow N/A → still owed
-    expect(s2.possible).toBe(6); // a (1) + b (2) + m (3); n is N/A
+    expect(s2.possible).toBe(7); // a (1) + b (1) + m (5); n is N/A
     expect(scoreFor(criteria, {}).value).toBe(0);
     expect(scoreFor([], {}).value).toBeNull();
   });
-  it("answer(): single replaces and un-picks, multi toggles, N/A toggles", () => {
-    const b = q("b", [["All", 2], ["Some", 1], ["No", 0]]);
+  it("answer(): a choice replaces the last, ticking it again un-ticks, N/A toggles", () => {
+    const b = q("b", [["All", 1], ["Some", 0.5], ["No", 0]], "allsomeno");
     let a = answer({}, b, "all");
     expect(a.b).toEqual(["all"]);
     a = answer(a, b, "some");
     expect(a.b).toEqual(["some"]);
     a = answer(a, b, "some");
     expect(a.b).toEqual([]);
-    const m = q("m", [["X", 1], ["Y", 1]], true);
-    let am = answer({}, m, "x");
-    am = answer(am, m, "y");
-    expect(am.m).toEqual(["x", "y"]);
-    am = answer(am, m, "x");
-    expect(am.m).toEqual(["y"]);
-    const n = q("n", [["Yes", 1], ["No", 0]], false, true);
+    const n = q("n", [["Yes", 1], ["No", 0]], "yesno", true);
     let an = answer({}, n, "na");
     expect(an.n).toBe("na");
     an = answer(an, n, "na");

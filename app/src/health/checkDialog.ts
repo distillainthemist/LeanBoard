@@ -315,37 +315,74 @@ export function openHealthCheck(o: HealthCheckOpts): void {
       card.appendChild(ch);
       if (c.description !== "") card.appendChild(el("div", "app-field-hint app-hc-carddesc", c.description));
       if (c.site !== "") card.appendChild(el("div", "app-hc-sitetag", `${c.site} criterion`));
+      // the questions as CHECKBOX rows (Ben, 2026-10-21): consecutive
+      // yes/no (or all/some/no) statements share one column strip of
+      // labels; a list question lists its choices, one tick among them
+      const check = (on: boolean, onPick: () => void, label: string): HTMLInputElement => {
+        const box = el("input", "app-docs-libcheck app-hc-check") as HTMLInputElement;
+        box.type = "checkbox";
+        box.checked = on;
+        box.disabled = ro;
+        box.setAttribute("aria-label", label);
+        box.addEventListener("change", () => onPick());
+        return box;
+      };
+      let group: HTMLElement | null = null;
+      let groupKind = "";
+      const anyNa = c.questions.some((x) => x.allowNa);
       for (const qn of c.questions) {
-        const row = el("div", "app-hc-q");
-        row.appendChild(el("div", "app-hc-qtext", qn.text));
-        const pills = el("div", "app-hc-pills");
         const chosen = a[qn.key];
-        const chosenSet = new Set(Array.isArray(chosen) ? chosen : []);
-        for (const opt of qn.options) {
-          const p = btn(opt.label, "app-cp-reason app-hc-pill" + (chosenSet.has(opt.key) ? " app-cp-reason-on" : ""));
-          if (opt.guidance !== "") p.title = opt.guidance;
-          p.disabled = ro;
-          p.addEventListener("click", () => {
-            answers = answer(answers, qn, opt.key);
-            scheduleSave();
-            paint();
-          });
-          pills.appendChild(p);
+        const picked = Array.isArray(chosen) ? chosen[0] ?? "" : "";
+        const pick = (key: string | "na") => {
+          answers = answer(answers, qn, key);
+          scheduleSave();
+          paint();
+        };
+        if (qn.kind !== "list") {
+          if (group === null || groupKind !== qn.kind) {
+            group = el("div", "app-hc-fixedgroup");
+            groupKind = qn.kind;
+            const head = el("div", "app-hc-fixedhead");
+            head.appendChild(el("span", "app-hc-fixedq", ""));
+            for (const opt of qn.options) head.appendChild(el("span", "app-hc-fixedcol", opt.label));
+            if (anyNa) head.appendChild(el("span", "app-hc-fixedcol app-hc-nacol", "N/A"));
+            group.appendChild(head);
+            card.appendChild(group);
+          }
+          const row = el("div", "app-hc-fixedrow");
+          row.appendChild(el("span", "app-hc-fixedq", qn.text));
+          for (const opt of qn.options) {
+            const cell = el("span", "app-hc-fixedcol");
+            cell.appendChild(check(picked === opt.key, () => pick(opt.key), `${qn.text} — ${opt.label}`));
+            row.appendChild(cell);
+          }
+          if (anyNa) {
+            const cell = el("span", "app-hc-fixedcol app-hc-nacol");
+            if (qn.allowNa) cell.appendChild(check(chosen === "na", () => pick("na"), `${qn.text} — not applicable`));
+            row.appendChild(cell);
+          }
+          group.appendChild(row);
+          continue;
         }
+        group = null;
+        groupKind = "";
+        const row = el("div", "app-hc-q");
+        const qt = el("div", "app-hc-qtext", qn.text);
         if (qn.allowNa) {
-          const na = btn("N/A", "app-cp-reason app-hc-pill app-hc-na" + (chosen === "na" ? " app-cp-reason-on" : ""));
-          na.disabled = ro;
-          na.title = "Not applicable here — leaves the score";
-          na.addEventListener("click", () => {
-            answers = answer(answers, qn, "na");
-            scheduleSave();
-            paint();
-          });
-          pills.appendChild(na);
+          const naWrap = el("label", "app-hc-nalabel");
+          naWrap.append(check(chosen === "na", () => pick("na"), `${qn.text} — not applicable`), el("span", undefined, "N/A"));
+          qt.appendChild(naWrap);
         }
-        row.appendChild(pills);
-        const g = qn.options.find((x) => chosenSet.has(x.key))?.guidance ?? "";
-        if (g !== "") row.appendChild(el("div", "app-field-hint", g));
+        row.appendChild(qt);
+        const list = el("div", "app-hc-choices");
+        for (const opt of qn.options) {
+          const line = el("label", "app-hc-choice" + (picked === opt.key ? " app-hc-choice-on" : ""));
+          line.appendChild(check(picked === opt.key, () => pick(opt.key), `${qn.text} — ${opt.label}`));
+          line.appendChild(el("span", "app-hc-choicelabel", opt.label));
+          if (opt.guidance !== "") line.appendChild(el("span", "app-hc-choiceguide", opt.guidance));
+          list.appendChild(line);
+        }
+        row.appendChild(list);
         card.appendChild(row);
       }
       grid.appendChild(card);

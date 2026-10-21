@@ -14,7 +14,7 @@ import { draggableRow } from "../../../shared/ui/dragList";
 import type { RosterPerson } from "../store/mappers";
 import { orgJson } from "../store/config";
 import { parseOrgTree } from "../../../shared/schema/meeting";
-import { HEALTH_TYPES, HealthCheck, HealthCriterion, HealthQuestion, HealthSiteConfig, HealthStandard, HealthType, PRESETS, criteriaProblems, keyFor, presetOptions, scoreText } from "./model";
+import { HEALTH_TYPES, HealthCheck, HealthCriterion, HealthQuestion, HealthQuestionKind, HealthSiteConfig, HealthStandard, HealthType, QUESTION_KINDS, criteriaProblems, keyFor, newQuestion, scoreText, withKind } from "./model";
 import { listChecks, loadDefinitions, saveSiteConfig, saveStandard } from "./store";
 
 interface Ctx {
@@ -186,15 +186,14 @@ export async function renderHealthSettings(body: HTMLElement, me: RosterPerson, 
     if (editableHere) {
       const addRow = el("div", "app-org-row app-hc-addq");
       const input = el("input", "app-input") as HTMLInputElement;
-      input.placeholder = "New question, e.g. Did the ritual start on time?";
-      const preset = el("select", "app-input app-hc-presetsel") as HTMLSelectElement;
-      preset.title = "The answers the new question starts with";
-      for (const p of PRESETS) preset.appendChild(new Option(`answers: ${p.label}`, p.key));
+      input.placeholder = "New question or statement, e.g. Did the ritual start on time?";
+      const kind = el("select", "app-input app-hc-presetsel") as HTMLSelectElement;
+      kind.title = "How it is answered";
+      for (const k of QUESTION_KINDS) kind.appendChild(new Option(k.label, k.key));
       const commit = () => {
         const v = input.value.trim();
         if (v === "") return;
-        const po = presetOptions(preset.value);
-        c.questions.push({ key: keyFor(v, c.questions.map((x) => x.key)), text: v, multi: po.multi, allowNa: false, options: po.options });
+        c.questions.push(newQuestion(v, kind.value as HealthQuestionKind, c.questions.map((x) => x.key)));
         input.value = "";
         touch();
         repaint();
@@ -207,7 +206,7 @@ export async function renderHealthSettings(body: HTMLElement, me: RosterPerson, 
       });
       const add = btn("＋");
       add.addEventListener("click", commit);
-      addRow.append(input, preset, add);
+      addRow.append(input, kind, add);
       card.appendChild(addRow);
     }
     return card;
@@ -227,12 +226,23 @@ export async function renderHealthSettings(body: HTMLElement, me: RosterPerson, 
       });
       const text = el("input", "app-input") as HTMLInputElement;
       text.value = q.text;
+      text.placeholder = "The question or statement, as the assessor reads it";
       text.addEventListener("input", () => {
         q.text = text.value;
         touch();
       });
-      text.placeholder = "The question, as the assessor reads it";
       top.appendChild(text);
+      const kind = el("select", "app-input app-hc-presetsel") as HTMLSelectElement;
+      kind.title = "How it is answered";
+      for (const k of QUESTION_KINDS) kind.appendChild(new Option(k.label, k.key));
+      kind.value = q.kind;
+      kind.addEventListener("change", () => {
+        const next = withKind(q, kind.value as HealthQuestionKind);
+        c.questions[qi] = next;
+        touch();
+        repaint();
+      });
+      top.appendChild(kind);
       const up = btn("▲", "app-pr-arrow");
       up.title = "Move up";
       up.disabled = qi === 0;
@@ -259,108 +269,103 @@ export async function renderHealthSettings(body: HTMLElement, me: RosterPerson, 
         repaint();
       });
       top.append(up, down, x);
-      // the question's settings, each named (Ben, 2026-10-21: bare
-      // pills read as nothing)
-      const settings = el("div", "app-hc-qsettings");
-      const labelled = (label: string, control: HTMLElement, hint: string) => {
-        const w = el("label", "app-hc-qsetting");
-        w.title = hint;
-        w.append(el("span", "app-hc-qsettinglabel", label), control);
-        settings.appendChild(w);
-      };
-      const mode = el("select", "app-input app-hc-presetsel") as HTMLSelectElement;
-      mode.appendChild(new Option("one option", "single"));
-      mode.appendChild(new Option("several options", "multi"));
-      mode.value = q.multi ? "multi" : "single";
-      mode.addEventListener("change", () => {
-        q.multi = mode.value === "multi";
-        touch();
-        repaint();
-      });
-      labelled("The assessor picks", mode, "One option (a single select, yes/no, all/some/no) or several at once (the weights add up)");
-      const na = el("input", "app-docs-libcheck") as HTMLInputElement;
-      na.type = "checkbox";
-      na.checked = q.allowNa;
-      na.addEventListener("change", () => {
-        q.allowNa = na.checked;
-        touch();
-      });
-      labelled("Allow “not applicable”", na, "The assessor may mark the question N/A — it then counts in neither the score nor the possible score");
-      const preset = el("select", "app-input app-hc-presetsel") as HTMLSelectElement;
-      preset.appendChild(new Option("keep as they are", ""));
-      for (const p of PRESETS) preset.appendChild(new Option(p.label, p.key));
-      preset.addEventListener("change", () => {
-        if (preset.value === "") return;
-        const po = presetOptions(preset.value);
-        q.options = po.options;
-        q.multi = po.multi;
-        touch();
-        repaint();
-      });
-      labelled("Replace the options with", preset, "A preset rewrites the options and their weights; edit them afterwards");
       row.appendChild(top);
-      row.appendChild(settings);
-      const optsHead = el("div", "app-hc-defopt app-hc-defopthead");
-      optsHead.append(el("span", "app-hc-optlabel", "Option"), el("span", "app-hc-optguide", "Guidance shown when it is chosen (optional)"), el("span", "app-hc-optweight", "Weight"), el("span", undefined, ""));
-      row.appendChild(optsHead);
-    } else {
-      top.appendChild(el("span", "app-hc-defqtext", q.text));
-      top.appendChild(el("span", "app-field-hint", `${q.multi ? "several options" : "one option"}${q.allowNa ? " · N/A allowed" : ""}`));
-      row.appendChild(top);
-    }
-    const opts = el("div", "app-hc-defopts");
-    for (const o of q.options) {
-      const line = el("div", "app-hc-defopt");
-      if (editableHere) {
-        const label = el("input", "app-input app-hc-optlabel") as HTMLInputElement;
-        label.value = o.label;
-        label.placeholder = "Option";
-        label.addEventListener("input", () => {
-          o.label = label.value;
-          touch();
-        });
-        const guidance = el("input", "app-input app-hc-optguide") as HTMLInputElement;
-        guidance.value = o.guidance;
-        guidance.placeholder = "Guidance (optional), e.g. <30% unassigned";
-        guidance.addEventListener("input", () => {
-          o.guidance = guidance.value;
-          touch();
-        });
-        const weight = el("input", "app-input app-hc-optweight") as HTMLInputElement;
-        weight.type = "number";
-        weight.min = "0";
-        weight.step = "1";
-        weight.value = String(o.weight);
-        weight.placeholder = "weight";
-        weight.title = "Weight — what choosing this option scores; never shown to the assessor";
-        weight.addEventListener("input", () => {
-          o.weight = Math.max(0, Math.round(Number(weight.value) || 0));
-          touch();
-        });
-        const x = btn("×", "app-org-x");
-        x.addEventListener("click", () => {
-          q.options.splice(q.options.indexOf(o), 1);
+      // the answers: a fixed form shows its weights in one line; a list
+      // shows its rows — title, guidance, weight
+      const answers = el("div", "app-hc-defopts");
+      if (q.kind !== "list") {
+        const line = el("div", "app-hc-fixedweights");
+        line.appendChild(el("span", "app-hc-qsettinglabel", "Weights"));
+        for (const o of q.options) {
+          const w = el("label", "app-hc-fixedweight");
+          const input = el("input", "app-input app-hc-optweight") as HTMLInputElement;
+          input.type = "number";
+          input.min = "0";
+          input.step = "0.5";
+          input.value = String(o.weight);
+          input.addEventListener("input", () => {
+            o.weight = Math.max(0, Math.round((Number(input.value) || 0) * 100) / 100);
+            touch();
+          });
+          w.append(el("span", undefined, `${o.label} =`), input);
+          line.appendChild(w);
+        }
+        answers.appendChild(line);
+      } else {
+        const head = el("div", "app-hc-defopt app-hc-defopthead");
+        head.append(el("span", "app-hc-optlabel", "Choice"), el("span", "app-hc-optguide", "Guidance shown beside it"), el("span", "app-hc-optweight", "Weight"), el("span", undefined, ""));
+        answers.appendChild(head);
+        for (const o of q.options) {
+          const line = el("div", "app-hc-defopt");
+          const label = el("input", "app-input app-hc-optlabel") as HTMLInputElement;
+          label.value = o.label;
+          label.placeholder = "Choice, e.g. Developing";
+          label.addEventListener("input", () => {
+            o.label = label.value;
+            touch();
+          });
+          const guidance = el("input", "app-input app-hc-optguide") as HTMLInputElement;
+          guidance.value = o.guidance;
+          guidance.placeholder = "Guidance, e.g. <20% unassigned";
+          guidance.addEventListener("input", () => {
+            o.guidance = guidance.value;
+            touch();
+          });
+          const weight = el("input", "app-input app-hc-optweight") as HTMLInputElement;
+          weight.type = "number";
+          weight.min = "0";
+          weight.step = "0.5";
+          weight.value = String(o.weight);
+          weight.placeholder = "weight";
+          weight.title = "What choosing this scores — never shown to the assessor";
+          weight.addEventListener("input", () => {
+            o.weight = Math.max(0, Math.round((Number(weight.value) || 0) * 100) / 100);
+            touch();
+          });
+          const x = btn("×", "app-org-x");
+          x.addEventListener("click", () => {
+            q.options.splice(q.options.indexOf(o), 1);
+            touch();
+            repaint();
+          });
+          line.append(label, guidance, weight, x);
+          answers.appendChild(line);
+        }
+        const addOpt = btn("＋ choice", "app-link");
+        addOpt.addEventListener("click", () => {
+          q.options.push({ key: keyFor(`option ${q.options.length + 1}`, q.options.map((x) => x.key)), label: "", guidance: "", weight: 0 });
           touch();
           repaint();
         });
-        line.append(label, guidance, weight, x);
-      } else {
-        line.appendChild(el("span", undefined, o.label));
-        if (o.guidance !== "") line.appendChild(el("span", "app-field-hint", o.guidance));
-        line.appendChild(el("span", "app-field-hint", `weight ${o.weight}`));
+        answers.appendChild(addOpt);
       }
-      opts.appendChild(line);
-    }
-    if (editableHere) {
-      const addOpt = btn("＋ option", "app-link");
-      addOpt.addEventListener("click", () => {
-        q.options.push({ key: keyFor(`option ${q.options.length + 1}`, q.options.map((x) => x.key)), label: "", guidance: "", weight: 0 });
+      const na = el("label", "app-hc-qsetting");
+      const naBox = el("input", "app-docs-libcheck") as HTMLInputElement;
+      naBox.type = "checkbox";
+      naBox.checked = q.allowNa;
+      naBox.addEventListener("change", () => {
+        q.allowNa = naBox.checked;
         touch();
-        repaint();
       });
-      opts.appendChild(addOpt);
+      na.append(naBox, el("span", "app-hc-qsettinglabel", "Allow “not applicable” — then it counts in neither the score nor the possible score"));
+      answers.appendChild(na);
+      row.appendChild(answers);
+    } else {
+      top.appendChild(el("span", "app-hc-defqtext", q.text));
+      top.appendChild(el("span", "app-field-hint", `${QUESTION_KINDS.find((k) => k.key === q.kind)?.label ?? q.kind}${q.allowNa ? " · N/A allowed" : ""}`));
+      row.appendChild(top);
+      if (q.kind === "list") {
+        const opts = el("div", "app-hc-defopts");
+        for (const o of q.options) {
+          const line = el("div", "app-hc-defopt");
+          line.appendChild(el("span", undefined, o.label));
+          if (o.guidance !== "") line.appendChild(el("span", "app-field-hint", o.guidance));
+          line.appendChild(el("span", "app-field-hint", `weight ${o.weight}`));
+          opts.appendChild(line);
+        }
+        row.appendChild(opts);
+      } else row.appendChild(el("div", "app-field-hint", q.options.map((o) => `${o.label} ${o.weight}`).join(" · ")));
     }
-    row.appendChild(opts);
     return row;
   };
 

@@ -15,19 +15,32 @@ export const HEALTH_TYPES: { key: HealthType; label: string; scopeWord: string }
 export interface HealthOption {
   key: string;
   label: string;
-  /** The screenshot's "<30% unassigned" — a line under the label. */
+  /** A list option's guidance, shown beside it ("<30% unassigned");
+   *  yes/no and all/some/no carry none — the question is the guidance. */
   guidance: string;
-  /** Whole number ≥ 0; invisible to the assessor (decision 2). */
+  /** ≥ 0, halves allowed (Some = 0.5); invisible to the assessor. */
   weight: number;
 }
+
+/** The three question forms (Ben, 2026-10-21): a statement answered
+ *  yes / no, or all / some / no, or one choice from a list whose rows
+ *  carry a title and guidance. Every form is a SINGLE select. */
+export type HealthQuestionKind = "yesno" | "allsomeno" | "list";
+
+export const QUESTION_KINDS: { key: HealthQuestionKind; label: string }[] = [
+  { key: "yesno", label: "Yes / no" },
+  { key: "allsomeno", label: "All / some / no" },
+  { key: "list", label: "Select from a list" },
+];
 
 export interface HealthQuestion {
   key: string;
   text: string;
-  /** Several options may be chosen. */
-  multi: boolean;
+  kind: HealthQuestionKind;
   /** The assessor may mark it N/A — out of both numerator and denominator. */
   allowNa: boolean;
+  /** yes/no and all/some/no: the fixed options with editable weights;
+   *  list: the authored rows. */
   options: HealthOption[];
 }
 
@@ -119,27 +132,33 @@ export function keyFor(label: string, taken: string[]): string {
   return k;
 }
 
-// ---- presets (decision 2) ------------------------------------------------
+// ---- the forms' default options (decision 2, as amended) ----------------
 
-export const PRESETS: { key: string; label: string; multi: boolean; options: { label: string; weight: number }[] }[] = [
-  { key: "yesno", label: "Yes / no", multi: false, options: [{ label: "Yes", weight: 1 }, { label: "No", weight: 0 }] },
-  { key: "allsomeno", label: "All / some / no", multi: false, options: [{ label: "All", weight: 2 }, { label: "Some", weight: 1 }, { label: "No", weight: 0 }] },
-  { key: "scale5", label: "0–5 scale", multi: false, options: [0, 1, 2, 3, 4, 5].map((n) => ({ label: String(n), weight: n })) },
-  { key: "multi", label: "Multi select", multi: true, options: [{ label: "Option A", weight: 1 }, { label: "Option B", weight: 1 }] },
-];
-
-export function presetOptions(presetKey: string): { multi: boolean; options: HealthOption[] } {
-  const p = PRESETS.find((x) => x.key === presetKey) ?? PRESETS[0];
-  const taken: string[] = [];
-  return {
-    multi: p.multi,
-    options: p.options.map((o) => {
-      const key = keyFor(o.label, taken);
-      taken.push(key);
-      return { key, label: o.label, guidance: "", weight: o.weight };
-    }),
-  };
+export function defaultOptions(kind: HealthQuestionKind): HealthOption[] {
+  switch (kind) {
+    case "yesno":
+      return [{ key: "yes", label: "Yes", guidance: "", weight: 1 }, { key: "no", label: "No", guidance: "", weight: 0 }];
+    case "allsomeno":
+      return [{ key: "all", label: "All", guidance: "", weight: 1 }, { key: "some", label: "Some", guidance: "", weight: 0.5 }, { key: "no", label: "No", guidance: "", weight: 0 }];
+    case "list":
+      return [{ key: "option-1", label: "", guidance: "", weight: 1 }, { key: "option-2", label: "", guidance: "", weight: 0 }];
+  }
 }
+
+/** A new question of a kind, with its default options. */
+export function newQuestion(text: string, kind: HealthQuestionKind, taken: string[]): HealthQuestion {
+  return { key: keyFor(text, taken), text, kind, allowNa: false, options: defaultOptions(kind) };
+}
+
+/** Switching a yes/no or all/some/no question's kind keeps nothing but
+ *  the text; switching to a list keeps the options as rows. */
+export function withKind(q: HealthQuestion, kind: HealthQuestionKind): HealthQuestion {
+  if (kind === q.kind) return q;
+  if (kind === "list" && q.options.length > 0) return { ...q, kind, options: q.options.map((o) => ({ ...o })) };
+  return { ...q, kind, options: defaultOptions(kind) };
+}
+
+const round2 = (n: number): number => Math.round(n * 100) / 100;
 
 // ---- parse / serialise ---------------------------------------------------
 
@@ -147,20 +166,29 @@ export function parseOption(v: unknown): HealthOption | null {
   const o = obj(v);
   const key = str(o.key);
   if (key === "") return null;
-  return { key, label: str(o.label), guidance: str(o.guidance), weight: Math.max(0, Math.round(num(o.weight))) };
+  return { key, label: str(o.label), guidance: str(o.guidance), weight: Math.max(0, round2(num(o.weight))) };
+}
+
+/** The kind, inferred from the option keys when a blob predates it. */
+function kindOf(o: Record<string, unknown>, options: HealthOption[]): HealthQuestionKind {
+  const k = str(o.kind);
+  if (k === "yesno" || k === "allsomeno" || k === "list") return k;
+  const keys = options.map((x) => x.key).join(",");
+  if (keys === "yes,no") return "yesno";
+  if (keys === "all,some,no") return "allsomeno";
+  return "list";
 }
 
 export function parseQuestion(v: unknown): HealthQuestion | null {
   const o = obj(v);
   const key = str(o.key);
   if (key === "") return null;
-  return {
-    key,
-    text: str(o.text),
-    multi: o.multi === true,
-    allowNa: o.allowNa === true,
-    options: arr(o.options).map(parseOption).filter((x): x is HealthOption => x !== null),
-  };
+  const options = arr(o.options).map(parseOption).filter((x): x is HealthOption => x !== null);
+  const kind = kindOf(o, options);
+  // the fixed forms keep their fixed rows: weights from the blob, labels
+  // and keys from the form
+  const fixed = kind === "list" ? options : defaultOptions(kind).map((d) => ({ ...d, weight: options.find((x) => x.key === d.key)?.weight ?? d.weight }));
+  return { key, text: str(o.text), kind, allowNa: o.allowNa === true, options: fixed };
 }
 
 export function parseCriterion(v: unknown): HealthCriterion | null {
@@ -236,8 +264,9 @@ export function criteriaProblems(list: HealthCriterion[]): string[] {
       if (q.text.trim() === "") out.push(`A question under “${c.title || c.key}” has no text.`);
       if (qk.has(q.key)) out.push(`Question key “${q.key}” is used twice under “${c.title || c.key}”.`);
       qk.add(q.key);
-      if (q.options.length < 2) out.push(`“${q.text || q.key}” needs at least two options.`);
-      if (!q.options.some((o) => o.weight > 0)) out.push(`“${q.text || q.key}” has no option worth anything.`);
+      if (q.kind === "list" && q.options.length < 2) out.push(`“${q.text || q.key}” needs at least two choices.`);
+      if (q.kind === "list" && q.options.some((o) => o.label.trim() === "")) out.push(`A choice under “${q.text || q.key}” has no title.`);
+      if (!q.options.some((o) => o.weight > 0)) out.push(`“${q.text || q.key}” has no answer worth anything.`);
     }
   }
   return out;
@@ -303,18 +332,15 @@ export function parseAnswers(raw: string): HealthAnswers {
 
 // ---- score (decision 3) ----------------------------------------------------
 
-/** A question's possible score: the highest option (single), the sum of
- *  the positive options (multi). */
+/** A question's possible score: its highest-weighted answer. */
 export function questionPossible(q: HealthQuestion): number {
   if (q.options.length === 0) return 0;
-  return q.multi ? q.options.filter((o) => o.weight > 0).reduce((a, o) => a + o.weight, 0) : Math.max(...q.options.map((o) => o.weight));
+  return Math.max(...q.options.map((o) => o.weight));
 }
 
+/** The chosen answer's weight (every form is a single select). */
 export function questionGot(q: HealthQuestion, chosen: string[]): number {
-  const set = new Set(chosen);
-  const picked = q.options.filter((o) => set.has(o.key));
-  if (q.multi) return picked.reduce((a, o) => a + o.weight, 0);
-  return picked[0]?.weight ?? 0;
+  return q.options.find((o) => o.key === chosen[0])?.weight ?? 0;
 }
 
 const round1 = (n: number): number => Math.round(n * 10) / 10;
@@ -345,7 +371,8 @@ export function scoreFor(criteria: HealthCriterion[], answers: HealthAnswers): H
   return { value: possible > 0 ? round1((5 * got) / possible) : null, got, possible, remaining, perCriterion };
 }
 
-/** Set one answer: single selects replace, multi toggles, "na" clears. */
+/** Set one answer: a choice replaces the last (ticking it again
+ *  un-ticks), "na" toggles. */
 export function answer(answers: HealthAnswers, q: HealthQuestion, optionKey: string | "na"): HealthAnswers {
   const next = { ...answers };
   if (optionKey === "na") {
@@ -354,8 +381,7 @@ export function answer(answers: HealthAnswers, q: HealthQuestion, optionKey: str
     return next;
   }
   const cur = Array.isArray(answers[q.key]) ? (answers[q.key] as string[]) : [];
-  if (q.multi) next[q.key] = cur.includes(optionKey) ? cur.filter((k) => k !== optionKey) : [...cur, optionKey];
-  else next[q.key] = cur[0] === optionKey ? [] : [optionKey];
+  next[q.key] = cur[0] === optionKey ? [] : [optionKey];
   return next;
 }
 

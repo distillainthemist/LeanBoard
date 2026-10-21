@@ -47,6 +47,14 @@ meeting and initiative boards, the Documents kebab, after ＋ Priority.
    or the sum of its positive options (multi); an optional per-question
    "Not applicable" (set in the editor) drops it from both numerator
    and denominator.
+   **Amended 2026-10-21 (Ben, on seeing the editor):** THREE forms, all
+   single select — a statement answered Yes / no (weights default 1 / 0),
+   All / some / no (1 / 0.5 / 0), or "Select from a list" whose rows
+   carry a title and guidance; no multi-select; guidance only on list
+   rows (the statement is its own guidance); weights allow halves. The
+   popup answers with CHECKBOXES in rows (a column strip of Yes | No
+   over consecutive statements, like the reference screenshot), not
+   pills.
 3. **Score** (Ben, 2026-10-21): 0–5 to one decimal; per criterion and
    overall, the overall = chosen ÷ possible across every applicable
    question (a weighted whole, not an average of criteria); shown as
