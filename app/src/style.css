@@ -4880,6 +4880,9 @@ input.app-vg-in.app-vg-folded { background: #fff7e0; }
 .app-hc-recentscope { font-weight: 600; }
 .app-hc-recentscore { font-weight: 700; font-variant-numeric: tabular-nums; }
 .app-hc-btn { white-space: nowrap; }
+/* the Documents check's org picker: the cascade's selects stacked, compact */
+.app-hc-orgpick .ltk-procpick { display: flex; flex-direction: column; align-items: stretch; gap: 8px; }
+.app-hc-orgsel { flex: none; width: 100%; min-height: 36px; }
 @media (max-width: 719px) { .app-hc-grid, .app-hc-comments { grid-template-columns: 1fr; } }
 .app-cp-hchost { display: inline-flex; }
 .app-cp-hcchip { margin-left: 8px; font-size: 11px; font-weight: 600; background: rgba(255,255,255,0.85); color: #26241f; border-radius: 999px; padding: 1px 7px; vertical-align: middle; }

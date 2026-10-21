@@ -5708,20 +5708,35 @@ export function mountDocs(
               status.textContent = site === "" ? "Your profile names no site — set it under Settings → My profile." : `Documents health checks are not enabled for ${site} — Settings → Health checks.`;
               return;
             }
-            // the org level: the person's site by default, any level below from the picker
-            const { buildTree, pickOrg } = await import("../priorities/dialogs");
-            const { orgName } = await import("../priorities/model");
+            // the org level: the person's site by default, any level below
+            // through the app's cascading selects in a compact dialog
+            // (Ben, 2026-10-21: the Priorities picker read as clunky here)
+            const [{ buildTree }, { orgName }, { mountOrgCascade }] = await Promise.all([import("../priorities/dialogs"), import("../priorities/model"), import("../priorities/orgCascade")]);
             const siteCo = await siteCompanies().catch(() => ({}) as Record<string, string>);
             const tree = buildTree(await orgJson(), siteCo, [...new Set(Object.values(siteCo).filter((c) => c !== ""))]);
             const start = { company: siteCo[site] ?? "", site, department: "", area: "" };
-            const org = (await pickOrg(dialogHost, tree, start)) ?? null;
-            if (org === null) return;
-            openHealthCheck({
+            const isAdmin = me?.role === "superadmin" || me?.role === "siteadmin";
+            const dlg = openDialog({
               host: dialogHost,
-              scope: { type: "documents", site, org, label: orgName(org) },
-              mayRun: true,
-              isAdmin: me?.role === "superadmin" || me?.role === "siteadmin",
+              title: "Document health check — which organisation?",
+              maxWidth: 440,
+              buttons: [
+                { label: "Cancel", kind: "secondary", onClick: () => dlg.close() },
+                {
+                  label: "Continue",
+                  kind: "primary",
+                  onClick: () => {
+                    const org = cascade.value();
+                    dlg.close();
+                    openHealthCheck({ host: dialogHost, scope: { type: "documents", site, org, label: orgName(org) }, mayRun: true, isAdmin });
+                  },
+                },
+              ],
             });
+            dlg.body.appendChild(el("div", "app-field-hint", "The site, or a department or area beneath it — each level keeps its own checks and trend."));
+            const box = el("div", "app-hc-orgpick");
+            dlg.body.appendChild(box);
+            const cascade = mountOrgCascade(box, { tree, value: start, selectClass: "app-input app-hc-orgsel", hideSingleCompany: true, onChange: () => undefined });
           })();
         });
       }
