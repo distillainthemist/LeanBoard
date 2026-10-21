@@ -215,6 +215,12 @@ should share ONE solution-carrying release.
 | R2 | Cancel revision after a discard | `RestoreByLabel` needs the file checked out ("You must first check out this document"); the flow discarded the holder's check-out and restored. | Check out → restore the major → check in as a MAJOR ("Revision cancelled — restored vN.0") → publish on a moderated library; someone else's check-out refuses with their name. The restored content is a new major (N+1.0). | PASSED by Ben 2026-10-20 (dev) |
 | R3 | "Review date unreadable" on every approved document (production) | The feed's ISO twin of the review column never arrived on production (all 127 approved; the 4 "readable" were non-approved documents the check skips). Dev sends the twin. | `parseSiteDate(text, localeId)` (pure, tested) reads the display text in the site's day/month order; health and the register's Review due use it when the twin is missing; the CSV gains "Review source". Why production lacks the twin is still unknown — the source column will say. | PASSED by Ben 2026-10-20 |
 
+## Residual round 2026-10-21 (one issue, PDF export of 2026-10-21)
+
+| # | Issue | Cause | Fix | Status |
+|---|---|---|---|---|
+| R4 | Ingestion grid: headers not matching cells, widths differing between rows; MoC column forced required; MoC shows JSON once filled | Each grid row (and the header) is its own CSS grid, so `minmax(…, 1fr)` tracks resolved per row against that row's own content width. The MoC role was added to the forced-required set in tranche D ("let ingestion require it"). The MoC note column fell to the plain text editor. | Fixed pixel tracks in the normal layout (the fitted layout shares the width equally); MoC required only when SharePoint marks the column required; the MoC cell shows the records' refs and opens `buildMocEditor` in a dialog. | BUILT 2026-10-21, dev |
+
 ## Hosted checks Ben owns
 
 - 13: the CAML form SharePoint accepts for a term-id match on a

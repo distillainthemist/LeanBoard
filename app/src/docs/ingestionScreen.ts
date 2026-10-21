@@ -77,6 +77,7 @@ import { saveIngestionTask, deleteIngestionTask, getIngestionTask, listIngestion
 import { listPeople } from "../store/people";
 import { promptConfirm } from "../prompts";
 import { DocFlag, flagKey, reviewLevelsOf } from "./docFlagsModel";
+import { parseMocRecords } from "./model";
 
 const btn = (label: string, cls = "app-btn"): HTMLButtonElement => {
   const b = el("button", cls, label) as HTMLButtonElement;
@@ -394,9 +395,9 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
     const carried = new Set(dest.config.columns.filter((c) => c.available).map((c) => c.internal));
     // "orgUnit" is the role key — "organisation" never matched, so the
     // organisation column was never required (issue 25)
-    // the MoC record rides the required set where the destination carries
-    // the column (issue 10, Ben: "let ingestion require it")
-    const roleInternals = ["owner", "docType", "orgUnit", "managementOfChange"].map((r) => ctx.internalForRole(r)).filter((i) => i !== "" && carried.has(i));
+    // the MoC column follows SharePoint's own required flag like any other
+    // column (2026-10-21 report: it was forced required here)
+    const roleInternals = ["owner", "docType", "orgUnit"].map((r) => ctx.internalForRole(r)).filter((i) => i !== "" && carried.has(i));
     const required = destFields
       .filter((f) => (f.required || roleInternals.includes(f.internal)) && carried.has(f.internal) && f.internal !== ctx.internalForRole("status"))
       .map((f) => ({ internal: f.internal, label: ctx.dictBy.get(f.internal)?.label || f.title }));
@@ -792,7 +793,37 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
       clear(cellEl);
       const kind = editorKind(f) ?? "text";
       const value = current(row, f);
-      if (kind === "choice") {
+      if (ctx.dictBy.get(f.internal)?.role === "managementOfChange") {
+        // change records (issue 10): never the raw JSON — a count, and the
+        // records editor in a dialog (2026-10-21 report)
+        const recs = parseMocRecords(value) ?? [];
+        const b = btn(recs.length === 0 ? "—" : recs.map((r) => r.ref || "link").slice(0, 3).join(", ") + (recs.length > 3 ? ` +${recs.length - 3}` : ""), "app-ing-cellbtn" + (recs.length === 0 ? " app-ing-cellbtn-empty" : ""));
+        b.title = recs.length === 0 ? `Add change records` : `${recs.length} change record${recs.length === 1 ? "" : "s"} — click to edit`;
+        b.addEventListener("click", () => {
+          void import("./mocEditor").then(({ buildMocEditor }) => {
+            const dlg = openDialog({
+              host: sheet,
+              title: `${labelOf(f)} — ${row.name}`,
+              maxWidth: 640,
+              buttons: [
+                { label: "Cancel", kind: "secondary", onClick: () => dlg.close() },
+                {
+                  label: "Set",
+                  kind: "primary",
+                  onClick: () => {
+                    commit(row, { internal: f.internal, kind: "text", text: editor.read() });
+                    dlg.close();
+                    paintCell(cellEl, row, f);
+                  },
+                },
+              ],
+            });
+            const editor = buildMocEditor({ initialRaw: value, onChange: () => undefined });
+            dlg.body.appendChild(editor.root);
+          });
+        });
+        cellEl.appendChild(b);
+      } else if (kind === "choice") {
         const sel = el("select", "app-input app-ing-ctl") as HTMLSelectElement;
         const ph = el("option", "", "—") as HTMLOptionElement;
         ph.value = "";
@@ -873,7 +904,12 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
     });
     // Document · Name on ingestion · Flag for review (Ben, 2026-10-19: a
     // glyph in the Document cell was too obscure) · the configured columns
-    const template = () => (fit ? `minmax(200px, 1.6fr) minmax(0, 1.2fr) minmax(0, 0.9fr) ${gridFields.map(() => "minmax(0, 1fr)").join(" ")}` : `320px minmax(220px, 1.3fr) 180px ${gridFields.map(() => "minmax(170px, 1fr)").join(" ")}`);
+    // every row is ITS OWN grid (the header too), so a proportional track
+    // resolves against each row's own width and the rows drift apart
+    // (2026-10-21 report: headers not matching cells, widths differing
+    // between rows) — the normal layout uses FIXED tracks, the fitted one
+    // shares the pane's width equally
+    const template = () => (fit ? `minmax(200px, 1.6fr) minmax(0, 1.2fr) minmax(0, 0.9fr) ${gridFields.map(() => "minmax(0, 1fr)").join(" ")}` : `320px 260px 170px ${gridFields.map(() => "190px").join(" ")}`);
     const paintGrid = () => {
       computeView();
       clear(gridHost);

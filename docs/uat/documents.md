@@ -596,7 +596,7 @@ preconditions: an open task you are assigned to with three files in its folder
 steps:
 1. Refresh; read the ✱ required columns and the ⚠ marks.
 2. Edit cells; Fill blanks from defaults; Set for selected… on two rows; Save.
-expected: required cells drive the ✓/⚠ mark and its tooltip; dirty cells and rows are marked until Save; Save writes the values to the ingestion items and the marks turn ✓; the Run button is greyed until every file is ready and saved
+expected: the header and every row share one set of column widths (no drift between rows); required cells drive the ✓/⚠ mark and its tooltip — a Management of change column is required only when SharePoint marks it so; the MoC cell shows its records as "MOC-12, MOC-14" and opens the records editor, never raw JSON; dirty cells and rows are marked until Save; Save writes the values to the ingestion items and the marks turn ✓; the Run button is greyed until every file is ready and saved
 
 ### UAT-DOC-064 — Edit a task without losing its people
 persona: controller
