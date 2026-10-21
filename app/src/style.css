@@ -4739,6 +4739,10 @@ input.app-vg-in.app-vg-folded { background: #fff7e0; }
 .app-orgcascade select, .ltk-termcascade select { flex: 1 1 150px; min-width: 0; }
 .app-cp-orgcascade { display: flex; flex-direction: column; gap: 8px; }
 .app-cp-orgcascade .ltk-procpick { flex-direction: column; align-items: stretch; }
+/* a STACKED cascade must not keep the row rule's flex-basis: in a
+   column it becomes the select's HEIGHT (150px-tall selects in the org
+   pickers, Ben 2026-10-21) */
+.app-cp-orgcascade .ltk-procpick select, .app-cp-phoneorg .ltk-procpick select, .app-docs-phonecascade .ltk-procpick select, .app-hc-orgpick .ltk-procpick select { flex: 0 0 auto; }
 .app-cp-phoneorg .ltk-procpick { flex-direction: column; align-items: stretch; gap: 8px; }
 .app-docs-phonecascade .ltk-procpick { flex-direction: column; align-items: stretch; gap: 8px; }
 .app-docs-termcascade:empty { display: none; }
