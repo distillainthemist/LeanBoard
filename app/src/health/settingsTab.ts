@@ -9,6 +9,7 @@ import { clear, el } from "../../../shared/ui/dom";
 import { settingsSection } from "../settingsSection";
 import { statusChip } from "../../../shared/ui/format";
 import { promptConfirm } from "../prompts";
+import { draggableRow } from "../../../shared/ui/dragList";
 import type { RosterPerson } from "../store/mappers";
 import { orgJson } from "../store/config";
 import { parseOrgTree } from "../../../shared/schema/meeting";
@@ -116,6 +117,14 @@ export async function renderHealthSettings(body: HTMLElement, me: RosterPerson, 
     const card = el("div", "app-hc-def");
     const head = el("div", "app-hc-defhead");
     if (editableHere) {
+      // drag by the handle to reorder (the column chooser's road), or ▲▼
+      const handle = el("span", "app-drag-handle", "⋮⋮");
+      handle.title = "Drag to reorder the criteria";
+      head.appendChild(handle);
+      draggableRow(card, handle, `hc-crit-${c.site || "std"}`, list.indexOf(c), list, () => {
+        touch();
+        repaint();
+      });
       const title = el("input", "app-input app-hc-deftitle") as HTMLInputElement;
       title.value = c.title;
       title.placeholder = "Criterion title, e.g. Ritual attendance";
@@ -125,6 +134,7 @@ export async function renderHealthSettings(body: HTMLElement, me: RosterPerson, 
       });
       head.appendChild(title);
       const up = btn("▲", "app-pr-arrow");
+      up.title = "Move up";
       up.disabled = list.indexOf(c) === 0;
       up.addEventListener("click", () => {
         const i = list.indexOf(c);
@@ -134,6 +144,7 @@ export async function renderHealthSettings(body: HTMLElement, me: RosterPerson, 
         repaint();
       });
       const down = btn("▼", "app-pr-arrow");
+      down.title = "Move down";
       down.disabled = list.indexOf(c) === list.length - 1;
       down.addEventListener("click", () => {
         const i = list.indexOf(c);
@@ -203,6 +214,14 @@ export async function renderHealthSettings(body: HTMLElement, me: RosterPerson, 
     const row = el("div", "app-hc-defq");
     const top = el("div", "app-hc-defqtop");
     if (editableHere) {
+      const qi = c.questions.indexOf(q);
+      const handle = el("span", "app-drag-handle", "⋮⋮");
+      handle.title = "Drag to reorder the questions";
+      top.appendChild(handle);
+      draggableRow(row, handle, `hc-q-${c.key}`, qi, c.questions, () => {
+        touch();
+        repaint();
+      });
       const text = el("input", "app-input") as HTMLInputElement;
       text.value = q.text;
       text.addEventListener("input", () => {
@@ -211,6 +230,24 @@ export async function renderHealthSettings(body: HTMLElement, me: RosterPerson, 
       });
       text.placeholder = "The question, as the assessor reads it";
       top.appendChild(text);
+      const up = btn("▲", "app-pr-arrow");
+      up.title = "Move up";
+      up.disabled = qi === 0;
+      up.addEventListener("click", () => {
+        c.questions.splice(qi, 1);
+        c.questions.splice(qi - 1, 0, q);
+        touch();
+        repaint();
+      });
+      const down = btn("▼", "app-pr-arrow");
+      down.title = "Move down";
+      down.disabled = qi === c.questions.length - 1;
+      down.addEventListener("click", () => {
+        c.questions.splice(qi, 1);
+        c.questions.splice(qi + 1, 0, q);
+        touch();
+        repaint();
+      });
       const x = btn("×", "app-org-x");
       x.title = "Remove this question";
       x.addEventListener("click", () => {
@@ -218,7 +255,7 @@ export async function renderHealthSettings(body: HTMLElement, me: RosterPerson, 
         touch();
         repaint();
       });
-      top.appendChild(x);
+      top.append(up, down, x);
       // the question's settings, each named (Ben, 2026-10-21: bare
       // pills read as nothing)
       const settings = el("div", "app-hc-qsettings");

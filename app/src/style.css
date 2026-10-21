@@ -4843,7 +4843,10 @@ input.app-vg-in.app-vg-folded { background: #fff7e0; }
 .app-hc-defqs { display: flex; flex-direction: column; gap: 8px; }
 .app-hc-defq { border-left: 3px solid #eee9e0; padding-left: 10px; display: flex; flex-direction: column; gap: 4px; }
 .app-hc-defqtop { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-.app-hc-defqtop > .app-input:first-child { flex: 1; min-width: 200px; }
+.app-hc-defqtop > .app-input { flex: 1; min-width: 200px; }
+.app-hc-defhead .app-pr-arrow, .app-hc-defqtop .app-pr-arrow { font-size: 13px; }
+.app-hc-def.app-drop-before { box-shadow: 0 -3px 0 var(--app-accent); } .app-hc-def.app-drop-after { box-shadow: 0 3px 0 var(--app-accent); }
+.app-hc-defq.app-drop-before { box-shadow: 0 -3px 0 var(--app-accent); } .app-hc-defq.app-drop-after { box-shadow: 0 3px 0 var(--app-accent); }
 .app-hc-defqtext { font-weight: 600; font-size: 13px; }
 .app-hc-defopts { display: flex; flex-direction: column; gap: 4px; padding-left: 8px; }
 .app-hc-defopt { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: 13px; }
