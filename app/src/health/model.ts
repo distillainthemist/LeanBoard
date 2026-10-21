@@ -5,11 +5,13 @@
 // paint.
 
 export type HealthType = "priorities" | "initiative" | "cadence" | "documents";
-export const HEALTH_TYPES: { key: HealthType; label: string; scopeWord: string }[] = [
-  { key: "priorities", label: "Priorities", scopeWord: "sub-pillar" },
-  { key: "initiative", label: "Initiatives", scopeWord: "initiative" },
-  { key: "cadence", label: "Cadence", scopeWord: "meeting" },
-  { key: "documents", label: "Documents", scopeWord: "organisation" },
+/** `label` names the module in Settings; `titleWord` is the singular the
+ *  popup's title uses ("Initiative health check — Fix this thing"). */
+export const HEALTH_TYPES: { key: HealthType; label: string; titleWord: string; scopeWord: string }[] = [
+  { key: "priorities", label: "Priorities", titleWord: "Priority", scopeWord: "sub-pillar" },
+  { key: "initiative", label: "Initiatives", titleWord: "Initiative", scopeWord: "initiative" },
+  { key: "cadence", label: "Cadence", titleWord: "Meeting", scopeWord: "meeting" },
+  { key: "documents", label: "Documents", titleWord: "Document", scopeWord: "organisation" },
 ];
 
 export interface HealthOption {

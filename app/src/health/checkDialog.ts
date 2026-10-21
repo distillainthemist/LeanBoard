@@ -64,9 +64,12 @@ export function openHealthCheck(o: HealthCheckOpts): void {
   const me = currentViewer();
   const myEmail = (me?.email ?? "").toLowerCase();
   const typeLabel = HEALTH_TYPES.find((t) => t.key === o.scope.type)?.label ?? o.scope.type;
+  const titleWord = HEALTH_TYPES.find((t) => t.key === o.scope.type)?.titleWord ?? typeLabel;
   const dlg = openDialog({
     host: o.host,
-    title: `Health check — ${o.scope.label}`,
+    // "<Type> health check — <scope>" (Ben, 2026-10-21): the title carries
+    // the type and the scope, so the header strip does not repeat them
+    title: `${titleWord} health check — ${o.scope.label}`,
     maxWidth: 1080,
     buttons: [{ label: "Close", kind: "secondary", onClick: () => void close() }],
   });
@@ -272,8 +275,6 @@ export function openHealthCheck(o: HealthCheckOpts): void {
     const ro = viewing !== null || !canEdit();
     // header strip
     const head = el("div", "app-hc-head");
-    head.appendChild(el("span", "app-hc-type", typeLabel));
-    head.appendChild(el("span", "app-hc-scope", o.scope.label));
     if (shown !== null) {
       if (!ro && shown.status === "draft") {
         const d = el("input", "app-input app-hc-date") as HTMLInputElement;
