@@ -9,6 +9,7 @@ import { clear, el } from "../../../shared/ui/dom";
 import { settingsSection } from "../settingsSection";
 import { statusChip } from "../../../shared/ui/format";
 import { promptConfirm } from "../prompts";
+import { showLoading } from "../loading";
 import { draggableRow } from "../../../shared/ui/dragList";
 import type { RosterPerson } from "../store/mappers";
 import { orgJson } from "../store/config";
@@ -37,7 +38,7 @@ const dayLabel = (iso: string): string => {
 
 export async function renderHealthSettings(body: HTMLElement, me: RosterPerson, ctx: Ctx): Promise<void> {
   clear(body);
-  body.appendChild(el("div", "app-loading-line", "Reading the health-check criteria…"));
+  const stopLoading = showLoading(body);
   const isSuper = me.role === "superadmin";
   const tree = parseOrgTree(await orgJson());
   const sites = tree.map((s) => s.site);
@@ -49,10 +50,12 @@ export async function renderHealthSettings(body: HTMLElement, me: RosterPerson, 
     standard = d.standard;
     siteCfg = d.site;
   } catch (e) {
+    stopLoading();
     clear(body);
     body.appendChild(note(`Health checks need the hosted app: ${String(e).slice(0, 160)}`));
     return;
   }
+  stopLoading();
   clear(body);
   let standardDirty = false;
   let siteDirty = false;
@@ -416,10 +419,11 @@ export async function renderHealthSettings(body: HTMLElement, me: RosterPerson, 
     // recent checks
     host.appendChild(el("div", "app-field-label", "Recent checks"));
     const recent = el("div", "app-hc-recent");
-    recent.appendChild(el("div", "app-loading-line", "Reading…"));
+    const stopRecent = showLoading(recent, false, true);
     host.appendChild(recent);
     void listChecks({ site, type }).then(
       (checks: HealthCheck[]) => {
+        stopRecent();
         clear(recent);
         if (checks.length === 0) {
           recent.appendChild(note("No checks yet."));
@@ -442,6 +446,7 @@ export async function renderHealthSettings(body: HTMLElement, me: RosterPerson, 
         }
       },
       (e: unknown) => {
+        stopRecent();
         clear(recent);
         recent.appendChild(note(`Checks could not be read: ${(e as Error).message}`));
       }

@@ -7,6 +7,7 @@
 import { clear, el } from "../../../shared/ui/dom";
 import { openDialog } from "../../../shared/ui/dialog";
 import { promptConfirm, promptText } from "../prompts";
+import { showLoading } from "../loading";
 import { currentViewer } from "../runtime";
 import { nowIso, todayIso } from "../../../shared/schema/id";
 import { boardChannelKey, LtkAction, newAction } from "../../../shared/schema/actions";
@@ -73,7 +74,8 @@ export function openHealthCheck(o: HealthCheckOpts): void {
   const footer = dlg.root.querySelector(".ltk-dialog-footer") as HTMLElement;
   const body = dlg.body;
   body.classList.add("app-hc-body");
-  body.appendChild(el("div", "app-loading-line", "Reading the criteria…"));
+  // the app's spinner and quote while the criteria and checks are read
+  let stopLoading: (() => void) | null = showLoading(body);
 
   let check: HealthCheck | null = null;
   let all: HealthCheck[] = [];
@@ -127,7 +129,10 @@ export function openHealthCheck(o: HealthCheckOpts): void {
 
   const load = async () => {
     try {
+      if (stopLoading === null) stopLoading = showLoading(body);
       const defs = await loadDefinitions(o.scope.site);
+      stopLoading();
+      stopLoading = null;
       if (!defs.site.enabled[o.scope.type]) {
         clear(body);
         body.appendChild(el("div", "app-settings-note", `${typeLabel} health checks are not enabled for ${o.scope.site} — Settings → Health checks.`));
@@ -156,6 +161,8 @@ export function openHealthCheck(o: HealthCheckOpts): void {
       }
       paint();
     } catch (e) {
+      stopLoading?.();
+      stopLoading = null;
       clear(body);
       body.appendChild(el("div", "app-settings-note", `The health check could not load: ${(e as Error).message}`));
     }
