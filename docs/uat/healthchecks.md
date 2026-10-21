@@ -10,10 +10,10 @@ modules: health/settingsTab.ts health/model.ts
 preconditions: Settings → Health checks open as a super admin
 steps:
 1. Under Cadence health check → Standard criteria → ＋ Add standard criterion; title and description.
-2. Add a question with the Yes / no preset; another with All / some / no; another with the 0–5 scale; a multi-select with two options.
-3. Edit an option's weight and guidance; tick N/A on one question; reorder criteria with ▲▼.
+2. Add three questions, one of each form: Yes / no, All / some / no, Select from a list (give the list three choices with guidance and weights).
+3. Change a Yes / no weight; tick "Allow not applicable" on one question; reorder criteria and questions with the ⠿ handle or ▲▼.
 4. Save.
-expected: every edit buffers until Save; a criterion with no title, a question with fewer than two options or no option worth anything refuses the save naming the problem; after Save the criteria reload as entered, marked "standard"
+expected: every edit buffers until Save; a criterion with no title, a list with fewer than two choices or a choice without a title, or a question with no answer worth anything refuses the save naming the problem; after Save the criteria reload as entered, marked "standard"; Yes / no defaults to 1 / 0 and All / some / no to 1 / 0.5 / 0
 
 ### UAT-HC-002 — Site criteria and the enable switch
 persona: siteadmin
@@ -44,7 +44,7 @@ steps:
 1. Open the ritual's board: a "Health check" button sits left of Live board.
 2. Click it; answer every question; type What went well and Even better if.
 3. Submit.
-expected: the popup shows the criteria as cards with pills, the score live in the footer, "n questions to answer" under Submit until none remain; Submit records the check and the button reads "Health check · 3.4"; the button is absent when the type is off for the site
+expected: the popup shows the criteria as cards — statements under a Yes | No (or All | Some | No) column strip with one tick per row, list questions as rows of choice, guidance and a tick — the score live in the footer, "n questions to answer" under Submit until none remain; Submit records the check and the button reads "Health check · 3.4"; the button is absent when the type is off for the site
 
 ### UAT-HC-005 — Draft, Reset, Discard
 persona: assessor
@@ -55,7 +55,7 @@ steps:
 2. Reopen: the answers are there (a draft); the button reads "Health check · draft".
 3. Reset → confirm: every answer clears, the comments stay.
 4. Discard draft → confirm.
-expected: a draft is kept and reopened as the day's check on that scope; Reset clears the pills only; Discard removes it and the button reads "Health check" again
+expected: a draft is kept and reopened as the day's check on that scope; Reset clears the ticks only; Discard removes it and the button reads "Health check" again
 
 ### UAT-HC-006 — N/A and the score
 persona: assessor

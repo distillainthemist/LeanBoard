@@ -1996,12 +1996,12 @@
        "preconditions": "Settings → Health checks open as a super admin",
        "steps": [
         "Under Cadence health check → Standard criteria → ＋ Add standard criterion; title and description.",
-        "Add a question with the Yes / no preset; another with All / some / no; another with the 0–5 scale; a multi-select with two options.",
-        "Edit an option's weight and guidance; tick N/A on one question; reorder criteria with ▲▼.",
+        "Add three questions, one of each form: Yes / no, All / some / no, Select from a list (give the list three choices with guidance and weights).",
+        "Change a Yes / no weight; tick \"Allow not applicable\" on one question; reorder criteria and questions with the ⠿ handle or ▲▼.",
         "Save."
        ],
-       "expected": "every edit buffers until Save; a criterion with no title, a question with fewer than two options or no option worth anything refuses the save naming the problem; after Save the criteria reload as entered, marked \"standard\"",
-       "hash": "3bba1166",
+       "expected": "every edit buffers until Save; a criterion with no title, a list with fewer than two choices or a choice without a title, or a question with no answer worth anything refuses the save naming the problem; after Save the criteria reload as entered, marked \"standard\"; Yes / no defaults to 1 / 0 and All / some / no to 1 / 0.5 / 0",
+       "hash": "c8463bdb",
        "changed": "2026-10-21"
       },
       {
@@ -2060,8 +2060,8 @@
         "Click it; answer every question; type What went well and Even better if.",
         "Submit."
        ],
-       "expected": "the popup shows the criteria as cards with pills, the score live in the footer, \"n questions to answer\" under Submit until none remain; Submit records the check and the button reads \"Health check · 3.4\"; the button is absent when the type is off for the site",
-       "hash": "ded2fc9a",
+       "expected": "the popup shows the criteria as cards — statements under a Yes | No (or All | Some | No) column strip with one tick per row, list questions as rows of choice, guidance and a tick — the score live in the footer, \"n questions to answer\" under Submit until none remain; Submit records the check and the button reads \"Health check · 3.4\"; the button is absent when the type is off for the site",
+       "hash": "7d692492",
        "changed": "2026-10-21"
       },
       {
@@ -2080,8 +2080,8 @@
         "Reset → confirm: every answer clears, the comments stay.",
         "Discard draft → confirm."
        ],
-       "expected": "a draft is kept and reopened as the day's check on that scope; Reset clears the pills only; Discard removes it and the button reads \"Health check\" again",
-       "hash": "ec5427c7",
+       "expected": "a draft is kept and reopened as the day's check on that scope; Reset clears the ticks only; Discard removes it and the button reads \"Health check\" again",
+       "hash": "72c6d111",
        "changed": "2026-10-21"
       },
       {
