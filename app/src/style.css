@@ -4848,6 +4848,12 @@ input.app-vg-in.app-vg-folded { background: #fff7e0; }
 .app-hc-defopts { display: flex; flex-direction: column; gap: 4px; padding-left: 8px; }
 .app-hc-defopt { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: 13px; }
 .app-hc-optlabel { width: 160px; } .app-hc-optguide { flex: 1; min-width: 160px; } .app-hc-optweight { width: 72px; }
+.app-hc-defopthead { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: #8b8478; margin-top: 4px; }
+.app-hc-defopthead > span:last-child { width: 20px; }
+.app-hc-qsettings { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; font-size: 12.5px; }
+.app-hc-qsetting { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.app-hc-qsettinglabel { color: #6d675c; }
+.app-hc-addq .app-input:first-child { flex: 1; }
 .app-hc-presetsel { width: auto; }
 .app-hc-recent { display: flex; flex-direction: column; gap: 4px; }
 .app-hc-recentrow { display: flex; gap: 10px; align-items: center; font-size: 13px; flex-wrap: wrap; }

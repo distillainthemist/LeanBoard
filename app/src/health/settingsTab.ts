@@ -170,11 +170,12 @@ export async function renderHealthSettings(body: HTMLElement, me: RosterPerson, 
     for (const q of c.questions) qs.appendChild(questionRow(q, c, editableHere, touch, repaint));
     card.appendChild(qs);
     if (editableHere) {
-      const addRow = el("div", "app-org-row");
+      const addRow = el("div", "app-org-row app-hc-addq");
       const input = el("input", "app-input") as HTMLInputElement;
-      input.placeholder = "Add a question, e.g. Did the ritual start on time?";
+      input.placeholder = "New question, e.g. Did the ritual start on time?";
       const preset = el("select", "app-input app-hc-presetsel") as HTMLSelectElement;
-      for (const p of PRESETS) preset.appendChild(new Option(p.label, p.key));
+      preset.title = "The answers the new question starts with";
+      for (const p of PRESETS) preset.appendChild(new Option(`answers: ${p.label}`, p.key));
       const commit = () => {
         const v = input.value.trim();
         if (v === "") return;
@@ -208,23 +209,45 @@ export async function renderHealthSettings(body: HTMLElement, me: RosterPerson, 
         q.text = text.value;
         touch();
       });
+      text.placeholder = "The question, as the assessor reads it";
       top.appendChild(text);
-      const multi = btn(q.multi ? "multi" : "single", "app-settings-pill" + (q.multi ? " app-settings-pill-on" : ""));
-      multi.title = "Single select, or several options at once";
-      multi.addEventListener("click", () => {
-        q.multi = !q.multi;
+      const x = btn("×", "app-org-x");
+      x.title = "Remove this question";
+      x.addEventListener("click", () => {
+        c.questions.splice(c.questions.indexOf(q), 1);
         touch();
         repaint();
       });
-      const na = btn("N/A", "app-settings-pill" + (q.allowNa ? " app-settings-pill-on" : ""));
-      na.title = "The assessor may mark this question not applicable";
-      na.addEventListener("click", () => {
-        q.allowNa = !q.allowNa;
+      top.appendChild(x);
+      // the question's settings, each named (Ben, 2026-10-21: bare
+      // pills read as nothing)
+      const settings = el("div", "app-hc-qsettings");
+      const labelled = (label: string, control: HTMLElement, hint: string) => {
+        const w = el("label", "app-hc-qsetting");
+        w.title = hint;
+        w.append(el("span", "app-hc-qsettinglabel", label), control);
+        settings.appendChild(w);
+      };
+      const mode = el("select", "app-input app-hc-presetsel") as HTMLSelectElement;
+      mode.appendChild(new Option("one option", "single"));
+      mode.appendChild(new Option("several options", "multi"));
+      mode.value = q.multi ? "multi" : "single";
+      mode.addEventListener("change", () => {
+        q.multi = mode.value === "multi";
         touch();
         repaint();
       });
+      labelled("The assessor picks", mode, "One option (a single select, yes/no, all/some/no) or several at once (the weights add up)");
+      const na = el("input", "app-docs-libcheck") as HTMLInputElement;
+      na.type = "checkbox";
+      na.checked = q.allowNa;
+      na.addEventListener("change", () => {
+        q.allowNa = na.checked;
+        touch();
+      });
+      labelled("Allow “not applicable”", na, "The assessor may mark the question N/A — it then counts in neither the score nor the possible score");
       const preset = el("select", "app-input app-hc-presetsel") as HTMLSelectElement;
-      preset.appendChild(new Option("Preset…", ""));
+      preset.appendChild(new Option("keep as they are", ""));
       for (const p of PRESETS) preset.appendChild(new Option(p.label, p.key));
       preset.addEventListener("change", () => {
         if (preset.value === "") return;
@@ -234,19 +257,17 @@ export async function renderHealthSettings(body: HTMLElement, me: RosterPerson, 
         touch();
         repaint();
       });
-      const x = btn("×", "app-org-x");
-      x.title = "Remove this question";
-      x.addEventListener("click", () => {
-        c.questions.splice(c.questions.indexOf(q), 1);
-        touch();
-        repaint();
-      });
-      top.append(multi, na, preset, x);
+      labelled("Replace the options with", preset, "A preset rewrites the options and their weights; edit them afterwards");
+      row.appendChild(top);
+      row.appendChild(settings);
+      const optsHead = el("div", "app-hc-defopt app-hc-defopthead");
+      optsHead.append(el("span", "app-hc-optlabel", "Option"), el("span", "app-hc-optguide", "Guidance shown when it is chosen (optional)"), el("span", "app-hc-optweight", "Weight"), el("span", undefined, ""));
+      row.appendChild(optsHead);
     } else {
       top.appendChild(el("span", "app-hc-defqtext", q.text));
-      top.appendChild(el("span", "app-field-hint", `${q.multi ? "multi" : "single"}${q.allowNa ? " · N/A allowed" : ""}`));
+      top.appendChild(el("span", "app-field-hint", `${q.multi ? "several options" : "one option"}${q.allowNa ? " · N/A allowed" : ""}`));
+      row.appendChild(top);
     }
-    row.appendChild(top);
     const opts = el("div", "app-hc-defopts");
     for (const o of q.options) {
       const line = el("div", "app-hc-defopt");
@@ -270,7 +291,8 @@ export async function renderHealthSettings(body: HTMLElement, me: RosterPerson, 
         weight.min = "0";
         weight.step = "1";
         weight.value = String(o.weight);
-        weight.title = "Weight — invisible to the assessor";
+        weight.placeholder = "weight";
+        weight.title = "Weight — what choosing this option scores; never shown to the assessor";
         weight.addEventListener("input", () => {
           o.weight = Math.max(0, Math.round(Number(weight.value) || 0));
           touch();
