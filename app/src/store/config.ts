@@ -416,7 +416,8 @@ export async function saveImprovementSettingsJson(json: string): Promise<void> {
 // criteria on the site's row — one JSON column either way.
 
 export async function healthStandardJson(): Promise<string> {
-  const rows = await allWhere(Ben_ltksitesettingsesService.getAll, eq("ben_site", APP_ROW));
+  // one column: the settings rows carry several large JSON blobs
+  const rows = await allWhere(Ben_ltksitesettingsesService.getAll, eq("ben_site", APP_ROW), ["ben_ltksitesettingsid", "ben_healthchecks"]);
   return rows[0]?.ben_healthchecks ?? "";
 }
 
@@ -430,7 +431,7 @@ export async function saveHealthStandardJson(json: string): Promise<void> {
 }
 
 export async function healthSiteJson(site: string): Promise<string> {
-  const rows = await allWhere(Ben_ltksitesettingsesService.getAll, eq("ben_site", site));
+  const rows = await allWhere(Ben_ltksitesettingsesService.getAll, eq("ben_site", site), ["ben_ltksitesettingsid", "ben_healthchecks"]);
   return rows[0]?.ben_healthchecks ?? "";
 }
 

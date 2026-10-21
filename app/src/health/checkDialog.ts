@@ -11,7 +11,7 @@ import { currentViewer } from "../runtime";
 import { nowIso, todayIso } from "../../../shared/schema/id";
 import { boardChannelKey, LtkAction, newAction } from "../../../shared/schema/actions";
 import { HEALTH_TYPES, HealthAnswers, HealthCheck, HealthScope, answer, criteriaFor, editable, scoreFor, scoreText, todaysCheck, trendFor } from "./model";
-import { createDraft, discardDraft, listChecks, loadDefinitions, saveCheck, unvoidCheck, voidCheck } from "./store";
+import { createDraft, discardDraft, getCheck, listChecks, loadDefinitions, saveCheck, unvoidCheck, voidCheck } from "./store";
 
 export interface HealthCheckOpts {
   host: HTMLElement;
@@ -136,7 +136,8 @@ export function openHealthCheck(o: HealthCheckOpts): void {
       const key = (await import("./model")).scopeKey(o.scope);
       all = await listChecks({ scopeKey: key });
       const today = todaysCheck(all, key, todayIso());
-      if (today !== null) check = today;
+      // the list is light (no criteria, no answers) — the open check is read in full
+      if (today !== null) check = (await getCheck(today.rowId)) ?? today;
       else if (o.mayRun) {
         const criteria = criteriaFor(o.scope.type, defs.standard, defs.site);
         if (criteria.length === 0) {
@@ -377,9 +378,16 @@ export function openHealthCheck(o: HealthCheckOpts): void {
       const chip = btn(`${dayLabel(t.date)} · ${scoreText(t.score)}`, "app-hc-trendchip" + ((viewing ?? check)?.rowId === t.rowId ? " app-hc-trendchip-on" : ""));
       chip.title = `${t.assessorName || t.assessorEmail} — open`;
       chip.addEventListener("click", () => {
-        if (check !== null && t.rowId === check.rowId) viewing = null;
-        else viewing = t;
-        paint();
+        if (check !== null && t.rowId === check.rowId) {
+          viewing = null;
+          paint();
+          return;
+        }
+        chip.textContent = "…";
+        void getCheck(t.rowId).then((full) => {
+          viewing = full ?? t;
+          paint();
+        });
       });
       strip.appendChild(chip);
     }
@@ -387,8 +395,12 @@ export function openHealthCheck(o: HealthCheckOpts): void {
     if (voids > 0 && o.isAdmin) {
       const v = btn(`${voids} void`, "app-link");
       v.addEventListener("click", () => {
-        viewing = all.find((c) => c.status === "void") ?? null;
-        paint();
+        const first = all.find((c) => c.status === "void") ?? null;
+        if (first === null) return;
+        void getCheck(first.rowId).then((full) => {
+          viewing = full ?? first;
+          paint();
+        });
       });
       strip.appendChild(v);
     }

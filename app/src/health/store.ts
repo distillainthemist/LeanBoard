@@ -13,6 +13,7 @@ import {
   HealthCheck,
   HealthCriterion,
   HealthScope,
+  HealthScore,
   HealthSiteConfig,
   HealthStandard,
   HealthType,
@@ -55,10 +56,34 @@ export async function saveSiteConfig(site: string, c: HealthSiteConfig): Promise
 
 // ---- checks ------------------------------------------------------------------
 
+/** The columns a LIST needs — never the frozen criteria or the answers,
+ *  which are large and only the open check reads (the slow-load lesson,
+ *  Ben 2026-10-21). */
+const LIGHT = ["ben_ltkhealthcheckid", "ben_name", "ben_type", "ben_site", "ben_scopekey", "ben_scopelabel", "ben_scopejson", "ben_date", "ben_status", "ben_score", "ben_scorejson", "ben_assessoremail", "ben_assessorname", "ben_createdat", "ben_submittedat", "ben_editedbyname", "ben_editedat", "ben_voidedbyname", "ben_voidedat", "ben_voidreason"];
+
+/** A light row's score from its stored text and detail. */
+function storedScore(r: Ben_ltkhealthchecks): HealthScore {
+  const v = Number(r.ben_score ?? "");
+  let detail: { got?: unknown; possible?: unknown; perCriterion?: unknown } = {};
+  try {
+    detail = JSON.parse(r.ben_scorejson || "{}") as typeof detail;
+  } catch {
+    /* no detail */
+  }
+  return {
+    value: (r.ben_score ?? "") !== "" && Number.isFinite(v) ? v : null,
+    got: typeof detail.got === "number" ? detail.got : 0,
+    possible: typeof detail.possible === "number" ? detail.possible : 0,
+    remaining: 0,
+    perCriterion: Array.isArray(detail.perCriterion) ? (detail.perCriterion as HealthScore["perCriterion"]) : [],
+  };
+}
+
 function fromRow(r: Ben_ltkhealthchecks): HealthCheck {
   const type = (["priorities", "initiative", "cadence", "documents"].includes(r.ben_type ?? "") ? r.ben_type : "cadence") as HealthType;
   const site = r.ben_site ?? "";
   const label = r.ben_scopelabel ?? "";
+  const full = r.ben_criteriajson !== undefined;
   const criteria = (() => {
     try {
       return (JSON.parse(r.ben_criteriajson || "[]") as unknown[]).map(parseCriterion).filter((x): x is HealthCriterion => x !== null);
@@ -77,7 +102,7 @@ function fromRow(r: Ben_ltkhealthchecks): HealthCheck {
     status: r.ben_status === "submitted" ? "submitted" : r.ben_status === "void" ? "void" : "draft",
     criteria,
     answers,
-    score: scoreFor(criteria, answers),
+    score: full ? scoreFor(criteria, answers) : storedScore(r),
     wentWell: r.ben_wentwell ?? "",
     betterIf: r.ben_betterif ?? "",
     assessorEmail: (r.ben_assessoremail ?? "").toLowerCase(),
@@ -98,9 +123,16 @@ export async function listChecks(f: { site?: string; type?: HealthType; scopeKey
   if (f.site !== undefined && f.site !== "") parts.push(`ben_site eq '${q(f.site)}'`);
   if (f.type !== undefined) parts.push(`ben_type eq '${f.type}'`);
   if (f.scopeKey !== undefined) parts.push(`ben_scopekey eq '${q(f.scopeKey)}'`);
-  const r = await Ben_ltkhealthchecksService.getAll({ ...(parts.length > 0 ? { filter: parts.join(" and ") } : {}), top: 500 });
+  const r = await Ben_ltkhealthchecksService.getAll({ ...(parts.length > 0 ? { filter: parts.join(" and ") } : {}), select: LIGHT, top: 500 });
   if (r.success === false) fail("Could not read the health checks", r.error);
   return (r.data ?? []).map(fromRow).sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : a.createdAt < b.createdAt ? 1 : -1));
+}
+
+/** One check in FULL — criteria, answers, comments. */
+export async function getCheck(rowId: string): Promise<HealthCheck | null> {
+  const r = await Ben_ltkhealthchecksService.get(rowId);
+  if (r.success === false || !r.data) return null;
+  return fromRow(r.data);
 }
 
 /** A new DRAFT on a scope with the criteria frozen in. */
