@@ -96,8 +96,11 @@ export async function renderHealthSettings(body: HTMLElement, me: RosterPerson, 
     bar.appendChild(sel);
     body.appendChild(bar);
   }
-  const sectionsHost = el("div", "");
-  body.appendChild(sectionsHost);
+  // the four sections sit DIRECTLY on the body: the settings strip
+  // cards a section head with its siblings, and a container that holds
+  // heads two levels down would be carded, taken apart and carded
+  // again on every repaint (the strip's pass runs on each mutation)
+  const sectionHosts: HTMLElement[] = [];
 
   const touchStandard = () => {
     standardDirty = true;
@@ -387,10 +390,11 @@ export async function renderHealthSettings(body: HTMLElement, me: RosterPerson, 
   };
 
   const paintAll = () => {
-    clear(sectionsHost);
+    for (const h of sectionHosts.splice(0)) h.remove();
     for (const t of HEALTH_TYPES) {
       const host = el("div", "app-hc-section");
-      sectionsHost.appendChild(host);
+      body.appendChild(host);
+      sectionHosts.push(host);
       paintSection(host, t.key);
     }
   };
