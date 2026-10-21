@@ -294,7 +294,7 @@ The walkthrough IS the UAT script `docs/uat/healthchecks.md`
 | HC-011 | PASS (Ben, 2026-10-21) |
 | HC-012 | PASS (Ben, 2026-10-21) — after follow-ups: a compact org picker dialog; stacked cascades' selects at natural height (the row flex-basis had become their height) |
 | HC-013 | PASS (Ben, 2026-10-21) |
-| HC-003 | _Ben's pass pending_ |
+| HC-003 | PASS (Ben, 2026-10-21) — health checks walkthrough complete (13/13) |
 
 ## UAT in the app — after v0.74.0 (2026-10-19, dev)
 
