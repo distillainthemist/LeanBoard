@@ -273,6 +273,19 @@ export async function renderHealthSettings(body: HTMLElement, me: RosterPerson, 
       // the answers: a fixed form shows its weights in one line; a list
       // shows its rows — title, guidance, weight
       const answers = el("div", "app-hc-defopts");
+      const naToggle = (): HTMLElement => {
+        const na = el("label", "app-hc-natoggle");
+        na.title = "The assessor may mark this question not applicable — it then counts in neither the score nor the possible score";
+        const naBox = el("input", "app-docs-libcheck app-hc-check") as HTMLInputElement;
+        naBox.type = "checkbox";
+        naBox.checked = q.allowNa;
+        naBox.addEventListener("change", () => {
+          q.allowNa = naBox.checked;
+          touch();
+        });
+        na.append(naBox, el("span", undefined, "N/A allowed"));
+        return na;
+      };
       if (q.kind !== "list") {
         const line = el("div", "app-hc-fixedweights");
         line.appendChild(el("span", "app-hc-qsettinglabel", "Weights"));
@@ -290,6 +303,7 @@ export async function renderHealthSettings(body: HTMLElement, me: RosterPerson, 
           w.append(el("span", undefined, `${o.label} =`), input);
           line.appendChild(w);
         }
+        line.appendChild(naToggle());
         answers.appendChild(line);
       } else {
         const head = el("div", "app-hc-defopt app-hc-defopthead");
@@ -331,24 +345,16 @@ export async function renderHealthSettings(body: HTMLElement, me: RosterPerson, 
           line.append(label, guidance, weight, x);
           answers.appendChild(line);
         }
+        const foot = el("div", "app-hc-fixedweights");
         const addOpt = btn("＋ choice", "app-link");
         addOpt.addEventListener("click", () => {
           q.options.push({ key: keyFor(`option ${q.options.length + 1}`, q.options.map((x) => x.key)), label: "", guidance: "", weight: 0 });
           touch();
           repaint();
         });
-        answers.appendChild(addOpt);
+        foot.append(addOpt, naToggle());
+        answers.appendChild(foot);
       }
-      const na = el("label", "app-hc-qsetting");
-      const naBox = el("input", "app-docs-libcheck") as HTMLInputElement;
-      naBox.type = "checkbox";
-      naBox.checked = q.allowNa;
-      naBox.addEventListener("change", () => {
-        q.allowNa = naBox.checked;
-        touch();
-      });
-      na.append(naBox, el("span", "app-hc-qsettinglabel", "Allow “not applicable” — then it counts in neither the score nor the possible score"));
-      answers.appendChild(na);
       row.appendChild(answers);
     } else {
       top.appendChild(el("span", "app-hc-defqtext", q.text));
