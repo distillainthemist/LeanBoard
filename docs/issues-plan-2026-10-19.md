@@ -219,7 +219,7 @@ should share ONE solution-carrying release.
 
 | # | Issue | Cause | Fix | Status |
 |---|---|---|---|---|
-| R4 | Ingestion grid: headers not matching cells, widths differing between rows; MoC column forced required; MoC shows JSON once filled | Each grid row (and the header) is its own CSS grid, so `minmax(…, 1fr)` tracks resolved per row against that row's own content width. The MoC role was added to the forced-required set in tranche D ("let ingestion require it"). The MoC note column fell to the plain text editor. | Fixed pixel tracks in the normal layout (the fitted layout shares the width equally); MoC required only when SharePoint marks the column required; the MoC cell shows the records' refs and opens `buildMocEditor` in a dialog. | BUILT 2026-10-21, dev |
+| R4 | Ingestion grid: headers not matching cells, widths differing between rows; MoC column forced required; MoC shows JSON once filled | Each grid row (and the header) is its own CSS grid, so `minmax(…, 1fr)` tracks resolved per row against that row's own content width. The MoC role was added to the forced-required set in tranche D ("let ingestion require it"). The MoC note column fell to the plain text editor. | Fixed pixel tracks in the normal layout (the fitted layout shares the width equally); MoC required only when SharePoint marks the column required; the MoC cell shows the records' refs and opens `buildMocEditor` in a dialog. | PASSED by Ben 2026-10-21 |
 
 ## Hosted checks Ben owns
 

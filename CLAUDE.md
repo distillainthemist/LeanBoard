@@ -376,8 +376,11 @@ Version lives in the tag alone — nothing is stamped into files.
   `docs/uat-proposal-2026-10.md`) is SOLUTION-CARRYING: `ben_ltkuatrun`
   and `ben_ltkuatresult`. v0.75.1 (2026-10-20: the residual round —
   Download in the header, Cancel revision's check-out bracket, review
-  dates read in the site's locale) is app-only. Prod imports the managed
-  solution FIRST. LESSON
+  dates read in the site's locale) is app-only. v0.76.0 (2026-10-21:
+  health checks — `docs/health-checks-proposal-2026-10.md`) is
+  SOLUTION-CARRYING: `ben_ltkhealthcheck` and `ben_healthchecks` on
+  `ben_ltksitesettings`; the app ships with EMPTY standard criteria. Prod
+  imports the managed solution FIRST. LESSON
   (2026-10-13, production's first sync): a sync must
   never run from a walk it cannot trust (budget-cut OR any failed
   children request), and the Organisation set's company-level offset

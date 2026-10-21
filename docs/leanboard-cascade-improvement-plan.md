@@ -1455,6 +1455,15 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-10-21 — released as v0.76.0** (SOLUTION-CARRYING:
+  `ben_ltkhealthcheck` + `ben_healthchecks` on site settings): health
+  checks (the entry below), passed by Ben 13/13 the same day with
+  follow-ups folded in (sections on the body for the strip, named
+  controls, three single-select forms with checkbox answers, drag /
+  ▲▼ reorder, the app's spinner, light list reads, the title form,
+  a compact org picker and the stacked-cascade select height), plus
+  the ingestion grid fix R4 (fixed tracks, MoC not forced required,
+  the MoC records cell).
 - **2026-10-21 (after v0.75.1, dev; SCHEMA deployed to dev)**: HEALTH
   CHECKS (`docs/health-checks-proposal-2026-10.md`, 13 decisions with
   Ben): maturity checks on a sub-pillar at an org, an initiative, a

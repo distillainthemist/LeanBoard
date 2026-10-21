@@ -138,7 +138,7 @@ meeting and initiative boards, the Documents kebab, after ＋ Priority.
 
 Ben: "build it" (2026-10-21).
 
-## Built (2026-10-21, dev; SCHEMA deployed to dev)
+## Released as v0.76.0 (2026-10-21) — passed 13/13; built as below
 
 - `data/schema.mjs`: `ben_ltkhealthcheck` (one row per check, criteria
   frozen; delete allowed for drafts) and `ben_healthchecks` on
