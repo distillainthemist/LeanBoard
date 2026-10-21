@@ -286,7 +286,8 @@ The walkthrough IS the UAT script `docs/uat/healthchecks.md`
 | HC-002 | PASS (Ben, 2026-10-21) |
 | HC-004 | PASS (Ben, 2026-10-21) |
 | HC-005 | PASS (Ben, 2026-10-21) |
-| HC-003, 006–013 | _Ben's pass pending_ |
+| HC-006 | PASS (Ben, 2026-10-21) |
+| HC-003, 007–013 | _Ben's pass pending_ |
 
 ## UAT in the app — after v0.74.0 (2026-10-19, dev)
 
