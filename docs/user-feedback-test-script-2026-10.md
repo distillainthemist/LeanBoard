@@ -292,7 +292,8 @@ The walkthrough IS the UAT script `docs/uat/healthchecks.md`
 | HC-007 | PASS (Ben, 2026-10-21) — the 7-day lock itself is covered by the model's tests |
 | HC-010 | PASS (Ben, 2026-10-21) — after a follow-up: the title "<Type> health check — <scope>", singular type, no duplicated subtitle |
 | HC-011 | PASS (Ben, 2026-10-21) |
-| HC-003, 012–013 | _Ben's pass pending_ |
+| HC-012 | PASS (Ben, 2026-10-21) — after follow-ups: a compact org picker dialog; stacked cascades' selects at natural height (the row flex-basis had become their height) |
+| HC-003, 013 | _Ben's pass pending_ |
 
 ## UAT in the app — after v0.74.0 (2026-10-19, dev)
 
