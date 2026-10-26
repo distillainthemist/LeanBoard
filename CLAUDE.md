@@ -392,7 +392,14 @@ Version lives in the tag alone — nothing is stamped into files.
   `docs/publish.ts` Approve(comment) road, versioning warnings,
   access requests derived from the column, chat topic sanitised,
   notify panel Add a person, role-based approved-only default) is
-  app-only. Prod
+  app-only. v0.80.0 (2026-10-27: the fourth export —
+  `docs/issues-plan-2026-10-26d.md`; BYTES CROSS THE CONNECTOR with the
+  body declared `format: "binary"` — `docs/replace-content-review-2026-10-27.md`;
+  native upload, in-place Replace content via the connector's Update
+  file, the drop-zone file picker `docs/filePicker.ts`, Supersede's
+  successor link, the full UAT report, end-to-end UAT cases) is
+  app-only. STANDING RULE: an SDK bump re-runs the write probe; its
+  binary steps must stay green. Prod
   imports the managed solution FIRST. LESSON
   (2026-10-13, production's first sync): a sync must
   never run from a walk it cannot trust (budget-cut OR any failed

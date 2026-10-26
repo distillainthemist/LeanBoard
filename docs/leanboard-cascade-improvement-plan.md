@@ -1455,6 +1455,21 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-10-27 — released as v0.80.0** (app-only): the fourth
+  2026-10-26 export (`docs/issues-plan-2026-10-26d.md`, 6 reports +
+  the full UAT report, passed 6/6). BYTES CROSS THE CONNECTOR: the
+  write probe measured Create file / Update file / Get file content
+  with the body declared `format: "binary"` byte-exact and IN PLACE
+  (`docs/replace-content-review-2026-10-27.md` — the 2026-08-03 verdict
+  was the declaration's fault); Replace content writes the device file
+  over the held document in place (record, properties, links, history
+  kept), Add document uploads from the device (the staging folder
+  second), both through the app's own drop-zone picker, the connector's
+  100 MB ceiling refused up front. Also: site views' dead zone fixed
+  and the title follows the scope on drift; Supersede names its
+  successor as a link; the check-in comment tagged Required; "Export
+  full report" for a UAT run (scripts, every result, issues with
+  thread and attachments); Journey 13 end-to-end UAT cases DOC-082–085.
 - **2026-10-26 — released as v0.79.0** (app-only): the third
   2026-10-26 export (`docs/issues-plan-2026-10-26c.md`, 10 reports +
   Ben's status-column item, passed 8/8 the same day). The approval
