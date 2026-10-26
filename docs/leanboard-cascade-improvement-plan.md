@@ -1455,6 +1455,9 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-10-27 — released as v0.81.0** (app-only): site admins search
+  the directory and add people into their own site (site fixed, role
+  User) from Settings → People; `docs/uat/settings.md` UAT-SET-001.
 - **2026-10-27 — released as v0.80.0** (app-only): the fourth
   2026-10-26 export (`docs/issues-plan-2026-10-26d.md`, 6 reports +
   the full UAT report, passed 6/6). BYTES CROSS THE CONNECTOR: the

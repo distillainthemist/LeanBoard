@@ -399,7 +399,8 @@ Version lives in the tag alone — nothing is stamped into files.
   file, the drop-zone file picker `docs/filePicker.ts`, Supersede's
   successor link, the full UAT report, end-to-end UAT cases) is
   app-only. STANDING RULE: an SDK bump re-runs the write probe; its
-  binary steps must stay green. Prod
+  binary steps must stay green. v0.81.0 (2026-10-27: site admins add
+  people from the directory into their own site) is app-only. Prod
   imports the managed solution FIRST. LESSON
   (2026-10-13, production's first sync): a sync must
   never run from a walk it cannot trust (budget-cut OR any failed
