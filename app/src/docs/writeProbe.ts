@@ -462,7 +462,7 @@ export async function runWriteProbe(
         binaryWorks ? `${got} bytes, exactly as sent` : `${got} bytes for ${PROBE_BYTES.length} sent — re-encoded in transit`
       );
       const returnedId = String(((mk.data ?? {}) as { Id?: unknown }).Id ?? "");
-      const derivedId = connectorFileIdFor(binUrl);
+      const derivedId = connectorFileIdFor(site, binUrl);
       step(
         "Connector file identifier",
         returnedId !== "",

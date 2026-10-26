@@ -457,25 +457,29 @@ const CONN: ConnectorParam[] = [
   { name: "dataset", in: "path", required: true, type: "string" },
 ];
 const BINARY_BODY: ConnectorParam = { name: "body", in: "body", required: true, type: "string", format: "binary" };
+// the keys are the app's own (the probe's older carriages declare
+// "CreateFile" WITHOUT the format first, and a declare-if-absent kept
+// theirs — 2026-10-27, first run: 26 bytes for 16 again); the path is
+// what reaches the connector
 const FILE_OPS: Record<string, { path: string; method: string; parameters: ConnectorParam[]; responseInfo?: object }> = {
-  CreateFile: {
+  CreateFileBinary: {
     path: "/{connectionId}/datasets/{dataset}/files",
     method: "POST",
     parameters: [...CONN, { name: "folderPath", in: "query", required: true, type: "string" }, { name: "name", in: "query", required: true, type: "string" }, BINARY_BODY],
     responseInfo: { "200": { type: "object" } },
   },
-  UpdateFile: {
+  UpdateFileBinary: {
     path: "/{connectionId}/datasets/{dataset}/files/{id}",
     method: "PUT",
     parameters: [...CONN, { name: "id", in: "path", required: true, type: "string" }, BINARY_BODY],
     responseInfo: { "200": { type: "object" } },
   },
-  GetFileContent: {
+  GetFileContentBytes: {
     path: "/{connectionId}/datasets/{dataset}/files/{id}/content",
     method: "GET",
     parameters: [...CONN, { name: "id", in: "path", required: true, type: "string" }],
   },
-  GetFileMetadata: {
+  GetFileMetadataById: {
     path: "/{connectionId}/datasets/{dataset}/files/{id}",
     method: "GET",
     parameters: [...CONN, { name: "id", in: "path", required: true, type: "string" }],
@@ -486,7 +490,7 @@ const FILE_OPS: Record<string, { path: string; method: string; parameters: Conne
 async function connectorFileOp(site: string, op: keyof typeof FILE_OPS, params: Record<string, unknown>): Promise<SpResult> {
   declare();
   const info = dataSourcesInfo as unknown as { documents: { apis: Record<string, unknown> } };
-  info.documents.apis[op] ??= FILE_OPS[op];
+  info.documents.apis[op] = FILE_OPS[op];
   try {
     const r = (await getClient(dataSourcesInfo).executeAsync<object, unknown>({
       connectorOperation: {
@@ -507,32 +511,39 @@ async function connectorFileOp(site: string, op: keyof typeof FILE_OPS, params: 
  *  connector's file metadata (its `Id` is the identifier UpdateFile and
  *  GetFileContent take). */
 export function connectorCreateFileBinary(site: string, folder: string, name: string, bytes: Uint8Array): Promise<SpResult> {
-  return connectorFileOp(site, "CreateFile", { folderPath: folder, name, body: bytesToBase64(bytes) });
+  return connectorFileOp(site, "CreateFileBinary", { folderPath: folder, name, body: bytesToBase64(bytes) });
 }
 
 /** Replace an EXISTING file's content in place — the list item, its id,
  *  its uniqueId and its history all stay; a new version is added. */
 export function connectorUpdateFile(site: string, fileId: string, bytes: Uint8Array): Promise<SpResult> {
-  return connectorFileOp(site, "UpdateFile", { id: fileId, body: bytesToBase64(bytes) });
+  return connectorFileOp(site, "UpdateFileBinary", { id: fileId, body: bytesToBase64(bytes) });
 }
 
 /** The connector's file metadata by identifier (Id, Name, Size, Path…). */
 export function connectorGetFileMetadata(site: string, fileId: string): Promise<SpResult> {
-  return connectorFileOp(site, "GetFileMetadata", { id: fileId });
+  return connectorFileOp(site, "GetFileMetadataById", { id: fileId });
 }
 
 /** A file's bytes (octet-stream → Uint8Array when the SDK carries it so). */
 export function connectorGetFileContent(site: string, fileId: string): Promise<SpResult> {
-  return connectorFileOp(site, "GetFileContent", { id: fileId });
+  return connectorFileOp(site, "GetFileContentBytes", { id: fileId });
 }
 
-/** The connector's file identifier for a server-relative path, as the
- *  SharePoint connector forms it: the path URL-encoded, then encoded
- *  again, with spaces as "+" — "%252fsites%252fx%252fShared%2bDocuments%252fa.pdf".
- *  Measured by the write probe against the Id Create file returns. */
-export function connectorFileIdFor(serverRelativeUrl: string): string {
-  const once = encodeURIComponent(serverRelativeUrl).replace(/%20/g, "+");
-  return encodeURIComponent(once);
+/** The connector's file identifier for a file, as Create file returned
+ *  it on 2026-10-27: the path relative to the SITE (the library's url
+ *  name first), URL-encoded with spaces as "+", then encoded again,
+ *  lowercase hex — "%252fDMSControlledWorkingDocuments%252fa%2bb.pdf". */
+export function connectorFileIdFor(site: string, serverRelativeUrl: string): string {
+  let sitePath = "";
+  try {
+    sitePath = new URL(site).pathname.replace(/\/$/, "");
+  } catch {
+    sitePath = "";
+  }
+  const rel = sitePath !== "" && serverRelativeUrl.toLowerCase().startsWith(sitePath.toLowerCase()) ? serverRelativeUrl.slice(sitePath.length) : serverRelativeUrl;
+  const once = encodeURIComponent(rel).replace(/%20/g, "+");
+  return encodeURIComponent(once).replace(/%[0-9A-F]{2}/g, (m) => m.toLowerCase());
 }
 
 export function fetchFileInfo(site: string, url: string): Promise<SpResult> {
