@@ -387,7 +387,12 @@ Version lives in the tag alone — nothing is stamped into files.
   the second export — `docs/issues-plan-2026-10-26b.md`; Required tags
   + content-type required flag via `docs/libraryFields.ts`, date-model
   hints, term paths, MoC rows, Back trail, links column guard, message
-  dialog, counting spinner) is app-only. Prod
+  dialog, counting spinner) is app-only. v0.79.0 (2026-10-26: the third
+  export — `docs/issues-plan-2026-10-26c.md`; status out of the forms,
+  `docs/publish.ts` Approve(comment) road, versioning warnings,
+  access requests derived from the column, chat topic sanitised,
+  notify panel Add a person, role-based approved-only default) is
+  app-only. Prod
   imports the managed solution FIRST. LESSON
   (2026-10-13, production's first sync): a sync must
   never run from a walk it cannot trust (budget-cut OR any failed

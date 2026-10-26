@@ -1455,6 +1455,19 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-10-26 — released as v0.79.0** (app-only): the third
+  2026-10-26 export (`docs/issues-plan-2026-10-26c.md`, 10 reports +
+  Ben's status-column item, passed 8/8 the same day). The approval
+  status leaves the forms (Add writes Draft); reader-facing publishes
+  go through the file's Approve(comment) road (`docs/publish.ts`) so
+  the step's comment lands on the major, "published from v1.1" on the
+  card, Settings warns on majors-only / versioning-off /
+  moderation-off libraries; access requests derive from the Revision
+  editors column (Kat's loop) and refuse a re-grant; flags to yourself
+  say so, chat topics sanitised; notify panel "not sent yet" + Add a
+  person; Cancel revision offered and refused by name; the check-in
+  dialog says why the one-flow button is absent; controllers and super
+  admins land on every status. The launch-link replay (Kat) dropped.
 - **2026-10-26 — released as v0.78.0** (app-only): the second
   2026-10-26 export (`docs/issues-plan-2026-10-26b.md`, 7 reports +
   Ben's required-properties observation, passed 8/8 the same day).
