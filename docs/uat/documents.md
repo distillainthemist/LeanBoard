@@ -58,7 +58,7 @@ steps:
 1. Kebab ⋮ → read "✓ Show only approved" (ticked by default).
 2. Untick it.
 3. Tick it again.
-expected: ticked, the register hides drafts, superseded and obsolete documents and the Status group explains itself instead of filtering; a document that leaves the approved stage while ticked (superseded, obsoleted) drops from the list at once with a status line; unticked, every stage shows and Status can be filtered; the choice is remembered for the view
+expected: a reader lands with it ticked; a document controller or super admin lands with it unticked (every status); ticked, the register hides drafts, superseded and obsolete documents and the Status group explains itself instead of filtering; a document that leaves the approved stage while ticked (superseded, obsoleted) drops from the list at once with a status line; unticked, every stage shows and Status can be filtered; the choice is remembered for the view
 
 ### UAT-DOC-007 — Filter by organisation at a parent level
 persona: reader
@@ -246,7 +246,7 @@ steps:
 3. Fill it; Add.
 4. (Controller) Make a library column required that is not in the site dictionary; open Add document again.
 5. (Controller) Make a dictionary column required through the library's CONTENT TYPE (not the column itself); open Add document again.
-expected: every required column carries a red "Required" tag on its label; a click on Add with one empty scrolls to the first, outlines each missing row and says "Required before Add: Owner, Importance" under the button, and the line clears as they are filled; the document then lands in the library with its properties and opens in the viewer, with the status line saying it was added as a draft, shows when "Show only approved" is unticked, and is submitted for review from its ⋯ menu; in step 4 the form names the library-required column it cannot collect and refuses before creating anything (no checked-out orphan); in step 5 the content-type-required column is tagged and validated like any other
+expected: Approval status is not a form field — the document lands as a Draft, the lifecycle moves it from there; every required column carries a red "Required" tag on its label; a click on Add with one empty scrolls to the first, outlines each missing row and says "Required before Add: Owner, Importance" under the button, and the line clears as they are filled; the document then lands in the library with its properties and opens in the viewer, with the status line saying it was added as a draft, shows when "Show only approved" is unticked, and is submitted for review from its ⋯ menu; in step 4 the form names the library-required column it cannot collect and refuses before creating anything (no checked-out orphan); in step 5 the content-type-required column is tagged and validated like any other
 
 ### UAT-DOC-026 — Add refuses a duplicate name and a duplicate document id
 persona: author
@@ -267,7 +267,7 @@ steps:
 2. Change a text field, a date, a taxonomy field and a person field; read the line under Importance.
 3. Clear a required field; click Save; refill it; Save.
 4. Edit again; change the document id to one another document carries; Save.
-expected: the dialog's footer stays pinned while the body scrolls; each editor fits its column type; under Importance a line reads "Sets the review cadence — High: every 12 months. Next review 17 Aug 2027, counted from the effective date 17 Aug 2026." and updates as Importance changes, with a read-only "Next review date · Derived" row beneath it; Save with a required field empty scrolls to it and names it under the buttons; Save then writes the values and the details pane shows them without reopening; the duplicate document id is refused with the clashing document named, and the unchanged id is never re-checked
+expected: Approval status is not in the form (Submit / Approve / Retire move it); the dialog's footer stays pinned while the body scrolls; each editor fits its column type; under Importance a line reads "Sets the review cadence — High: every 12 months. Next review 17 Aug 2027, counted from the effective date 17 Aug 2026." and updates as Importance changes, with a read-only "Next review date · Derived" row beneath it; Save with a required field empty scrolls to it and names it under the buttons; Save then writes the values and the details pane shows them without reopening; the duplicate document id is refused with the clashing document named, and the unchanged id is never re-checked
 
 ### UAT-DOC-028 — Cascading organisation and process pickers
 persona: owner
@@ -304,7 +304,7 @@ steps:
 1. Open it → Check out.
 2. Read the register row and the Document tasks panel.
 3. Check in… with a comment; then check out again and Discard check-out.
-expected: the row shows the lock and your name; "Checked out to you" lists it in Document tasks; Check in writes a minor version with the comment; Discard releases it without a version
+expected: the row shows the lock and your name; "Checked out to you" lists it in Document tasks; Check in writes a minor version with the comment (the library must keep major AND minor versions — Settings → Documents warns on a library that keeps majors only); Discard releases it without a version; after an approval the published major's card carries the step's comment, or "published from v1.1 “…”" when the forms engine had to publish it
 
 ### UAT-DOC-032 — Replace content
 persona: owner
@@ -330,7 +330,7 @@ expected: the status becomes the mapped "in review" value; the done line names t
 ### UAT-DOC-034 — Check in and submit for review as one flow
 persona: owner
 modules: docs/lifecycleCmds.ts
-preconditions: a draft standard you own, checked out to you
+preconditions: a draft standard you own (status Draft — on a document in review or later the one-flow button is rightly absent and the dialog says why), checked out to you
 steps:
 1. Open it → Check in…
 2. Click "Check in & submit for review".
@@ -407,7 +407,7 @@ preconditions: a lifecycle step whose panel asks before sending (Submit for appr
 steps:
 1. Run the step; in the panel remove one recipient chip, add a note, choose Teams.
 2. Run another step and choose Email.
-expected: the chips show who hears and why; the removed person gets nothing; the note rides the card; the email arrives with the link; a refused send is reported with its reason, never silently
+expected: the panel says "Nothing has been sent yet" above the chips; the chips show who hears and why; the removed person gets nothing; "Add a person…" finds someone in the directory and adds a chip; the note rides the card; "Send on Teams" / "Send by email" — the email arrives with the link; a refused send is reported with its reason, never silently
 
 ## Journey 5 — Access requests
 
@@ -521,7 +521,7 @@ preconditions: a document owned by someone else; a screenshot on the clipboard
 steps:
 1. Open it → under the buttons, "⚑ Flag for review…".
 2. Pick a level, write a comment, paste the screenshot; Flag it.
-expected: the dialog names who will hear (the owner by name); a comment is required; the flag is written and the owner gets a Teams card quoting the comment with an "Open in LeanBoard" link; the owners are read fresh even when the register row never fetched them
+expected: the dialog names who will hear (the owner by name); a comment is required; the flag is written and the owner gets a Teams card quoting the comment with an "Open in LeanBoard" link; the owners are read fresh even when the register row never fetched them; flagging a document you own yourself raises the flag and says it sits in your Document tasks under Flags, with no Teams error (Teams cannot chat with yourself); a card to two or more people carries a topic with the quotes stripped
 
 ### UAT-DOC-055 — A flag with no owner goes to the controllers
 persona: reader

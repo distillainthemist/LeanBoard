@@ -778,8 +778,9 @@ export function mountDocs(
 
     /** Cancel revision (Ben, 2026-08-04): a mid-cycle standard the owner
      *  or an admin abandons — the last approved major is restored,
-     *  content and status together. Not offered while someone ELSE
-     *  holds the check-out. */
+     *  content and status together. Offered even while someone ELSE
+     *  holds the check-out: the command refuses with their name (UAT
+     *  DOC-040, 2026-10-26), which beats a door that is not there. */
     const canCancelRevision = (row: DocRow, lib: DocLibrary | null | undefined): boolean => {
       if (lib?.libType !== "standard") return false;
       const stage = stageOfRow(row);
@@ -791,7 +792,6 @@ export function mountDocs(
       ) {
         return false;
       }
-      if ((row.checkoutName ?? "") !== "" && !isMine(row)) return false;
       const g = lifecycleGatesFor(row);
       return g.isOwner || g.isAdmin;
     };
@@ -1549,7 +1549,7 @@ export function mountDocs(
       // an owner is away (request volume is small, unlike approvals)
       jobs.push(
         (async () => {
-          const { readLedger } = await import("./accessRequests");
+          const { readLedger, repairGranted } = await import("./accessRequests");
           const ledger = await readLedger();
           const outgoingEntries = ledger.filter((e) => e.who.id === whoId);
           const iPreside = (e: (typeof ledger)[number]) =>
@@ -1594,7 +1594,17 @@ export function mountDocs(
               libName: libFor.has(k) ? nameOf(libFor.get(k)!) : "",
             };
           };
-          out.requests = mine.map(taskRowOf);
+          // the column is the record (2026-10-26, Kat): a request whose
+          // grantee already sits in Revision editors is granted whatever
+          // the ledger says — it leaves the queue, and the ledger is
+          // repaired in the background
+          const stillMine = mine.filter((e) => {
+            const r = rowFor.get(`${e.listId.toLowerCase()}:${e.itemId}`);
+            const granted = r !== undefined && grantEmails(r).some((m) => m.toLowerCase() === e.who.email.toLowerCase());
+            if (granted) void repairGranted(e.id, "the Revision editors column").catch(() => undefined);
+            return !granted;
+          });
+          out.requests = stillMine.map(taskRowOf);
           out.outgoing = outgoingEntries.map(taskRowOf);
           out.grantedByMe = presided.map(taskRowOf);
         })()
@@ -2939,6 +2949,11 @@ export function mountDocs(
           },
           host: dialogHost,
           standards: libraries.filter((l) => l.libType === "standard"),
+          draftStatus: (() => {
+            if (statusInternal === "") return null;
+            const t = termForStage(siteDict, "draft", statusTermList);
+            return t === null ? null : { internal: statusInternal, label: t.label, termId: t.id };
+          })(),
           onCreated: (row) => {
             void load(true);
             refreshTasksBadge();
@@ -4666,6 +4681,27 @@ export function mountDocs(
         kinds.appendChild(wrap);
       }
       dlg.body.append(el("div", "app-field-label", "Comment"), comment, kinds);
+      if (submitReviewCmd === null && ciLib?.libType === "standard") {
+        // UAT DOC-034 (2026-10-26): the one-flow button is for a DRAFT
+        // standard you own — say why it is missing instead of nothing
+        const stage = stageOfRow(row);
+        const words: Record<string, string> = {
+          draft: "a draft",
+          inReview: "in review",
+          inApproval: "in approval",
+          inOwnerApproval: "in owner approval",
+          approved: "approved",
+          superseded: "superseded",
+          obsolete: "obsolete",
+        };
+        const why =
+          stage === ""
+            ? "the status column is not mapped for this library"
+            : stage === "draft"
+              ? "it is offered to the document's named owner, and you are not named"
+              : `the document is ${words[stage] ?? stage} — Submit for review belongs to a draft`;
+        dlg.body.appendChild(el("div", "app-field-hint", `"Check in & submit for review" is not offered here: ${why}.`));
+      }
       comment.focus();
     };
 
@@ -6018,7 +6054,17 @@ export function mountDocs(
       // and obsolete standards (Ben, 2026-08-08: 13 at launch, 9 on
       // opening the panel). One vocabulary, one number.
       refreshTasksBadge();
-      void load(true, "open");
+      // controllers and super admins land on every status (2026-10-26
+      // report 10) — the approved-only default is for readers; a view,
+      // a task scope or Favourites keep their own answer
+      void adminReady.then(() => {
+        if (dead) return;
+        if (bootView === null && !favMode && taskFilter === null && statusInternal !== "" && onlyApproved && (meIsController || meIsSuper)) {
+          onlyApproved = false;
+          paintChips();
+        }
+        void load(true, "open");
+      });
       if (workDoc !== "") void openWorkDoc(workDoc);
     });
   })().catch((e: unknown) => {

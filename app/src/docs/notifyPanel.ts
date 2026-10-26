@@ -39,6 +39,9 @@ export function attachNotifyPanel(opts: {
   const box = el("div", "app-docs-notifybox");
   opts.body.appendChild(box);
   box.appendChild(el("div", "app-field-label", "Let the next step know"));
+  // the words below are a DRAFT (UAT DOC-042, 2026-10-26: "reads as if
+  // the request is sent prior to pressing the button")
+  box.appendChild(el("div", "app-field-hint app-docs-notifynote", "Nothing has been sent yet — check who hears, edit the words, then send."));
   const chips = el("div", "app-docs-pplchips");
   const paintChips = () => {
     clear(chips);
@@ -56,6 +59,50 @@ export function attachNotifyPanel(opts: {
     chips.style.display = recips.length > 0 ? "" : "none";
   };
   paintChips();
+  // a person back in, or one more (DOC-042: "unable to add another
+  // recipient after removing one")
+  const addWrap = el("div", "app-docs-notifyadd");
+  const addIn = el("input", "app-input app-docs-notifyaddin") as HTMLInputElement;
+  addIn.type = "search";
+  addIn.placeholder = "Add a person…";
+  addIn.setAttribute("aria-label", "Add a person to notify");
+  const addList = el("div", "app-docs-notifyaddlist");
+  addList.hidden = true;
+  let addTimer = 0;
+  let addSeq = 0;
+  addIn.addEventListener("input", () => {
+    window.clearTimeout(addTimer);
+    const q = addIn.value.trim();
+    if (q.length < 2) {
+      addList.hidden = true;
+      return;
+    }
+    addTimer = window.setTimeout(() => {
+      const seq = ++addSeq;
+      void import("../store/people").then(({ searchEntra }) => searchEntra(q)).then((hits) => {
+        if (seq !== addSeq) return;
+        clear(addList);
+        const have = new Set(recips.map((p) => p.email.toLowerCase()));
+        const fresh = hits.filter((h) => h.mail !== "" && !have.has(h.mail.toLowerCase())).slice(0, 8);
+        for (const h of fresh) {
+          const b = el("button", "app-docs-menuitem", `${h.displayName}${h.department !== "" ? ` · ${h.department}` : ""}`) as HTMLButtonElement;
+          b.type = "button";
+          b.addEventListener("click", () => {
+            recips = [...recips, { name: h.displayName, email: h.mail }];
+            paintChips();
+            addIn.value = "";
+            addList.hidden = true;
+          });
+          addList.appendChild(b);
+        }
+        if (fresh.length === 0) addList.appendChild(el("div", "app-field-hint", "No one found."));
+        addList.hidden = false;
+      }).catch(() => {
+        addList.hidden = true;
+      });
+    }, 250);
+  });
+  addWrap.append(addIn, addList);
   const msg = el("textarea", "app-input app-docs-cicomment") as HTMLTextAreaElement;
   msg.rows = 4;
   const typed = (opts.reason ?? "").trim();
@@ -64,9 +111,9 @@ export function attachNotifyPanel(opts: {
   const teamsBtn = el(
     "button",
     "app-btn app-btn-primary",
-    "Send Teams message"
+    "Send on Teams"
   ) as HTMLButtonElement;
-  const mailBtn = el("button", "app-btn", "Send email") as HTMLButtonElement;
+  const mailBtn = el("button", "app-btn", "Send by email") as HTMLButtonElement;
   const btnRow = el("div", "app-docs-siterow");
   btnRow.append(teamsBtn, mailBtn);
   const send = (kind: "teams" | "email") => {
@@ -113,6 +160,7 @@ export function attachNotifyPanel(opts: {
   mailBtn.addEventListener("click", () => send("email"));
   box.append(
     chips,
+    addWrap,
     msg,
     el("div", "app-field-hint", "Sent as you, with a link that opens the document in LeanBoard."),
     btnRow,

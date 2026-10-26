@@ -181,4 +181,12 @@ describe("message rendering", () => {
   it("escapeHtml covers the four", () => {
     expect(escapeHtml('<a href="x">&</a>')).toBe("&lt;a href=&quot;x&quot;&gt;&amp;&lt;/a&gt;");
   });
+
+  it("chatTopic drops what Graph refuses in a chat topic and keeps the words (2026-10-26 flag report)", async () => {
+    const { chatTopic } = await import("../docs/notifyModel");
+    expect(chatTopic("Flag on “Test presentation.pptx” — Ellen's review")).toBe("Flag on Test presentation.pptx — Ellens review");
+    expect(chatTopic("  a <b> & c  ")).toBe("a b c");
+    expect(chatTopic("x".repeat(140)).length).toBe(100);
+  });
+
 });

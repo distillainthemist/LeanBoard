@@ -90,6 +90,10 @@ export interface AddDocumentOpts {
   /** Every standards library — a document id must be unique across
    *  them (2026-10-26 report 13). */
   standards?: DocLibrary[];
+  /** The Draft stage's term on the status column: a new document is
+   *  written as a draft by the form, never picked (Ben, 2026-10-26).
+   *  null = no Draft stage mapped. */
+  draftStatus?: { internal: string; label: string; termId: string } | null;
   /** Called with the created document's row, after check-in. */
   onCreated: (row: DocRow) => void;
   /** H2: the upload source — present only for pool members and
@@ -358,9 +362,14 @@ export function openAddDocument(opts: AddDocumentOpts): void {
     // a required column with no editor would be refused at check-in
     // (the system-managed dates stamp themselves, so they never count)
     const collected = new Set(editors.map((e) => e.field.internal));
+    const draftCol = opts.draftStatus?.internal ?? "";
     uncollected = fields
-      .filter((f) => f.required && !collected.has(f.internal) && !SYSTEM_DATE_ROLES.has(opts.dictBy.get(f.internal)?.role ?? "") && !ALWAYS_SET.has(f.internal))
-      .map((f) => opts.dictBy.get(f.internal)?.label || f.title);
+      .filter((f) => f.required && !collected.has(f.internal) && !SYSTEM_DATE_ROLES.has(opts.dictBy.get(f.internal)?.role ?? "") && !ALWAYS_SET.has(f.internal) && f.internal !== draftCol)
+      .map((f) =>
+        opts.dictBy.get(f.internal)?.role === "status"
+          ? `${opts.dictBy.get(f.internal)?.label || f.title} (map the Draft stage under Settings → Documents → Lifecycle so the form can write it)`
+          : opts.dictBy.get(f.internal)?.label || f.title
+      );
     requiredLine.hidden = uncollected.length === 0;
     requiredLine.textContent =
       uncollected.length === 0
@@ -589,7 +598,14 @@ export function openAddDocument(opts: AddDocumentOpts): void {
     const held = out.ok || /checked out/i.test(spErrorText(out.status));
     if (!held) return fail("Created, but could not check out to set properties", out.status);
 
-    const writes = newDocumentWrites(editors.map((e) => e.read()), localeId);
+    const values = editors.map((e) => e.read());
+    // a new document is a DRAFT — the form writes the stage, nobody
+    // picks it (Ben, 2026-10-26)
+    const ds = opts.draftStatus;
+    if (ds !== undefined && ds !== null && lib.config.columns.some((c) => c.internal === ds.internal)) {
+      values.push({ internal: ds.internal, kind: "taxonomy", label: ds.label, termId: ds.termId });
+    }
+    const writes = newDocumentWrites(values, localeId);
     // the date model: a picked importance carries its cadence in the
     // same write; effective/review stamp at the first approval
     const dm = opts.dateModel;

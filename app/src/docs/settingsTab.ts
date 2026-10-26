@@ -68,6 +68,7 @@ import { promptConfirm } from "../prompts";
 import {
   deleteTerm,
   fetchFields,
+  fetchListRules,
   fetchLibraries,
   fetchTermGroups,
   fetchTermPaths,
@@ -883,6 +884,24 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
     clear(host);
     if (live.length === 0) {
       host.appendChild(note("Columns could not be loaded (see the site URL, or try again in the hosted app)."));
+    }
+    // the versioning rule the lifecycle leans on (2026-10-26, UAT
+    // DOC-031: the UAT library kept major versions only, so every
+    // check-in published and no draft could exist)
+    if (lib.libType === "standard") {
+      void fetchListRules(lib.siteUrl, lib.listId).then((r) => {
+        const d = (r.data ?? {}) as { EnableVersioning?: unknown; EnableMinorVersions?: unknown; EnableModeration?: unknown };
+        if (!r.ok || !host.isConnected) return;
+        const lines: string[] = [];
+        if (d.EnableVersioning !== true) lines.push("Versioning is OFF — no history, no drafts.");
+        else if (d.EnableMinorVersions !== true) lines.push("Major versions only — every check-in publishes a major and a draft revision cannot exist. Turn on \"Create major and minor (draft) versions\" in the library's versioning settings.");
+        if (d.EnableModeration !== true) lines.push("Content approval is OFF — readers see drafts as soon as they are checked in.");
+        if (lines.length > 0) {
+          const warn = note(lines.join(" "));
+          warn.classList.add("app-docs-colwarn");
+          host.insertBefore(warn, host.firstChild);
+        }
+      });
     }
     // merge the live schema, then let the site dictionary say what each
     // column IS (label, role, availability); this library decides only

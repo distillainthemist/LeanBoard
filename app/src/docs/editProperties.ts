@@ -444,18 +444,12 @@ export function openEditProperties(opts: EditPropertiesOpts): void {
           ((mod.data ?? {}) as { EnableModeration?: unknown }).EnableModeration === true;
         if (moderated) {
           status.textContent = "Publishing (content approval)…";
+          const { publishReaderFacing } = await import("./publish");
           const pub = await timed(
-            validateUpdateListItem(
-              site,
-              row.listId,
-              row.id,
-              [{ FieldName: "_ModerationStatus", FieldValue: "0" }],
-              false
-            ),
+            publishReaderFacing(site, row.listId, row.id, row.serverUrl, comment !== null && comment.value.trim() !== "" ? comment.value.trim() : "Properties updated"),
             "The publish"
           );
-          const errs = validateItemErrors(pub.data);
-          if (!pub.ok || errs.length > 0) {
+          if (!pub.ok) {
             // the edit LANDED — the pending state is a warning, and the
             // dialog stays open so it is read
             status.textContent =

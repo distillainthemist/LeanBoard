@@ -12,7 +12,7 @@
 
 import { Office365OutlookService } from "../generated/services/Office365OutlookService";
 import { MicrosoftTeamsService } from "../generated/services/MicrosoftTeamsService";
-import { NotifyQuote, NotifyRecipient, notifyCard, notifyChatHtml, notifyEmailHtml } from "./notifyModel";
+import { NotifyQuote, NotifyRecipient, chatTopic, notifyCard, notifyChatHtml, notifyEmailHtml } from "./notifyModel";
 
 interface OpResult {
   success?: boolean;
@@ -76,7 +76,7 @@ export async function sendNotifyTeams(
     const r = (await MicrosoftTeamsService.CreateChat({
       // the caller is seated by the connector — recipients only
       members: recipients.map((p) => p.email).join(";"),
-      ...(recipients.length > 1 ? { topic: subject } : {}),
+      ...(recipients.length > 1 ? { topic: chatTopic(subject) } : {}),
     })) as OpResult;
     const why = failText(r);
     if (why !== "") return { error: `Could not open the chat: ${why}`, how: "" };

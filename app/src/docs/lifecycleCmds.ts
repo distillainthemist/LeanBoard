@@ -22,6 +22,7 @@ import {
 import { NotifyContext } from "./notifyModel";
 import { attachNotifyPanel } from "./notifyPanel";
 import { DocRow, formatDayMonthYear } from "./rows";
+import { publishReaderFacing } from "./publish";
 import {
   checkInFile,
   checkOutFile,
@@ -521,18 +522,9 @@ export function openLifecycleCommand(opts: LifecycleRunOpts): void {
         ((mod.data ?? {}) as { EnableModeration?: unknown }).EnableModeration === true;
       if (moderated) {
         status.textContent = "Publishing (content approval)…";
-        const pub = await timed(
-          validateUpdateListItem(
-            site,
-            opts.listId,
-            row.id,
-            [{ FieldName: "_ModerationStatus", FieldValue: "0" }],
-            false
-          ),
-          "The publish"
-        );
-        const errs = validateItemErrors(pub.data);
-        if (!pub.ok || errs.length > 0) {
+        // the step's comment rides onto the published version
+        const pub = await timed(publishReaderFacing(site, opts.listId, row.id, row.serverUrl, comment), "The publish");
+        if (!pub.ok) {
           warnings.push(
             "SharePoint content approval is still PENDING — readers keep seeing the previous " +
               "version until a document controller approves it in SharePoint (or approvers " +
@@ -696,11 +688,8 @@ export function openCancelRevision(opts: CancelRevisionOpts): void {
     const mod = await fetchListModeration(site, opts.listId);
     if (mod.ok && ((mod.data ?? {}) as { EnableModeration?: unknown }).EnableModeration === true) {
       status.textContent = "Publishing (content approval)…";
-      const pub = await timed(
-        validateUpdateListItem(site, opts.listId, row.id, [{ FieldName: "_ModerationStatus", FieldValue: "0" }], false),
-        "The publish"
-      );
-      if (!pub.ok || validateItemErrors(pub.data).length > 0) {
+      const pub = await timed(publishReaderFacing(site, opts.listId, row.id, row.serverUrl, `Revision cancelled — restored v${majors[0]}`), "The publish");
+      if (!pub.ok) {
         status.textContent = "Restored — SharePoint content approval is still PENDING: a document controller approves it in SharePoint.";
         status.classList.add("app-docs-addstatus-warn");
       }
@@ -877,18 +866,8 @@ export function openMarkReviewed(opts: MarkReviewedOpts): void {
       mod.ok && ((mod.data ?? {}) as { EnableModeration?: unknown }).EnableModeration === true;
     if (moderated) {
       status.textContent = "Publishing (content approval)…";
-      const pub = await timed(
-        validateUpdateListItem(
-          site,
-          opts.listId,
-          row.id,
-          [{ FieldName: "_ModerationStatus", FieldValue: "0" }],
-          false
-        ),
-        "The publish"
-      );
-      const errs = validateItemErrors(pub.data);
-      if (!pub.ok || errs.length > 0) {
+      const pub = await timed(publishReaderFacing(site, opts.listId, row.id, row.serverUrl, comment), "The publish");
+      if (!pub.ok) {
         // the review LANDED — pending is a warning, kept readable
         status.textContent =
           "Reviewed — but SharePoint content approval is still PENDING: readers see the " +

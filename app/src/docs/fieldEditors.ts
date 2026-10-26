@@ -91,6 +91,10 @@ export interface FieldEditorOpts {
   /** The document this form edits (issue 2): a tag proposal raised
    *  here names it, so approval can tag it. */
   proposalDoc?: { site: string; listId: string; uid: string; name: string };
+  /** The approval-status column is the LIFECYCLE's (Ben, 2026-10-26:
+   *  "this should come via approval workflows") — never a form field
+   *  unless a caller says so. */
+  includeStatus?: boolean;
 }
 
 /** The required editors still empty. */
@@ -191,6 +195,8 @@ export function buildFieldEditors(opts: FieldEditorOpts): BuiltEditor[] {
     // linked documents are managed by the links editor (relationships
     // L1) — a raw-JSON textarea would invite corruption
     if (dictBy.get(internal)?.role === "linkedDocuments") continue;
+    // the status moves through Submit / Approve / Retire, not here
+    if (opts.includeStatus !== true && dictBy.get(internal)?.role === "status") continue;
     const f = byInternal.get(internal);
     if (f === undefined) continue;
     const kind = editorKind(f);

@@ -113,13 +113,24 @@ export function openFlagDialog(o: FlagDialogOpts): void {
       dlg.close();
       return;
     }
+    const { currentViewer } = await import("../runtime");
+    const me = (currentViewer()?.email ?? "").toLowerCase();
+    const others = o.recipients.filter((p) => p.email.toLowerCase() !== me);
+    if (others.length === 0) {
+      // Teams refuses a chat with yourself (2026-10-26, Kat): the flag
+      // is raised and already sits in your own tasks — say so, no error
+      st.textContent = "Flagged — it is in your Document tasks under Flags. Teams cannot message you about your own flag.";
+      const cancel = dlg.root.querySelector(".ltk-btn-secondary") as HTMLButtonElement | null;
+      if (cancel !== null) cancel.textContent = "Close";
+      (dlg.root.querySelector(".ltk-btn-primary") as HTMLButtonElement | null)?.remove();
+      return;
+    }
     st.textContent = "Telling the owners on Teams…";
     const n = flagNotice({ level: level.value, docName: o.doc.name, flaggerName: "", comment: comment.value });
     try {
       const { sendNotifyTeams } = await import("./notify");
-      const { currentViewer } = await import("../runtime");
       const who = currentViewer()?.name ?? "";
-      const out = await sendNotifyTeams(o.recipients, n.subject, n.message.replace(/^Someone/, who || "Someone"), o.link, n.quote);
+      const out = await sendNotifyTeams(others, n.subject, n.message.replace(/^Someone/, who || "Someone"), o.link, n.quote);
       if (out.error !== "") {
         st.textContent = `Flagged${r.warn !== "" ? ` (${r.warn})` : ""} — the Teams card did not go: ${out.error}`;
         const cancel = dlg.root.querySelector(".ltk-btn-secondary") as HTMLButtonElement | null;

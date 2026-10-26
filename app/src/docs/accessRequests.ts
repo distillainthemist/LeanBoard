@@ -385,6 +385,16 @@ export function openApproveRequest(opts: ApproveRequestOpts): void {
     // mapped in the dictionary can still name a column a given list
     // never received, and that must fail HERE with the remedy, not as
     // a bare refusal mid-write (Ben's first approve run, 2026-08-06)
+    // already in the column = already granted: a second grant would
+    // only re-send the card (2026-10-26, Kat: "the task does not
+    // disappear, the Teams message occurs each time")
+    if (opts.existingEditors.some((e) => e.trim().toLowerCase() === request.who.email.toLowerCase())) {
+      void markGranted(request.id, opts.actorName).catch(() => undefined);
+      return fail(
+        "Already granted",
+        `${request.who.name} is already in this document's Revision editors column. The task clears once the ledger catches up — it is being repaired now; if it keeps showing, your account may not be allowed to write the document libraries table in Dataverse.`
+      );
+    }
     status.textContent = "Checking the grant column…";
     const schema = await timedSp(
       fetchFieldSchema(site, row.listId, opts.revEditorsInternal),
@@ -479,7 +489,7 @@ export function openApproveRequest(opts: ApproveRequestOpts): void {
     try {
       await markGranted(request.id, opts.actorName);
     } catch {
-      warn += "The ledger update did not land — the request may reappear. ";
+      warn += "The ledger update was refused — the request shows again until it lands (your account may not be allowed to write the document libraries table in Dataverse; the grant itself is in place). ";
     }
 
     if (warn !== "") {
@@ -503,6 +513,13 @@ export function openApproveRequest(opts: ApproveRequestOpts): void {
       attachNotifyPanel({ body: dlg.body, context: opts.notify });
     }
   };
+}
+
+/** The ledger catching up with the column (2026-10-26, Kat): a request
+ *  whose grantee is already in Revision editors is granted whatever
+ *  the ledger says — the tasks list calls this to repair it. */
+export function repairGranted(id: string, by: string): Promise<void> {
+  return markGranted(id, by);
 }
 
 async function markGranted(id: string, by: string): Promise<void> {

@@ -1092,7 +1092,7 @@ export function openDocViewer(opts: ViewerOpts): () => void {
     }
     propsBox.appendChild(verHeadRow);
     // C5 (feedback round 1): "why are three drafts listed?" — say it once
-    if (!auditOn) propsBox.appendChild(el("div", "app-field-hint app-docs-verhint", "Every save while a document is checked out is a draft (minor) version; approval publishes a major one."));
+    if (!auditOn) propsBox.appendChild(el("div", "app-field-hint app-docs-verhint", "Every save while a document is checked out is a draft (minor) version; approval, Mark reviewed and a controller's quick edit publish a major one, carrying the step's comment."));
     // a reader without View Versions: no failing call — the CURRENT
     // version from the row's own feed (issues 7 / 15)
     const currentVersionLine = (why: string) => {
@@ -1254,6 +1254,12 @@ export function openDocViewer(opts: ViewerOpts): () => void {
         if (g.head !== null) {
           if (g.head.author !== "") headMeta.appendChild(el("span", "", g.head.author));
           headMeta.appendChild(commentEl(g.head.comment));
+          // a major the forms engine published carries no comment of its
+          // own — the draft it was published from has the words
+          if (g.head.comment === "") {
+            const from = g.drafts.find((d) => d.comment !== "");
+            if (from !== undefined) headMeta.appendChild(el("span", "app-field-hint", ` · published from v${from.label} “${from.comment}”`));
+          }
         }
         if (!open && g.drafts.length > 0) {
           headMeta.appendChild(

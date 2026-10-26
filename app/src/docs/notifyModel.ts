@@ -194,6 +194,19 @@ export function accessRequestPlan(opts: {
   }
 }
 
+/** A group chat's topic as Graph accepts it: no quotes or apostrophes
+ *  (2026-10-26: "Chat topic contains invalid Character: '"), nothing
+ *  that reads as markup, one line, short. The card keeps the full
+ *  subject. */
+export function chatTopic(subject: string): string {
+  return subject
+    .replace(/[“”"'‘’`]/g, "")
+    .replace(/[<>&#%\\]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 100);
+}
+
 // ---- message rendering --------------------------------------------------
 
 export const escapeHtml = (s: string): string =>

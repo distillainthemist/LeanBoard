@@ -325,6 +325,14 @@ export function checkInFile(
   );
 }
 
+/** SharePoint's own approve road for a file under content approval:
+ *  the pending version becomes the published one WITH this comment on
+ *  it — the forms-engine road (`_ModerationStatus = 0`) records a new
+ *  major with no comment at all (2026-10-26, UAT DOC-031). */
+export function approveFile(site: string, url: string, comment: string): Promise<SpResult> {
+  return spRequest(site, "POST", `${filePath(url)}/Approve(comment='${spQuote(comment)}')`);
+}
+
 /** Discards the check-out AND the edits made under it — SharePoint keeps
  *  no copy, so every caller confirms first. */
 export function undoCheckOut(site: string, url: string): Promise<SpResult> {
