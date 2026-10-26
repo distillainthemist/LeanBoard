@@ -1,278 +1,94 @@
-// Replace content (5H3) — swap a held document's FILE for an uploaded
-// one, inside the normal check-out discipline: the caller must hold the
-// check-out, the swap is a server-side copy OVER the held file
-// (overwrite=true — probe-measured), the document STAYS checked out, and
-// the holder publishes with an ordinary check-in or reverts with
-// Discard. Same staging handoff as add-by-upload (bytes cannot cross
-// the connector), same-extension only (a swapped extension breaks
-// renditions and the Edit-source door).
+// Replace content (5H3, rebuilt 2026-10-27) — a guided step through
+// SharePoint's OWN upload, not a copy. Both copy roads the app can
+// drive (the legacy copyto with overwrite and the modern
+// MoveCopyUtil.CopyFileByPath with overwrite) DELETE and RECREATE the
+// list item on a copy-over: new id, new uniqueId, every property
+// blanked, and the file no longer answers at its path ("Item does not
+// exist", "File Not Found" — Ben's runs, 2026-10-27). Every link,
+// favourite, flag and request anchored to the document would be
+// orphaned. File bytes cannot cross the connector (the 4A probes,
+// re-measured per SDK bump), so there is no in-place content write the
+// app can make. SharePoint's upload-and-replace keeps the record and
+// adds a version — so the dialog opens the folder, says exactly what to
+// do, and brings the register back to the document afterwards.
 
-import { clear, el } from "../../../shared/ui/dom";
+import { el } from "../../../shared/ui/dom";
 import { openDialog } from "../../../shared/ui/dialog";
-import { AddFieldValue, SiteColumn, prefillFromItem, spErrorText, splitAddWrites, validateItemErrors } from "./model";
-import { DocRow, buildRenderViewXml } from "./rows";
-import { renderListPage } from "./data";
-import { checkOutFile, connectorPatchItem, copyFileByPath, fetchListItem, recycleFile, validateUpdateListItem } from "./sp";
-import { editorKind } from "./fieldEditors";
-import { loadLibraryFields } from "./libraryFields";
+import { SiteColumn } from "./model";
+import { DocRow } from "./rows";
 
 export interface ReplaceContentOpts {
   site: string;
   /** Checked out to the acting user — the caller gates. */
   row: DocRow;
-  staging: { listId: string; openUrl: string };
+  /** Kept for the callers' shape; the guided step uses the document's
+   *  own folder, not the staging library. */
+  staging?: { listId: string; openUrl: string };
   host: HTMLElement;
-  /** The library's carried columns and the dictionary: the copy-over
-   *  blanks every property (SharePoint copies the SOURCE's, and the
-   *  staged upload has none — UAT DOC-032), so they are snapshotted
-   *  first and written back after. */
+  /** Kept for the callers' shape — SharePoint's own replace keeps the
+   *  properties, so nothing is snapshotted here any more. */
   keep?: { columns: string[]; dictBy: Map<string, SiteColumn> };
   onDone: () => void;
 }
 
-type Sp = { ok: boolean; status: string; data: unknown };
-const timed = async (p: Promise<Sp>, what: string): Promise<Sp> => {
-  let clock = 0;
-  const timeout = new Promise<Sp>((resolve) => {
-    clock = window.setTimeout(
-      () => resolve({ ok: false, status: `${what} did not answer within 25 seconds`, data: null }),
-      25_000
-    );
-  });
-  const r = await Promise.race([p, timeout]);
-  window.clearTimeout(clock);
-  return r;
-};
-
 export function openReplaceContent(opts: ReplaceContentOpts): void {
   const { site, row } = opts;
-  let running = false;
+  const origin = (() => {
+    try {
+      return new URL(site).origin;
+    } catch {
+      return "";
+    }
+  })();
+  const folder = row.serverUrl.replace(/\/[^/]+$/, "");
+  const folderUrl = origin !== "" ? `${origin}${folder}` : "";
 
   const dlg = openDialog({
     host: opts.host,
     title: `Replace content — ${row.name}`,
     buttons: [
-      { label: "Cancel", kind: "secondary", onClick: () => { if (!running) dlg.close(); } },
-      { label: "Replace content", kind: "primary", onClick: () => void go() },
+      { label: "Cancel", kind: "secondary", onClick: () => dlg.close() },
+      {
+        label: "Done — refresh the document",
+        kind: "primary",
+        onClick: () => {
+          dlg.close();
+          opts.onDone();
+        },
+      },
     ],
   });
-  const goBtn = dlg.root.querySelector(".ltk-btn-primary") as HTMLButtonElement;
   dlg.body.appendChild(
     el(
       "div",
       "app-field-hint",
-      `Swaps this document's file for one you upload (same type only — .${row.ext}). ` +
-        "You stay checked out: check in to publish the replacement, or Discard " +
-        "check-out to revert it."
+      "The new file goes in through SharePoint's own upload, which keeps this document's record, its properties, its links and its history, and adds a version. A copy from the upload folder would create a new record and orphan everything anchored to this one."
     )
   );
-
-  const openLink = el("a", "app-btn", "Open the upload folder ↗") as HTMLAnchorElement;
-  openLink.href = opts.staging.openUrl;
-  openLink.target = "_blank";
-  openLink.rel = "noopener";
-  const refreshBtn = el("button", "app-btn", "⟳ Refresh") as HTMLButtonElement;
-  refreshBtn.type = "button";
-  const sel = el("select", "app-input") as HTMLSelectElement;
-  const placeholder = (label: string) => {
-    clear(sel);
-    const o = el("option", "", label) as HTMLOptionElement;
-    o.value = "";
-    sel.appendChild(o);
+  const steps = el("ol", "app-docs-replacesteps");
+  const step = (text: string) => {
+    const li = el("li", "", text);
+    steps.appendChild(li);
+    return li;
   };
-  placeholder("Refresh to list uploaded files…");
-  const box = el("div", "app-docs-upbox");
-  box.append(openLink, refreshBtn, sel);
-  dlg.body.appendChild(box);
-  const status = el("div", "app-docs-addstatus");
-  dlg.body.appendChild(status);
-
-  const stagingRows = new Map<string, DocRow>();
-  const sync = () => {
-    goBtn.disabled = running || sel.value === "";
-  };
-  sel.addEventListener("change", sync);
-  sync();
-
-  const loadStaging = () => {
-    refreshBtn.disabled = true;
-    void renderListPage(site, opts.staging.listId, buildRenderViewXml({ rowLimit: 30 }))
-      .then((page) => {
-        stagingRows.clear();
-        // SAME extension only — the guard is the filter, so a wrong
-        // type is never even offerable
-        const matching = page.rows.filter(
-          (r) => r.ext.toLowerCase() === row.ext.toLowerCase()
-        );
-        placeholder(
-          matching.length === 0
-            ? page.rows.length === 0
-              ? "No files in the upload folder yet — upload, then Refresh"
-              : `No .${row.ext} files in the upload folder — this document only takes .${row.ext}`
-            : "Choose the replacement file…"
-        );
-        for (const r of matching) {
-          stagingRows.set(r.uniqueId, r);
-          const o = el("option", "", r.name) as HTMLOptionElement;
-          o.value = r.uniqueId;
-          sel.appendChild(o);
-        }
-        sel.value = "";
-      })
-      .catch(() => {
-        placeholder("Could not read the upload folder — check the staging library");
-      })
-      .then(() => {
-        refreshBtn.disabled = false;
-        sync();
-      });
-  };
-  refreshBtn.addEventListener("click", loadStaging);
-
-  const fail = (what: string, why: string) => {
-    status.textContent = `${what}: ${spErrorText(why).slice(0, 300)}`;
-    status.classList.add("app-docs-addstatus-warn");
-    running = false;
-    sync();
-  };
-
-  const go = async () => {
-    const src = stagingRows.get(sel.value);
-    if (running || src === undefined) return;
-    running = true;
-    sync();
-    status.classList.remove("app-docs-addstatus-warn");
-
-    // snapshot every carried property BEFORE the copy-over
-    const values: AddFieldValue[] = [];
-    let labelOf = (internal: string) => internal;
-    if (opts.keep !== undefined && opts.keep.columns.length > 0) {
-      status.textContent = "Reading the properties…";
-      const keep = opts.keep;
-      labelOf = (internal) => keep.dictBy.get(internal)?.label || internal;
-      const [{ fields }, item] = await Promise.all([
-        loadLibraryFields(site, row.listId),
-        timed(fetchListItem(site, row.listId, row.id), "The properties read"),
-      ]);
-      if (!item.ok) return fail("The properties could not be read, so nothing was replaced", item.status);
-      const carried = new Set(keep.columns);
-      const pre = prefillFromItem((item.data ?? {}) as Record<string, unknown>, fields);
-      const personCols = fields.filter((f) => carried.has(f.internal) && editorKind(f) === "person").map((f) => f.internal);
-      let people = new Map<string, { email: string; name: string }[]>();
-      if (personCols.length > 0) {
-        const page = await renderListPage(site, row.listId, buildRenderViewXml({ idIn: [row.id], fields: personCols, rowLimit: 1 })).catch(() => ({ rows: [] as DocRow[] }));
-        const fresh = page.rows[0];
-        if (fresh !== undefined) {
-          people = new Map(
-            personCols.map((internal) => {
-              const names = (fresh.values[internal] ?? "").split(";").map((x) => x.trim()).filter((x) => x !== "");
-              const mails = (fresh.values[`${internal}#email`] ?? "").split(";").filter((x) => x !== "");
-              return [internal, mails.map((email, i) => ({ email, name: names[i] ?? email }))];
-            })
-          );
-        }
-      }
-      for (const f of fields) {
-        if (!carried.has(f.internal)) continue;
-        const kind = editorKind(f);
-        if (kind === null) continue;
-        if (kind === "person") {
-          const ps = people.get(f.internal) ?? [];
-          if (ps.length > 0) values.push({ internal: f.internal, kind, people: ps });
-          continue;
-        }
-        const v = pre.get(f.internal);
-        if (v === undefined) continue;
-        if (kind === "taxonomy") {
-          const terms = v.terms ?? (v.term !== undefined ? [v.term] : []);
-          if (terms.length === 0) continue;
-          values.push({ internal: f.internal, kind, label: terms[0].label, termId: terms[0].termId, multi: f.type === "TaxonomyFieldTypeMulti", terms });
-          continue;
-        }
-        if ((v.text ?? "") !== "") values.push({ internal: f.internal, kind, text: v.text });
-      }
-    }
-
-    status.textContent = "Replacing the content…";
-    // the MODERN copy road: the legacy copy-over deleted and recreated
-    // the list item (Ben's run, 2026-10-27: "Item does not exist")
-    const origin = (() => {
-      try {
-        return new URL(site).origin;
-      } catch {
-        return "";
-      }
-    })();
-    const over = await timed(copyFileByPath(site, `${origin}${src.serverUrl}`, `${origin}${row.serverUrl}`, true), "The replace");
-    if (!over.ok) {
-      return fail("The replace was refused (your check-out is untouched)", over.status);
-    }
-    // the record must be the SAME one — links, favourites and flags are
-    // anchored to it; if SharePoint recreated it anyway, the new record
-    // is found by name, restored, and the loss is said out loud
-    let itemId = row.id;
-    let reanchored = false;
-    const still = await timed(fetchListItem(site, row.listId, row.id), "The record check");
-    if (!still.ok) {
-      const page = await renderListPage(site, row.listId, buildRenderViewXml({ nameWords: [row.name.replace(/\.[^.]+$/, "")], rowLimit: 25 })).catch(() => ({ rows: [] as DocRow[] }));
-      const hit = page.rows.find((r) => r.name.toLowerCase() === row.name.toLowerCase());
-      if (hit === undefined) return fail("Content replaced, but the document's record could not be found afterwards", still.status);
-      itemId = hit.id;
-      reanchored = true;
-    }
-
-    // …and write the properties back. The copy-over RESETS the
-    // check-out (Ben's run, 2026-10-27: every write refused), so the
-    // bracket is re-taken first — the holder stays checked out after
-    const lost: string[] = [];
-    let why = "";
-    if (values.length > 0) {
-      status.textContent = "Taking the check-out back…";
-      const out = await timed(checkOutFile(site, row.serverUrl), "The check-out");
-      if (!out.ok && !/checked out/i.test(spErrorText(out.status))) why = spErrorText(out.status);
-      status.textContent = "Restoring the properties…";
-      const writes = splitAddWrites(values);
-      if (writes.formValues.length > 0) {
-        const res = await timed(validateUpdateListItem(site, row.listId, itemId, writes.formValues, false), "The properties write");
-        const errs = validateItemErrors(res.data);
-        if (!res.ok) {
-          lost.push(...writes.formValues.map((f) => labelOf(f.FieldName)));
-          why ||= spErrorText(res.status);
-        } else {
-          for (const e of errs) lost.push(labelOf(e.field));
-          if (errs.length > 0) why ||= errs[0].message;
-        }
-      }
-      if (Object.keys(writes.patch).length > 0) {
-        const res = await timed(connectorPatchItem(site, row.listId, itemId, writes.patch), "The term write");
-        if (!res.ok) {
-          lost.push(...Object.keys(writes.patch).map(labelOf));
-          why ||= spErrorText(res.status);
-        }
-      }
-    }
-
-    // the staging copy has served its purpose — best effort; the
-    // replacement is IN either way
-    status.textContent = "Tidying the upload folder…";
-    await timed(recycleFile(site, src.serverUrl), "The tidy-up").catch(() => null);
-
-    if (lost.length > 0 || reanchored) {
-      // the content is IN — a property the write-back could not restore
-      // is named, never lost silently; a recreated record is said too
-      const parts: string[] = [];
-      if (reanchored) parts.push("SharePoint recreated the document's record during the replace (new id) — links, favourites and flags that pointed at the old record need re-pointing; the properties were restored on the new one.");
-      if (lost.length > 0) parts.push(`These properties could not be restored — set them in Edit properties: ${[...new Set(lost)].join(", ")}.${why !== "" ? ` SharePoint said: ${why.slice(0, 200)}` : ""}`);
-      status.textContent = `Content replaced. ${parts.join(" ")}`;
-      status.classList.add("app-docs-addstatus-warn");
-      const cancel = dlg.root.querySelector(".ltk-btn-secondary") as HTMLButtonElement | null;
-      if (cancel !== null) cancel.textContent = "Close";
-      goBtn.style.display = "none";
-      running = false;
-      opts.onDone();
-      return;
-    }
-    dlg.close();
-    opts.onDone();
-  };
+  const first = step("Open the document's folder in SharePoint: ");
+  const link = el("a", "app-btn app-docs-replaceopen", "Open the folder ↗") as HTMLAnchorElement;
+  if (folderUrl !== "") {
+    link.href = folderUrl;
+    link.target = "_blank";
+    link.rel = "noopener";
+  } else {
+    link.setAttribute("aria-disabled", "true");
+  }
+  first.appendChild(link);
+  step(`Upload → Files → pick the new file, named exactly “${row.name}”. When SharePoint asks, choose Replace.`);
+  step("Come back here, click “Done — refresh the document”, then Check in… with a comment that says what changed.");
+  dlg.body.appendChild(steps);
+  dlg.body.appendChild(
+    el(
+      "div",
+      "app-field-hint",
+      `Same type only (.${row.ext}): a different extension breaks the preview and the Edit-source door. You stay checked out throughout — Discard check-out reverts the replacement.`
+    )
+  );
 }

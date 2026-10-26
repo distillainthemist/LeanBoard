@@ -311,9 +311,10 @@ persona: owner
 modules: docs/replaceContent.ts docs/lifecycleCmds.ts
 preconditions: a draft standard you own; a new file
 steps:
-1. Open it → ⋯ → Replace content…
-2. Pick the new file; Replace.
-expected: the file is swapped and EVERY property stays — owner, approvers, status, dates, terms, links, change records (the dialog reads them before the copy and writes them back after; anything it could not restore is named, never lost silently); the document keeps the SAME record — its id, links to it, favourites and flags still resolve (the dialog says so if SharePoint recreated it); the document stays checked out to you; a new minor version appears with the check-in comment; the viewer shows the new content
+1. Open it → ⋯ → Replace content…; read the steps; "Open the folder ↗".
+2. In SharePoint: Upload → Files → the new file with the SAME name → Replace.
+3. Back in LeanBoard: "Done — refresh the document"; Check in… with a comment.
+expected: the dialog guides the replace through SharePoint's own upload (a copy from the upload folder would create a new record — both copy roads recreate the item and orphan its links, favourites and flags); after the upload the document keeps the SAME record with every property, its links and its history; it stays checked out to you; the check-in writes a minor version with the comment; the viewer shows the new content
 
 ## Journey 4 — Lifecycle
 
