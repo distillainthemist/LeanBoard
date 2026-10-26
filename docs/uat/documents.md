@@ -313,7 +313,7 @@ preconditions: a draft standard you own; a new file
 steps:
 1. Open it → ⋯ → Replace content…
 2. Pick the new file; Replace.
-expected: the file is swapped and EVERY property stays — owner, approvers, status, dates, terms, links, change records (the dialog reads them before the copy and writes them back after; anything it could not restore is named, never lost silently); a new minor version appears with the check-in comment; the viewer shows the new content
+expected: the file is swapped and EVERY property stays — owner, approvers, status, dates, terms, links, change records (the dialog reads them before the copy and writes them back after; anything it could not restore is named, never lost silently); the document keeps the SAME record — its id, links to it, favourites and flags still resolve (the dialog says so if SharePoint recreated it); the document stays checked out to you; a new minor version appears with the check-in comment; the viewer shows the new content
 
 ## Journey 4 — Lifecycle
 

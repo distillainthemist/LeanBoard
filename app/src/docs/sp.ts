@@ -491,12 +491,18 @@ export function moveFileByPath(
   });
 }
 
+/** overwrite=true is the REPLACE road (2026-10-27): the legacy
+ *  `copyto(boverwrite=true)` DELETES and recreates the list item ("Item
+ *  does not exist" on the next write — new id, new uniqueId, every link
+ *  and favourite anchored to it orphaned); the modern road is the one
+ *  SharePoint's own "Replace" uses and keeps the item. */
 export function copyFileByPath(
   site: string,
   srcAbsoluteUrl: string,
-  destAbsoluteUrl: string
+  destAbsoluteUrl: string,
+  overwrite = false
 ): Promise<SpResult> {
-  return spRequest(site, "POST", "_api/SP.MoveCopyUtil.CopyFileByPath(overwrite=@a1)?@a1=false", {
+  return spRequest(site, "POST", `_api/SP.MoveCopyUtil.CopyFileByPath(overwrite=@a1)?@a1=${overwrite ? "true" : "false"}`, {
     headers: { "Content-Type": "application/json;odata=nometadata" },
     body: JSON.stringify({
       srcPath: { DecodedUrl: srcAbsoluteUrl },

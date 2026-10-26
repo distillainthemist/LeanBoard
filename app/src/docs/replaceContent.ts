@@ -12,7 +12,7 @@ import { openDialog } from "../../../shared/ui/dialog";
 import { AddFieldValue, SiteColumn, prefillFromItem, spErrorText, splitAddWrites, validateItemErrors } from "./model";
 import { DocRow, buildRenderViewXml } from "./rows";
 import { renderListPage } from "./data";
-import { checkOutFile, connectorPatchItem, copyFileTo, fetchListItem, recycleFile, validateUpdateListItem } from "./sp";
+import { checkOutFile, connectorPatchItem, copyFileByPath, fetchListItem, recycleFile, validateUpdateListItem } from "./sp";
 import { editorKind } from "./fieldEditors";
 import { loadLibraryFields } from "./libraryFields";
 
@@ -194,9 +194,31 @@ export function openReplaceContent(opts: ReplaceContentOpts): void {
     }
 
     status.textContent = "Replacing the content…";
-    const over = await timed(copyFileTo(site, src.serverUrl, row.serverUrl, true), "The replace");
+    // the MODERN copy road: the legacy copy-over deleted and recreated
+    // the list item (Ben's run, 2026-10-27: "Item does not exist")
+    const origin = (() => {
+      try {
+        return new URL(site).origin;
+      } catch {
+        return "";
+      }
+    })();
+    const over = await timed(copyFileByPath(site, `${origin}${src.serverUrl}`, `${origin}${row.serverUrl}`, true), "The replace");
     if (!over.ok) {
       return fail("The replace was refused (your check-out is untouched)", over.status);
+    }
+    // the record must be the SAME one — links, favourites and flags are
+    // anchored to it; if SharePoint recreated it anyway, the new record
+    // is found by name, restored, and the loss is said out loud
+    let itemId = row.id;
+    let reanchored = false;
+    const still = await timed(fetchListItem(site, row.listId, row.id), "The record check");
+    if (!still.ok) {
+      const page = await renderListPage(site, row.listId, buildRenderViewXml({ nameWords: [row.name.replace(/\.[^.]+$/, "")], rowLimit: 25 })).catch(() => ({ rows: [] as DocRow[] }));
+      const hit = page.rows.find((r) => r.name.toLowerCase() === row.name.toLowerCase());
+      if (hit === undefined) return fail("Content replaced, but the document's record could not be found afterwards", still.status);
+      itemId = hit.id;
+      reanchored = true;
     }
 
     // …and write the properties back. The copy-over RESETS the
@@ -211,7 +233,7 @@ export function openReplaceContent(opts: ReplaceContentOpts): void {
       status.textContent = "Restoring the properties…";
       const writes = splitAddWrites(values);
       if (writes.formValues.length > 0) {
-        const res = await timed(validateUpdateListItem(site, row.listId, row.id, writes.formValues, false), "The properties write");
+        const res = await timed(validateUpdateListItem(site, row.listId, itemId, writes.formValues, false), "The properties write");
         const errs = validateItemErrors(res.data);
         if (!res.ok) {
           lost.push(...writes.formValues.map((f) => labelOf(f.FieldName)));
@@ -222,7 +244,7 @@ export function openReplaceContent(opts: ReplaceContentOpts): void {
         }
       }
       if (Object.keys(writes.patch).length > 0) {
-        const res = await timed(connectorPatchItem(site, row.listId, row.id, writes.patch), "The term write");
+        const res = await timed(connectorPatchItem(site, row.listId, itemId, writes.patch), "The term write");
         if (!res.ok) {
           lost.push(...Object.keys(writes.patch).map(labelOf));
           why ||= spErrorText(res.status);
@@ -235,10 +257,13 @@ export function openReplaceContent(opts: ReplaceContentOpts): void {
     status.textContent = "Tidying the upload folder…";
     await timed(recycleFile(site, src.serverUrl), "The tidy-up").catch(() => null);
 
-    if (lost.length > 0) {
+    if (lost.length > 0 || reanchored) {
       // the content is IN — a property the write-back could not restore
-      // is named, never lost silently
-      status.textContent = `Content replaced, but these properties could not be restored — set them in Edit properties: ${[...new Set(lost)].join(", ")}.${why !== "" ? ` SharePoint said: ${why.slice(0, 200)}` : ""}`;
+      // is named, never lost silently; a recreated record is said too
+      const parts: string[] = [];
+      if (reanchored) parts.push("SharePoint recreated the document's record during the replace (new id) — links, favourites and flags that pointed at the old record need re-pointing; the properties were restored on the new one.");
+      if (lost.length > 0) parts.push(`These properties could not be restored — set them in Edit properties: ${[...new Set(lost)].join(", ")}.${why !== "" ? ` SharePoint said: ${why.slice(0, 200)}` : ""}`);
+      status.textContent = `Content replaced. ${parts.join(" ")}`;
       status.classList.add("app-docs-addstatus-warn");
       const cancel = dlg.root.querySelector(".ltk-btn-secondary") as HTMLButtonElement | null;
       if (cancel !== null) cancel.textContent = "Close";
