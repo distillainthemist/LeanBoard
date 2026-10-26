@@ -2400,7 +2400,7 @@ button.app-docs-navterm.app-docs-navterm-on {
 }
 .app-docs-caret-none { width: 44px; flex: none; display: inline-block; }
 /* the saved-views menu (register kebab) */
-.app-docs-viewsmenu { width: 340px; }
+.app-docs-viewsmenu { width: 340px; max-width: calc(100vw - 16px); }
 /* the name on its own line, the save buttons beneath (Ben, 2026-10-19:
    a third button had squeezed the box) */
 .app-docs-saverow { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px; }

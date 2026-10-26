@@ -5520,7 +5520,9 @@ export function mountDocs(
       paint();
       const r = topKebab.getBoundingClientRect();
       menu.style.top = `${r.bottom + 4}px`;
-      menu.style.left = `${Math.max(8, r.right - 280)}px`;
+      // the menu is 340 px wide (the labelled row controls, 2026-10-26):
+      // right-aligned to the button and never past the viewport's edge
+      menu.style.left = `${Math.max(8, Math.min(r.right - 340, window.innerWidth - 348))}px`;
       document.body.appendChild(menu);
     };
     const EXPORT_CAP = 2000;
