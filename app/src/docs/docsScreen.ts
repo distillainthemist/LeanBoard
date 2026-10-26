@@ -1271,8 +1271,10 @@ export function mountDocs(
     // columns via CAML <UserID/>, so there is no state to go stale and
     // nothing to sweep. Checking a document in makes it leave the list
     // because the list never existed anywhere else.
-    const actionNeeded = el("button", "app-btn app-docs-actionneeded", "Document tasks") as HTMLButtonElement;
-    actionNeeded.title = "Documents checked out to you, and your documents due for review";
+    const actionNeeded = el("button", "app-btn app-docs-actionneeded app-docs-actionneeded-pending", "Document tasks · …") as HTMLButtonElement;
+    // the count arrives after the first load — the button says it is
+    // still counting rather than looking final (2026-10-26 report 7)
+    actionNeeded.title = "Counting your document tasks…";
     // Ingestion tasks (Ben, 2026-10-09): their OWN button, shown only
     // while the viewer has active tasks to see — assignees theirs,
     // controllers all — never folded into Document tasks
@@ -1666,6 +1668,8 @@ export function mountDocs(
 
     let tasksBadgeGen = 0;
     const paintTasksBadge = (n: number) => {
+      actionNeeded.classList.remove("app-docs-actionneeded-pending");
+      actionNeeded.title = "Documents checked out to you, and your documents due for review";
       actionNeeded.textContent = n > 0 ? `Document tasks · ${n}` : "Document tasks";
       actionNeeded.classList.toggle("app-docs-actionneeded-hot", n > 0);
       // the hub's tab label carries the same number, live while the app
@@ -3877,7 +3881,22 @@ export function mountDocs(
     const docIdInternalOf = () =>
       siteDict.columns.find((c) => c.role === "documentId")?.internal ?? "";
 
-    const switchToLink = (l: DocLink) => {
+    /** The documents opened THROUGH links, oldest first — "‹ Back to"
+     *  walks it (2026-10-26 report 5). A plain open empties it. */
+    const viewTrail: DocRow[] = [];
+    const backFor = (): { name: string; go: () => void } | undefined =>
+      viewTrail.length === 0
+        ? undefined
+        : {
+            name: viewTrail[viewTrail.length - 1].name,
+            go: () => {
+              const prev = viewTrail.pop();
+              if (prev === undefined) return;
+              closeViewer?.();
+              onRowOpen(prev, { details: true, back: backFor() });
+            },
+          };
+    const switchToLink = (l: DocLink, from: DocRow) => {
       void (async () => {
         const { resolveLinkTarget, resolveLinkUrl } = await import("./docLinks");
         const sameSite = l.site === "" || l.site.toLowerCase() === app.siteUrl.toLowerCase();
@@ -3896,8 +3915,10 @@ export function mountDocs(
             );
             const target = page.rows[0];
             if (target !== undefined) {
-              closeViewer?.(); // SWITCH, never stack
-              onRowOpen(target, { details: true });
+              closeViewer?.(); // SWITCH, never stack — the trail remembers
+              viewTrail.push(from);
+              if (viewTrail.length > 10) viewTrail.shift();
+              onRowOpen(target, { details: true, back: backFor() });
               return;
             }
           }
@@ -3923,9 +3944,22 @@ export function mountDocs(
       })();
     };
 
+    /** The whole path of a taxonomy value, from the set's cached walk —
+     *  null when the column is not a term column, the walk has not
+     *  loaded, or the label is ambiguous (two terms of that name). */
+    const termPathOf = async (internal: string, value: string): Promise<string[] | null> => {
+      const role = dictBy.get(internal)?.role ?? "";
+      const setId = role === "orgUnit" ? app.orgSetId : (taxCols.get(internal)?.setId ?? "");
+      if (setId === "") return null;
+      const walk = await cachedTermPaths(app.siteUrl, setId, 6, 6000);
+      const v = value.trim().toLowerCase();
+      const hits = walk.nodes.filter((n) => n.labels[n.labels.length - 1].toLowerCase() === v);
+      return hits.length === 1 && hits[0].labels.length > 1 ? hits[0].labels : null;
+    };
+
     const linksCtlFor = (row: DocRow) => ({
       internal: linksInternalOf(),
-      open: switchToLink,
+      open: (l: DocLink) => switchToLink(l, row),
       // issue 3: the register scoped to this document's links — the
       // task scope's road (ids per library), with its own chip
       showInRegister: (links: DocLink[]) => void scopeToLinks(row, links),
@@ -4013,7 +4047,8 @@ export function mountDocs(
      *  stacking lesson). */
     let closeViewer: (() => void) | null = null;
 
-    const onRowOpen = (row: DocRow, openOpts?: { details?: boolean }) => {
+    const onRowOpen = (row: DocRow, openOpts?: { details?: boolean; back?: { name: string; go: () => void } }) => {
+      if (openOpts?.back === undefined) viewTrail.length = 0;
       const lib = byListId.get(row.listId) ?? current;
       // the drive is per LIBRARY, and the PDF routes need it — resolve
       // before opening (cached, so only the first open of a library pays)
@@ -4048,6 +4083,10 @@ export function mountDocs(
           // collapsed is the default (5I) — a task-list open, or a
           // document this user holds, arrives with work to do
           detailsOpen: openOpts?.details ?? needsMyActivity(row, lib),
+          back: openOpts?.back,
+          // the full term path for the organisation and process columns
+          // (2026-10-26 report 2: "the site as well as the department")
+          pathOf: termPathOf,
           share: () => openShareDoc(row),
           // a reader proposes a tag from here (issue 2)
           suggestTag: tagsColOf() !== null ? () => openSuggestTag(row) : undefined,

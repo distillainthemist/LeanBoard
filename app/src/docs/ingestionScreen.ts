@@ -279,9 +279,9 @@ function progressBar(host: HTMLElement) {
  *  the send returns `{ error }` and NEVER throws — the first build
  *  awaited it and read nothing, so a refused send looked like success
  *  (Ben, 2026-10-12: "it didn't team message people"). */
-async function messageAssignees(task: IngestionTask, recipients: IngestionAssignee[], destName: string): Promise<string> {
+async function messageAssignees(task: IngestionTask, recipients: IngestionAssignee[], destName: string, note = ""): Promise<string> {
   const me = (currentViewer()?.email ?? "").toLowerCase();
-  const others = recipients.filter((a) => a.email !== "" && a.email !== me);
+  const others = recipients.filter((a) => a.email !== "" && a.email.toLowerCase() !== me);
   const selfOnly = recipients.length > 0 && others.length === 0;
   if (others.length === 0) return selfOnly ? "You are the assignee — no Teams message (Teams refuses a chat with yourself)." : "No assignee to message.";
   try {
@@ -290,7 +290,9 @@ async function messageAssignees(task: IngestionTask, recipients: IngestionAssign
       others.map((a) => ({ name: a.name, email: a.email })),
       `Document ingestion: ${task.name}`,
       `You have been asked to help ingest documents into ${destName}. Add the files to the task's folder, set each file's details, and a document controller will run the ingestion. Open LeanBoard → Documents → Ingestion tasks.`,
-      appLinkUrl()
+      appLinkUrl(),
+      // the sender's own words ride the card (UAT DOC-068: "send a note")
+      note !== "" ? { label: `${currentViewer()?.name || "The document controller"} wrote`, text: note } : undefined
     );
     if (r.error !== "") return `The Teams message did not go: ${r.error.slice(0, 200)}`;
     return `Teams message sent to ${others.map((a) => a.name || a.email).join(", ")}${r.how === "message" ? " (as a plain message — the card was refused)" : ""}.`;
@@ -390,8 +392,9 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
 
     // the columns a file needs: the destination's required fields (live)
     // and the roles the register leans on, by label
-    const fieldsRes = await fetchFields(ctx.site, dest.listId);
-    const destFields: SpField[] = fieldsRes.ok ? fieldsFromResponse(fieldsRes.data) : [];
+    // both required flags: the field's and the content type's (Ben, 2026-10-26)
+    const { loadLibraryFields } = await import("./libraryFields");
+    const destFields: SpField[] = (await loadLibraryFields(ctx.site, dest.listId)).fields;
     const carried = new Set(dest.config.columns.filter((c) => c.available).map((c) => c.internal));
     // "orgUnit" is the role key — "organisation" never matched, so the
     // organisation column was never required (issue 25)
@@ -472,15 +475,58 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
     const right = el("span", "app-ing-headactions");
     right.appendChild(openFolder); // (Ben, 2026-10-09: with the task buttons)
     if (o.isController && task.status !== "closed" && task.assignees.length > 0) {
-      const msg = btn("Message assignees");
-      msg.title = "Send the task's Teams card to every assignee again";
+      const msg = btn("Message assignees…");
+      msg.title = "Send the task's Teams card to every assignee, with a note";
+      // a dialog, not a silent send (UAT DOC-068, 2026-10-26: "nothing
+      // happened" — the outcome went to a line below the empty grid)
       msg.addEventListener("click", () => {
-        void (async () => {
-          msg.disabled = true;
-          status.textContent = "Sending the Teams message…";
-          status.textContent = await messageAssignees(task, task.assignees, libName(dest));
-          msg.disabled = false;
-        })();
+        const me = (currentViewer()?.email ?? "").toLowerCase();
+        const others = task.assignees.filter((a) => a.email !== "" && a.email.toLowerCase() !== me);
+        const dlg = openDialog({
+          host: sheet,
+          title: "Message assignees",
+          maxWidth: 520,
+          buttons: [
+            { label: "Cancel", kind: "secondary", onClick: () => dlg.close() },
+            { label: "Send", kind: "primary", onClick: () => void send() },
+          ],
+        });
+        const sendBtn = dlg.root.querySelector(".ltk-btn-primary") as HTMLButtonElement;
+        dlg.body.appendChild(el("div", "app-field-label", "To"));
+        const list = el("div", "app-ing-msgto");
+        for (const a of task.assignees) {
+          const isMe = a.email.toLowerCase() === me;
+          list.appendChild(el("div", isMe ? "app-field-hint" : "", `${a.name || a.email}${isMe ? " — you (Teams refuses a chat with yourself)" : ""}`));
+        }
+        dlg.body.appendChild(list);
+        dlg.body.appendChild(el("div", "app-field-label", "Note"));
+        const note = el("textarea", "app-input") as HTMLTextAreaElement;
+        note.rows = 4;
+        note.placeholder = "What you need from them, and by when — quoted under the card";
+        dlg.body.appendChild(note);
+        const out = el("div", "app-docs-addstatus");
+        dlg.body.appendChild(out);
+        if (others.length === 0) {
+          out.textContent = "No one to message: you are the only assignee.";
+          out.classList.add("app-docs-addstatus-warn");
+          sendBtn.disabled = true;
+        }
+        const send = async () => {
+          sendBtn.disabled = true;
+          out.classList.remove("app-docs-addstatus-warn");
+          out.textContent = "Sending the Teams card…";
+          const result = await messageAssignees(task, task.assignees, libName(dest), note.value.trim());
+          const sent = /^Teams message sent/.test(result);
+          out.textContent = result;
+          out.classList.toggle("app-docs-addstatus-warn", !sent);
+          if (sent) {
+            status.textContent = result;
+            setTimeout(() => dlg.close(), 1500);
+          } else {
+            sendBtn.disabled = false;
+          }
+        };
+        note.focus();
       });
       right.appendChild(msg);
     }

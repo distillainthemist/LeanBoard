@@ -52,6 +52,16 @@ Check it for every column the site dictionary maps to a role
 (organisation, status, document type) — Settings → Documents →
 Document columns lists them.
 
+**The Linked documents column must be "Multiple lines of text" (plain
+text)** on every library that carries it. Links are JSON, 150–250
+characters each; a single line of text holds 255, so one link saves and
+the second is refused ("This field can have no more than 255
+characters"). Changing the site column after a library already has it
+does NOT change the library's copy unless the change is pushed to the
+lists — check the column on the library itself. Since v0.78.0 the app
+warns in Settings → Documents → Document columns and refuses the save
+with the fix named.
+
 Since v0.29.0 the app checks itself: Settings → Documents → **Health**
 samples a page from each library and warns *"<column> shows the whole
 term path, not the term"* with this remedy in it, so a deployment that

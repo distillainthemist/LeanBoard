@@ -27,9 +27,9 @@ persona: superadmin
 modules: docs/docsScreen.ts docs/timing.ts
 preconditions: signed in as a super admin
 steps:
-1. Open a library.
+1. Open a library; watch the Document tasks button while the page loads.
 2. Read the status line under the toolbar; hover it.
-expected: "N documents of M" with "loaded in … · feed … · opened in …" for a super admin only; the tooltip lists every load with its trigger; a plain user sees the count alone
+expected: the Document tasks button reads "Document tasks · …" with a small spinner until the count arrives, then the count; "N documents of M" with "loaded in … · feed … · opened in …" for a super admin only; the tooltip lists every load with its trigger; a plain user sees the count alone
 
 ### UAT-DOC-004 — Search by name
 persona: reader
@@ -174,7 +174,7 @@ preconditions: a document with owner, approvers, organisation, document id and a
 steps:
 1. Open the document → Details.
 2. Read the identity line, the chips and the Properties grid.
-expected: the id chip, status chip and the section headings match the library's column sections; dates read in the app's format; owner & approver collapse to one row when they are the same person; the review hint names the cadence
+expected: the id chip, status chip and the section headings match the library's column sections; dates read in the app's format; owner & approver collapse to one row when they are the same person; the review date's hint reads "in 9 months · every 12 months from the effective date (set by Importance: High)"; Organisation and Process area show the whole path ("Bell Bay › Casting"), the leaf alone only while the term walk loads or when two terms share the name
 
 ### UAT-DOC-019 — Versions
 persona: owner
@@ -221,9 +221,9 @@ modules: docs/viewer.ts docs/docLinks.ts docs/docsScreen.ts
 preconditions: a document with three linked documents in its links column
 steps:
 1. Open the document → Details → Linked documents.
-2. Click one link.
+2. Click one link; from there click one of ITS links; click "‹ Back to …" twice.
 3. Back on the first document, click "Show these in the register".
-expected: the links are grouped by relationship; a click switches the viewer to the linked document; "Show these" scopes the register to exactly those documents with the chip "Linked to: X", every other filter cleared; the chip's × restores the register
+expected: the links are grouped by relationship; a click switches the viewer to the linked document and its header gains "‹ Back to <the first document>", which walks the trail back one step at a time; Esc still closes; opening a document from the register starts a fresh trail; "Show these" scopes the register to exactly those documents with the chip "Linked to: X", every other filter cleared; the chip's × restores the register
 
 ### UAT-DOC-024 — Management of change chips
 persona: reader
@@ -242,10 +242,11 @@ modules: docs/addDocument.ts docs/fieldEditors.ts docs/docsScreen.ts
 preconditions: a working library the author may contribute to; a file to upload
 steps:
 1. Open the working library → Add document.
-2. Pick the file; fill the required fields (the ✱ ones); leave an optional one blank.
-3. Add.
+2. Pick the file; leave a required field (the ones tagged "Required") empty; click Add.
+3. Fill it; Add.
 4. (Controller) Make a library column required that is not in the site dictionary; open Add document again.
-expected: the required fields block Add until filled and the line under the button names what is missing; the document lands in the library with its properties and opens in the viewer, with the status line saying it was added as a draft, shows when "Show only approved" is unticked, and is submitted for review from its ⋯ menu; in step 4 the form names the library-required column it cannot collect and refuses before creating anything (no checked-out orphan)
+5. (Controller) Make a dictionary column required through the library's CONTENT TYPE (not the column itself); open Add document again.
+expected: every required column carries a red "Required" tag on its label; a click on Add with one empty scrolls to the first, outlines each missing row and says "Required before Add: Owner, Importance" under the button, and the line clears as they are filled; the document then lands in the library with its properties and opens in the viewer, with the status line saying it was added as a draft, shows when "Show only approved" is unticked, and is submitted for review from its ⋯ menu; in step 4 the form names the library-required column it cannot collect and refuses before creating anything (no checked-out orphan); in step 5 the content-type-required column is tagged and validated like any other
 
 ### UAT-DOC-026 — Add refuses a duplicate name and a duplicate document id
 persona: author
@@ -263,10 +264,10 @@ modules: docs/editProperties.ts docs/fieldEditors.ts
 preconditions: a draft standard you own
 steps:
 1. Open the document → ⋯ → Edit properties…
-2. Change a text field, a date, a taxonomy field and a person field.
-3. Save.
+2. Change a text field, a date, a taxonomy field and a person field; read the line under Importance.
+3. Clear a required field; click Save; refill it; Save.
 4. Edit again; change the document id to one another document carries; Save.
-expected: the dialog's footer stays pinned while the body scrolls; each editor fits its column type; Save writes the values and the details pane shows them without reopening; the duplicate document id is refused with the clashing document named, and the unchanged id is never re-checked
+expected: the dialog's footer stays pinned while the body scrolls; each editor fits its column type; under Importance a line reads "Sets the review cadence — High: every 12 months. Next review 17 Aug 2027, counted from the effective date 17 Aug 2026." and updates as Importance changes, with a read-only "Next review date · Derived" row beneath it; Save with a required field empty scrolls to it and names it under the buttons; Save then writes the values and the details pane shows them without reopening; the duplicate document id is refused with the clashing document named, and the unchanged id is never re-checked
 
 ### UAT-DOC-028 — Cascading organisation and process pickers
 persona: owner
@@ -284,16 +285,16 @@ preconditions: the management-of-change role mapped to a note column
 steps:
 1. Edit properties → the Management of change rows: add a record with a number, a link typed without https, and what changed.
 2. Add a second record; remove the first; Save.
-expected: each record is two lines (number and link, then what changed) and not cramped; a scheme-less link is accepted; the saved value shows as chips
+expected: each record is two lines (number and link, then what changed) and not cramped; a scheme-less link is accepted; the register cell shows the records as chips and the details pane shows one row per record — the number linking out, what changed, and the date
 
 ### UAT-DOC-030 — Linked documents editor
 persona: owner
 modules: docs/linksEditor.ts docs/editProperties.ts
 preconditions: the linked-documents column mapped; another document to link to
 steps:
-1. Edit properties → Linked documents → Add link… search for a document, pick a relationship.
+1. Edit properties → Linked documents → Add link… search for a document, pick a relationship; add a second link.
 2. Remove a link; Save.
-expected: the picker finds documents across the exposed libraries; the relationship is stored; the viewer's Linked documents section and the "n links" register cell follow
+expected: the picker finds documents across the exposed libraries; two links save; the relationship is stored; the viewer's Linked documents section and the "n links" register cell follow. On a library whose Linked documents column is still a single line of text, the editor warns above the links and Save with two links is refused before anything is written, naming the column and the fix (multiple lines of text); Settings → Documents → Document columns carries the same warning on that column
 
 ### UAT-DOC-031 — Check out, check in, discard
 persona: owner
@@ -643,11 +644,11 @@ expected: each is refused with the reason in its ⚠ tooltip and the run log; th
 ### UAT-DOC-068 — Message assignees and close the task
 persona: controller
 modules: docs/ingestionScreen.ts
-preconditions: an open task whose files have all moved
+preconditions: an open task with at least one assignee who is not you, whose files have all moved
 steps:
-1. Message assignees… → send a note.
+1. Message assignees… → read the recipients, type a note, Send.
 2. Close task…
-expected: each assignee gets the Teams card; the task closes with its log, leaves the open lists and the badge, and reopens from Settings if needed
+expected: a dialog lists every assignee (you marked as not messaged — Teams refuses a chat with yourself) with a note box; Send shows the outcome in the dialog ("Teams message sent to …" or the refusal) and each other assignee gets the card with your note quoted under it; with you as the only assignee the dialog says so and Send is disabled; the task closes with its log, leaves the open lists and the badge, and reopens from Settings if needed
 
 ## Journey 10 — Health and the term store
 

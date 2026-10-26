@@ -93,6 +93,40 @@ export interface FieldEditorOpts {
   proposalDoc?: { site: string; listId: string; uid: string; name: string };
 }
 
+/** The required editors still empty. */
+export function missingEditors(editors: BuiltEditor[]): BuiltEditor[] {
+  return editors.filter((e) => e.field.required && e.isEmpty());
+}
+
+/** Marks every missing row, scrolls the first into view and focuses
+ *  its control; hands back their labels for the status line. A click
+ *  on Add / Save with something missing lands HERE rather than on a
+ *  greyed button (Ben, 2026-10-26: "should scroll to the first missing
+ *  one"). */
+export function revealMissing(
+  box: HTMLElement,
+  missing: BuiltEditor[],
+  labelOf: (e: BuiltEditor) => string
+): string[] {
+  for (const w of Array.from(box.querySelectorAll(".app-docs-addfield-missing"))) {
+    w.classList.remove("app-docs-addfield-missing");
+  }
+  let first: HTMLElement | null = null;
+  for (const e of missing) {
+    const w = Array.from(box.querySelectorAll<HTMLElement>(".app-docs-addfield")).find(
+      (x) => x.dataset.internal === e.field.internal
+    );
+    if (w === undefined) continue;
+    w.classList.add("app-docs-addfield-missing");
+    first ??= w;
+  }
+  if (first !== null) {
+    first.scrollIntoView({ block: "center", behavior: "smooth" });
+    first.querySelector<HTMLElement>("input, select, textarea, button")?.focus({ preventScroll: true });
+  }
+  return missing.map(labelOf);
+}
+
 export function buildFieldEditors(opts: FieldEditorOpts): BuiltEditor[] {
   const { box, dictBy, onChange: sync } = opts;
   const editors: BuiltEditor[] = [];
@@ -114,14 +148,20 @@ export function buildFieldEditors(opts: FieldEditorOpts): BuiltEditor[] {
   // does not carry never shows an empty title
   let pendingHeading: string | undefined;
   const emittedHeadings = new Set<string>();
-  const fieldRow = (label: string, control: HTMLElement) => {
+  const fieldRow = (label: string, control: HTMLElement, f?: SpField) => {
     if (pendingHeading !== undefined && !emittedHeadings.has(pendingHeading)) {
       box.appendChild(el("div", "app-docs-addgroup", pendingHeading));
       emittedHeadings.add(pendingHeading);
     }
     pendingHeading = undefined;
     const wrap = el("div", "app-docs-addfield");
-    wrap.appendChild(el("div", "app-field-label", label));
+    // the row is addressable by its column (revealMissing scrolls to it)
+    if (f !== undefined) wrap.dataset.internal = f.internal;
+    const lab = el("div", "app-field-label", label);
+    // a WORD, not a faint asterisk (Ben, 2026-10-26: uploads kept
+    // failing on required properties nobody saw marked)
+    if (f?.required === true) lab.appendChild(el("span", "app-field-req", "Required"));
+    wrap.appendChild(lab);
     wrap.appendChild(control);
     return wrap;
   };
@@ -155,14 +195,13 @@ export function buildFieldEditors(opts: FieldEditorOpts): BuiltEditor[] {
     if (f === undefined) continue;
     const kind = editorKind(f);
     if (kind === null) continue;
-    const star = f.required ? " *" : "";
     const init = opts.initial?.get(internal);
 
     // the management-of-change column: rows of records, not a textarea
     // of JSON (issue 10)
     if (kind === "text" && dictBy.get(internal)?.role === "managementOfChange") {
       const moc = buildMocEditor({ initialRaw: init?.text ?? "", onChange: sync });
-      box.appendChild(fieldRow(labelOf(f) + star, moc.root));
+      box.appendChild(fieldRow(labelOf(f), moc.root, f));
       editors.push({
         field: f,
         kind,
@@ -278,11 +317,11 @@ export function buildFieldEditors(opts: FieldEditorOpts): BuiltEditor[] {
         paintChips();
         const stack = el("div", "app-docs-termstack");
         stack.append(chipBox, sel);
-        box.appendChild(fieldRow(labelOf(f) + star, stack));
+        box.appendChild(fieldRow(labelOf(f), stack, f));
       } else {
         const single = el("div", "app-docs-termstack");
         single.append(cascadeHost, sel);
-        box.appendChild(fieldRow(labelOf(f) + star, single));
+        box.appendChild(fieldRow(labelOf(f), single, f));
       }
       // H1: the hashtags column invites PROPOSALS — the vocabulary is
       // closed (controllers mint terms), but anyone may ask
@@ -503,7 +542,7 @@ export function buildFieldEditors(opts: FieldEditorOpts): BuiltEditor[] {
           );
         }, 350);
       });
-      box.appendChild(fieldRow(labelOf(f) + star, pbox));
+      box.appendChild(fieldRow(labelOf(f), pbox, f));
       editors.push({
         field: f,
         kind,
@@ -543,7 +582,7 @@ export function buildFieldEditors(opts: FieldEditorOpts): BuiltEditor[] {
     }
     control.addEventListener("input", sync);
     control.addEventListener("change", sync);
-    box.appendChild(fieldRow(labelOf(f) + star, control));
+    box.appendChild(fieldRow(labelOf(f), control, f));
     editors.push({
       field: f,
       kind,

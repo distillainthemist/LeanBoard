@@ -118,6 +118,10 @@ interface ViewerOpts {
   solo?: boolean;
   /** After the overlay closes (the screen restores its scroll, A5). */
   onClose?: () => void;
+  /** Opened through a link: "‹ Back to <name>" in the header (2026-10-26 report 5). */
+  back?: { name: string; go: () => void };
+  /** The whole term path of a taxonomy value, when known (report 2). */
+  pathOf?: (internal: string, value: string) => Promise<string[] | null>;
   /** Share this document (5I) — the screen owns the dialog (permalink +
    *  QR); the viewer only offers the button. */
   share?: () => void;
@@ -313,6 +317,13 @@ export function openDocViewer(opts: ViewerOpts): () => void {
   const viewOnly = opts.perms !== undefined && opts.perms !== null && !opts.perms.open;
   const openUrl = viewOnly && row.ext !== "pdf" ? viewerPageUrl(site, row) : pdfUrl;
   const head = el("div", "app-docs-viewhead");
+  if (opts.back !== undefined) {
+    const back = opts.back;
+    const backBtn = el("button", "app-link app-docs-viewback", `‹ Back to ${back.name}`) as HTMLButtonElement;
+    backBtn.title = `Back to ${back.name}`;
+    backBtn.addEventListener("click", () => back.go());
+    head.appendChild(backBtn);
+  }
   head.appendChild(fileTypeChip(row.ext));
   const titleBlock = el("div", "app-docs-viewtitle");
   const docName = el("div", "app-docs-viewdocname", row.name);
@@ -762,7 +773,17 @@ export function openDocViewer(opts: ViewerOpts): () => void {
     const reviewK = internalForRole("nextReviewDate");
     if (reviewK !== undefined) {
       const isoV = details.iso[reviewK];
-      const hint = isoV !== undefined ? relativeHint(isoV) : "";
+      const parts = [isoV !== undefined ? relativeHint(isoV) : ""];
+      // the date model, said where the date shows (2026-10-26 report 1):
+      // the cadence comes from Importance, the date from the effective date
+      const cadK = internalForRole("reviewCadence");
+      const impK = internalForRole("importance");
+      const months = cadK !== undefined ? Number((details.values[cadK] ?? "").trim()) : NaN;
+      const imp = impK !== undefined ? (details.values[impK] ?? "").trim() : "";
+      if (Number.isFinite(months) && months > 0) {
+        parts.push(`every ${months} months from the effective date${imp !== "" ? ` (set by Importance: ${imp})` : ""}`);
+      }
+      const hint = parts.filter((p) => p !== "").join(" · ");
       if (hint !== "") hintFor.set(reviewK, hint);
     }
     // configured libraries: exactly the ticked columns, in config order —
@@ -849,16 +870,20 @@ export function openDocViewer(opts: ViewerOpts): () => void {
         grid.appendChild(el("span", "app-docs-propkey", labels[k] ?? k));
         const mocRecs = (opts.roles ?? {})[k] === "managementOfChange" ? parseMocRecords(v) : null;
         if (mocRecs !== null) {
-          // change records as chips (issue 10): the ref, linking out
-          const cell = el("span", "app-docs-propval app-docs-mocchips");
+          // change records in full (2026-10-26 report 4): one row each —
+          // the ref linking out, what changed, the date; chips stay in
+          // the register cell
+          const cell = el("span", "app-docs-propval app-docs-mocrows");
           for (const r of mocRecs) {
+            const line = el("div", "app-docs-mocrow");
             const label = r.ref !== "" ? r.ref : "link";
-            const chip = r.url !== "" ? (el("a", "app-docs-mocchip", label) as HTMLAnchorElement) : el("span", "app-docs-mocchip", label);
+            const refEl = r.url !== "" ? (el("a", "app-docs-mocref", label) as HTMLAnchorElement) : el("span", "app-docs-mocref", label);
             if (r.url !== "") {
-              const a = chip as HTMLAnchorElement;
+              const a = refEl as HTMLAnchorElement;
               a.href = r.url;
               a.target = "_blank";
               a.rel = "noopener";
+              a.title = r.url;
               // the pane's own click handling must not swallow it
               a.addEventListener("click", (e) => {
                 e.stopPropagation();
@@ -866,8 +891,10 @@ export function openDocViewer(opts: ViewerOpts): () => void {
                 e.preventDefault();
               });
             }
-            chip.title = [r.title, r.date].filter((x) => x !== "").join(" · ") || r.url;
-            cell.appendChild(chip);
+            line.appendChild(refEl);
+            if (r.title !== "") line.appendChild(el("span", "app-docs-moctitle", r.title));
+            if (r.date !== "") line.appendChild(el("span", "app-field-hint", formatDayMonthYear(`${r.date}T00:00:00`)));
+            cell.appendChild(line);
           }
           grid.appendChild(cell);
         } else if (linkCols.has(k)) {
@@ -893,6 +920,18 @@ export function openDocViewer(opts: ViewerOpts): () => void {
           grid.appendChild(cell);
         } else {
           const cell = el("span", "app-docs-propval", v);
+          // a term shows its whole path once the walk answers — the
+          // leaf alone meanwhile, so nothing waits on it (report 2)
+          if (opts.pathOf !== undefined) {
+            const pathOf = opts.pathOf;
+            const parts = v.split(";").map((p) => p.trim()).filter((p) => p !== "");
+            void Promise.all(parts.map((p) => pathOf(k, p))).then((paths) => {
+              if (!cell.isConnected || paths.every((p) => p === null)) return;
+              const text = parts.map((p, i) => (paths[i] !== null ? paths[i]!.join(" › ") : p)).join("; ");
+              const first = cell.firstChild;
+              if (first !== null && first.nodeType === Node.TEXT_NODE) (first as Text).data = text;
+            });
+          }
           const hint = hintFor.get(k);
           if (hint !== undefined) {
             cell.appendChild(el("span", "app-field-hint", ` · ${hint}`));

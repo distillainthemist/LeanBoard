@@ -209,6 +209,33 @@ export function fetchLibraries(site: string): Promise<SpResult> {
 /** A library's visible fields (columns). SchemaXml comes along because a
  *  taxonomy column's term set is sometimes reported only in there — it is
  *  what lets LeanBoard find a status column's terms by itself. */
+/** The columns a library's content types REQUIRE through their field
+ *  links — SharePoint's second required flag (a column made required on
+ *  the content type reports `Required: false` on the list field, and the
+ *  check-in still refuses the file without it; Ben, 2026-10-26). Folder
+ *  and hidden content types do not count. Internal names. */
+export async function fetchContentTypeRequired(site: string, listId: string): Promise<Set<string>> {
+  const out = new Set<string>();
+  const r = await spRequest(
+    site,
+    "GET",
+    `_api/web/lists(guid'${listId}')/contenttypes?$select=Name,Hidden,FieldLinks/Name,FieldLinks/Required&$expand=FieldLinks`
+  ).catch(() => ({ ok: false, status: "", data: null }) as SpResult);
+  if (!r.ok) return out;
+  const cts = Array.isArray((r.data as { value?: unknown[] })?.value)
+    ? ((r.data as { value: unknown[] }).value as Record<string, unknown>[])
+    : [];
+  for (const ct of cts) {
+    if (ct.Hidden === true || ct.Name === "Folder") continue;
+    const raw = ct.FieldLinks as { results?: unknown[] } | unknown[] | undefined;
+    const links = Array.isArray(raw) ? raw : Array.isArray(raw?.results) ? raw.results : [];
+    for (const l of links as { Name?: unknown; Required?: unknown }[]) {
+      if (l.Required === true && typeof l.Name === "string" && l.Name !== "") out.add(l.Name);
+    }
+  }
+  return out;
+}
+
 export function fetchFields(site: string, listId: string): Promise<SpResult> {
   return spRequest(
     site,

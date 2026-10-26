@@ -18,17 +18,18 @@ import { openDialog } from "../../../shared/ui/dialog";
 import { DocLibrary } from "./docsStore";
 import {
   SiteColumn,
+  SpField,
   addMonthsYmd,
   isYesValue,
-  fieldsFromResponse,
   prefillFromItem,
   spErrorText,
   splitAddWrites,
   validateItemErrors,
 } from "./model";
-import { DocRow, buildRenderViewXml } from "./rows";
+import { DocRow, buildRenderViewXml, formatDayMonthYear } from "./rows";
 import { renderListPage } from "./data";
-import { BuiltEditor, EditorInitial, buildFieldEditors, editorKind } from "./fieldEditors";
+import { BuiltEditor, EditorInitial, buildFieldEditors, editorKind, missingEditors, revealMissing } from "./fieldEditors";
+import { loadLibraryFields } from "./libraryFields";
 import {
   checkInFile,
   checkOutFile,
@@ -145,10 +146,24 @@ export function openEditProperties(opts: EditPropertiesOpts): void {
   /** The prefill, kept for save(): the date model reads the STORED
    *  effective date and the ORIGINAL importance from here. */
   let initialMap: Map<string, EditorInitial> = new Map();
+  /** The library's live columns, both required flags folded in —
+   *  save() reads the links column's type from here. */
+  let libFields: SpField[] = [];
+  let requiredShown = false;
+  const labelOfEditor = (e: BuiltEditor) => opts.dictBy.get(e.field.internal)?.label || e.field.title;
+  /** Painted after every change — the date-model hint under Importance. */
+  const afterSync: (() => void)[] = [];
   const sync = () => {
-    const missing = editors.some((e) => e.field.required && e.isEmpty());
-    saveBtn.disabled =
-      running || editors.length === 0 || missing || (comment !== null && comment.value.trim() === "");
+    for (const f of afterSync) f();
+    // a missing required field no longer greys Save: the click scrolls
+    // to it and names it (Ben, 2026-10-26)
+    saveBtn.disabled = running || editors.length === 0 || (comment !== null && comment.value.trim() === "");
+    if (requiredShown && missingEditors(editors).length === 0) {
+      requiredShown = false;
+      status.textContent = "";
+      status.classList.remove("app-docs-addstatus-warn");
+      revealMissing(metaBox, [], labelOfEditor);
+    }
   };
   sync();
 
@@ -162,11 +177,12 @@ export function openEditProperties(opts: EditPropertiesOpts): void {
   // ---- load + prefill ---------------------------------------------------
   void (async () => {
     const [fieldsRes, itemRes] = await Promise.all([
-      fetchFields(site, row.listId),
+      loadLibraryFields(site, row.listId),
       fetchListItem(site, row.listId, row.id),
     ]);
     if (!fieldsRes.ok) return fail("Could not read the library's columns", fieldsRes.status);
-    const fields = fieldsFromResponse(fieldsRes.data);
+    const fields = fieldsRes.fields;
+    libFields = fields;
     const initial = new Map<string, EditorInitial>();
     if (itemRes.ok) {
       for (const [k, v] of prefillFromItem(
@@ -224,6 +240,47 @@ export function openEditProperties(opts: EditPropertiesOpts): void {
       // a tag proposed from this form names this document (issue 2)
       proposalDoc: { site, listId: row.listId, uid: row.uniqueId, name: row.name },
     });
+    // the date model explained where it is driven (2026-10-26 report 1):
+    // Importance sets the cadence, the review date follows from the
+    // effective date — and the derived date itself shows, read-only
+    const dm = opts.dateModel;
+    if (dm !== undefined && dm.importanceInternal !== "" && opts.ingestion !== true) {
+      const impEd = editors.find((e) => e.field.internal === dm.importanceInternal);
+      const impRow = Array.from(metaBox.querySelectorAll<HTMLElement>(".app-docs-addfield")).find(
+        (w) => w.dataset.internal === dm.importanceInternal
+      );
+      if (impEd !== undefined && impRow !== undefined) {
+        const effYmd = (initial.get(dm.effectiveInternal)?.text ?? "").trim().slice(0, 10);
+        const hasEff = /^\d{4}-\d{2}-\d{2}$/.test(effYmd);
+        const hint = el("div", "app-field-hint app-docs-datehint");
+        impRow.appendChild(hint);
+        const paintHint = () => {
+          const v = impEd.read();
+          const months = dm.cadence[(v.termId ?? "").toLowerCase()];
+          if (months === undefined || months <= 0) {
+            hint.textContent = "Sets the review cadence — the next review date is counted from the effective date and never typed.";
+            return;
+          }
+          hint.textContent =
+            `Sets the review cadence — ${v.label ?? ""}: every ${months} months. ` +
+            (hasEff
+              ? `Next review ${formatDayMonthYear(`${addMonthsYmd(effYmd, months)}T00:00:00`)}, counted from the effective date ${formatDayMonthYear(`${effYmd}T00:00:00`)}.`
+              : "The next review date is counted from the effective date, stamped at approval.");
+        };
+        paintHint();
+        afterSync.push(paintHint);
+        const storedReview = (initial.get(dm.reviewInternal)?.text ?? "").trim().slice(0, 10);
+        if (dm.reviewInternal !== "" && /^\d{4}-\d{2}-\d{2}$/.test(storedReview)) {
+          const roRow = el("div", "app-docs-addfield app-docs-addfield-ro");
+          const lab = el("div", "app-field-label", opts.dictBy.get(dm.reviewInternal)?.label || "Next review date");
+          lab.appendChild(el("span", "app-field-req app-field-derived", "Derived"));
+          roRow.appendChild(lab);
+          roRow.appendChild(el("div", "app-docs-rovalue", formatDayMonthYear(`${storedReview}T00:00:00`)));
+          roRow.appendChild(el("div", "app-field-hint", "Counted from the effective date by the cadence above — it moves when Importance changes."));
+          impRow.insertAdjacentElement("afterend", roRow);
+        }
+      }
+    }
     // the links editor (L1): part of THIS form, saved with it
     if (opts.links !== undefined && opts.links.internal !== "") {
       const { buildLinksEditor } = await import("./linksEditor");
@@ -241,12 +298,30 @@ export function openEditProperties(opts: EditPropertiesOpts): void {
           regInternal !== "" && isYesValue(initial.get(regInternal)?.text ?? ""),
       });
       metaBox.appendChild(linksEd.root);
+      const lf = fields.find((f) => f.internal === opts.links?.internal);
+      if (lf?.type === "Text") {
+        metaBox.appendChild(
+          el(
+            "div",
+            "app-docs-addstatus app-docs-addstatus-warn",
+            "This library's Linked documents column is a single line of text (255 characters) — one link fits, two do not. A document controller changes it to multiple lines of text in the library's settings."
+          )
+        );
+      }
     }
   })().catch((e: unknown) => fail("Could not load the form", String(e)));
 
   // ---- save -------------------------------------------------------------
   const save = async () => {
     if (running || saveBtn.disabled) return;
+    const missing = missingEditors(editors);
+    if (missing.length > 0) {
+      const names = revealMissing(metaBox, missing, labelOfEditor);
+      requiredShown = true;
+      status.textContent = `Required before Save: ${names.join(", ")}`;
+      status.classList.add("app-docs-addstatus-warn");
+      return;
+    }
     running = true;
     sync();
     status.classList.remove("app-docs-addstatus-warn");
@@ -276,6 +351,16 @@ export function openEditProperties(opts: EditPropertiesOpts): void {
     // links ride the same save — untouched writes nothing
     const linksValue = linksEd?.read() ?? null;
     if (opts.links !== undefined && linksValue !== null) {
+      // a single-line text column holds 255 characters — one link, not
+      // two; SharePoint's refusal arrives AFTER the check-out (UAT
+      // DOC-030, 2026-10-26), so the form says so first
+      const linksField = libFields.find((f) => f.internal === opts.links?.internal);
+      if (linksField?.type === "Text" && linksValue.length > 255) {
+        return fail(
+          "Not saved",
+          `This library's Linked documents column (${linksField.title}) is a single line of text, which holds 255 characters — one link at most. A document controller changes it to multiple lines of text in the library's settings; every link fits then.`
+        );
+      }
       formValues.push({ FieldName: opts.links.internal, FieldValue: linksValue });
     }
     // the date model (Ben, 2026-08-10): importance CHANGED → cadence

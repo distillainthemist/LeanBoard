@@ -24,7 +24,8 @@ import {
   validateItemErrors, friendlySpError } from "./model";
 import { DocRow, buildRenderViewXml, extOf } from "./rows";
 import { renderListPage } from "./data";
-import { BuiltEditor, buildFieldEditors } from "./fieldEditors";
+import { BuiltEditor, buildFieldEditors, missingEditors, revealMissing } from "./fieldEditors";
+import { loadLibraryFields } from "./libraryFields";
 
 import {
   checkInFile,
@@ -302,14 +303,29 @@ export function openAddDocument(opts: AddDocumentOpts): void {
   const currentTarget = (): DocLibrary =>
     opts.targets.find((t) => t.listId === targetSel.value) ?? opts.targets[0];
 
+  /** The "Required before Add" line is up — cleared once everything
+   *  is filled, so the form says so without another click. */
+  let requiredShown = false;
+  const labelOfEditor = (e: BuiltEditor) => opts.dictBy.get(e.field.internal)?.label || e.field.title;
+  /** Painted after every change — the date-model hint under Importance. */
+  const afterSync: (() => void)[] = [];
   const sync = () => {
-    const missing = editors.some((e) => e.field.required && e.isEmpty());
+    for (const f of afterSync) f();
+    // a missing required field no longer greys the button: the click
+    // scrolls to it and names it (Ben, 2026-10-26)
     createBtn.disabled =
       creating ||
       sourceRow() === undefined ||
       sanitizeFileName(nameInput.value) === "" ||
-      missing ||
       uncollected.length > 0;
+    if (requiredShown) {
+      const still = missingEditors(editors);
+      if (still.length === 0) {
+        requiredShown = false;
+        status("");
+        revealMissing(metaBox, [], labelOfEditor);
+      }
+    }
   };
   nameInput.addEventListener("input", sync);
   tplSel.addEventListener("change", () => {
@@ -323,7 +339,8 @@ export function openAddDocument(opts: AddDocumentOpts): void {
     editors = [];
     clear(metaBox);
     metaBox.appendChild(el("div", "app-loading-line", "Reading the library's columns…"));
-    const fields = fieldsFromResponse((await fetchFields(site, lib.listId)).data);
+    // both required flags (the field's and the content type's)
+    const { fields } = await loadLibraryFields(site, lib.listId);
     // the SHARED editors (fieldEditors.ts, extracted for 5H1's
     // edit-properties form): dictionary order, pool-bound person
     // pickers, the placeholder/value="" lesson — one implementation,
@@ -350,6 +367,29 @@ export function openAddDocument(opts: AddDocumentOpts): void {
         ? ""
         : `This library requires ${uncollected.length === 1 ? "a column" : "columns"} this form does not collect: ${uncollected.join(", ")}. SharePoint would refuse the document — a document controller can make ${uncollected.length === 1 ? "it" : "them"} optional in the library settings, or add ${uncollected.length === 1 ? "it" : "them"} to the site dictionary and this library's columns.`;
     metaBox.insertBefore(requiredLine, metaBox.firstChild);
+    // the date model, said where it is driven (2026-10-26 report 1)
+    afterSync.length = 0;
+    const dm = opts.dateModel;
+    if (dm !== undefined && dm.importanceInternal !== "") {
+      const impEd = editors.find((e) => e.field.internal === dm.importanceInternal);
+      const impRow = Array.from(metaBox.querySelectorAll<HTMLElement>(".app-docs-addfield")).find(
+        (w) => w.dataset.internal === dm.importanceInternal
+      );
+      if (impEd !== undefined && impRow !== undefined) {
+        const hint = el("div", "app-field-hint app-docs-datehint");
+        impRow.appendChild(hint);
+        const paintHint = () => {
+          const v = impEd.read();
+          const months = dm.cadence[(v.termId ?? "").toLowerCase()];
+          hint.textContent =
+            months !== undefined && months > 0
+              ? `Sets the review cadence — ${v.label ?? ""}: every ${months} months. The next review date is counted from the effective date, stamped at approval.`
+              : "Sets the review cadence — the next review date is counted from the effective date, stamped at approval, and never typed.";
+        };
+        paintHint();
+        afterSync.push(paintHint);
+      }
+    }
     sync();
   };
   targetSel.addEventListener("change", () => void buildEditors());
@@ -459,6 +499,13 @@ export function openAddDocument(opts: AddDocumentOpts): void {
     const lib = currentTarget();
     const clean = sanitizeFileName(nameInput.value);
     if (src === undefined || clean === "") return;
+    const missing = missingEditors(editors);
+    if (missing.length > 0) {
+      const names = revealMissing(metaBox, missing, labelOfEditor);
+      requiredShown = true;
+      status(`Required before Add: ${names.join(", ")}`, true);
+      return;
+    }
     creating = true;
     sync();
 

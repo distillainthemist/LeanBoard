@@ -437,9 +437,15 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
         grip.title = "Drag to reorder or regroup";
         draggableRow(row, grip, "dict-cols", index, entries, () => normalize(entries));
         row.appendChild(grip);
-        row.appendChild(
-          el("span", "app-docs-colname", `${live?.title ?? col.internal} · ${col.internal}`)
-        );
+        const colName = el("span", "app-docs-colname", `${live?.title ?? col.internal} · ${col.internal}`);
+        // the links column must be multiple lines of text — a single
+        // line (255 characters) holds one link (UAT DOC-030, 2026-10-26)
+        if (col.role === "linkedDocuments" && live?.type === "Text") {
+          colName.appendChild(
+            el("span", "app-field-hint app-docs-colwarn", " · single line of text (255 characters): one link at most — change it to multiple lines of text in the library's settings")
+          );
+        }
+        row.appendChild(colName);
         const label = el("input", "app-input") as HTMLInputElement;
         label.placeholder = live?.title ?? col.internal;
         label.value = col.label;
