@@ -26,6 +26,7 @@ import { DocRow, buildRenderViewXml, extOf } from "./rows";
 import { renderListPage } from "./data";
 import { BuiltEditor, buildFieldEditors, missingEditors, revealMissing } from "./fieldEditors";
 import { loadLibraryFields } from "./libraryFields";
+import { buildFilePicker } from "./filePicker";
 
 import {
   checkInFile,
@@ -218,33 +219,30 @@ export function openAddDocument(opts: AddDocumentOpts): void {
     // the native road (2026-10-27): a file from the device goes straight
     // into the library through the connector's Create file, the body
     // declared binary — measured byte-exact by the write probe
-    const fileIn = el("input", "app-docs-filein") as HTMLInputElement;
-    fileIn.type = "file";
-    fileIn.setAttribute("aria-label", "Choose a file from your device");
-    const fileNote = el("div", "app-field-hint", "The file goes straight into the library.");
-    const deviceBox = el("div", "app-docs-upbox");
-    deviceBox.append(fileIn, fileNote);
-    const deviceRow = fieldRow("File from your device", deviceBox);
+    const picker = buildFilePicker({
+      invite: "Drop the file here, or",
+      onPick: (f) => {
+        deviceFile = f;
+        // the connector carries files up to 100 MB (its reference) — a
+        // larger one is refused here, the upload folder named
+        if (f !== null && f.size > 100 * 1048576) {
+          deviceFile = null;
+          picker.reset();
+          picker.note(`${f.name} is ${Math.round(f.size / 1048576)} MB — the app carries files up to 100 MB. Upload it through the upload folder instead.`, true);
+          paintMode();
+          return;
+        }
+        if (f !== null) {
+          mode = "device";
+          if (nameInput.value.trim() === "") nameInput.value = extOf(f.name) !== "" ? f.name.slice(0, -(extOf(f.name).length + 1)) : f.name;
+          picker.note(f.size > 25 * 1048576 ? "A large file — the upload can take a minute or two." : "Goes straight into the library.");
+        }
+        paintMode();
+      },
+    });
+    const deviceRow = fieldRow("File from your device", picker.root);
     deviceRow.style.display = "none";
     body.appendChild(deviceRow);
-    fileIn.addEventListener("change", () => {
-      deviceFile = fileIn.files?.[0] ?? null;
-      // the connector carries files up to 100 MB (its reference) — a
-      // larger one is refused here, the upload folder named
-      if (deviceFile !== null && deviceFile.size > 100 * 1048576) {
-        fileNote.textContent = `${deviceFile.name} is ${Math.round(deviceFile.size / 1048576)} MB — the app carries files up to 100 MB. Upload it through the upload folder instead.`;
-        deviceFile = null;
-        fileIn.value = "";
-        paintMode();
-        return;
-      }
-      if (deviceFile !== null) {
-        mode = "device";
-        if (nameInput.value.trim() === "") nameInput.value = extOf(deviceFile.name) !== "" ? deviceFile.name.slice(0, -(extOf(deviceFile.name).length + 1)) : deviceFile.name;
-        fileNote.textContent = `${deviceFile.name} · ${Math.max(1, Math.round(deviceFile.size / 1024))} KB — goes straight into the library${deviceFile.size > 25 * 1048576 ? "; a large file, the upload can take a minute or two" : ""}.`;
-      }
-      paintMode();
-    });
 
     // the staging folder stays as the second road where it is configured
     let uploadRow: HTMLElement | null = null;
@@ -297,8 +295,7 @@ export function openAddDocument(opts: AddDocumentOpts): void {
         if (src !== undefined) {
           mode = "upload";
           deviceFile = null;
-          fileIn.value = "";
-          fileNote.textContent = "The file goes straight into the library.";
+          picker.reset();
           if (nameInput.value.trim() === "") {
             nameInput.value = src.ext !== "" ? src.name.slice(0, -(src.ext.length + 1)) : src.name;
           }

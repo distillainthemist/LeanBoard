@@ -13,6 +13,7 @@ import { openDialog } from "../../../shared/ui/dialog";
 import { SiteColumn, spErrorText } from "./model";
 import { DocRow, extOf } from "./rows";
 import { connectorFileIdFor, connectorUpdateFile, fetchFileInfo, fetchFileItemId } from "./sp";
+import { buildFilePicker } from "./filePicker";
 
 export interface ReplaceContentOpts {
   site: string;
@@ -70,14 +71,35 @@ export function openReplaceContent(opts: ReplaceContentOpts): void {
       `Swaps this document's file for one from your device (same type only — .${row.ext}). The document keeps its record, properties, links and history; the new content is a version on top. You stay checked out: check in to publish it, or Discard check-out to revert.`
     )
   );
-  const fileIn = el("input", "app-docs-filein") as HTMLInputElement;
-  fileIn.type = "file";
-  fileIn.accept = `.${row.ext}`;
-  fileIn.setAttribute("aria-label", "Choose the replacement file");
-  const note = el("div", "app-field-hint", "");
-  const box = el("div", "app-docs-upbox");
-  box.append(fileIn, note);
-  dlg.body.appendChild(box);
+  const picker = buildFilePicker({
+    accept: `.${row.ext}`,
+    invite: `Drop the replacement .${row.ext} here, or`,
+    onPick: (f) => {
+      status.textContent = "";
+      status.classList.remove("app-docs-addstatus-warn");
+      if (f !== null && extOf(f.name).toLowerCase() !== row.ext.toLowerCase()) {
+        picked = null;
+        picker.reset();
+        picker.note(`${f.name} is a .${extOf(f.name) || "?"} — this document only takes .${row.ext}.`, true);
+        sync();
+        return;
+      }
+      // the connector carries files up to 100 MB (its reference: "file
+      // sizes up to 100 MB; larger uploads might fail due to buffer size
+      // limits") — refused here with the SharePoint road named
+      if (f !== null && f.size > CONNECTOR_MAX_BYTES) {
+        picked = null;
+        picker.reset();
+        picker.note(`${f.name} is ${Math.round(f.size / 1048576)} MB — the app carries files up to ${Math.round(CONNECTOR_MAX_BYTES / 1048576)} MB. Use “Replace it in SharePoint” below for this one.`, true);
+        sync();
+        return;
+      }
+      picked = f;
+      if (f !== null && f.size > LARGE_BYTES) picker.note("A large file — the replace can take a minute or two.");
+      sync();
+    },
+  });
+  dlg.body.appendChild(picker.root);
   const status = el("div", "app-docs-addstatus");
   dlg.body.appendChild(status);
   if (folderUrl !== "") {
@@ -95,29 +117,6 @@ export function openReplaceContent(opts: ReplaceContentOpts): void {
   const sync = () => {
     goBtn.disabled = running || picked === null;
   };
-  fileIn.addEventListener("change", () => {
-    const f = fileIn.files?.[0] ?? null;
-    status.textContent = "";
-    status.classList.remove("app-docs-addstatus-warn");
-    if (f !== null && extOf(f.name).toLowerCase() !== row.ext.toLowerCase()) {
-      picked = null;
-      note.textContent = `${f.name} is a .${extOf(f.name) || "?"} — this document only takes .${row.ext}.`;
-      sync();
-      return;
-    }
-    // the connector carries files up to 100 MB (its reference: "file
-    // sizes up to 100 MB; larger uploads might fail due to buffer size
-    // limits") — refused here with the SharePoint road named
-    if (f !== null && f.size > CONNECTOR_MAX_BYTES) {
-      picked = null;
-      note.textContent = `${f.name} is ${Math.round(f.size / 1048576)} MB — the app carries files up to ${Math.round(CONNECTOR_MAX_BYTES / 1048576)} MB. Use “Replace it in SharePoint” below for this one.`;
-      sync();
-      return;
-    }
-    picked = f;
-    note.textContent = f !== null ? `${f.name} · ${Math.max(1, Math.round(f.size / 1024))} KB${f.size > LARGE_BYTES ? " — a large file; the replace can take a minute or two" : ""}` : "";
-    sync();
-  });
   sync();
 
   const fail = (what: string, why: string) => {
