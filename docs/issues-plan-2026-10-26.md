@@ -34,12 +34,11 @@ all app-only (no schema).
 5. **Site step + hosted checks** — 11 (map the Revision editors column
    on the UAT site), 9 (Kat's screen).
 
-## Questions for Ben
+## Ben's answers (2026-10-26) — "build it"
 
-- 6: what was the cut-off sentence ("once a view loaded…"), and which
-  view (a site view with one library?).
-- 9: what did Kat's viewer show (blank, a first page, a message under
-  the placeholder), and what is her permission on UAT Library?
-- 11: confirm the UAT site has no Revision editors column — the
-  message names it; the step is yours.
-- 2: confirm "works as designed" is acceptable, with the line added.
+- 6: the view was a SITE view he had created a minute before,
+  "DMAIC Training_test".
+- 9: Kat had viewer (Restricted View) permission only, since upgraded —
+  the preview road for a view-only reader; the pane already names it.
+- 11: Ben maps the Revision editors column on the UAT site.
+- 2: works as designed, with the line added.
