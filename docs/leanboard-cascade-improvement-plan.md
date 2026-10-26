@@ -1455,6 +1455,18 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-10-26 — released as v0.78.0** (app-only): the second
+  2026-10-26 export (`docs/issues-plan-2026-10-26b.md`, 7 reports +
+  Ben's required-properties observation, passed 8/8 the same day).
+  Required columns wear a "Required" tag; Add/Save click scrolls to
+  the first missing field and names them; SharePoint's content-type
+  required flag read and folded in (`libraryFields.ts`); the date
+  model explained under Importance with a derived review-date row and
+  the pane's cadence hint; whole term paths in the pane; change
+  records one row each; a Back trail through linked documents; the
+  single-line Linked documents column guarded and warned (deploy guide
+  names the type); Message assignees as a dialog with a note; the
+  tasks button counts with a spinner.
 - **2026-10-26 — released as v0.77.0** (app-only): the 2026-10-26
   issue round (`docs/issues-plan-2026-10-26.md`, 14 reports from the
   DMS UAT run, passed by Ben 9/9 the same day). Folders pane paints

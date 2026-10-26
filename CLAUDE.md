@@ -383,7 +383,11 @@ Version lives in the tag alone — nothing is stamped into files.
   v0.77.0 (2026-10-26: the 2026-10-26 issue round —
   `docs/issues-plan-2026-10-26.md`; progressive folders walk, custom
   Modified range, required-column pre-flight, duplicate document id,
-  view fallback, Withdraw a report) is app-only. Prod
+  view fallback, Withdraw a report) is app-only. v0.78.0 (2026-10-26:
+  the second export — `docs/issues-plan-2026-10-26b.md`; Required tags
+  + content-type required flag via `docs/libraryFields.ts`, date-model
+  hints, term paths, MoC rows, Back trail, links column guard, message
+  dialog, counting spinner) is app-only. Prod
   imports the managed solution FIRST. LESSON
   (2026-10-13, production's first sync): a sync must
   never run from a walk it cannot trust (budget-cut OR any failed
