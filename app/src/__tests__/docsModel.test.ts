@@ -2361,4 +2361,27 @@ describe("normaliseMocUrl", () => {
     expect(normaliseMocUrl("MOC-123")).toBe("");
     expect(normaliseMocUrl("")).toBe("");
   });
+
+  it("friendlySpError turns SharePoint's duplicate-name and required-properties refusals into the app's own sentences (2026-10-26 report 10)", async () => {
+    const { friendlySpError } = await import("../docs/model");
+    const dup = JSON.stringify({
+      "odata.error": {
+        code: "-2130575257, Microsoft.SharePoint.SPException",
+        message: {
+          lang: "en-US",
+          value:
+            "A file with the name Standards/ELLEN-007 Lifting plan.docx already exists. It was last modified by i:0#.f|membership|ellen@example.com on 24 Oct 2026 10:15:02 +1100.",
+        },
+      },
+    });
+    expect(friendlySpError(dup)).toBe(
+      "A document named “ELLEN-007 Lifting plan.docx” already exists in this library — last modified by ellen@example.com on 24 Oct 2026 10:15:02 +1100. Rename it and try again."
+    );
+    expect(friendlySpError("You must fill out all required properties before checking in this document.")).toBe(
+      "SharePoint requires properties this form did not collect — see the library's required columns."
+    );
+    // anything else passes through SharePoint's own sentence
+    expect(friendlySpError("The file is not checked out.")).toBe("The file is not checked out.");
+  });
+
 });

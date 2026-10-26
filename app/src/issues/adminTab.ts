@@ -30,6 +30,7 @@ const STATUS_WORDS: Record<string, string> = {
   done: "Done",
   declined: "Declined",
   merged: "Merged",
+  withdrawn: "Withdrawn",
 };
 const AREA_WORDS: Record<string, string> = {
   boards: "Boards",
@@ -102,6 +103,7 @@ export async function renderIssuesAdmin(body: HTMLElement): Promise<void> {
     ["done", "Done"],
     ["declined", "Declined"],
     ["merged", "Merged"],
+    ["withdrawn", "Withdrawn"],
     ["all", "Everything"],
   ]) {
     const o = el("option", "", l) as HTMLOptionElement;

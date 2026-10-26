@@ -381,6 +381,7 @@ const STATUS_WORDS: Record<string, string> = {
   done: "Done",
   declined: "Declined",
   merged: "Merged",
+  withdrawn: "Withdrawn",
 };
 
 const agoLine = (iso: string | undefined): string => {
@@ -463,6 +464,41 @@ export function openMyReports(host: HTMLElement): void {
     );
     row.append(text, chip);
     wrap.appendChild(row);
+    // the reporter withdraws their own open report (2026-10-26 report 14)
+    const mineOpen = !followed && (issue.ben_reporteremail ?? "").toLowerCase() === myEmail && ["new", "triaged"].includes(issue.ben_status ?? "");
+    if (mineOpen) {
+      const wd = el("button", "app-link app-issue-withdraw", "Withdraw…") as HTMLButtonElement;
+      wd.type = "button";
+      wd.title = "Take this report back — it leaves the queue and stays on record as withdrawn";
+      wd.addEventListener("click", (e) => {
+        e.stopPropagation();
+        void (async () => {
+          const { promptText } = await import("../prompts");
+          const why = await promptText({ title: `Withdraw “${issue.ben_name ?? ""}”?`, note: "A word on why, for the record.", required: "A reason is needed.", confirmLabel: "Withdraw" });
+          if (why === null) return;
+          wd.disabled = true;
+          const r = await Ben_ltkissuesService.update(issue.ben_ltkissueid, { ben_status: "withdrawn" });
+          if (r.success === false) {
+            wd.disabled = false;
+            wd.textContent = "Could not withdraw";
+            return;
+          }
+          await Ben_ltkissuemessagesService.create({
+            ben_name: `Withdrawn by the reporter — ${why}`.slice(0, 290),
+            ben_body: `Withdrawn by the reporter — ${why}`,
+            ben_audience: "reporter",
+            ben_authoremail: myEmail,
+            ben_authorname: viewer?.name ?? "",
+            "ben_Issue@odata.bind": `/ben_ltkissues(${issue.ben_ltkissueid})`,
+          } as Parameters<typeof Ben_ltkissuemessagesService.create>[0]);
+          issue.ben_status = "withdrawn";
+          chip.textContent = "Withdrawn";
+          chip.className = "app-issad-status app-issad-status-withdrawn";
+          wd.remove();
+        })();
+      });
+      wrap.appendChild(wd);
+    }
     let detail: HTMLElement | null = null;
     row.addEventListener("click", () => {
       if (detail !== null) {

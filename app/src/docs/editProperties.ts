@@ -56,6 +56,9 @@ export interface EditPropertiesOpts {
   /** The manager's sub-headings for this library's type (Part II S2) —
    *  the form renders them as sections. */
   sections?: { heading: string; columns: string[] }[];
+  /** Every standards library — a changed document id must be unique
+   *  across them (2026-10-26 report 13). */
+  standards?: DocLibrary[];
   /** Document linking (relationships L1, Ben 2026-08-13): linking IS a
    *  properties edit — the links editor renders in this form and its
    *  value rides the same save. Absent = no links section. */
@@ -247,6 +250,19 @@ export function openEditProperties(opts: EditPropertiesOpts): void {
     running = true;
     sync();
     status.classList.remove("app-docs-addstatus-warn");
+
+    // a CHANGED document id must be new across the controlled libraries
+    const idEd = editors.find((e) => opts.dictBy.get(e.field.internal)?.role === "documentId");
+    if (idEd !== undefined) {
+      const idVal = (idEd.read().text ?? "").trim();
+      const was = (initialMap.get(idEd.field.internal)?.text ?? "").trim();
+      if (idVal !== "" && idVal.toLowerCase() !== was.toLowerCase()) {
+        status.textContent = "Checking the document ID…";
+        const { documentIdInUse } = await import("./addDocument");
+        const clash = await documentIdInUse(site, idEd.field.internal, idVal, [opts.lib, ...(opts.standards ?? [])], { listId: row.listId, id: row.id });
+        if (clash !== null) return fail("Not saved", `Document ID “${idVal}” is already used by “${clash.name}” in ${clash.lib} — choose another.`);
+      }
+    }
 
     if (!heldByMe) {
       status.textContent = "Taking the check-out…";

@@ -37,6 +37,9 @@ export interface DocView {
   groupBy: string;
   /** Modified-within window in days (0 = any time) — Vault V3. */
   modifiedDays: number;
+  /** A custom Modified range, ISO dates ("" = unbounded) — 2026-10-26. */
+  modifiedFrom: string;
+  modifiedTo: string;
   /** From/to bounds on date columns (Ben, 2026-08-03). A saved view that
    *  dropped its date window would open showing more than it promised. */
   dates: DocDateFilter[];
@@ -72,6 +75,8 @@ export function emptyDocView(): DocView {
     columns: [],
     groupBy: "",
     modifiedDays: 0,
+    modifiedFrom: "",
+    modifiedTo: "",
     dates: [],
     people: [],
     present: [],
@@ -95,6 +100,8 @@ function viewToJson(v: DocView): Record<string, unknown> {
   if (v.columns.length > 0) o.k = v.columns;
   if (v.groupBy !== "") o.g = v.groupBy;
   if (v.modifiedDays > 0) o.m = v.modifiedDays;
+  if (v.modifiedFrom !== "") o.mf = v.modifiedFrom;
+  if (v.modifiedTo !== "") o.mt = v.modifiedTo;
   if (v.dates.length > 0) {
     o.dt = v.dates.map((d) => ({ c: d.col, f: d.from, t: d.to }));
   }
@@ -131,6 +138,8 @@ function viewFromJson(raw: unknown): DocView {
   out.groupBy = asStr(o.g);
   out.modifiedDays =
     typeof o.m === "number" && Number.isFinite(o.m) && o.m > 0 ? Math.floor(o.m) : 0;
+  out.modifiedFrom = /^\d{4}-\d{2}-\d{2}$/.test(asStr(o.mf)) ? asStr(o.mf) : "";
+  out.modifiedTo = /^\d{4}-\d{2}-\d{2}$/.test(asStr(o.mt)) ? asStr(o.mt) : "";
   if (Array.isArray(o.dt)) {
     for (const item of o.dt as unknown[]) {
       if (!item || typeof item !== "object") continue;

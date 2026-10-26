@@ -17,14 +17,15 @@ import {
   AddFieldValue,
   SiteColumn,
   fieldsFromResponse,
+  SYSTEM_DATE_ROLES,
   newDocumentWrites,
   sanitizeFileName,
   spErrorText,
-  validateItemErrors,
-} from "./model";
+  validateItemErrors, friendlySpError } from "./model";
 import { DocRow, buildRenderViewXml, extOf } from "./rows";
 import { renderListPage } from "./data";
 import { BuiltEditor, buildFieldEditors } from "./fieldEditors";
+
 import {
   checkInFile,
   checkOutFile,
@@ -36,6 +37,32 @@ import {
   recycleFile,
   validateUpdateListItem,
 } from "./sp";
+
+/** Required columns SharePoint fills itself on a new file. */
+const ALWAYS_SET = new Set(["FileLeafRef", "LinkFilename", "LinkFilenameNoMenu", "Created", "Modified", "Author", "Editor"]);
+
+/** The document, if any, already carrying this id in one of `libs`
+ *  (the column must be carried by the library; `self` excludes the
+ *  document being edited). */
+export async function documentIdInUse(
+  site: string,
+  col: string,
+  value: string,
+  libs: DocLibrary[],
+  self: { listId: string; id: number } | null
+): Promise<{ name: string; lib: string } | null> {
+  const seen = new Set<string>();
+  for (const l of libs) {
+    const k = l.listId.toLowerCase();
+    if (seen.has(k)) continue;
+    seen.add(k);
+    if (!l.config.columns.some((c) => c.internal === col)) continue;
+    const page = await renderListPage(site, l.listId, buildRenderViewXml({ textEquals: [{ col, value }], fields: [col], rowLimit: 3 })).catch(() => ({ rows: [] as DocRow[] }));
+    const hit = page.rows.find((r) => !(self !== null && r.listId.toLowerCase() === self.listId.toLowerCase() && r.id === self.id) && (r.values[col] ?? "").trim().toLowerCase() === value.toLowerCase());
+    if (hit !== undefined) return { name: hit.name, lib: l.config.title || l.name };
+  }
+  return null;
+}
 
 export interface AddDocumentOpts {
   site: string;
@@ -59,6 +86,9 @@ export interface AddDocumentOpts {
   };
   /** Styled dialog host (.app-dlghost). */
   host: HTMLElement;
+  /** Every standards library — a document id must be unique across
+   *  them (2026-10-26 report 13). */
+  standards?: DocLibrary[];
   /** Called with the created document's row, after check-in. */
   onCreated: (row: DocRow) => void;
   /** H2: the upload source — present only for pool members and
@@ -261,6 +291,13 @@ export function openAddDocument(opts: AddDocumentOpts): void {
   body.appendChild(statusLine);
 
   let editors: BuiltEditor[] = [];
+  /** Columns the LIBRARY requires that this form cannot collect
+   *  (2026-10-26 reports 4 and 8): SharePoint would refuse the
+   *  check-in after the file was created, leaving a checked-out
+   *  orphan — so the form refuses before creating anything. */
+  let uncollected: string[] = [];
+  const requiredLine = el("div", "app-docs-addstatus app-docs-addstatus-warn app-docs-addrequired");
+  requiredLine.hidden = true;
 
   const currentTarget = (): DocLibrary =>
     opts.targets.find((t) => t.listId === targetSel.value) ?? opts.targets[0];
@@ -271,7 +308,8 @@ export function openAddDocument(opts: AddDocumentOpts): void {
       creating ||
       sourceRow() === undefined ||
       sanitizeFileName(nameInput.value) === "" ||
-      missing;
+      missing ||
+      uncollected.length > 0;
   };
   nameInput.addEventListener("input", sync);
   tplSel.addEventListener("change", () => {
@@ -300,6 +338,19 @@ export function openAddDocument(opts: AddDocumentOpts): void {
       // the target picks the type, the type picks the sections
       sections: opts.sectionsFor?.(lib.libType),
     });
+    // a required column with no editor would be refused at check-in
+    // (the system-managed dates stamp themselves, so they never count)
+    const collected = new Set(editors.map((e) => e.field.internal));
+    uncollected = fields
+      .filter((f) => f.required && !collected.has(f.internal) && !SYSTEM_DATE_ROLES.has(opts.dictBy.get(f.internal)?.role ?? "") && !ALWAYS_SET.has(f.internal))
+      .map((f) => opts.dictBy.get(f.internal)?.label || f.title);
+    requiredLine.hidden = uncollected.length === 0;
+    requiredLine.textContent =
+      uncollected.length === 0
+        ? ""
+        : `This library requires ${uncollected.length === 1 ? "a column" : "columns"} this form does not collect: ${uncollected.join(", ")}. SharePoint would refuse the document — a document controller can make ${uncollected.length === 1 ? "it" : "them"} optional in the library settings, or add ${uncollected.length === 1 ? "it" : "them"} to the site dictionary and this library's columns.`;
+    metaBox.insertBefore(requiredLine, metaBox.firstChild);
+    sync();
   };
   targetSel.addEventListener("change", () => void buildEditors());
   void buildEditors();
@@ -411,8 +462,26 @@ export function openAddDocument(opts: AddDocumentOpts): void {
     creating = true;
     sync();
 
+    // the document id must be new across the controlled libraries
+    // (2026-10-26 report 13: SharePoint polices names, not ids)
+    const idEd = editors.find((e) => opts.dictBy.get(e.field.internal)?.role === "documentId");
+    const idVal = idEd !== undefined ? (idEd.read().text ?? "").trim() : "";
+    if (idEd !== undefined && idVal !== "") {
+      status("Checking the document ID…");
+      const clash = await documentIdInUse(site, idEd.field.internal, idVal, [lib, ...(opts.standards ?? [])], null);
+      if (clash !== null) {
+        status(`Not added: Document ID “${idVal}” is already used by “${clash.name}” in ${clash.lib} — choose another.`, true);
+        creating = false;
+        sync();
+        return;
+      }
+    }
+
     const fail = (what: string, why: string) => {
-      status(`${what}: ${spErrorText(why).slice(0, 300)}`, true);
+      // the app's own sentence where it knows the refusal; never cut
+      // mid-word (2026-10-26 report 10)
+      const text = friendlySpError(why);
+      status(`${what}: ${text.length > 600 ? `${text.slice(0, 600).replace(/\s+\S*$/, "")}…` : text}`, true);
       creating = false;
       sync();
     };
@@ -431,7 +500,7 @@ export function openAddDocument(opts: AddDocumentOpts): void {
     // just makes the second one fail "already exists", which is caught
     // by reading the file back rather than trusted blindly
     const copy = await timedRetry("The copy", () => copyFileTo(site, src.serverUrl, newUrl));
-    if (!copy.ok) return fail("Copy refused (a document with this name may already exist)", copy.status);
+    if (!copy.ok) return fail(/already exists/i.test(spErrorText(copy.status)) ? "Not added" : "Copy refused", copy.status);
 
     // From here the document EXISTS — a failure below leaves it checked
     // out to its creator, and the message says so instead of pretending

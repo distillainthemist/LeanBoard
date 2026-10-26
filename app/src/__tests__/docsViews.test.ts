@@ -28,6 +28,8 @@ describe("view link payload", () => {
       columns: ["DMSStatus", "Modified"],
       groupBy: "DMSProcess",
       modifiedDays: 30,
+      modifiedFrom: "",
+      modifiedTo: "",
       dates: [{ col: "DMSEffectiveDate", from: "2025-01-01", to: "2025-03-31" }],
       // B1 (several terms per column), B6 (people + presence) — 2026-10-06
       people: [{ col: "DMSOwner", text: "Sam" }],
@@ -186,4 +188,19 @@ describe("date filters ride the view (2026-08-03)", () => {
     );
     expect(junk.dates).toEqual([]);
   });
+
+  it("a custom modified range rides the view as mf/mt and parses back (2026-10-26 report 5)", async () => {
+    const { encodeDocView, decodeDocView, emptyDocView } = await import("../docs/views");
+    const v = { ...emptyDocView(), modifiedFrom: "2026-10-01", modifiedTo: "2026-10-15" };
+    const raw = encodeDocView(v);
+    expect(JSON.parse(raw)).toEqual({ mf: "2026-10-01", mt: "2026-10-15" });
+    const back = decodeDocView(raw);
+    expect(back.modifiedFrom).toBe("2026-10-01");
+    expect(back.modifiedTo).toBe("2026-10-15");
+    // one open end is fine; junk is dropped, never kept broken
+    expect(decodeDocView('{"mf":"2026-10-01"}').modifiedTo).toBe("");
+    expect(decodeDocView('{"mf":"yesterday","mt":"2026-13-99x"}')).toMatchObject({ modifiedFrom: "", modifiedTo: "" });
+    expect(emptyDocView().modifiedFrom).toBe("");
+  });
+
 });

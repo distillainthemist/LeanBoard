@@ -833,4 +833,23 @@ describe("termTreeOrder with a sibling order (issue 12, 2026-10-19)", () => {
     // no comparator: the walk's order, as before
     expect(termTreeOrder(nodes).map((n) => n.id)).toEqual(["a", "z", "h", "c", "c1"]);
   });
+
+  it("an upper modified bound rides REST, CAML and search (2026-10-26 report 5)", async () => {
+    const { buildBrowseUri, buildRenderViewXml, buildSearchBody } = await import("../docs/rows");
+    const uri = buildBrowseUri("L1", 50, {
+      modifiedAfterIso: "2026-10-01T00:00:00.000Z",
+      modifiedBeforeIso: "2026-10-15T23:59:59.000Z",
+    });
+    expect(uri).toContain("Modified ge datetime'2026-10-01T00:00:00.000Z'");
+    expect(uri).toContain("Modified le datetime'2026-10-15T23:59:59.000Z'");
+    const xml = buildRenderViewXml({ modifiedBeforeIso: "2026-10-15T23:59:59.000Z" });
+    expect(xml).toContain('<Leq><FieldRef Name="Modified"/>');
+    expect(xml).toContain("2026-10-15T23:59:59.000Z</Value></Leq>");
+    expect(buildRenderViewXml({})).not.toContain("<Leq>");
+    const body = JSON.parse(
+      buildSearchBody("pump", { listIds: ["a"], modifiedBeforeIso: "2026-10-15T23:59:59.000Z" })
+    ) as { request: { Querytext: string } };
+    expect(body.request.Querytext).toContain("LastModifiedTime<=2026-10-15");
+  });
+
 });

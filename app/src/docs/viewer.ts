@@ -425,7 +425,13 @@ export function openDocViewer(opts: ViewerOpts): () => void {
   const paintChips = () => {
     clear(chips);
     const docId = roleValue("documentId");
-    if (docId !== "") chips.appendChild(el("span", "app-docs-detaildocid", docId));
+    if (docId !== "") {
+      // "Document ID · X" (2026-10-26 report 12: a bare id read as a code)
+      const idChip = el("span", "app-docs-detaildocid");
+      idChip.append(el("span", "app-docs-detaildocid-cap", "Document ID"), el("span", undefined, docId));
+      idChip.title = "The document's control number";
+      chips.appendChild(idChip);
+    }
     // the status chip stays only while the document has no id to show —
     // the pane's Status section carries the status row itself
     const sv =
@@ -1276,7 +1282,8 @@ export function openDocViewer(opts: ViewerOpts): () => void {
         el(
           "div",
           "app-field-hint",
-          "Older versions restore through the lifecycle — Cancel revision mid-cycle, Reinstate after retirement."
+          (opts.versionLinks?.() === true ? "" : "Open links on versions show for the document's owner and document controllers. ") +
+            "Older versions restore through the lifecycle — Cancel revision mid-cycle, Reinstate after retirement."
         )
       );
     }

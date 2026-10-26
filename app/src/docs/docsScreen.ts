@@ -70,6 +70,7 @@ import {
 import { viewerInPool, viewerIsController } from "./accessGates";
 import {
   TermNode,
+  TermWalk,
   checkInFile,
   checkOutFile,
   fetchFileInfo,
@@ -150,6 +151,8 @@ const COUNT_CAP = 2000;
 const CONTENT_HITS = 500;
 
 export interface DocsMountOpts {
+  /** A line for the status area on open (a failed view's fallback). */
+  bootNote?: string;
   /** Inside the hub's Documents tab: no page title, and navigation
    *  re-mounts in place instead of writing the hash (a hash write would
    *  route away to the standalone #/docs screen). */
@@ -185,6 +188,10 @@ export function mountDocs(
   // run on the returned cleanup AND on in-place remounts, or every
   // library click would stack another global listener
   const innerCleanups: (() => void)[] = [];
+  /** The view this mount booted into, if any — a mount that throws
+   *  with one falls back to the plain register (2026-10-26 report 6:
+   *  "clicking it gave a blank screen"). */
+  let bootedView: DocView | null = null;
 
   void (async () => {
     // a bare dev server has no host — SDK calls would HANG, not reject
@@ -256,6 +263,7 @@ export function mountDocs(
     const bootView: DocView | null =
       pendingView ?? (bootRaw !== "" ? decodeDocView(bootRaw) : null);
     pendingView = null;
+    bootedView = bootView;
     const favMode = pendingFav;
     pendingFav = false;
 
@@ -1080,6 +1088,8 @@ export function mountDocs(
       filters = [];
       dateFilters = [];
       modifiedDays = 0;
+      modifiedFrom = "";
+      modifiedTo = "";
       personFilters = [];
       presentCols = [];
       taskFilter = map;
@@ -1101,6 +1111,7 @@ export function mountDocs(
           dictBy,
           host: dialogHost,
           heldByMe: isMine(row),
+          standards: libraries.filter((l) => l.libType === "standard"),
           // a quick edit on a reader-facing document publishes under
           // moderation (CA1) — a mid-circulation draft never does
           readerFacingStage: ["approved", "superseded", "obsolete"].includes(stageOfRow(row)),
@@ -1816,7 +1827,7 @@ export function mountDocs(
                     "app-field-hint",
                     rt.row === null
                       ? "Document not found — decline to clear."
-                      : "Map a Revision editors column (Settings → Documents) to approve."
+                      : "To approve, this library needs a person column with the Revision editors role — a document controller adds the column to the library and maps the role under Settings → Documents → Columns."
                   )
                 );
               }
@@ -2030,6 +2041,8 @@ export function mountDocs(
               filters = [];
               dateFilters = [];
               modifiedDays = 0;
+              modifiedFrom = "";
+              modifiedTo = "";
               taskFilter = map;
               taskFilterN = uniq.size;
               scopeLabel = "";
@@ -2064,6 +2077,10 @@ export function mountDocs(
       statusInternal !== "" &&
       !(bootView?.filters ?? []).some((f) => f.col === statusInternal);
     let modifiedDays = bootView?.modifiedDays ?? 0;
+    /** A custom Modified range (2026-10-26 report 5): ISO dates, local
+     *  day bounds; set, it replaces the preset days. */
+    let modifiedFrom = bootView?.modifiedFrom ?? "";
+    let modifiedTo = bootView?.modifiedTo ?? "";
     /** R5 footer filter: the task panel's documents shown AS a register
      *  scope (listId → item ids, CAML idIn). "Show only Approved" is
      *  suspended while it holds — task documents are mid-workflow by
@@ -2078,9 +2095,12 @@ export function mountDocs(
     // a temporal-dead-zone crash that kills the whole screen
     let query = bootView?.query ?? "";
     const modifiedIso = (): string | undefined =>
-      modifiedDays > 0
-        ? new Date(Date.now() - modifiedDays * 86400000).toISOString()
-        : undefined;
+      modifiedFrom !== ""
+        ? new Date(`${modifiedFrom}T00:00:00`).toISOString()
+        : modifiedDays > 0
+          ? new Date(Date.now() - modifiedDays * 86400000).toISOString()
+          : undefined;
+    const modifiedBeforeIso = (): string | undefined => (modifiedTo !== "" ? new Date(`${modifiedTo}T23:59:59`).toISOString() : undefined);
 
     // secondary actions (share the current filter as a player link,
     // export the register) live behind one kebab — the app's convention
@@ -2577,6 +2597,7 @@ export function mountDocs(
       return (a, b) => of(a) - of(b) || a.labels[a.labels.length - 1].localeCompare(b.labels[b.labels.length - 1]);
     };
 
+    let treePaintSeq = 0;
     const paintTree = () => {
       clear(treeBox);
       treeButtons.clear();
@@ -2588,18 +2609,33 @@ export function mountDocs(
       }
       collapsed = new Set(uiState.collapsed[setId] ?? []);
       treeBox.appendChild(el("div", "app-field-hint", "Loading…"));
-      void cachedTermPaths(app.siteUrl, setId, 6, 6000).then(async (walk) => {
-        if (dead || setFor(groupBy) !== setId) return;
+      // the pane paints LEVEL BY LEVEL while a first walk is still
+      // running (2026-10-26 report 1: production's organisation set
+      // holds 119 other sites) — the viewer's own branch is walked
+      // first, so it is whole from its first paint; a later paint
+      // always wins over an earlier one still awaiting its order
+      const paintSeq = ++treePaintSeq;
+      let renderSeq = 0;
+      let firstLabelL = "";
+      const render = async (walk: TermWalk, final: boolean) => {
+        const mine = ++renderSeq;
+        if (dead || setFor(groupBy) !== setId || paintSeq !== treePaintSeq) return;
         const { error } = walk;
         // the organisation pane follows the app's order (issue 12)
         const nodes = groupBy === "" ? termTreeOrder(walk.nodes, await orgTermCompare()) : walk.nodes;
-        if (dead || setFor(groupBy) !== setId) return;
+        if (dead || setFor(groupBy) !== setId || paintSeq !== treePaintSeq || mine !== renderSeq) return;
+        if (!final && nodes.length === 0) return;
+        // the viewer's own branch is complete once its root is present
+        // (the walk finishes that subtree before handing a level over)
+        const ownBranchReady =
+          final || (firstLabelL !== "" && nodes.some((n) => n.labels[n.labels.length - 1].toLowerCase() === firstLabelL));
         clear(treeBox);
         if (error !== "" || nodes.length === 0) {
           treeBox.appendChild(el("div", "app-field-hint", "No terms yet."));
           return;
         }
-        if (walk.truncated || (walk.failed ?? 0) > 0) treeBox.appendChild(el("div", "app-field-hint", "Deepest levels not loaded — the term store was slow; reopen Documents in a minute."));
+        if (!final) treeBox.appendChild(el("div", "app-field-hint app-docs-treeloading", "Loading the rest of the organisation…"));
+        else if (walk.truncated || (walk.failed ?? 0) > 0) treeBox.appendChild(el("div", "app-field-hint", "Deepest levels not loaded — the term store was slow; reopen Documents in a minute."));
         treeNodes = nodes;
         // F2 (Ben, 2026-08-14): the pane shows the viewer's mapped
         // branches (their site + configured functional branches) plus
@@ -2740,12 +2776,15 @@ export function mountDocs(
         // boot: a shared/saved view's org filter first; otherwise land on
         // the viewer's own corner of the organisation (chip makes either
         // one-click removable). Organisation tree only.
+        // a filter built from a part-walked tree would miss descendants,
+        // so a view's term waits for the whole walk and the default
+        // for the viewer's own branch
         if (groupBy === "" && filterFor("") === null) {
           const wantOrg = bootView?.orgTermId ?? "";
           if (wantOrg !== "") {
-            const match = nodes.find((x) => x.id === wantOrg);
+            const match = final ? nodes.find((x) => x.id === wantOrg) : undefined;
             if (match) applyFilter("", match, nodes);
-          } else if (orgProps.length > 0 && bootView === null && !favMode) {
+          } else if (orgProps.length > 0 && bootView === null && !favMode && ownBranchReady) {
             const roots = await viewerBranchRoots(nodes);
             if (!dead && roots.length > 0 && filterFor("") === null) {
               // the DEFAULT is the user's OWN site alone (Ben,
@@ -2755,7 +2794,17 @@ export function mountDocs(
             }
           }
         }
-      });
+      };
+      void (async () => {
+        const firstLabel = groupBy === "" ? ((await viewerPerson(currentViewer()?.objectId ?? "").catch(() => null))?.site ?? "").trim() : "";
+        if (dead || setFor(groupBy) !== setId || paintSeq !== treePaintSeq) return;
+        firstLabelL = firstLabel.toLowerCase();
+        const walk = await cachedTermPaths(app.siteUrl, setId, 6, 6000, {
+          firstLabel,
+          onLevel: (nodes) => void render({ nodes, truncated: false, failed: 0, error: "" }, false),
+        });
+        await render(walk, true);
+      })();
     };
 
     // keyboard: Up/Down walk the visible rows, Left/Right drive the
@@ -2885,10 +2934,18 @@ export function mountDocs(
             cadence: siteDict.cadence ?? {},
           },
           host: dialogHost,
+          standards: libraries.filter((l) => l.libType === "standard"),
           onCreated: (row) => {
             void load(true);
             refreshTasksBadge();
             onRowOpen(row);
+            // what an added document IS (2026-10-26 report 8: "it won't
+            // appear and nobody was told")
+            const lib = byListId.get(row.listId);
+            status.textContent =
+              lib?.libType === "standard" && onlyApproved
+                ? `“${row.name}” was added as a draft — it shows in the register when “Show only approved” is unticked; Submit for review from its ⋯ menu when it is ready.`
+                : `“${row.name}” was added.`;
           },
         });
       })();
@@ -2968,7 +3025,7 @@ export function mountDocs(
         dateFilters.length +
         personFilters.length +
         presentCols.length +
-        (modifiedDays > 0 ? 1 : 0);
+        (modifiedDays > 0 || modifiedFrom !== "" || modifiedTo !== "" ? 1 : 0);
       filtersBtn.textContent = active > 0 ? `Filters · ${active}` : "Filters";
       filtersBtn.classList.toggle("app-docs-filtersbtn-on", active > 0);
     };
@@ -3097,6 +3154,7 @@ export function mountDocs(
     main.appendChild(filterBar);
     const status = el("div", "app-docs-status");
     main.appendChild(status);
+    if (opts.bootNote !== undefined && opts.bootNote !== "") status.textContent = opts.bootNote;
 
     const paintChips = () => {
       paintTitle();
@@ -3116,6 +3174,20 @@ export function mountDocs(
         chip.appendChild(x);
         filterBar.appendChild(chip);
       }
+      if (modifiedFrom !== "" || modifiedTo !== "") {
+        const chip = el("span", "app-docs-orgchip");
+        chip.appendChild(document.createTextNode(`Modified: ${modifiedFrom !== "" ? formatDayMonthYear(modifiedFrom) : "…"} – ${modifiedTo !== "" ? formatDayMonthYear(modifiedTo) : "…"}`));
+        const x = el("button", "app-docs-orgchip-x", "×") as HTMLButtonElement;
+        x.title = "Any time";
+        x.addEventListener("click", () => {
+          modifiedFrom = "";
+          modifiedTo = "";
+          paintChips();
+          void load(true);
+        });
+        chip.appendChild(x);
+        filterBar.appendChild(chip);
+      }
       if (modifiedDays > 0) {
         const chip = el("span", "app-docs-orgchip");
         chip.appendChild(document.createTextNode(`Modified: last ${modifiedDays} days`));
@@ -3123,6 +3195,8 @@ export function mountDocs(
         x.title = "Clear the modified filter";
         x.addEventListener("click", () => {
           modifiedDays = 0;
+          modifiedFrom = "";
+          modifiedTo = "";
           paintChips();
           void load(true);
         });
@@ -3215,6 +3289,22 @@ export function mountDocs(
           body.appendChild(g);
           return g;
         };
+        // while "Show only approved" holds, Status is not a filter — say
+        // so here, with the way out (2026-10-26 report 3: a tester saw no
+        // Status at all and never found the ⋮ toggle)
+        if (onlyApproved && statusInternal !== "" && taskFilter === null) {
+          const g = group(colLabel(statusInternal));
+          g.appendChild(el("div", "app-field-hint", "Showing approved documents only."));
+          const all = el("button", "app-btn", "Show every status") as HTMLButtonElement;
+          all.title = "Untick “Show only approved” — drafts, superseded and obsolete documents show, and Status becomes a filter here";
+          all.addEventListener("click", () => {
+            onlyApproved = false;
+            paintChips();
+            void load(true);
+            paintPop();
+          });
+          g.appendChild(all);
+        }
         // the columns the site lets the register filter by — the one
         // list the phone's selects read too (Tranche D)
         const cols = filterColumns();
@@ -3425,7 +3515,7 @@ export function mountDocs(
           [30, "Last 30 days"],
           [90, "Last 90 days"],
         ] as const) {
-          const on = modifiedDays === days;
+          const on = modifiedDays === days && modifiedFrom === "" && modifiedTo === "";
           const pb = el(
             "button",
             `app-docs-fpill${on ? " app-docs-fpill-on" : ""}`,
@@ -3434,12 +3524,38 @@ export function mountDocs(
           pb.setAttribute("aria-pressed", String(on));
           pb.addEventListener("click", () => {
             modifiedDays = days;
+            modifiedFrom = "";
+            modifiedTo = "";
             paintChips();
             void load(true);
             paintPop();
           });
           mp.appendChild(pb);
         }
+        // a custom range (2026-10-26 report 5): from / to, either side open
+        const range = el("div", "app-docs-frange");
+        const from = el("input", "app-input app-docs-frangein") as HTMLInputElement;
+        from.type = "date";
+        from.value = modifiedFrom;
+        from.setAttribute("aria-label", "Modified from");
+        const to = el("input", "app-input app-docs-frangein") as HTMLInputElement;
+        to.type = "date";
+        to.value = modifiedTo;
+        to.setAttribute("aria-label", "Modified to");
+        const apply = el("button", "app-btn", "Apply range") as HTMLButtonElement;
+        apply.addEventListener("click", () => {
+          if (from.value === "" && to.value === "") return;
+          modifiedFrom = from.value;
+          modifiedTo = to.value;
+          modifiedDays = 0;
+          modifiedFrom = "";
+          modifiedTo = "";
+          paintChips();
+          void load(true);
+          paintPop();
+        });
+        range.append(el("span", "app-field-hint", "Custom range"), from, el("span", "app-field-hint", "to"), to, apply);
+        mg.appendChild(range);
         const foot = el("div", "app-docs-fpop-foot");
         const clearAll = el("button", "app-btn", "Clear all") as HTMLButtonElement;
         clearAll.addEventListener("click", () => {
@@ -3448,6 +3564,8 @@ export function mountDocs(
           personFilters = [];
           presentCols = [];
           modifiedDays = 0;
+          modifiedFrom = "";
+          modifiedTo = "";
           paintTreeSelection();
           paintChips();
           void load(true);
@@ -3879,6 +3997,8 @@ export function mountDocs(
       personFilters = [];
       presentCols = [];
       modifiedDays = 0;
+      modifiedFrom = "";
+      modifiedTo = "";
       taskFilter = map;
       taskFilterN = [...map.values()].reduce((a, b) => a + b.length, 0);
       scopeLabel = `Linked to: ${from.name}`;
@@ -4144,6 +4264,8 @@ export function mountDocs(
       b.addEventListener("click", () => {
         filters = [];
         modifiedDays = 0;
+        modifiedFrom = "";
+        modifiedTo = "";
         query = "";
         search.value = "";
         paintTreeSelection();
@@ -4325,7 +4447,14 @@ export function mountDocs(
           else delete row.values[emailKey];
         }
       }
-      list?.setRows(list.rows());
+      // superseded / obsolete / draft while "Show only approved" holds:
+      // the row leaves the list, as a refresh would do (2026-10-26
+      // report 7) — unless a task or link scope is showing it on purpose
+      const stage = stageOfRow(row);
+      if (onlyApproved && taskFilter === null && statusInternal !== "" && lib?.libType === "standard" && stage !== "" && stage !== "approved" && list !== null && list.rows().includes(row)) {
+        list.setRows(list.rows().filter((r) => r !== row));
+        status.textContent = `“${row.name}” is now ${stage === "superseded" ? "superseded" : stage === "obsolete" ? "obsolete" : "no longer approved"} — untick “Show only approved” in ⋮ to see it.`;
+      } else list?.setRows(list.rows());
       for (const rp of viewerRepaints) rp();
       // a command that changes checkout state changes the My tasks count
       // (skipped for the overlay-open arming read, which changed nothing)
@@ -4744,8 +4873,14 @@ export function mountDocs(
       return rows.filter((r) => !isNonCurrentStatus(r.values[statusCol.internal] ?? ""));
     };
 
+    let bootNoteShown = opts.bootNote !== undefined && opts.bootNote !== "";
     const paintStatus = (total: number | null, error: string) => {
       lastTotal = total;
+      if (bootNoteShown) {
+        // the fallback's reason outlives the first load (report 6)
+        bootNoteShown = false;
+        return;
+      }
       const timed = loadNote === "" || !meIsSuper ? "" : ` · ${loadNote}`;
       status.title = meIsSuper ? loadDetail : "";
       if (error !== "") {
@@ -4824,6 +4959,7 @@ export function mountDocs(
             lib.listId,
             buildRenderViewXml({
               modifiedAfterIso: modifiedIso(),
+              modifiedBeforeIso: modifiedBeforeIso(),
               nameWords: words,
               idIn:
                 taskFilter?.get(lib.listId.toLowerCase()) ??
@@ -4997,6 +5133,7 @@ export function mountDocs(
             startRow: 0,
             searchContents: true,
             modifiedAfterIso: modifiedIso(),
+            modifiedBeforeIso: modifiedBeforeIso(),
             termFilters: filters.map((f) => ({ properties: propsFor(f.col), termIds: f.ids })),
           });
           if (dead || gen !== generation) return finish();
@@ -5103,6 +5240,7 @@ export function mountDocs(
               sortName: sort.key === "name",
               asc: sort.asc,
               modifiedAfterIso: modifiedIso(),
+              modifiedBeforeIso: modifiedBeforeIso(),
               nameWords: words,
               idIn: taskFilter?.get(id.toLowerCase()) ?? contentIds.get(id.toLowerCase()) ?? [],
               // the toggle's filter rides silently (Ben, 2026-08-03);
@@ -5207,6 +5345,8 @@ export function mountDocs(
         // approved only; a view with its own status filter is unticked
         nonCurrent: !onlyApproved,
         modifiedDays,
+        modifiedFrom,
+        modifiedTo,
         // the organisation keeps its own slot so pre-3a links stay valid
         orgTermId: org?.node.id ?? "",
         orgPath: org?.node.labels ?? [],
@@ -5327,7 +5467,7 @@ export function mountDocs(
           row.appendChild(open);
           const mayEdit = kind === "mine" || docAdmin();
           if (mayEdit) {
-            const ren = el("button", "app-docs-viewbtn", "✎") as HTMLButtonElement;
+            const ren = el("button", "app-docs-viewbtn", "✎ Rename") as HTMLButtonElement;
             ren.title = `Rename “${v.name}”`;
             ren.setAttribute("aria-label", `Rename the view ${v.name}`);
             ren.addEventListener("click", () => {
@@ -5342,18 +5482,24 @@ export function mountDocs(
               });
             });
             row.appendChild(ren);
-            const del = el("button", "app-docs-viewbtn", "×") as HTMLButtonElement;
+            const del = el("button", "app-docs-viewbtn app-docs-viewbtn-del", "× Delete") as HTMLButtonElement;
             del.title = `Delete “${v.name}”`;
             del.setAttribute("aria-label", `Delete the view ${v.name}`);
             del.addEventListener("click", () => {
-              void (kind === "mine"
-                ? deleteDocView(whoId, v.name).then((list) => {
-                    savedViews = list;
-                  })
-                : saveSiteViews(siteViews.filter((x) => x.name !== v.name))
-              ).then(() => {
+              closeMenu();
+              void promptConfirm({
+                title: `Delete the ${kind === "site" ? "site " : ""}view “${v.name}”?`,
+                note: kind === "site" ? "Everyone on the site loses it; the documents are untouched." : "The documents are untouched.",
+                confirmLabel: "Delete",
+                danger: true,
+              }).then(async (ok) => {
+                if (!ok || dead) return;
+                if (kind === "mine") savedViews = await deleteDocView(whoId, v.name);
+                else await saveSiteViews(siteViews.filter((x) => x.name !== v.name));
                 if (dead) return;
-                paint();
+                if (activeViewName === v.name) activeViewName = "";
+                paintTitle();
+                status.textContent = `View “${v.name}” deleted`;
               });
             });
             row.appendChild(del);
@@ -5411,6 +5557,7 @@ export function mountDocs(
             sortName: sort.key === "name",
             asc: sort.asc,
             modifiedAfterIso: modifiedIso(),
+            modifiedBeforeIso: modifiedBeforeIso(),
             nameWords: query.trim() === "" ? undefined : query.trim().split(/\s+/),
             idIn: taskFilter?.get(lib.listId.toLowerCase()) ?? [],
             termFilters: termFiltersFor(carried) ?? [],
@@ -5833,7 +5980,23 @@ export function mountDocs(
       void load(true, "open");
       if (workDoc !== "") void openWorkDoc(workDoc);
     });
-  })();
+  })().catch((e: unknown) => {
+    stopLoading();
+    if (dead) return;
+    const why = String(e instanceof Error ? e.message : e).slice(0, 200);
+    if (bootedView !== null) {
+      // the plain register, with a line saying why — never a blank
+      const failed = bootedView;
+      dead = true;
+      for (const f of innerCleanups) f();
+      innerCleanups.length = 0;
+      wrap.remove();
+      pendingView = null;
+      mountDocs(parent, "", { ...opts, bootNote: `The view “${failed.name || "shared view"}” could not be applied (${why}) — showing the plain register.` });
+      return;
+    }
+    wrap.appendChild(el("div", "app-settings-note", `Documents could not open: ${why}`));
+  });
 
   return () => {
     dead = true;

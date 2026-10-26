@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-21",
+ "generatedAt": "2026-10-26",
  "releases": [
   {
    "tag": "v0.76.0",
@@ -520,12 +520,13 @@
        ],
        "preconditions": "a standards library with approved and draft documents",
        "steps": [
-        "Filters → Status → tick Draft.",
+        "With \"Show only approved\" ticked, open Filters → Status.",
+        "Click \"Show every status\"; tick Draft.",
         "Tick Approved as well, then clear the filter."
        ],
-       "expected": "each tick narrows or widens the list at once; the filter pill shows the chosen values; Clear all removes every filter",
-       "hash": "4811d4ca",
-       "changed": "2026-10-19"
+       "expected": "under the approved-only default the Status group says the register shows approved documents only and offers \"Show every status\" instead of hiding; after it, each tick narrows or widens the list at once; the filter pill shows the chosen values; Clear all removes every filter",
+       "hash": "86b8ac50",
+       "changed": "2026-10-26"
       },
       {
        "id": "UAT-DOC-006",
@@ -542,9 +543,9 @@
         "Untick it.",
         "Tick it again."
        ],
-       "expected": "ticked, the register hides drafts, superseded and obsolete documents and the Status filter is out of the way; unticked, every stage shows and Status can be filtered; the choice is remembered for the view",
-       "hash": "49570a3e",
-       "changed": "2026-10-19"
+       "expected": "ticked, the register hides drafts, superseded and obsolete documents and the Status group explains itself instead of filtering; a document that leaves the approved stage while ticked (superseded, obsoleted) drops from the list at once with a status line; unticked, every stage shows and Status can be filtered; the choice is remembered for the view",
+       "hash": "43d6655b",
+       "changed": "2026-10-26"
       },
       {
        "id": "UAT-DOC-007",
@@ -561,9 +562,9 @@
         "Filters → Organisation → pick a parent term (a department with areas under it).",
         "Open one of the results and read its Organisation value."
        ],
-       "expected": "documents tagged anywhere beneath the parent appear, not only those tagged with the parent itself; the pill names the parent",
-       "hash": "66f63891",
-       "changed": "2026-10-19"
+       "expected": "documents tagged anywhere beneath the parent appear, not only those tagged with the parent itself; the pill names the parent; on a browser that has never loaded the tree, the Folders pane paints the viewer's own site branch within a few seconds with \"Loading the rest of the organisation…\" above it, and the other sites fill in behind \"Show other sites\" as the walk completes",
+       "hash": "22aa2741",
+       "changed": "2026-10-26"
       },
       {
        "id": "UAT-DOC-008",
@@ -611,11 +612,12 @@
        "preconditions": "documents modified at different times",
        "steps": [
         "Filters → Modified → last 30 days.",
-        "Switch to a custom range."
+        "Custom range: pick a from date and a to date → Apply range.",
+        "Save the view; reopen it."
        ],
-       "expected": "the list narrows to the window; the pill names it; clearing restores the list",
-       "hash": "d74b714f",
-       "changed": "2026-10-19"
+       "expected": "the list narrows to the window; the pill names it (\"Modified: 1 Oct 2026 – 15 Oct 2026\" for the range); either end of the range may be left open; a preset clears the range and the range clears the preset; the range is kept on a saved view; clearing restores the list",
+       "hash": "08a717d6",
+       "changed": "2026-10-26"
       },
       {
        "id": "UAT-DOC-011",
@@ -686,13 +688,14 @@
        ],
        "preconditions": "signed in as a document controller",
        "steps": [
-        "Build a view; Views → \"Save for the site\".",
+        "Build a view with an organisation filter and a library; Views → \"Save for the site\".",
+        "Open the new site view from the Views menu straight away.",
         "Sign in as a reader; open Views.",
-        "As the controller: Update site view, Rename, Delete."
+        "As the controller: Update site view, \"✎ Rename\", \"× Delete\"."
        ],
-       "expected": "the site view is listed under \"Site views\" for the reader, who can pick but not change it; the controller's update, rename and delete take effect for everyone",
-       "hash": "f4100096",
-       "changed": "2026-10-19"
+       "expected": "opening the view paints the register with its filters (never a blank register — a view that cannot be applied falls back to the plain register with a line saying why); the site view is listed under \"Site views\" for the reader, who can pick but not change it; Rename and Delete are labelled on the row, Delete asks first, and the controller's update, rename and delete take effect for everyone",
+       "hash": "b5cbfc8d",
+       "changed": "2026-10-26"
       },
       {
        "id": "UAT-DOC-015",
@@ -781,14 +784,15 @@
         "docs/data.ts",
         "docs/rows.ts"
        ],
-       "preconditions": "a document with several versions; signed in as its owner",
+       "preconditions": "a document with several versions; signed in as its OWNER (the Owner column names you) or as a document controller — anyone else sees no open links by design",
        "steps": [
         "Open the document → Details → Versions.",
-        "Click a version's open link."
+        "Click a version's open link.",
+        "Sign in as a reader who is neither owner nor controller; open the same list."
        ],
-       "expected": "every version with its label, author, date and comment; open links on versions for the owner or a controller only; a reader sees the list without the links",
-       "hash": "72e0435c",
-       "changed": "2026-10-19"
+       "expected": "every version with its label, author, date and comment; open links on versions for the owner or a controller only; the reader sees the list without the links and the line \"Open links on versions show for the document's owner and document controllers\"",
+       "hash": "22846ca7",
+       "changed": "2026-10-26"
       },
       {
        "id": "UAT-DOC-020",
@@ -907,11 +911,12 @@
        "steps": [
         "Open the working library → Add document.",
         "Pick the file; fill the required fields (the ✱ ones); leave an optional one blank.",
-        "Add."
+        "Add.",
+        "(Controller) Make a library column required that is not in the site dictionary; open Add document again."
        ],
-       "expected": "the required fields block Add until filled and the line under the button names what is missing; the document lands in the library with its properties and opens in the viewer",
-       "hash": "db9da839",
-       "changed": "2026-10-19"
+       "expected": "the required fields block Add until filled and the line under the button names what is missing; the document lands in the library with its properties and opens in the viewer, with the status line saying it was added as a draft, shows when \"Show only approved\" is unticked, and is submitted for review from its ⋯ menu; in step 4 the form names the library-required column it cannot collect and refuses before creating anything (no checked-out orphan)",
+       "hash": "578c0390",
+       "changed": "2026-10-26"
       },
       {
        "id": "UAT-DOC-026",
@@ -922,14 +927,15 @@
         "docs/addDocument.ts",
         "docs/model.ts"
        ],
-       "preconditions": "an existing document name and document id in the library",
+       "preconditions": "an existing document name and document id in the library; a second standards library carrying a document id",
        "steps": [
         "Add document with the same file name.",
-        "Add document with a different name but the same document id."
+        "Add document with a different name but the same document id.",
+        "Add document to the second library with a document id used in the first."
        ],
-       "expected": "both are refused before anything is written, each with a plain reason naming the clash",
-       "hash": "6c814251",
-       "changed": "2026-10-19"
+       "expected": "all three are refused before anything is written, each with a plain reason naming the clash (\"A document named “X” already exists in this library — last modified by … on …\" / \"Document ID “X” is already used by “name” in <library>\"); the check spans every standards library",
+       "hash": "15d6c73a",
+       "changed": "2026-10-26"
       },
       {
        "id": "UAT-DOC-027",
@@ -944,11 +950,12 @@
        "steps": [
         "Open the document → ⋯ → Edit properties…",
         "Change a text field, a date, a taxonomy field and a person field.",
-        "Save."
+        "Save.",
+        "Edit again; change the document id to one another document carries; Save."
        ],
-       "expected": "the dialog's footer stays pinned while the body scrolls; each editor fits its column type; Save writes the values and the details pane shows them without reopening",
-       "hash": "334e6e29",
-       "changed": "2026-10-19"
+       "expected": "the dialog's footer stays pinned while the body scrolls; each editor fits its column type; Save writes the values and the details pane shows them without reopening; the duplicate document id is refused with the clashing document named, and the unchanged id is never re-checked",
+       "hash": "7ade035b",
+       "changed": "2026-10-26"
       },
       {
        "id": "UAT-DOC-028",
@@ -2261,7 +2268,32 @@
   },
   "issues": {
    "title": "Issue reporting",
-   "journeys": []
+   "journeys": [
+    {
+     "title": "Journey 1 — Raising and following a report",
+     "cases": [
+      {
+       "id": "UAT-ISS-001",
+       "title": "Withdraw my own report",
+       "journey": "Journey 1 — Raising and following a report",
+       "persona": "reporter",
+       "modules": [
+        "issues/report.ts",
+        "issues/adminTab.ts"
+       ],
+       "preconditions": "a report you raised that is still new or triaged",
+       "steps": [
+        "Open the ? button → My reports.",
+        "On your open report click \"Withdraw…\"; give a reason; confirm.",
+        "As a super admin open Settings → Issues and find it."
+       ],
+       "expected": "the report's status reads Withdrawn with your reason on its thread; the Withdraw link shows only on your own open reports (never on one in progress, fixed or closed); the admin list shows it under Withdrawn and the PDF export carries the status",
+       "hash": "a3cdcf08",
+       "changed": "2026-10-26"
+      }
+     ]
+    }
+   ]
   }
  }
 }

@@ -2522,6 +2522,21 @@ export function suspiciousCodePoints(s: string): string[] {
   return [...out];
 }
 
+/** SharePoint's refusal in the app's words where the app knows the
+ *  shape (2026-10-26 report 10: the raw "already exists" sentence was cut
+ *  mid-word at 300 characters) — the raw sentence otherwise, whole. */
+export function friendlySpError(raw: string): string {
+  const t = spErrorText(raw);
+  const dup = /A file with the name (.+?) already exists\.(?:\s*It was last modified by (?:i:0#\.f\|membership\|)?(\S+?) on (.+?))?\.?$/is.exec(t);
+  if (dup !== null) {
+    const name = dup[1].split("/").pop() ?? dup[1];
+    const by = dup[2] !== undefined ? ` — last modified by ${dup[2]}${dup[3] !== undefined ? ` on ${dup[3].trim()}` : ""}` : "";
+    return `A document named “${name}” already exists in this library${by}. Rename it and try again.`;
+  }
+  if (/fill out all required properties/i.test(t)) return "SharePoint requires properties this form did not collect — see the library's required columns.";
+  return t;
+}
+
 export function spErrorText(raw: string): string {
   const deepest = (value: unknown, depth: number): string => {
     // a real refusal nests connector envelope → message string → JSON →

@@ -14,7 +14,7 @@ import { Block, buildPdf, PdfImage } from "./pdf";
 
 type Issue = Ben_ltkissues;
 
-const STATUS_WORDS: Record<string, string> = { new: "New", triaged: "Triaged", inprogress: "In progress", done: "Done", declined: "Declined", merged: "Merged" };
+const STATUS_WORDS: Record<string, string> = { new: "New", triaged: "Triaged", inprogress: "In progress", done: "Done", declined: "Declined", merged: "Merged", withdrawn: "Withdrawn" };
 const AREA_WORDS: Record<string, string> = { boards: "Boards", cards: "Cards", priorities: "Priorities", improvement: "Improvement", documents: "Documents", settings: "Settings", other: "Other" };
 
 /** A plain ArrayBuffer for Blob — the typed array may sit on a shared or offset buffer. */

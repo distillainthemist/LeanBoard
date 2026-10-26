@@ -889,11 +889,23 @@ export function invalidateTermPaths(): void {
  * and the 5F sync must keep calling fetchTermPaths — a STALE tree fed
  * to the sync executor would recreate terms it cannot see.
  */
+/** How a screen tree wants its walk delivered (2026-10-26 report 1):
+ *  `onLevel` hands over the nodes so far after every level, so a pane
+ *  paints while the deeper levels are still coming; `firstLabel` names
+ *  the term (its last label, case-blind) whose subtree is walked FIRST,
+ *  the moment it appears — the viewer's own site leads the pane, so it
+ *  should lead the walk. */
+export interface TermWalkProgress {
+  onLevel?: (nodes: TermNode[]) => void;
+  firstLabel?: string;
+}
+
 export function cachedTermPaths(
   site: string,
   setId: string,
   maxDepth = 4,
-  maxRequests = 120
+  maxRequests = 120,
+  progress?: TermWalkProgress
 ): Promise<TermWalk> {
   // the budget is in the key: a 60-request walk must never serve a
   // 6000-request ask (issue 13 — a truncated walk, cached, left parent
@@ -911,7 +923,7 @@ export function cachedTermPaths(
   } catch {
     /* unreadable = no cache */
   }
-  const live = fetchTermPaths(site, setId, maxDepth, maxRequests).then((r) => {
+  const live = fetchTermPaths(site, setId, maxDepth, maxRequests, progress).then((r) => {
     // only a WHOLE walk is kept: a cut-short or part-failed one would
     // be served again and again
     if (r.error === "" && r.nodes.length > 0 && !r.truncated && (r.failed ?? 0) === 0) {
@@ -930,13 +942,16 @@ export function fetchTermPaths(
   site: string,
   setId: string,
   maxDepth = 4,
-  maxRequests = 120
+  maxRequests = 120,
+  progress?: TermWalkProgress
 ): Promise<TermWalk> {
   const key = `${site}|${setId}|${maxDepth}|${maxRequests}`;
   let hit = termCache.get(key);
   if (hit === undefined) {
     const t0 = tnow();
-    hit = walkTermSet(site, setId, maxDepth, maxRequests).then((r) => {
+    // progress rides only the walk this call starts — a walk already
+    // under way answers whole, which is the final paint anyway
+    hit = walkTermSet(site, setId, maxDepth, maxRequests, progress).then((r) => {
       // the walk as a whole, on top of its per-level calls
       markTiming("term walk", t0, `${setId.slice(0, 8)} ${r.nodes.length} terms`, r.error !== "");
       return r;
@@ -960,7 +975,8 @@ async function walkTermSet(
   site: string,
   setId: string,
   maxDepth: number,
-  maxRequests: number
+  maxRequests: number,
+  progress?: TermWalkProgress
 ): Promise<TermWalk> {
   const nodes: TermNode[] = [];
   let requests = 0;
@@ -1000,21 +1016,28 @@ async function walkTermSet(
     const hit = ds.find((d) => (d.description ?? "").trim() !== "");
     return (hit?.description ?? "").trim();
   };
-  let frontier: { id: string; labels: string[] }[] = [{ id: "", labels: [] }];
-  while (frontier.length > 0) {
-    const parents = frontier.filter((p) => p.labels.length < maxDepth);
-    if (parents.length === 0) break;
+  type Parent = { id: string; labels: string[] };
+  /** Parents whose children are already in `nodes` — the first-branch
+   *  walk reads them ahead of the level walk, which then skips them. */
+  const walked = new Set<string>();
+  const firstLabelL = (progress?.firstLabel ?? "").trim().toLowerCase();
+  let firstDone = firstLabelL === "";
+  const emit = () => progress?.onLevel?.(termTreeOrder([...nodes]));
+  /** One level of parents → their children appended to `nodes`; hands
+   *  back the next level's parents. */
+  const expand = async (parents: Parent[]): Promise<Parent[] | null> => {
     if (requests + parents.length > maxRequests) {
       truncated = true;
-      break;
+      return null;
     }
     requests += parents.length;
     const results: SpResult[] = [];
     for (let at = 0; at < parents.length; at += CHUNK) {
       results.push(...(await Promise.all(parents.slice(at, at + CHUNK).map((p) => fetchOnce(p.id)))));
     }
-    const next: typeof frontier = [];
+    const next: Parent[] = [];
     for (let i = 0; i < parents.length; i++) {
+      walked.add(parents[i].id);
       const r = results[i];
       if (!r.ok) {
         failed++;
@@ -1034,6 +1057,34 @@ async function walkTermSet(
         next.push({ id, labels });
       }
     }
+    return next;
+  };
+  let frontier: Parent[] = [{ id: "", labels: [] }];
+  while (frontier.length > 0) {
+    const parents = frontier.filter((p) => p.labels.length < maxDepth && !walked.has(p.id));
+    if (parents.length === 0) break;
+    const next = await expand(parents);
+    if (next === null) break;
+    // the viewer's own branch, the moment its root appears: walked to
+    // the bottom before the rest of this level's siblings go deeper
+    if (!firstDone) {
+      const root = next.find((p) => p.labels[p.labels.length - 1].toLowerCase() === firstLabelL);
+      if (root !== undefined) {
+        firstDone = true;
+        let sub: Parent[] = [root];
+        while (sub.length > 0) {
+          const ps = sub.filter((p) => p.labels.length < maxDepth);
+          if (ps.length === 0) break;
+          const deeper = await expand(ps);
+          if (deeper === null) break;
+          sub = deeper;
+        }
+        emit();
+        frontier = next;
+        continue;
+      }
+    }
+    emit();
     frontier = next;
   }
   return {

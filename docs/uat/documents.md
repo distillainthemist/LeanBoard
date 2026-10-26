@@ -45,9 +45,10 @@ persona: reader
 modules: docs/docsScreen.ts
 preconditions: a standards library with approved and draft documents
 steps:
-1. Filters → Status → tick Draft.
-2. Tick Approved as well, then clear the filter.
-expected: each tick narrows or widens the list at once; the filter pill shows the chosen values; Clear all removes every filter
+1. With "Show only approved" ticked, open Filters → Status.
+2. Click "Show every status"; tick Draft.
+3. Tick Approved as well, then clear the filter.
+expected: under the approved-only default the Status group says the register shows approved documents only and offers "Show every status" instead of hiding; after it, each tick narrows or widens the list at once; the filter pill shows the chosen values; Clear all removes every filter
 
 ### UAT-DOC-006 — Show only approved
 persona: reader
@@ -57,7 +58,7 @@ steps:
 1. Kebab ⋮ → read "✓ Show only approved" (ticked by default).
 2. Untick it.
 3. Tick it again.
-expected: ticked, the register hides drafts, superseded and obsolete documents and the Status filter is out of the way; unticked, every stage shows and Status can be filtered; the choice is remembered for the view
+expected: ticked, the register hides drafts, superseded and obsolete documents and the Status group explains itself instead of filtering; a document that leaves the approved stage while ticked (superseded, obsoleted) drops from the list at once with a status line; unticked, every stage shows and Status can be filtered; the choice is remembered for the view
 
 ### UAT-DOC-007 — Filter by organisation at a parent level
 persona: reader
@@ -66,7 +67,7 @@ preconditions: documents tagged with organisation terms under one parent (a site
 steps:
 1. Filters → Organisation → pick a parent term (a department with areas under it).
 2. Open one of the results and read its Organisation value.
-expected: documents tagged anywhere beneath the parent appear, not only those tagged with the parent itself; the pill names the parent
+expected: documents tagged anywhere beneath the parent appear, not only those tagged with the parent itself; the pill names the parent; on a browser that has never loaded the tree, the Folders pane paints the viewer's own site branch within a few seconds with "Loading the rest of the organisation…" above it, and the other sites fill in behind "Show other sites" as the walk completes
 
 ### UAT-DOC-008 — Filter by document type and process
 persona: reader
@@ -92,8 +93,9 @@ modules: docs/docsScreen.ts
 preconditions: documents modified at different times
 steps:
 1. Filters → Modified → last 30 days.
-2. Switch to a custom range.
-expected: the list narrows to the window; the pill names it; clearing restores the list
+2. Custom range: pick a from date and a to date → Apply range.
+3. Save the view; reopen it.
+expected: the list narrows to the window; the pill names it ("Modified: 1 Oct 2026 – 15 Oct 2026" for the range); either end of the range may be left open; a preset clears the range and the range clears the preset; the range is kept on a saved view; clearing restores the list
 
 ### UAT-DOC-011 — Choose and order columns
 persona: reader
@@ -129,10 +131,11 @@ persona: controller
 modules: docs/views.ts docs/docsStore.ts docs/docsScreen.ts
 preconditions: signed in as a document controller
 steps:
-1. Build a view; Views → "Save for the site".
-2. Sign in as a reader; open Views.
-3. As the controller: Update site view, Rename, Delete.
-expected: the site view is listed under "Site views" for the reader, who can pick but not change it; the controller's update, rename and delete take effect for everyone
+1. Build a view with an organisation filter and a library; Views → "Save for the site".
+2. Open the new site view from the Views menu straight away.
+3. Sign in as a reader; open Views.
+4. As the controller: Update site view, "✎ Rename", "× Delete".
+expected: opening the view paints the register with its filters (never a blank register — a view that cannot be applied falls back to the plain register with a line saying why); the site view is listed under "Site views" for the reader, who can pick but not change it; Rename and Delete are labelled on the row, Delete asks first, and the controller's update, rename and delete take effect for everyone
 
 ### UAT-DOC-015 — Favourites and Back to libraries
 persona: reader
@@ -176,11 +179,12 @@ expected: the id chip, status chip and the section headings match the library's 
 ### UAT-DOC-019 — Versions
 persona: owner
 modules: docs/viewer.ts docs/data.ts docs/rows.ts
-preconditions: a document with several versions; signed in as its owner
+preconditions: a document with several versions; signed in as its OWNER (the Owner column names you) or as a document controller — anyone else sees no open links by design
 steps:
 1. Open the document → Details → Versions.
 2. Click a version's open link.
-expected: every version with its label, author, date and comment; open links on versions for the owner or a controller only; a reader sees the list without the links
+3. Sign in as a reader who is neither owner nor controller; open the same list.
+expected: every version with its label, author, date and comment; open links on versions for the owner or a controller only; the reader sees the list without the links and the line "Open links on versions show for the document's owner and document controllers"
 
 ### UAT-DOC-020 — A Restricted View reader
 persona: reader
@@ -240,16 +244,18 @@ steps:
 1. Open the working library → Add document.
 2. Pick the file; fill the required fields (the ✱ ones); leave an optional one blank.
 3. Add.
-expected: the required fields block Add until filled and the line under the button names what is missing; the document lands in the library with its properties and opens in the viewer
+4. (Controller) Make a library column required that is not in the site dictionary; open Add document again.
+expected: the required fields block Add until filled and the line under the button names what is missing; the document lands in the library with its properties and opens in the viewer, with the status line saying it was added as a draft, shows when "Show only approved" is unticked, and is submitted for review from its ⋯ menu; in step 4 the form names the library-required column it cannot collect and refuses before creating anything (no checked-out orphan)
 
 ### UAT-DOC-026 — Add refuses a duplicate name and a duplicate document id
 persona: author
 modules: docs/addDocument.ts docs/model.ts
-preconditions: an existing document name and document id in the library
+preconditions: an existing document name and document id in the library; a second standards library carrying a document id
 steps:
 1. Add document with the same file name.
 2. Add document with a different name but the same document id.
-expected: both are refused before anything is written, each with a plain reason naming the clash
+3. Add document to the second library with a document id used in the first.
+expected: all three are refused before anything is written, each with a plain reason naming the clash ("A document named “X” already exists in this library — last modified by … on …" / "Document ID “X” is already used by “name” in <library>"); the check spans every standards library
 
 ### UAT-DOC-027 — Edit properties
 persona: owner
@@ -259,7 +265,8 @@ steps:
 1. Open the document → ⋯ → Edit properties…
 2. Change a text field, a date, a taxonomy field and a person field.
 3. Save.
-expected: the dialog's footer stays pinned while the body scrolls; each editor fits its column type; Save writes the values and the details pane shows them without reopening
+4. Edit again; change the document id to one another document carries; Save.
+expected: the dialog's footer stays pinned while the body scrolls; each editor fits its column type; Save writes the values and the details pane shows them without reopening; the duplicate document id is refused with the clashing document named, and the unchanged id is never re-checked
 
 ### UAT-DOC-028 — Cascading organisation and process pickers
 persona: owner

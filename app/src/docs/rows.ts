@@ -58,6 +58,8 @@ export interface BrowseOpts {
   asc?: boolean;
   /** Only documents modified on/after this ISO instant. */
   modifiedAfterIso?: string;
+  /** …and on/before this one (a custom range, 2026-10-26 report 5). */
+  modifiedBeforeIso?: string;
   /** Words that must EACH appear in the file name or Title — the
    *  index-free quick search (REST substringof). The contents-depth
    *  toggle stays on the search index, which is the only thing that
@@ -71,7 +73,8 @@ export function buildBrowseUri(listId: string, top = 50, opts: BrowseOpts = {}):
   const orderBy = opts.sortName ? `FileLeafRef ${dir}` : `Modified ${dir}`;
   let filter =
     "FSObjType eq 0" +
-    (opts.modifiedAfterIso ? ` and Modified ge datetime'${opts.modifiedAfterIso}'` : "");
+    (opts.modifiedAfterIso ? ` and Modified ge datetime'${opts.modifiedAfterIso}'` : "") +
+    (opts.modifiedBeforeIso ? ` and Modified le datetime'${opts.modifiedBeforeIso}'` : "");
   for (const raw of opts.nameWords ?? []) {
     const w = raw.replace(/'/g, "''").trim();
     if (w === "") continue;
@@ -106,6 +109,7 @@ export interface RenderQueryOpts {
   sortName?: boolean;
   asc?: boolean;
   modifiedAfterIso?: string;
+  modifiedBeforeIso?: string;
   /** Words that must EACH appear in the file name or Title. */
   nameWords?: string[];
   /**
@@ -155,6 +159,11 @@ export function buildRenderViewXml(opts: RenderQueryOpts = {}): string {
   if (opts.modifiedAfterIso) {
     clauses.push(
       `<Geq><FieldRef Name="Modified"/><Value Type="DateTime" IncludeTimeValue="TRUE" StorageTZ="TRUE">${xmlEsc(opts.modifiedAfterIso)}</Value></Geq>`
+    );
+  }
+  if (opts.modifiedBeforeIso) {
+    clauses.push(
+      `<Leq><FieldRef Name="Modified"/><Value Type="DateTime" IncludeTimeValue="TRUE" StorageTZ="TRUE">${xmlEsc(opts.modifiedBeforeIso)}</Value></Leq>`
     );
   }
   const nameParts: string[] = [];
@@ -516,6 +525,7 @@ export interface SearchOpts {
   sortAsc?: boolean;
   /** Only documents modified on/after this ISO date (KQL range). */
   modifiedAfterIso?: string;
+  modifiedBeforeIso?: string;
   /**
    * Match the text of the documents themselves, not just their names and
    * titles. Off by default: SharePoint's free-text search is full-text
@@ -612,6 +622,9 @@ export function buildSearchBody(text: string, opts: SearchOpts): string {
   }
   if (opts.modifiedAfterIso) {
     terms.push(`LastModifiedTime>=${opts.modifiedAfterIso.slice(0, 10)}`);
+  }
+  if (opts.modifiedBeforeIso) {
+    terms.push(`LastModifiedTime<=${opts.modifiedBeforeIso.slice(0, 10)}`);
   }
   const request: Record<string, unknown> = {
     Querytext: terms.join(" "),
