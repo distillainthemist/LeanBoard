@@ -229,10 +229,19 @@ export function openAddDocument(opts: AddDocumentOpts): void {
     body.appendChild(deviceRow);
     fileIn.addEventListener("change", () => {
       deviceFile = fileIn.files?.[0] ?? null;
+      // the connector carries files up to 100 MB (its reference) — a
+      // larger one is refused here, the upload folder named
+      if (deviceFile !== null && deviceFile.size > 100 * 1048576) {
+        fileNote.textContent = `${deviceFile.name} is ${Math.round(deviceFile.size / 1048576)} MB — the app carries files up to 100 MB. Upload it through the upload folder instead.`;
+        deviceFile = null;
+        fileIn.value = "";
+        paintMode();
+        return;
+      }
       if (deviceFile !== null) {
         mode = "device";
         if (nameInput.value.trim() === "") nameInput.value = extOf(deviceFile.name) !== "" ? deviceFile.name.slice(0, -(extOf(deviceFile.name).length + 1)) : deviceFile.name;
-        fileNote.textContent = `${deviceFile.name} · ${Math.max(1, Math.round(deviceFile.size / 1024))} KB — goes straight into the library.`;
+        fileNote.textContent = `${deviceFile.name} · ${Math.max(1, Math.round(deviceFile.size / 1024))} KB — goes straight into the library${deviceFile.size > 25 * 1048576 ? "; a large file, the upload can take a minute or two" : ""}.`;
       }
       paintMode();
     });

@@ -1180,32 +1180,35 @@ export function mountDocs(
     /** Replace content (5H3): whoever HOLDS the check-out may swap the
      *  file — same rule as editing in Office; the check-in/discard
      *  discipline audits and reverts it. */
+    // the in-place road (2026-10-27) needs no staging library
     const canReplaceContent = (row: DocRow, lib: DocLibrary | null | undefined): boolean =>
       lib != null &&
       (lib.libType === "working" || lib.libType === "revision" || lib.libType === "standard") &&
-      app.stagingLibrary !== "" &&
       isMine(row);
     const openReplaceContentRow = (row: DocRow) => {
       void (async () => {
-        const staging = await resolveStaging();
-        if (staging === undefined) {
-          commandFailed(
-            "Replace content",
-            `The staging library "${app.stagingLibrary}" could not be resolved — check ` +
-              "Settings → Access control → Upload staging library."
-          );
-          return;
-        }
         const { openReplaceContent } = await import("./replaceContent");
         openReplaceContent({
           site: app.siteUrl,
           row,
-          staging,
           host: dialogHost,
-          // the copy-over blanks every property (UAT DOC-032): the
-          // dialog snapshots and restores the library's carried columns
-          keep: { columns: (byListId.get(row.listId)?.config.columns ?? []).map((c) => c.internal), dictBy },
-          onDone: () => void refreshRow(row),
+          // the viewer reopens on the fresh row: the preview is a
+          // presigned rendering fetched per open, so a reopen shows the
+          // new content (Ben, 2026-10-27: "the preview pane does not update")
+          onDone: () => {
+            void (async () => {
+              await refreshRow(row);
+              const lib = byListId.get(row.listId);
+              const page = await renderListPage(
+                app.siteUrl,
+                row.listId,
+                buildRenderViewXml({ idIn: [row.id], fields: (lib?.config.columns ?? []).filter((c) => c.available).map((c) => c.internal), rowLimit: 1 })
+              ).catch(() => ({ rows: [] as DocRow[] }));
+              if (dead) return;
+              closeViewer?.();
+              onRowOpen(page.rows[0] ?? row, { details: true });
+            })();
+          },
         });
       })();
     };

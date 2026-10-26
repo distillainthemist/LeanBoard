@@ -26,6 +26,10 @@ export interface ReplaceContentOpts {
   onDone: () => void;
 }
 
+/** The SharePoint connector's documented ceiling for file content. */
+const CONNECTOR_MAX_BYTES = 100 * 1048576;
+const LARGE_BYTES = 25 * 1048576;
+
 type Sp = { ok: boolean; status: string; data: unknown };
 const timed = async (p: Promise<Sp>, what: string, ms = 60_000): Promise<Sp> => {
   let clock = 0;
@@ -101,8 +105,17 @@ export function openReplaceContent(opts: ReplaceContentOpts): void {
       sync();
       return;
     }
+    // the connector carries files up to 100 MB (its reference: "file
+    // sizes up to 100 MB; larger uploads might fail due to buffer size
+    // limits") — refused here with the SharePoint road named
+    if (f !== null && f.size > CONNECTOR_MAX_BYTES) {
+      picked = null;
+      note.textContent = `${f.name} is ${Math.round(f.size / 1048576)} MB — the app carries files up to ${Math.round(CONNECTOR_MAX_BYTES / 1048576)} MB. Use “Replace it in SharePoint” below for this one.`;
+      sync();
+      return;
+    }
     picked = f;
-    note.textContent = f !== null ? `${f.name} · ${Math.max(1, Math.round(f.size / 1024))} KB` : "";
+    note.textContent = f !== null ? `${f.name} · ${Math.max(1, Math.round(f.size / 1024))} KB${f.size > LARGE_BYTES ? " — a large file; the replace can take a minute or two" : ""}` : "";
     sync();
   });
   sync();

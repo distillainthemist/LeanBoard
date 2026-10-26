@@ -313,7 +313,7 @@ preconditions: a draft standard you own; a new file
 steps:
 1. Open it → ⋯ → Replace content…; choose a file of the same type from your device; Replace content.
 2. Check in… with a comment.
-expected: the file goes over the document IN PLACE (the connector's Update file, bytes declared binary): the record keeps its id, every property, its links, favourites, flags and its history, and the new content sits on top as a version; a file of another type is refused before anything is sent; the dialog checks the landed size and the record identity and refuses to close on a mismatch; the document stays checked out to you; the check-in writes a minor version with the comment; the viewer shows the new content; "Replace it in SharePoint ↗" stays as the second road for a file too large for the app
+expected: the file goes over the document IN PLACE (the connector's Update file, bytes declared binary): the record keeps its id, every property, its links, favourites, flags and its history, and the new content sits on top as a version; a file of another type is refused before anything is sent; the dialog checks the landed size and the record identity and refuses to close on a mismatch; the document stays checked out to you; the check-in writes a minor version with the comment; the viewer reopens on the new content; a file over 100 MB (the connector's ceiling) is refused with "Replace it in SharePoint ↗" named, which stays as the second road
 
 ## Journey 4 — Lifecycle
 
