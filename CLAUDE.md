@@ -379,7 +379,11 @@ Version lives in the tag alone — nothing is stamped into files.
   dates read in the site's locale) is app-only. v0.76.0 (2026-10-21:
   health checks — `docs/health-checks-proposal-2026-10.md`) is
   SOLUTION-CARRYING: `ben_ltkhealthcheck` and `ben_healthchecks` on
-  `ben_ltksitesettings`; the app ships with EMPTY standard criteria. Prod
+  `ben_ltksitesettings`; the app ships with EMPTY standard criteria.
+  v0.77.0 (2026-10-26: the 2026-10-26 issue round —
+  `docs/issues-plan-2026-10-26.md`; progressive folders walk, custom
+  Modified range, required-column pre-flight, duplicate document id,
+  view fallback, Withdraw a report) is app-only. Prod
   imports the managed solution FIRST. LESSON
   (2026-10-13, production's first sync): a sync must
   never run from a walk it cannot trust (budget-cut OR any failed

@@ -1455,6 +1455,22 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-10-26 — released as v0.77.0** (app-only): the 2026-10-26
+  issue round (`docs/issues-plan-2026-10-26.md`, 14 reports from the
+  DMS UAT run, passed by Ben 9/9 the same day). Folders pane paints
+  level by level with the viewer's own branch walked first; custom
+  Modified range on views; Status group under the approved-only
+  default with "Show every status"; rows leaving the approved stage
+  drop at once; Add document refuses library-required columns it
+  cannot collect BEFORE creating (no checked-out orphan), says the
+  document is a draft, speaks SharePoint's refusals in the app's own
+  words, and checks the document id across every standards library
+  (Edit properties too); "Document ID" caption and the versions line
+  in the viewer; a view that fails to apply falls back to the plain
+  register with the reason, labelled "✎ Rename" / "× Delete" with a
+  confirm, the Views menu clamped to the viewport; the approve hint
+  names the Revision editors column step; reporters withdraw their own
+  open reports (status `withdrawn`). New `docs/uat/issues.md`.
 - **2026-10-21 — released as v0.76.0** (SOLUTION-CARRYING:
   `ben_ltkhealthcheck` + `ben_healthchecks` on site settings): health
   checks (the entry below), passed by Ben 13/13 the same day with
