@@ -12,7 +12,7 @@ import { openDialog } from "../../../shared/ui/dialog";
 import { AddFieldValue, SiteColumn, prefillFromItem, spErrorText, splitAddWrites, validateItemErrors } from "./model";
 import { DocRow, buildRenderViewXml } from "./rows";
 import { renderListPage } from "./data";
-import { connectorPatchItem, copyFileTo, fetchListItem, recycleFile, validateUpdateListItem } from "./sp";
+import { checkOutFile, connectorPatchItem, copyFileTo, fetchListItem, recycleFile, validateUpdateListItem } from "./sp";
 import { editorKind } from "./fieldEditors";
 import { loadLibraryFields } from "./libraryFields";
 
@@ -199,20 +199,34 @@ export function openReplaceContent(opts: ReplaceContentOpts): void {
       return fail("The replace was refused (your check-out is untouched)", over.status);
     }
 
-    // …and write the properties back, inside the same check-out
+    // …and write the properties back. The copy-over RESETS the
+    // check-out (Ben's run, 2026-10-27: every write refused), so the
+    // bracket is re-taken first — the holder stays checked out after
     const lost: string[] = [];
+    let why = "";
     if (values.length > 0) {
+      status.textContent = "Taking the check-out back…";
+      const out = await timed(checkOutFile(site, row.serverUrl), "The check-out");
+      if (!out.ok && !/checked out/i.test(spErrorText(out.status))) why = spErrorText(out.status);
       status.textContent = "Restoring the properties…";
       const writes = splitAddWrites(values);
       if (writes.formValues.length > 0) {
         const res = await timed(validateUpdateListItem(site, row.listId, row.id, writes.formValues, false), "The properties write");
         const errs = validateItemErrors(res.data);
-        if (!res.ok) lost.push(...writes.formValues.map((f) => labelOf(f.FieldName)));
-        else for (const e of errs) lost.push(labelOf(e.field));
+        if (!res.ok) {
+          lost.push(...writes.formValues.map((f) => labelOf(f.FieldName)));
+          why ||= spErrorText(res.status);
+        } else {
+          for (const e of errs) lost.push(labelOf(e.field));
+          if (errs.length > 0) why ||= errs[0].message;
+        }
       }
       if (Object.keys(writes.patch).length > 0) {
         const res = await timed(connectorPatchItem(site, row.listId, row.id, writes.patch), "The term write");
-        if (!res.ok) lost.push(...Object.keys(writes.patch).map(labelOf));
+        if (!res.ok) {
+          lost.push(...Object.keys(writes.patch).map(labelOf));
+          why ||= spErrorText(res.status);
+        }
       }
     }
 
@@ -224,7 +238,7 @@ export function openReplaceContent(opts: ReplaceContentOpts): void {
     if (lost.length > 0) {
       // the content is IN — a property the write-back could not restore
       // is named, never lost silently
-      status.textContent = `Content replaced, but these properties could not be restored — set them in Edit properties: ${[...new Set(lost)].join(", ")}.`;
+      status.textContent = `Content replaced, but these properties could not be restored — set them in Edit properties: ${[...new Set(lost)].join(", ")}.${why !== "" ? ` SharePoint said: ${why.slice(0, 200)}` : ""}`;
       status.classList.add("app-docs-addstatus-warn");
       const cancel = dlg.root.querySelector(".ltk-btn-secondary") as HTMLButtonElement | null;
       if (cancel !== null) cancel.textContent = "Close";
