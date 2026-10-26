@@ -28,6 +28,14 @@ is a place a plausible alternative failed.
 
 ## Creating files
 
+- **CORRECTED 2026-10-27 — bytes DO cross the wire** when the body
+  parameter is declared `format: "binary"`: the SDK's connector
+  executor decodes the base64 to bytes and sends octet-stream. The
+  2026-08-03 carriages declared the body as plain `type: "string"`, so
+  the base64 was stringified. Measured 2026-10-27 by the write probe:
+  Create file 16 bytes exact; Update file 32 bytes IN PLACE with the
+  item id and GUID kept; Get file content byte-identical. See
+  `docs/replace-content-review-2026-10-27.md`. The original note:
 - **Bytes cannot cross the wire.** All four carriages re-encode: a
   string body arrives UTF-8-expanded (16 bytes → 21); the `$content`
   base64 envelope is dropped by the SDK ("Body parameters missing");

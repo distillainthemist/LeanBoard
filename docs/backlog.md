@@ -180,12 +180,12 @@ Present-in-window + ⧉ chip + "Not showing?" hint. Open items:
 - **Chatbot link-out.** Parked until Pechey chooses a chatbot — build
   the button when there is something real to link to. (Original Phase 6
   deferral, re-affirmed 2026-08-07.)
-- **Native file upload.** STANDING RULE (Ben, 2026-08-07): any commit
-  that bumps @microsoft/power-apps re-runs the write-access probe's
-  byte carriages as part of that change. If bytes ever cross the
-  connector wire, native upload replaces the staging handoff. The
-  Dataverse-file+relay-flow road stays the documented alternative
-  (declined 2026-08-06).
+- **Native file upload — DONE 2026-10-27.** Bytes cross the connector
+  when the body is declared `format: "binary"` (the 2026-08-03
+  carriages never declared it). Add document uploads from the device;
+  Replace content writes in place through Update file. STANDING RULE
+  (kept): any commit that bumps @microsoft/power-apps re-runs the
+  write-access probe, whose binary steps must stay green.
 - **Live-tiles cost bounding.** Watch item (re-affirmed 2026-08-07) —
   act only if refresh cost shows up in practice.
 

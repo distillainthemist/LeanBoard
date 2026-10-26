@@ -30,9 +30,12 @@ import { loadLibraryFields } from "./libraryFields";
 import {
   checkInFile,
   checkOutFile,
+  connectorCreateFileBinary,
   connectorPatchItem,
   copyFileTo,
   fetchFields,
+  fetchFileInfo,
+  siteRelativePath,
   fetchListRoot,
   fetchRegionalSettings,
   recycleFile,
@@ -96,10 +99,11 @@ export interface AddDocumentOpts {
   draftStatus?: { internal: string; label: string; termId: string } | null;
   /** Called with the created document's row, after check-in. */
   onCreated: (row: DocRow) => void;
-  /** H2: the upload source — present only for pool members and
-   *  controllers with a staging library configured. Bytes cannot cross
-   *  the connector (4A, re-measured 2026-08-06), so the user uploads in
-   *  SharePoint's own UI and the app copies server-side. */
+  /** H2: the staging-folder source — present only for pool members and
+   *  controllers with a staging library configured. Since 2026-10-27
+   *  bytes DO cross the connector (the write probe: Create file with
+   *  the body declared binary lands byte-exact), so the native picker
+   *  is the first road and the staging folder the second. */
   upload?: {
     /** The staging library, resolved by title. */
     listId: string;
@@ -190,15 +194,19 @@ export function openAddDocument(opts: AddDocumentOpts): void {
   body.appendChild(fieldRow("Into library", targetSel));
 
   // ---- content source (H2): a template copy, or a STAGED upload --------
-  let mode: "template" | "upload" = "template";
+  let mode: "template" | "upload" | "device" = "template";
+  /** The file picked from the device (the native road, 2026-10-27). */
+  let deviceFile: File | null = null;
   const tplRow = fieldRow("From template", tplSel);
   body.appendChild(tplRow);
   const stagingRows = new Map<string, DocRow>();
   const stagingSel = el("select", "app-input") as HTMLSelectElement;
   const sourceRow = (): DocRow | undefined =>
-    mode === "upload" ? stagingRows.get(stagingSel.value) : tplRows.get(tplSel.value);
-  if (opts.upload !== undefined) {
-    const up = opts.upload;
+    mode === "upload" ? stagingRows.get(stagingSel.value) : mode === "template" ? tplRows.get(tplSel.value) : undefined;
+  /** The content is chosen: a template, a staged file, or a device file. */
+  const hasSource = (): boolean => (mode === "device" ? deviceFile !== null : sourceRow() !== undefined);
+  const sourceExt = (): string => (mode === "device" ? (deviceFile !== null ? extOf(deviceFile.name) : "") : (sourceRow()?.ext ?? ""));
+  {
     const seg = el("div", "app-docs-seg");
     const segTpl = el("button", "app-docs-segbtn app-docs-segbtn-on", "From a template") as HTMLButtonElement;
     const segUp = el("button", "app-docs-segbtn", "By upload") as HTMLButtonElement;
@@ -207,33 +215,98 @@ export function openAddDocument(opts: AddDocumentOpts): void {
     seg.append(segTpl, segUp);
     body.insertBefore(fieldRow("Content source", seg), tplRow);
 
-    const openLink = el("a", "app-btn", "Open the upload folder ↗") as HTMLAnchorElement;
-    openLink.href = up.openUrl;
-    openLink.target = "_blank";
-    openLink.rel = "noopener";
-    const refreshBtn = el("button", "app-btn", "⟳ Refresh") as HTMLButtonElement;
-    refreshBtn.type = "button";
-    placeholder(stagingSel, "Refresh to list uploaded files…");
-    const upBox = el("div", "app-docs-upbox");
-    upBox.append(openLink, refreshBtn, stagingSel);
-    const uploadRow = fieldRow("Uploaded file", upBox);
-    uploadRow.style.display = "none";
-    body.appendChild(uploadRow);
-    body.appendChild(
-      Object.assign(el("div", "app-field-hint"), {
-        textContent:
-          "Upload in the SharePoint tab, come back, Refresh, pick the file — " +
-          "the app copies it into the library and tidies the upload folder.",
-      })
-    );
+    // the native road (2026-10-27): a file from the device goes straight
+    // into the library through the connector's Create file, the body
+    // declared binary — measured byte-exact by the write probe
+    const fileIn = el("input", "app-docs-filein") as HTMLInputElement;
+    fileIn.type = "file";
+    fileIn.setAttribute("aria-label", "Choose a file from your device");
+    const fileNote = el("div", "app-field-hint", "The file goes straight into the library.");
+    const deviceBox = el("div", "app-docs-upbox");
+    deviceBox.append(fileIn, fileNote);
+    const deviceRow = fieldRow("File from your device", deviceBox);
+    deviceRow.style.display = "none";
+    body.appendChild(deviceRow);
+    fileIn.addEventListener("change", () => {
+      deviceFile = fileIn.files?.[0] ?? null;
+      if (deviceFile !== null) {
+        mode = "device";
+        if (nameInput.value.trim() === "") nameInput.value = extOf(deviceFile.name) !== "" ? deviceFile.name.slice(0, -(extOf(deviceFile.name).length + 1)) : deviceFile.name;
+        fileNote.textContent = `${deviceFile.name} · ${Math.max(1, Math.round(deviceFile.size / 1024))} KB — goes straight into the library.`;
+      }
+      paintMode();
+    });
+
+    // the staging folder stays as the second road where it is configured
+    let uploadRow: HTMLElement | null = null;
+    const up = opts.upload;
+    if (up !== undefined) {
+      const openLink = el("a", "app-btn", "Open the upload folder ↗") as HTMLAnchorElement;
+      openLink.href = up.openUrl;
+      openLink.target = "_blank";
+      openLink.rel = "noopener";
+      const refreshBtn = el("button", "app-btn", "⟳ Refresh") as HTMLButtonElement;
+      refreshBtn.type = "button";
+      placeholder(stagingSel, "Refresh to list uploaded files…");
+      const upBox = el("div", "app-docs-upbox");
+      upBox.append(openLink, refreshBtn, stagingSel);
+      uploadRow = fieldRow("Or a file already in the upload folder", upBox);
+      uploadRow.style.display = "none";
+      body.appendChild(uploadRow);
+      const loadStaging = () => {
+        refreshBtn.disabled = true;
+        void renderListPage(site, up.listId, buildRenderViewXml({ rowLimit: 30 }))
+          .then((page) => {
+            clear(stagingSel);
+            stagingRows.clear();
+            placeholder(
+              stagingSel,
+              page.rows.length === 0
+                ? "No files in the upload folder yet — upload, then Refresh"
+                : "Choose an uploaded file…"
+            );
+            for (const r of page.rows) {
+              stagingRows.set(r.uniqueId, r);
+              const o = el("option", "", r.name) as HTMLOptionElement;
+              o.value = r.uniqueId;
+              stagingSel.appendChild(o);
+            }
+            stagingSel.value = "";
+          })
+          .catch(() => {
+            clear(stagingSel);
+            placeholder(stagingSel, "Could not read the upload folder — check the staging library");
+          })
+          .then(() => {
+            refreshBtn.disabled = false;
+            sync();
+          });
+      };
+      refreshBtn.addEventListener("click", loadStaging);
+      stagingSel.addEventListener("change", () => {
+        const src = stagingRows.get(stagingSel.value);
+        if (src !== undefined) {
+          mode = "upload";
+          deviceFile = null;
+          fileIn.value = "";
+          fileNote.textContent = "The file goes straight into the library.";
+          if (nameInput.value.trim() === "") {
+            nameInput.value = src.ext !== "" ? src.name.slice(0, -(src.ext.length + 1)) : src.name;
+          }
+        }
+        paintMode();
+      });
+    }
 
     const paintMode = () => {
+      const uploading = mode === "upload" || mode === "device";
       segTpl.classList.toggle("app-docs-segbtn-on", mode === "template");
-      segUp.classList.toggle("app-docs-segbtn-on", mode === "upload");
+      segUp.classList.toggle("app-docs-segbtn-on", uploading);
       tplRow.style.display = mode === "template" ? "" : "none";
-      uploadRow.style.display = mode === "upload" ? "" : "none";
-      const src = sourceRow();
-      nameExt.textContent = src !== undefined ? `.${src.ext}` : "";
+      deviceRow.style.display = uploading ? "" : "none";
+      if (uploadRow !== null) uploadRow.style.display = uploading ? "" : "none";
+      const ext = sourceExt();
+      nameExt.textContent = ext !== "" ? `.${ext}` : "";
       sync();
     };
     segTpl.addEventListener("click", () => {
@@ -241,51 +314,10 @@ export function openAddDocument(opts: AddDocumentOpts): void {
       paintMode();
     });
     segUp.addEventListener("click", () => {
-      mode = "upload";
+      mode = deviceFile !== null ? "device" : stagingRows.get(stagingSel.value) !== undefined ? "upload" : "device";
       paintMode();
     });
 
-    const loadStaging = () => {
-      refreshBtn.disabled = true;
-      void renderListPage(site, up.listId, buildRenderViewXml({ rowLimit: 30 }))
-        .then((page) => {
-          clear(stagingSel);
-          stagingRows.clear();
-          placeholder(
-            stagingSel,
-            page.rows.length === 0
-              ? "No files in the upload folder yet — upload, then Refresh"
-              : "Choose an uploaded file…"
-          );
-          // newest first (the register's default order) — the file just
-          // uploaded is the first option
-          for (const r of page.rows) {
-            stagingRows.set(r.uniqueId, r);
-            const o = el("option", "", r.name) as HTMLOptionElement;
-            o.value = r.uniqueId;
-            stagingSel.appendChild(o);
-          }
-          stagingSel.value = "";
-        })
-        .catch(() => {
-          clear(stagingSel);
-          placeholder(stagingSel, "Could not read the upload folder — check the staging library");
-        })
-        .then(() => {
-          refreshBtn.disabled = false;
-          sync();
-        });
-    };
-    refreshBtn.addEventListener("click", loadStaging);
-    stagingSel.addEventListener("change", () => {
-      const src = stagingRows.get(stagingSel.value);
-      if (src !== undefined && nameInput.value.trim() === "") {
-        // the uploaded file's own stem is usually the right name
-        nameInput.value = src.ext !== "" ? src.name.slice(0, -(src.ext.length + 1)) : src.name;
-      }
-      nameExt.textContent = src !== undefined ? `.${src.ext}` : "";
-      sync();
-    });
   }
   body.appendChild(fieldRow("Name", nameInput, nameExt));
 
@@ -319,7 +351,7 @@ export function openAddDocument(opts: AddDocumentOpts): void {
     // scrolls to it and names it (Ben, 2026-10-26)
     createBtn.disabled =
       creating ||
-      sourceRow() === undefined ||
+      !hasSource() ||
       sanitizeFileName(nameInput.value) === "" ||
       uncollected.length > 0;
     if (requiredShown) {
@@ -505,9 +537,12 @@ export function openAddDocument(opts: AddDocumentOpts): void {
   const create = async () => {
     if (creating) return;
     const src = sourceRow();
+    const dev = mode === "device" ? deviceFile : null;
     const lib = currentTarget();
     const clean = sanitizeFileName(nameInput.value);
-    if (src === undefined || clean === "") return;
+    if ((mode === "device" ? dev === null : src === undefined) || clean === "") return;
+    const srcExt = mode === "device" ? extOf(dev!.name) : src!.ext;
+    const srcName = mode === "device" ? dev!.name : src!.name;
     const missing = missingEditors(editors);
     if (missing.length > 0) {
       const names = revealMissing(metaBox, missing, labelOfEditor);
@@ -542,7 +577,7 @@ export function openAddDocument(opts: AddDocumentOpts): void {
       sync();
     };
 
-    status(mode === "upload" ? "Copying the uploaded file…" : "Copying the template…");
+    status(mode === "device" ? "Uploading the file…" : mode === "upload" ? "Copying the uploaded file…" : "Copying the template…");
     const rootRes = await timedRetry("Finding the library root", () =>
       fetchListRoot(site, lib.listId)
     );
@@ -550,13 +585,29 @@ export function openAddDocument(opts: AddDocumentOpts): void {
       ((rootRes.data ?? {}) as { ServerRelativeUrl?: unknown }).ServerRelativeUrl ?? ""
     );
     if (root === "") return fail("Could not find the library", rootRes.status);
-    const fileName = `${clean}.${src.ext}`;
+    const fileName = `${clean}.${srcExt}`;
     const newUrl = `${root}/${fileName}`;
-    // safe to retry: boverwrite=false means a landed-late first attempt
-    // just makes the second one fail "already exists", which is caught
-    // by reading the file back rather than trusted blindly
-    const copy = await timedRetry("The copy", () => copyFileTo(site, src.serverUrl, newUrl));
-    if (!copy.ok) return fail(/already exists/i.test(spErrorText(copy.status)) ? "Not added" : "Copy refused", copy.status);
+    if (mode === "device" && dev !== null) {
+      // the native road: a name clash is refused BEFORE the upload (the
+      // connector's Create file would overwrite), the bytes go up with
+      // the body declared binary, and the landed length is checked
+      const taken = await fetchFileInfo(site, newUrl);
+      if (taken.ok) return fail("Not added", `A document named “${fileName}” already exists in this library. Rename it and try again.`);
+      const bytes = new Uint8Array(await dev.arrayBuffer());
+      const made = await connectorCreateFileBinary(site, siteRelativePath(site, root), fileName, bytes);
+      if (!made.ok) return fail("Upload refused", made.status);
+      const landed = Number(((await fetchFileInfo(site, newUrl)).data as { Length?: unknown })?.Length ?? -1);
+      if (landed !== bytes.length) {
+        await recycleFile(site, newUrl).catch(() => null);
+        return fail("Not added", `The upload landed as ${landed} bytes for ${bytes.length} sent — the file was removed again. Use the upload folder instead.`);
+      }
+    } else {
+      // safe to retry: boverwrite=false means a landed-late first attempt
+      // just makes the second one fail "already exists", which is caught
+      // by reading the file back rather than trusted blindly
+      const copy = await timedRetry("The copy", () => copyFileTo(site, src!.serverUrl, newUrl));
+      if (!copy.ok) return fail(/already exists/i.test(spErrorText(copy.status)) ? "Not added" : "Copy refused", copy.status);
+    }
 
     // From here the document EXISTS — a failure below leaves it checked
     // out to its creator, and the message says so instead of pretending
@@ -650,9 +701,9 @@ export function openAddDocument(opts: AddDocumentOpts): void {
       checkInFile(
         site,
         newUrl,
-        mode === "upload"
-          ? `Added by upload — “${src.name}”`
-          : `Created from template “${src.name}”`,
+        mode === "template"
+          ? `Created from template “${srcName}”`
+          : `Added by upload — “${srcName}”`,
         false
       ),
       25_000,
@@ -672,7 +723,7 @@ export function openAddDocument(opts: AddDocumentOpts): void {
     // the staging copy has served its purpose — best effort: the
     // document itself is DONE either way, and a leftover in the upload
     // folder is visible there and harmless
-    if (mode === "upload") {
+    if (mode === "upload" && src !== undefined) {
       status("Tidying the upload folder…");
       await timed<Sp>(recycleFile(site, src.serverUrl), 10_000, {
         ok: false,

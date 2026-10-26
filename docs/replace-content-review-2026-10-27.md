@@ -87,7 +87,24 @@ the executor's comment says it does; only a measurement settles it.
   back (expect the 32 bytes, byte-identical). The four old carriages
   stay, per the standing rule.
 
-## If the probe is green
+## Outcome (2026-10-27, Ben's run on Dev)
+
+Green on every step — Create file with the body declared binary: 16
+bytes exactly as sent; the connector's Id returned
+(`%252fDMSControlledWorkingDocuments%252f…`, library-relative,
+lowercase hex); Get file metadata by identifier; **Update file: 32
+bytes for 32 sent, item kept (id 190 → 190, uniqueId same)**; Get file
+content: 32 bytes, byte-identical. The first run had shown 26 bytes
+again — the probe's own older carriages had declared "CreateFile"
+without the format first and a declare-if-absent kept theirs; the
+binary operations now carry their own keys.
+
+Built the same day: Replace content writes the device file over the
+held document in place (Update file), checking the landed length and
+the record identity; Add document takes a file from the device (Create
+file, binary) with the staging folder as the second road.
+
+## If the probe is green (the plan that was carried out)
 
 1. Replace content: Get file content (staged) → Update file (held
    document) inside the check-out → the file, record and history kept;

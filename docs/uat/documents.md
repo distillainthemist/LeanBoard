@@ -241,12 +241,12 @@ persona: author
 modules: docs/addDocument.ts docs/fieldEditors.ts docs/docsScreen.ts
 preconditions: a working library the author may contribute to; a file to upload
 steps:
-1. Open the working library → Add document.
-2. Pick the file; leave a required field (the ones tagged "Required") empty; click Add.
+1. Open the working library → Add document → By upload → choose the file from your device (the upload folder stays as the second road where one is configured).
+2. Leave a required field (the ones tagged "Required") empty; click Add.
 3. Fill it; Add.
 4. (Controller) Make a library column required that is not in the site dictionary; open Add document again.
 5. (Controller) Make a dictionary column required through the library's CONTENT TYPE (not the column itself); open Add document again.
-expected: Approval status is not a form field — the document lands as a Draft, the lifecycle moves it from there; every required column carries a red "Required" tag on its label; a click on Add with one empty scrolls to the first, outlines each missing row and says "Required before Add: Owner, Importance" under the button, and the line clears as they are filled; the document then lands in the library with its properties and opens in the viewer, with the status line saying it was added as a draft, shows when "Show only approved" is unticked, and is submitted for review from its ⋯ menu; in step 4 the form names the library-required column it cannot collect and refuses before creating anything (no checked-out orphan); in step 5 the content-type-required column is tagged and validated like any other
+expected: the device file goes straight into the library byte-exact (a name already in the library is refused before the upload); Approval status is not a form field — the document lands as a Draft, the lifecycle moves it from there; every required column carries a red "Required" tag on its label; a click on Add with one empty scrolls to the first, outlines each missing row and says "Required before Add: Owner, Importance" under the button, and the line clears as they are filled; the document then lands in the library with its properties and opens in the viewer, with the status line saying it was added as a draft, shows when "Show only approved" is unticked, and is submitted for review from its ⋯ menu; in step 4 the form names the library-required column it cannot collect and refuses before creating anything (no checked-out orphan); in step 5 the content-type-required column is tagged and validated like any other
 
 ### UAT-DOC-026 — Add refuses a duplicate name and a duplicate document id
 persona: author
@@ -311,10 +311,9 @@ persona: owner
 modules: docs/replaceContent.ts docs/lifecycleCmds.ts
 preconditions: a draft standard you own; a new file
 steps:
-1. Open it → ⋯ → Replace content…; read the steps; "Open the folder ↗".
-2. In SharePoint: Upload → Files → the new file with the SAME name → Replace.
-3. Back in LeanBoard: "Done — refresh the document"; Check in… with a comment.
-expected: the dialog guides the replace through SharePoint's own upload (a copy from the upload folder would create a new record — both copy roads recreate the item and orphan its links, favourites and flags); after the upload the document keeps the SAME record with every property, its links and its history; it stays checked out to you; the check-in writes a minor version with the comment; the viewer shows the new content
+1. Open it → ⋯ → Replace content…; choose a file of the same type from your device; Replace content.
+2. Check in… with a comment.
+expected: the file goes over the document IN PLACE (the connector's Update file, bytes declared binary): the record keeps its id, every property, its links, favourites, flags and its history, and the new content sits on top as a version; a file of another type is refused before anything is sent; the dialog checks the landed size and the record identity and refuses to close on a mismatch; the document stays checked out to you; the check-in writes a minor version with the comment; the viewer shows the new content; "Replace it in SharePoint ↗" stays as the second road for a file too large for the app
 
 ## Journey 4 — Lifecycle
 

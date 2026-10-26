@@ -535,15 +535,21 @@ export function connectorGetFileContent(site: string, fileId: string): Promise<S
  *  name first), URL-encoded with spaces as "+", then encoded again,
  *  lowercase hex — "%252fDMSControlledWorkingDocuments%252fa%2bb.pdf". */
 export function connectorFileIdFor(site: string, serverRelativeUrl: string): string {
+  const lowerHex = (s: string) => s.replace(/%[0-9A-F]{2}/g, (m) => m.toLowerCase());
+  const once = lowerHex(encodeURIComponent(siteRelativePath(site, serverRelativeUrl)).replace(/%20/g, "+"));
+  return lowerHex(encodeURIComponent(once));
+}
+
+/** A server-relative url as the connector wants it: relative to the
+ *  SITE ("/sites/Dev/Lib/a.pdf" → "/Lib/a.pdf"). */
+export function siteRelativePath(site: string, serverRelativeUrl: string): string {
   let sitePath = "";
   try {
     sitePath = new URL(site).pathname.replace(/\/$/, "");
   } catch {
     sitePath = "";
   }
-  const rel = sitePath !== "" && serverRelativeUrl.toLowerCase().startsWith(sitePath.toLowerCase()) ? serverRelativeUrl.slice(sitePath.length) : serverRelativeUrl;
-  const once = encodeURIComponent(rel).replace(/%20/g, "+");
-  return encodeURIComponent(once).replace(/%[0-9A-F]{2}/g, (m) => m.toLowerCase());
+  return sitePath !== "" && serverRelativeUrl.toLowerCase().startsWith(sitePath.toLowerCase()) ? serverRelativeUrl.slice(sitePath.length) : serverRelativeUrl;
 }
 
 export function fetchFileInfo(site: string, url: string): Promise<SpResult> {

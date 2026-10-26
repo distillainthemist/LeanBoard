@@ -106,6 +106,11 @@ not preventable. Two hardening levels:
 
 ## Recipe 2 — native upload picker (relay)
 
+**Superseded 2026-10-27**: bytes DO cross the connector once the body
+is declared `format: "binary"` (`docs/replace-content-review-2026-10-27.md`);
+the app now uploads from the device and replaces in place, and this
+relay is no longer needed for either. Kept for the record:
+
 File bytes cannot cross the *connector* from the code app (all four
 carriages re-encode — re-measured per SDK bump by the Test write
 access probe), but they DO cross the SDK's own Dataverse file door:
