@@ -13,7 +13,7 @@ form never clearly marked. Analysed 2026-10-26 against v0.77.0.
 | 3 | UAT DOC-068: Message assignees did nothing (Rebecca) | The button sends the Teams card at once — no dialog — and writes the outcome to the status line BELOW the file grid, out of sight on a task with no files; when the viewer is the only assignee the outcome is "You are the assignee — no Teams message", which reads as nothing happening. The UAT step promises "send a note". | A dialog: the recipients (you excluded, with the reason), a note quoted under the card, Send; the outcome shows in the dialog. UAT-DOC-068 rewritten to match. | 1 h | |
 | 4 | Change records show only the number (Ellen) | The pane renders each MoC record as a chip carrying the ref, with title and date only in the hover title. | One row per record: ref (linking out) · title · date, in the pane; the chips stay in the register cell. | 0.5 h | |
 | 5 | Linked docs: no way back (Ellen) | Opening a link SWITCHES the viewer to the target ("never stack") and forgets where it came from. | A trail: the register keeps the rows opened through links (bounded); the viewer header shows "‹ Back to <name>" when there is one; Esc still closes. | 1 h | |
-| 6 | UAT DOC-030: cannot save two links, "limit of characters" (Ellen) | Links are JSON, one object per link ({uid, rel, site, listId, name, docId} ≈ 150–250 characters). The UAT site's Linked documents column is a SINGLE line of text (255 characters): one link fits, two do not, and SharePoint refuses the write with its character-limit message. | Site step: the Linked documents column must be "Multiple lines of text" (plain). In the app: Settings → Documents warns when the linkedDocuments-role column is a single-line field; the links editor refuses before saving with the plain reason when the value would exceed a single-line column; the deploy guide names the type. The JSON also drops `site` when it is this site (smaller, not enough alone). | 1 h + site step | |
+| 6 | UAT DOC-030: cannot save two links, "limit of characters" (Ellen) | The screenshot carries SharePoint's exact refusal: "DMSLinkedDocuments: This field can have no more than 255 characters." — the single-line text validator, which a multiple-lines-of-text column never raises. Ben: the site column is multiple lines of text. So the LIBRARY's copy of the column on the UAT site still behaves as single-line (a site column changed after the library took it, without the change pushed to lists; or a library-level column created separately). Links are JSON, ~150–250 characters each: one fits in 255, two do not. | Site check (Ben): the column's type on the library itself, and whether two columns share the display name. In the app: Settings → Documents shows each mapped column's live type and warns when the linked-documents column is single-line; the links editor refuses before writing ("This library's Linked documents column is single-line text (255 characters) — one link at most; a document controller changes it to multiple lines of text"); the deploy guide names the type. | 1 h + site check | |
 | 7 | Loading icon for Document tasks (Ellen) | The button paints "Document tasks" with no count until the tasks query resolves (fired at the mount tail, after the status vocabulary) — on production that is several calls, and the button looks final meanwhile. | The button shows "Document tasks · …" with the app's small spinner while the count is pending (title "Counting…"); the Ingestion tasks button likewise appears with the spinner when the remembered count was non-zero. | 0.5 h | |
 
 ## Order (proposed)
@@ -29,9 +29,9 @@ About 7.5 h. All app-only; no schema change.
 
 ## Questions for Ben
 
-- 6: the UAT site's Linked documents column needs changing to multiple
-  lines of text (plain) — existing values survive the change. OK as a
-  site step, and should production be checked for the same?
+- 6: Ben reports the site column as multiple lines of text; the
+  library's own column on the UAT site is what refused (single-line
+  validator). Ben checks the library's column.
 - 0: should Add stay disabled until the required fields are filled
   (as now, with the line naming them), or enabled with the click
   scrolling to the first missing field? Proposed: enabled.
