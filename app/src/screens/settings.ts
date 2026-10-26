@@ -113,7 +113,7 @@ const ROLE_META: Record<string, { label: string; blurb: string }> = {
   siteadmin: {
     label: "Site admin",
     blurb:
-      "Everything a user can do, plus manages their own site: its departments, meetings, boards and people.",
+      "Everything a user can do, plus manages their own site: its departments, meetings, boards and people — including adding people from the directory into the site.",
   },
   superadmin: {
     label: "Super admin",
@@ -1068,6 +1068,9 @@ interface DirectoryAddOpts {
   orgTree: ReturnType<typeof parseOrgTree>;
   sites: string[];
   crewLib: Awaited<ReturnType<typeof rosterPatternLibrary>>;
+  /** A SITE ADMIN adds into their own site only (Ben, 2026-10-27): the
+   *  site is fixed and the role stays "user" — roles are a super admin's. */
+  fixedSite?: string;
 }
 
 /**
@@ -1100,12 +1103,21 @@ function directoryAddCard(o: DirectoryAddOpts): { card: HTMLElement; run: (q: st
   /** The inline placement row under a hit: the roster row's own fields. */
   const placementRow = (hit: { objectId: string; displayName: string; mail: string }, row: HTMLElement, addBtn: HTMLButtonElement) => {
     const form = el("div", "app-dir-place");
-    const site = select(o.sites, "");
-    const dept = select([], "");
+    const fixed = o.fixedSite ?? "";
+    const site = select(fixed !== "" ? [fixed] : o.sites, fixed);
+    const dept = select(fixed !== "" ? deptsOf(fixed) : [], "");
     const area = select([], "");
-    const crew = select([], "");
+    const crew = select(fixed !== "" ? crewsForSite(o.crewLib, fixed) : [], "");
     const role = roleSelect("user");
     dept.disabled = area.disabled = crew.disabled = true;
+    if (fixed !== "") {
+      site.disabled = true;
+      site.title = "A site admin adds people into their own site";
+      role.disabled = true;
+      role.title = "Roles are set by a super admin";
+      dept.disabled = false;
+      crew.disabled = false;
+    }
     site.addEventListener("change", () => {
       rebuildSelect(dept, deptsOf(site.value));
       rebuildSelect(area, []);
@@ -1410,9 +1422,12 @@ async function renderAccessControl(body: HTMLElement, me: RosterPerson): Promise
 async function renderUsers(body: HTMLElement, me: RosterPerson): Promise<void> {
   clear(body);
   const canEdit = me.role === "superadmin";
+  // a site admin ADDS from the directory too (Ben, 2026-10-27), into
+  // their own site, as a user — roles and moves stay a super admin's
+  const canAdd = canEdit || (me.role === "siteadmin" && me.site !== "");
   if (!canEdit) {
     body.appendChild(
-      el("div", "app-settings-note", `Site admins can place people who have no site yet into ${me.site || "their site"}, and set department and crew for their own site's people. Roles and moves between sites need a super admin.`)
+      el("div", "app-settings-note", `Site admins can add people from the directory into ${me.site || "their site"}, place people who have no site yet into it, and set department and crew for their own site's people. Roles and moves between sites need a super admin.`)
     );
   }
   const orgTree = parseOrgTree(await orgJson());
@@ -1501,10 +1516,12 @@ async function renderUsers(body: HTMLElement, me: RosterPerson): Promise<void> {
   // button sends the same text to the directory, and a hit is placed as
   // it is added — no second search, no re-find in the roster
   let openDirectory: () => void = () => undefined;
-  if (canEdit) {
+  if (canAdd) {
     const addBtn = el("button", "app-btn app-btn-primary", "Search directory & add") as HTMLButtonElement;
     addBtn.type = "button";
-    addBtn.title = "Search the directory for what is typed in the search box, then add and place them";
+    addBtn.title = canEdit
+      ? "Search the directory for what is typed in the search box, then add and place them"
+      : `Search the directory for what is typed in the search box, then add them to ${me.site}`;
     bar.appendChild(addBtn);
     body.appendChild(bar);
     const dir = directoryAddCard({
@@ -1513,6 +1530,7 @@ async function renderUsers(body: HTMLElement, me: RosterPerson): Promise<void> {
       orgTree,
       sites,
       crewLib,
+      fixedSite: canEdit ? undefined : me.site,
     });
     body.appendChild(dir.card);
     openDirectory = () => {

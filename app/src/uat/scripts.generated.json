@@ -2,6 +2,10 @@
  "generatedAt": "2026-10-27",
  "releases": [
   {
+   "tag": "v0.80.0",
+   "date": "2026-10-27"
+  },
+  {
    "tag": "v0.77.0",
    "date": "2026-10-26"
   },
@@ -2368,7 +2372,32 @@
   },
   "settings": {
    "title": "Settings, people & organisation",
-   "journeys": []
+   "journeys": [
+    {
+     "title": "Journey 1 — People",
+     "cases": [
+      {
+       "id": "UAT-SET-001",
+       "title": "A site admin adds a person from the directory",
+       "journey": "Journey 1 — People",
+       "persona": "siteadmin",
+       "modules": [
+        "screens/settings.ts",
+        "store/people.ts"
+       ],
+       "preconditions": "signed in as a site admin; someone in the directory who is not yet on the roster",
+       "steps": [
+        "Settings → People; type the person's name in the search box; \"Search directory & add\".",
+        "On the hit, ＋ Add; read the placement row; pick a department and crew; \"Add to roster\".",
+        "Search the roster for them."
+       ],
+       "expected": "the note at the top says site admins add people from the directory into their site; the directory matches show; the placement row's Site is fixed to the admin's own site and Role to User (both greyed, with a tooltip saying why), department and crew offer the site's own; the person lands on the roster placed in that site; a super admin sees the full placement row with every site and role",
+       "hash": "e551ef2e",
+       "changed": "2026-10-27"
+      }
+     ]
+    }
+   ]
   },
   "issues": {
    "title": "Issue reporting",
