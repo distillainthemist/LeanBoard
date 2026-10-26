@@ -28,6 +28,11 @@ import {
   checkInFile,
   checkOutFile,
   connectorCreateFile,
+  connectorCreateFileBinary,
+  connectorFileIdFor,
+  connectorGetFileContent,
+  connectorGetFileMetadata,
+  connectorUpdateFile,
   connectorPatchItem,
   copyFileTo,
   fetchFieldByGuid,
@@ -67,6 +72,11 @@ export interface ProbeInput {
 const PROBE_BYTES = new Uint8Array([
   0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x34, 0x00, 0x7f, 0x80, 0xa9, 0xc3, 0xfe, 0xff, 0x0a,
 ]);
+
+/** A second, longer payload for the in-place replace: a different
+ *  length proves the content changed, the same item id proves the
+ *  record did not. */
+const PROBE_BYTES_32 = new Uint8Array([...PROBE_BYTES, ...PROBE_BYTES.map((b) => (b ^ 0x5a) & 0xff)]);
 
 const PROBE_TEXT = "LeanBoard write probe — safe to delete.";
 
@@ -431,12 +441,75 @@ export async function runWriteProbe(
           : `${got} bytes for ${PROBE_BYTES.length} sent — re-encoded in transit`
       );
     }
+    // 2026-10-27 (Ben: "why are we constrained this way?"): the SDK's
+    // executor sends a body declared `format: "binary"` as bytes — the
+    // four carriages above never declared it. Measured here on the
+    // probe's own file: create from bytes, read the item identity,
+    // replace IN PLACE through Update file, read the bytes back.
+    let binaryWorks = false;
+    const binName = `LeanBoard write probe ${stamp}.bin16`;
+    const binUrl = `${root}/${binName}`;
+    const mk = await connectorCreateFileBinary(site, siteRelative, binName, PROBE_BYTES);
+    if (!mk.ok) {
+      step("Upload raw bytes (connector Create file, body declared binary)", false, say(mk, ""));
+    } else {
+      created.push(binUrl);
+      const got = Number(((await fetchFileInfo(site, binUrl)).data as { Length?: unknown })?.Length ?? -1);
+      binaryWorks = got === PROBE_BYTES.length;
+      step(
+        "Upload raw bytes (connector Create file, body declared binary)",
+        binaryWorks,
+        binaryWorks ? `${got} bytes, exactly as sent` : `${got} bytes for ${PROBE_BYTES.length} sent — re-encoded in transit`
+      );
+      const returnedId = String(((mk.data ?? {}) as { Id?: unknown }).Id ?? "");
+      const derivedId = connectorFileIdFor(binUrl);
+      step(
+        "Connector file identifier",
+        returnedId !== "",
+        returnedId !== ""
+          ? `Create file returned Id ${returnedId}${returnedId === derivedId ? " — matches the derived form" : ` — the derived form would be ${derivedId}`}`
+          : `no Id in the Create file response (${JSON.stringify(mk.data).slice(0, 160)}) — derived form ${derivedId}`
+      );
+      const fileId = returnedId !== "" ? returnedId : derivedId;
+      if (binaryWorks) {
+        const idBefore = await fetchFileItemId(site, binUrl);
+        const before = (idBefore.data ?? {}) as { Id?: unknown; GUID?: unknown };
+        const meta = await connectorGetFileMetadata(site, fileId);
+        step("Connector Get file metadata by identifier", meta.ok, say(meta, `${JSON.stringify(meta.data).slice(0, 160)}`));
+        const up = await connectorUpdateFile(site, fileId, PROBE_BYTES_32);
+        if (!up.ok) {
+          step("Replace content IN PLACE (connector Update file)", false, say(up, ""));
+        } else {
+          const after = (((await fetchFileItemId(site, binUrl)).data ?? {}) as { Id?: unknown; GUID?: unknown });
+          const len = Number(((await fetchFileInfo(site, binUrl)).data as { Length?: unknown })?.Length ?? -1);
+          const sameItem = String(before.Id ?? "") === String(after.Id ?? "") && String(before.GUID ?? "") === String(after.GUID ?? "");
+          const ok = len === PROBE_BYTES_32.length && sameItem;
+          step(
+            "Replace content IN PLACE (connector Update file)",
+            ok,
+            `${len} bytes for ${PROBE_BYTES_32.length} sent; item ${sameItem ? "kept" : "CHANGED"} (id ${String(before.Id ?? "?")} → ${String(after.Id ?? "?")}, uniqueId ${sameItem ? "same" : "different"})`
+          );
+        }
+        const back = await connectorGetFileContent(site, fileId);
+        const bytes = back.data instanceof Uint8Array ? back.data : null;
+        step(
+          "Read bytes back (connector Get file content)",
+          back.ok && bytes !== null && bytes.length === PROBE_BYTES_32.length,
+          !back.ok
+            ? say(back, "")
+            : bytes === null
+              ? `answered as ${typeof back.data}${typeof back.data === "string" ? ` of ${(back.data as string).length} characters` : ""} — not bytes`
+              : `${bytes.length} bytes${bytes.length === PROBE_BYTES_32.length && bytes.every((b, i) => b === PROBE_BYTES_32[i]) ? ", byte-identical" : ", DIFFERENT from what was sent"}`
+        );
+      }
+    }
+    uploadWorks = uploadWorks || binaryWorks;
     step(
       "Upload from device",
       uploadWorks,
       uploadWorks
-        ? "a carriage that preserves bytes exists — 4C can accept an upload"
-        : "no carriage preserves bytes — 4C ships template copy only"
+        ? "a carriage that preserves bytes exists — native upload and an in-place replace are possible"
+        : "no carriage preserves bytes — template copy and the guided replace stand"
     );
   } finally {
     // whatever happened above, leave the library as we found it

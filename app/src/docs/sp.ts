@@ -441,6 +441,100 @@ export async function connectorCreateFile(
   }
 }
 
+// ---- the connector's FILE operations, declared with format: "binary" ----
+// Found 2026-10-27 (Ben: "why are we constrained this way?"): the SDK's
+// connector executor — in the installed 1.2.7 and in 1.3.0–1.5.0 —
+// decodes a body parameter declared `format: "binary"` from base64 to
+// bytes and sends it as application/octet-stream; every OTHER body is
+// JSON.stringify'd. The 4A carriages of 2026-08-03 declared the Create
+// file body as plain `type: "string"`, so the base64 went up as a JSON
+// string and the file arrived re-encoded — the declaration, not the
+// wire, was the wall. These operations carry the format; the write
+// probe measures them before anything leans on them.
+type ConnectorParam = { name: string; in: "path" | "query" | "body"; required: boolean; type: string; format?: string };
+const CONN: ConnectorParam[] = [
+  { name: "connectionId", in: "path", required: true, type: "string" },
+  { name: "dataset", in: "path", required: true, type: "string" },
+];
+const BINARY_BODY: ConnectorParam = { name: "body", in: "body", required: true, type: "string", format: "binary" };
+const FILE_OPS: Record<string, { path: string; method: string; parameters: ConnectorParam[]; responseInfo?: object }> = {
+  CreateFile: {
+    path: "/{connectionId}/datasets/{dataset}/files",
+    method: "POST",
+    parameters: [...CONN, { name: "folderPath", in: "query", required: true, type: "string" }, { name: "name", in: "query", required: true, type: "string" }, BINARY_BODY],
+    responseInfo: { "200": { type: "object" } },
+  },
+  UpdateFile: {
+    path: "/{connectionId}/datasets/{dataset}/files/{id}",
+    method: "PUT",
+    parameters: [...CONN, { name: "id", in: "path", required: true, type: "string" }, BINARY_BODY],
+    responseInfo: { "200": { type: "object" } },
+  },
+  GetFileContent: {
+    path: "/{connectionId}/datasets/{dataset}/files/{id}/content",
+    method: "GET",
+    parameters: [...CONN, { name: "id", in: "path", required: true, type: "string" }],
+  },
+  GetFileMetadata: {
+    path: "/{connectionId}/datasets/{dataset}/files/{id}",
+    method: "GET",
+    parameters: [...CONN, { name: "id", in: "path", required: true, type: "string" }],
+    responseInfo: { "200": { type: "object" } },
+  },
+};
+
+async function connectorFileOp(site: string, op: keyof typeof FILE_OPS, params: Record<string, unknown>): Promise<SpResult> {
+  declare();
+  const info = dataSourcesInfo as unknown as { documents: { apis: Record<string, unknown> } };
+  info.documents.apis[op] ??= FILE_OPS[op];
+  try {
+    const r = (await getClient(dataSourcesInfo).executeAsync<object, unknown>({
+      connectorOperation: {
+        tableName: "documents",
+        operationName: op,
+        parameters: { dataset: site.replace(/\/$/, ""), ...params },
+      },
+    })) as { success?: boolean; data?: unknown; error?: unknown };
+    if (r && r.success === false) return { ok: false, status: summarizeError(r.error), data: r.error ?? null };
+    return { ok: true, status: "", data: (r as { data?: unknown })?.data ?? null };
+  } catch (e) {
+    return { ok: false, status: String(e), data: null };
+  }
+}
+
+/** Create a file from bytes through the connector's own door, the body
+ *  declared binary. `folder` is site-relative. The response is the
+ *  connector's file metadata (its `Id` is the identifier UpdateFile and
+ *  GetFileContent take). */
+export function connectorCreateFileBinary(site: string, folder: string, name: string, bytes: Uint8Array): Promise<SpResult> {
+  return connectorFileOp(site, "CreateFile", { folderPath: folder, name, body: bytesToBase64(bytes) });
+}
+
+/** Replace an EXISTING file's content in place — the list item, its id,
+ *  its uniqueId and its history all stay; a new version is added. */
+export function connectorUpdateFile(site: string, fileId: string, bytes: Uint8Array): Promise<SpResult> {
+  return connectorFileOp(site, "UpdateFile", { id: fileId, body: bytesToBase64(bytes) });
+}
+
+/** The connector's file metadata by identifier (Id, Name, Size, Path…). */
+export function connectorGetFileMetadata(site: string, fileId: string): Promise<SpResult> {
+  return connectorFileOp(site, "GetFileMetadata", { id: fileId });
+}
+
+/** A file's bytes (octet-stream → Uint8Array when the SDK carries it so). */
+export function connectorGetFileContent(site: string, fileId: string): Promise<SpResult> {
+  return connectorFileOp(site, "GetFileContent", { id: fileId });
+}
+
+/** The connector's file identifier for a server-relative path, as the
+ *  SharePoint connector forms it: the path URL-encoded, then encoded
+ *  again, with spaces as "+" — "%252fsites%252fx%252fShared%2bDocuments%252fa.pdf".
+ *  Measured by the write probe against the Id Create file returns. */
+export function connectorFileIdFor(serverRelativeUrl: string): string {
+  const once = encodeURIComponent(serverRelativeUrl).replace(/%20/g, "+");
+  return encodeURIComponent(once);
+}
+
 export function fetchFileInfo(site: string, url: string): Promise<SpResult> {
   return spRequest(site, "GET", `${filePath(url)}?$select=Length,CheckOutType,Name`);
 }
