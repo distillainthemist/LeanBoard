@@ -10,7 +10,8 @@
       "reviewer",
       "approver",
       "controller",
-      "superadmin"
+      "superadmin",
+      "team"
     ],
     "modules": [
       "docs/"

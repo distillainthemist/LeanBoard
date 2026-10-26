@@ -677,6 +677,11 @@ export function mountDocs(
           actingAsEditor: lifecycleGatesFor(row).isEditor,
           host: dialogHost,
           reviewersPicker,
+          // Supersede names its successor as a LINK (UAT DOC-041)
+          successor:
+            cmd.key === "markSuperseded" && linksInternalOf() !== ""
+              ? { libraries: libraries.filter((l) => l.libType === "standard"), linksInternal: linksInternalOf(), docIdInternal: internalForRole("documentId") }
+              : undefined,
           // the owner's Approve ends every grant on the document (5G3)
           grantRelease:
             revEditorsInternal !== ""
@@ -1197,6 +1202,9 @@ export function mountDocs(
           row,
           staging,
           host: dialogHost,
+          // the copy-over blanks every property (UAT DOC-032): the
+          // dialog snapshots and restores the library's carried columns
+          keep: { columns: (byListId.get(row.listId)?.config.columns ?? []).map((c) => c.internal), dictBy },
           onDone: () => void refreshRow(row),
         });
       })();
@@ -3008,7 +3016,11 @@ export function mountDocs(
     const viewDrifted = (): boolean => {
       const v = activeSaved();
       if (v === null) return false;
-      return encodeDocView({ ...currentView(), name: "" }) !== encodeDocView({ ...v, name: "" });
+      try {
+        return encodeDocView({ ...currentView(), name: "" }) !== encodeDocView({ ...v, name: "" });
+      } catch {
+        return false; // a paint must never die on the drift question
+      }
     };
     const saveSiteViews = async (next: DocView[]) => {
       siteViews = next;
@@ -3025,11 +3037,18 @@ export function mountDocs(
         : libNames;
       // B4 (Ben, 2026-10-06): a saved view IS the title; the scope it
       // sits on becomes the crumb. Leaving the view is in the Views menu.
-      if (activeViewName !== "") {
-        // "View · name", and "edited" once the filters have drifted from
-        // the saved state (issue 6 — the bare name was easy to miss)
-        h1.textContent = `View · ${activeViewName}${viewDrifted() ? " · edited" : ""}`;
+      // the view names the title ONLY while the register still matches
+      // it (Ben, 2026-10-27, UAT DOC-014); once a filter or folder
+      // drifts, the scope is the title again and the crumb remembers
+      // the view — Update / Close stay in the Views menu
+      const drifted = activeViewName !== "" && viewDrifted();
+      if (activeViewName !== "" && !drifted) {
+        h1.textContent = `View · ${activeViewName}`;
         crumb.textContent = `${scopeTitle}${f ? ` · ${f.node.labels.join(" › ")}` : ""}`;
+        crumb.style.display = "";
+      } else if (drifted) {
+        h1.textContent = scopeTitle;
+        crumb.textContent = `${f ? `${f.node.labels.join(" › ")} · ` : ""}from the view “${activeViewName}” · edited — Update or Close it from Views`;
         crumb.style.display = "";
       } else {
         h1.textContent = scopeTitle;
@@ -4680,7 +4699,9 @@ export function mountDocs(
         wrap.append(radio, document.createTextNode(` ${opt.label}`));
         kinds.appendChild(wrap);
       }
-      dlg.body.append(el("div", "app-field-label", "Comment"), comment, kinds);
+      const ciLabel = el("div", "app-field-label", "Comment");
+      ciLabel.appendChild(el("span", "app-field-req", "Required"));
+      dlg.body.append(ciLabel, comment, el("div", "app-field-hint", "A comment is required — it is the version's audit entry."), kinds);
       if (submitReviewCmd === null && ciLib?.libType === "standard") {
         // UAT DOC-034 (2026-10-26): the one-flow button is for a DRAFT
         // standard you own — say why it is missing instead of nothing
@@ -5409,7 +5430,11 @@ export function mountDocs(
     });
 
     // ---- share + register export ---------------------------------------
-    const currentView = (): DocView => {
+    // a FUNCTION, hoisted: the title painter asks viewDrifted() on the
+    // first paint of a booted view, before this line has run — a const
+    // arrow was a dead zone there ("Cannot access … before
+    // initialization", UAT DOC-014, 2026-10-26)
+    function currentView(): DocView {
       const org = filterFor("");
       return {
         ...emptyDocView(),
@@ -5435,7 +5460,7 @@ export function mountDocs(
         groupBy,
         dates: dateFilters.map((d) => ({ ...d })),
       };
-    };
+    }
     const copyViewLink = () => {
       void navigator.clipboard
         .writeText(docsViewUrl(encodeDocView(currentView())))

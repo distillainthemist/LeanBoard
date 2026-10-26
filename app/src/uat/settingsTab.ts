@@ -217,11 +217,22 @@ export async function renderUatSettings(body: HTMLElement): Promise<void> {
       });
       acts.appendChild(rerun);
     }
-    const pdf = btn("Export PDF");
+    const pdf = btn("Export summary");
+    pdf.title = "The run's facts, progress, the fails and blocks, one line per case";
     pdf.addEventListener("click", () => {
       void import("./exportPdf").then(({ exportRunPdf }) => exportRunPdf(run, results));
     });
     acts.appendChild(pdf);
+    const full = btn("Export full report");
+    full.title = "Every case with its script, every result by every tester, and the issues raised with their thread and attachments";
+    full.addEventListener("click", () => {
+      full.disabled = true;
+      void import("./exportPdf")
+        .then(({ exportRunFullPdf }) => exportRunFullPdf(run, results, scripts, (line) => { status.textContent = line; }))
+        .catch((e: unknown) => { status.textContent = `The full report did not export: ${e instanceof Error ? e.message : String(e)}`; })
+        .finally(() => { full.disabled = false; });
+    });
+    acts.appendChild(full);
     host.appendChild(acts);
   };
 

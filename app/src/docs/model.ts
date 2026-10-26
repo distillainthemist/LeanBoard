@@ -2221,7 +2221,12 @@ export type DocLinkRel =
   | "regulatorCopy"
   /** The derived-side voice of regulatorCopy — never declared, only
    *  painted on the copy's own pane. */
-  | "regulatorCopyOf";
+  | "regulatorCopyOf"
+  /** Written by Supersede on the RETIRED document: the standard that
+   *  replaced it (UAT DOC-041, 2026-10-27). */
+  | "supersededBy"
+  /** The derived-side voice of supersededBy, on the successor's pane. */
+  | "supersedes";
 
 export interface DocLink {
   uid: string;
@@ -2233,11 +2238,13 @@ export interface DocLink {
 }
 
 export const DOC_LINK_RELS: DocLinkRel[] = [
+  "supersededBy",
   "parent",
   "peer",
   "child",
   "regulatorCopy",
   "regulatorCopyOf",
+  "supersedes",
 ];
 
 /** How a group of links reads on the DECLARING document's pane. */
@@ -2297,6 +2304,8 @@ export const DOC_LINK_GROUP: Record<DocLinkRel, string> = {
   child: "Child documents",
   regulatorCopy: "Regulator approved copy",
   regulatorCopyOf: "Approved copy of",
+  supersededBy: "Superseded by",
+  supersedes: "Supersedes",
 };
 
 /** How this document reads FROM the linked one (the inverse voice —
@@ -2307,6 +2316,8 @@ export const DOC_LINK_INVERSE: Record<DocLinkRel, string> = {
   child: "names this as a child",
   regulatorCopy: "names this as its regulator approved copy",
   regulatorCopyOf: "is the regulator approved copy of this",
+  supersededBy: "was superseded by this",
+  supersedes: "supersedes this",
 };
 
 /** Parse the column's value. JSON in the expected shape → links;
@@ -2357,6 +2368,8 @@ export function serializeDocLinks(links: DocLink[]): string {
     child: 2,
     regulatorCopy: 3,
     regulatorCopyOf: 4,
+    supersededBy: 5,
+    supersedes: 6,
   };
   kept.sort((a, b) => rank[a.rel] - rank[b.rel]);
   return JSON.stringify(kept);

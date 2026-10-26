@@ -9,10 +9,12 @@
 
 import { clear, el } from "../../../shared/ui/dom";
 import { openDialog } from "../../../shared/ui/dialog";
-import { spErrorText } from "./model";
+import { AddFieldValue, SiteColumn, prefillFromItem, spErrorText, splitAddWrites, validateItemErrors } from "./model";
 import { DocRow, buildRenderViewXml } from "./rows";
 import { renderListPage } from "./data";
-import { copyFileTo, recycleFile } from "./sp";
+import { connectorPatchItem, copyFileTo, fetchListItem, recycleFile, validateUpdateListItem } from "./sp";
+import { editorKind } from "./fieldEditors";
+import { loadLibraryFields } from "./libraryFields";
 
 export interface ReplaceContentOpts {
   site: string;
@@ -20,6 +22,11 @@ export interface ReplaceContentOpts {
   row: DocRow;
   staging: { listId: string; openUrl: string };
   host: HTMLElement;
+  /** The library's carried columns and the dictionary: the copy-over
+   *  blanks every property (SharePoint copies the SOURCE's, and the
+   *  staged upload has none — UAT DOC-032), so they are snapshotted
+   *  first and written back after. */
+  keep?: { columns: string[]; dictBy: Map<string, SiteColumn> };
   onDone: () => void;
 }
 
@@ -136,10 +143,77 @@ export function openReplaceContent(opts: ReplaceContentOpts): void {
     sync();
     status.classList.remove("app-docs-addstatus-warn");
 
+    // snapshot every carried property BEFORE the copy-over
+    const values: AddFieldValue[] = [];
+    let labelOf = (internal: string) => internal;
+    if (opts.keep !== undefined && opts.keep.columns.length > 0) {
+      status.textContent = "Reading the properties…";
+      const keep = opts.keep;
+      labelOf = (internal) => keep.dictBy.get(internal)?.label || internal;
+      const [{ fields }, item] = await Promise.all([
+        loadLibraryFields(site, row.listId),
+        timed(fetchListItem(site, row.listId, row.id), "The properties read"),
+      ]);
+      if (!item.ok) return fail("The properties could not be read, so nothing was replaced", item.status);
+      const carried = new Set(keep.columns);
+      const pre = prefillFromItem((item.data ?? {}) as Record<string, unknown>, fields);
+      const personCols = fields.filter((f) => carried.has(f.internal) && editorKind(f) === "person").map((f) => f.internal);
+      let people = new Map<string, { email: string; name: string }[]>();
+      if (personCols.length > 0) {
+        const page = await renderListPage(site, row.listId, buildRenderViewXml({ idIn: [row.id], fields: personCols, rowLimit: 1 })).catch(() => ({ rows: [] as DocRow[] }));
+        const fresh = page.rows[0];
+        if (fresh !== undefined) {
+          people = new Map(
+            personCols.map((internal) => {
+              const names = (fresh.values[internal] ?? "").split(";").map((x) => x.trim()).filter((x) => x !== "");
+              const mails = (fresh.values[`${internal}#email`] ?? "").split(";").filter((x) => x !== "");
+              return [internal, mails.map((email, i) => ({ email, name: names[i] ?? email }))];
+            })
+          );
+        }
+      }
+      for (const f of fields) {
+        if (!carried.has(f.internal)) continue;
+        const kind = editorKind(f);
+        if (kind === null) continue;
+        if (kind === "person") {
+          const ps = people.get(f.internal) ?? [];
+          if (ps.length > 0) values.push({ internal: f.internal, kind, people: ps });
+          continue;
+        }
+        const v = pre.get(f.internal);
+        if (v === undefined) continue;
+        if (kind === "taxonomy") {
+          const terms = v.terms ?? (v.term !== undefined ? [v.term] : []);
+          if (terms.length === 0) continue;
+          values.push({ internal: f.internal, kind, label: terms[0].label, termId: terms[0].termId, multi: f.type === "TaxonomyFieldTypeMulti", terms });
+          continue;
+        }
+        if ((v.text ?? "") !== "") values.push({ internal: f.internal, kind, text: v.text });
+      }
+    }
+
     status.textContent = "Replacing the content…";
     const over = await timed(copyFileTo(site, src.serverUrl, row.serverUrl, true), "The replace");
     if (!over.ok) {
       return fail("The replace was refused (your check-out is untouched)", over.status);
+    }
+
+    // …and write the properties back, inside the same check-out
+    const lost: string[] = [];
+    if (values.length > 0) {
+      status.textContent = "Restoring the properties…";
+      const writes = splitAddWrites(values);
+      if (writes.formValues.length > 0) {
+        const res = await timed(validateUpdateListItem(site, row.listId, row.id, writes.formValues, false), "The properties write");
+        const errs = validateItemErrors(res.data);
+        if (!res.ok) lost.push(...writes.formValues.map((f) => labelOf(f.FieldName)));
+        else for (const e of errs) lost.push(labelOf(e.field));
+      }
+      if (Object.keys(writes.patch).length > 0) {
+        const res = await timed(connectorPatchItem(site, row.listId, row.id, writes.patch), "The term write");
+        if (!res.ok) lost.push(...Object.keys(writes.patch).map(labelOf));
+      }
     }
 
     // the staging copy has served its purpose — best effort; the
@@ -147,6 +221,18 @@ export function openReplaceContent(opts: ReplaceContentOpts): void {
     status.textContent = "Tidying the upload folder…";
     await timed(recycleFile(site, src.serverUrl), "The tidy-up").catch(() => null);
 
+    if (lost.length > 0) {
+      // the content is IN — a property the write-back could not restore
+      // is named, never lost silently
+      status.textContent = `Content replaced, but these properties could not be restored — set them in Edit properties: ${[...new Set(lost)].join(", ")}.`;
+      status.classList.add("app-docs-addstatus-warn");
+      const cancel = dlg.root.querySelector(".ltk-btn-secondary") as HTMLButtonElement | null;
+      if (cancel !== null) cancel.textContent = "Close";
+      goBtn.style.display = "none";
+      running = false;
+      opts.onDone();
+      return;
+    }
     dlg.close();
     opts.onDone();
   };

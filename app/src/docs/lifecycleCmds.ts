@@ -12,13 +12,19 @@ import { openDialog } from "../../../shared/ui/dialog";
 import { reviewerPeopleSource } from "./accessGates";
 import {
   DEFAULT_CADENCE_MONTHS,
+  DocLink,
   LifecycleCommandDef,
   addMonthsYmd,
   formatDateForLocale,
+  parseDocLinks,
+  serializeDocLinks,
   spErrorText,
   todayYmd,
   validateItemErrors,
 } from "./model";
+import { DocLibrary } from "./docsStore";
+import { buildRenderViewXml } from "./rows";
+import { renderListPage } from "./data";
 import { NotifyContext } from "./notifyModel";
 import { attachNotifyPanel } from "./notifyPanel";
 import { DocRow, formatDayMonthYear } from "./rows";
@@ -28,6 +34,7 @@ import {
   checkOutFile,
   connectorPatchItem,
   fetchFileVersions,
+  fetchListItem,
   fetchListModeration,
   fetchRegionalSettings,
   restoreFileVersion,
@@ -85,6 +92,9 @@ export interface LifecycleRunOpts {
    *  what to say. Present = the done-state offers the panel; sending is
    *  never required and never automatic. */
   notify?: NotifyContext;
+  /** Supersede names its successor (UAT DOC-041): the picker searches
+   *  these libraries, the link lands in this column with the status. */
+  successor?: { libraries: DocLibrary[]; linksInternal: string; docIdInternal: string };
 }
 
 type Sp = { ok: boolean; status: string; data: unknown };
@@ -252,6 +262,82 @@ export function openLifecycleCommand(opts: LifecycleRunOpts): void {
   reason.placeholder = command.needsReason
     ? "Why is revision needed? (required)"
     : "Comment (optional)";
+  // the successor, picked not typed (UAT DOC-041): required for Supersede
+  let picked: DocLink | null = null;
+  const needSuccessor = command.key === "markSuperseded" && opts.successor !== undefined;
+  if (needSuccessor && opts.successor !== undefined) {
+    const succ = opts.successor;
+    const label = el("div", "app-field-label", "Superseded by");
+    label.appendChild(el("span", "app-field-req", "Required"));
+    const pickedBox = el("div", "app-docs-pplchips");
+    const search = el("input", "app-input") as HTMLInputElement;
+    search.placeholder = "Search the standards by name…";
+    const hits = el("div", "app-docs-linkhits");
+    const paintPicked = () => {
+      clear(pickedBox);
+      if (picked === null) {
+        pickedBox.style.display = "none";
+        search.style.display = "";
+        return;
+      }
+      const chip = el("span", "app-docs-pplchip");
+      chip.appendChild(el("span", "", `${picked.name}${picked.docId !== "" ? ` · ${picked.docId}` : ""}`));
+      const off = el("button", "app-docs-pplchipx", "✕") as HTMLButtonElement;
+      off.type = "button";
+      off.addEventListener("click", () => {
+        picked = null;
+        paintPicked();
+        sync();
+      });
+      chip.appendChild(off);
+      pickedBox.appendChild(chip);
+      pickedBox.style.display = "";
+      search.style.display = "none";
+      clear(hits);
+    };
+    let timer = 0;
+    search.addEventListener("input", () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => void look(), 300);
+    });
+    const look = async () => {
+      clear(hits);
+      const q = search.value.trim();
+      if (q === "") return;
+      const pages = await Promise.all(
+        succ.libraries.map((l) =>
+          renderListPage(opts.site, l.listId, buildRenderViewXml({ nameWords: q.split(/\s+/), fields: succ.docIdInternal !== "" ? [succ.docIdInternal] : [], rowLimit: 6 })).catch(() => ({ rows: [] as DocRow[] }))
+        )
+      );
+      let shown = 0;
+      for (let i = 0; i < succ.libraries.length; i++) {
+        const lib = succ.libraries[i];
+        for (const hit of pages[i].rows) {
+          if (hit.uniqueId === row.uniqueId || shown >= 12) continue;
+          shown++;
+          const b = el("button", "app-docs-linkhit", `${hit.name} — ${lib.config.title || lib.name}`) as HTMLButtonElement;
+          b.type = "button";
+          b.addEventListener("click", () => {
+            picked = {
+              uid: hit.uniqueId,
+              rel: "supersededBy",
+              site: (lib.siteUrl ?? "") !== "" ? lib.siteUrl : opts.site,
+              listId: lib.listId,
+              name: hit.name,
+              docId: succ.docIdInternal !== "" ? (hit.values[succ.docIdInternal] ?? "") : "",
+            };
+            search.value = "";
+            paintPicked();
+            sync();
+          });
+          hits.appendChild(b);
+        }
+      }
+      if (shown === 0) hits.appendChild(el("div", "app-field-hint", "No standards match."));
+    };
+    paintPicked();
+    dlg.body.append(label, pickedBox, search, hits);
+  }
   dlg.body.append(el("div", "app-field-label", "Comment"), reason);
   const status = el("div", "app-docs-addstatus");
   dlg.body.appendChild(status);
@@ -260,6 +346,7 @@ export function openLifecycleCommand(opts: LifecycleRunOpts): void {
     goBtn.disabled =
       running ||
       (command.needsReason && reason.value.trim() === "") ||
+      (needSuccessor && picked === null) ||
       (regConfirm !== null && !regConfirm.checked);
   };
   reason.addEventListener("input", sync);
@@ -330,6 +417,7 @@ export function openLifecycleCommand(opts: LifecycleRunOpts): void {
         : command.comment;
     const note = reason.value.trim();
     let comment = note !== "" ? `${base} — ${note}` : base;
+    if (picked !== null) comment = `Superseded by “${picked.name}”${note !== "" ? ` — ${note}` : ""}`;
     if (regConfirm !== null && regConfirm.checked) {
       comment += " — regulator copy to follow";
     }
@@ -400,6 +488,24 @@ export function openLifecycleCommand(opts: LifecycleRunOpts): void {
     );
     if (!patch.ok) {
       return fail("The status write was refused (the document stays checked out)", patch.status);
+    }
+
+    // the successor link, in the same check-out as the status (DOC-041)
+    // — the column's FULL value is read over REST (the feed clips)
+    if (picked !== null && opts.successor !== undefined) {
+      status.textContent = "Linking the successor…";
+      const item = await timed(fetchListItem(site, opts.listId, row.id), "The links read");
+      const raw = String(((item.data ?? {}) as Record<string, unknown>)[opts.successor.linksInternal] ?? "");
+      const existing = parseDocLinks(raw) ?? [];
+      const next = serializeDocLinks([...existing.filter((l) => l.rel !== "supersededBy"), picked]);
+      const lw = await timed(
+        validateUpdateListItem(site, opts.listId, row.id, [{ FieldName: opts.successor.linksInternal, FieldValue: next }], false),
+        "The successor link"
+      );
+      const lerrs = validateItemErrors(lw.data);
+      if (!lw.ok || lerrs.length > 0) {
+        return fail("The successor link was refused (the document stays checked out)", lerrs.map((e) => `${e.field}: ${e.message}`).join("; ") || lw.status);
+      }
     }
 
     // the grant dies with the cycle (5G3): clear the Revision editors

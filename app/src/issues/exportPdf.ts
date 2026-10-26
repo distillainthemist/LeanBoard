@@ -53,28 +53,24 @@ export interface ExportProgress {
 }
 
 /** Build and download the PDF for `issues` (in the order given). */
-export async function exportIssuesPdf(issues: Issue[], progress: ExportProgress = () => undefined): Promise<void> {
-  const version = typeof __APP_VERSION__ === "string" ? __APP_VERSION__ : "unknown";
-  const exportedAt = new Date().toISOString();
+
+/** The connector's file reader, as the exports use it. */
+export interface FileClient {
+  downloadFileFromRecord: (table: string, id: string, column: string) => Promise<{ success?: boolean; data?: unknown; error?: { message?: string } }>;
+}
+
+/** One issue's section — the report as filed, the context, the
+ *  resolution, the thread and every attachment as an image. Shared by
+ *  the issues export and the full UAT report (2026-10-27). */
+export async function issueBlocks(
+  issue: Issue,
+  shape: { heading: string; label: string; pagebreak: boolean },
+  progress: ExportProgress,
+  client: FileClient
+): Promise<Block[]> {
   const blocks: Block[] = [];
-  blocks.push({ kind: "title", text: "LeanBoard issues export" });
-  blocks.push({ kind: "meta", text: `${issues.length} issue${issues.length === 1 ? "" : "s"}  ·  exported ${when(exportedAt)}  ·  app ${version}  ·  ${window.location.host}` });
-  blocks.push({ kind: "p", text: "One section per issue: the report as filed, the context the app captured, the thread, and every attachment. Issue ids are the Dataverse row ids." });
-  blocks.push({ kind: "gap", pt: 8 });
-  blocks.push({ kind: "h2", text: "Contents" });
-  issues.forEach((i, n) => {
-    blocks.push({ kind: "p", text: `${n + 1}. ${i.ben_name ?? ""}  —  ${i.ben_kind === "idea" ? "Idea" : "Bug"} · ${AREA_WORDS[i.ben_area ?? ""] ?? i.ben_area ?? ""} · ${STATUS_WORDS[i.ben_status ?? ""] ?? i.ben_status ?? ""}` });
-  });
-
-  const { getClient } = await import("@microsoft/power-apps/data");
-  const { dataSourcesInfo } = await import("../../.power/schemas/appschemas/dataSourcesInfo");
-  const client = getClient(dataSourcesInfo);
-
-  let n = 0;
-  for (const issue of issues) {
-    n++;
-    progress(`Reading issue ${n} of ${issues.length}…`);
-    const id = issue.ben_ltkissueid;
+  const id = issue.ben_ltkissueid;
+  progress(`Reading issue ${shape.label}…`);
     const [files, messages, watches, children, parent] = await Promise.all([
       Ben_ltkissuefilesService.getAll({ filter: `_ben_issue_value eq '${id}'` }),
       Ben_ltkissuemessagesService.getAll({ filter: `_ben_issue_value eq '${id}'` }),
@@ -82,8 +78,8 @@ export async function exportIssuesPdf(issues: Issue[], progress: ExportProgress 
       Ben_ltkissuesService.getAll({ filter: `_ben_duplicateof_value eq '${id}'`, select: ["ben_ltkissueid", "ben_name", "ben_reportername"] }),
       issue._ben_duplicateof_value ? Ben_ltkissuesService.get(issue._ben_duplicateof_value) : Promise.resolve(null),
     ]);
-    blocks.push({ kind: "pagebreak" });
-    blocks.push({ kind: "h1", text: `${n}. ${issue.ben_name ?? "(untitled)"}` });
+    if (shape.pagebreak) blocks.push({ kind: "pagebreak" });
+    blocks.push({ kind: "h1", text: shape.heading });
     blocks.push({ kind: "kv", key: "Issue id", value: id, mono: true });
     blocks.push({ kind: "kv", key: "Kind", value: issue.ben_kind === "idea" ? "Idea" : "Bug" });
     blocks.push({ kind: "kv", key: "Area", value: AREA_WORDS[issue.ben_area ?? ""] ?? issue.ben_area ?? "" });
@@ -132,7 +128,7 @@ export async function exportIssuesPdf(issues: Issue[], progress: ExportProgress 
     let f = 0;
     for (const row of fileRows) {
       f++;
-      progress(`Issue ${n} of ${issues.length}: attachment ${f} of ${fileRows.length}…`);
+      progress(`Issue ${shape.label}: attachment ${f} of ${fileRows.length}…`);
       const name = row.ben_name ?? `attachment ${f}`;
       const caption = `${name}${row.ben_caption ? ` — ${row.ben_caption}` : ""}`;
       const down = await client.downloadFileFromRecord("ben_ltkissuefiles", row.ben_ltkissuefileid, "ben_file");
@@ -148,6 +144,30 @@ export async function exportIssuesPdf(issues: Issue[], progress: ExportProgress 
       img.caption = caption;
       blocks.push({ kind: "image", image: img });
     }
+  return blocks;
+}
+
+export async function exportIssuesPdf(issues: Issue[], progress: ExportProgress = () => undefined): Promise<void> {
+  const version = typeof __APP_VERSION__ === "string" ? __APP_VERSION__ : "unknown";
+  const exportedAt = new Date().toISOString();
+  const blocks: Block[] = [];
+  blocks.push({ kind: "title", text: "LeanBoard issues export" });
+  blocks.push({ kind: "meta", text: `${issues.length} issue${issues.length === 1 ? "" : "s"}  ·  exported ${when(exportedAt)}  ·  app ${version}  ·  ${window.location.host}` });
+  blocks.push({ kind: "p", text: "One section per issue: the report as filed, the context the app captured, the thread, and every attachment. Issue ids are the Dataverse row ids." });
+  blocks.push({ kind: "gap", pt: 8 });
+  blocks.push({ kind: "h2", text: "Contents" });
+  issues.forEach((i, n) => {
+    blocks.push({ kind: "p", text: `${n + 1}. ${i.ben_name ?? ""}  —  ${i.ben_kind === "idea" ? "Idea" : "Bug"} · ${AREA_WORDS[i.ben_area ?? ""] ?? i.ben_area ?? ""} · ${STATUS_WORDS[i.ben_status ?? ""] ?? i.ben_status ?? ""}` });
+  });
+
+  const { getClient } = await import("@microsoft/power-apps/data");
+  const { dataSourcesInfo } = await import("../../.power/schemas/appschemas/dataSourcesInfo");
+  const client = getClient(dataSourcesInfo);
+
+  let n = 0;
+  for (const issue of issues) {
+    n++;
+    blocks.push(...(await issueBlocks(issue, { heading: `${n}. ${issue.ben_name ?? "(untitled)"}`, label: `${n} of ${issues.length}`, pagebreak: true }, progress, client)));
   }
 
   progress("Writing the PDF…");

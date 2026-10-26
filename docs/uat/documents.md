@@ -1,6 +1,6 @@
 # Documents
 
-Personas: reader (any signed-in person), author (contributes to a working library), owner (named owner of a standard), reviewer, approver, controller (document controllers group), superadmin. The production test site needs: two exposed standards libraries and one working library with the site columns mapped (status, owner, approvers, reviewers, revision editors, next review date, importance, document id, organisation, process area, tags, linked documents, management of change), the ingestion library, the three groups, the Organisation / Process / Status / Tags term sets, and a handful of documents in each lifecycle stage.
+Personas: reader (any signed-in person), author (contributes to a working library), owner (named owner of a standard), reviewer, approver, controller (document controllers group), superadmin, team (an end-to-end flow run by several people on their own devices — each step names who acts). The production test site needs: two exposed standards libraries and one working library with the site columns mapped (status, owner, approvers, reviewers, revision editors, next review date, importance, document id, organisation, process area, tags, linked documents, management of change), the ingestion library, the three groups, the Organisation / Process / Status / Tags term sets, and a handful of documents in each lifecycle stage.
 
 ## Journey 1 — Register and libraries
 
@@ -135,7 +135,7 @@ steps:
 2. Open the new site view from the Views menu straight away.
 3. Sign in as a reader; open Views.
 4. As the controller: Update site view, "✎ Rename", "× Delete".
-expected: opening the view paints the register with its filters (never a blank register — a view that cannot be applied falls back to the plain register with a line saying why); the site view is listed under "Site views" for the reader, who can pick but not change it; Rename and Delete are labelled on the row, Delete asks first, and the controller's update, rename and delete take effect for everyone
+expected: opening the view paints the register with its filters (never a blank register — a view that cannot be applied falls back to the plain register with a line saying why); the title reads "View · name" only while the register still matches the view — clear a filter or click a folder and the title returns to the scope with the crumb "from the view “name” · edited" (Update and Close stay in the Views menu); the site view is listed under "Site views" for the reader, who can pick but not change it; Rename and Delete are labelled on the row, Delete asks first, and the controller's update, rename and delete take effect for everyone
 
 ### UAT-DOC-015 — Favourites and Back to libraries
 persona: reader
@@ -303,7 +303,7 @@ preconditions: a draft standard you own, not checked out
 steps:
 1. Open it → Check out.
 2. Read the register row and the Document tasks panel.
-3. Check in… with a comment; then check out again and Discard check-out.
+3. Check in… with a comment (the Comment label is tagged Required, with the line "A comment is required — it is the version's audit entry"); then check out again and Discard check-out.
 expected: the row shows the lock and your name; "Checked out to you" lists it in Document tasks; Check in writes a minor version with the comment (the library must keep major AND minor versions — Settings → Documents warns on a library that keeps majors only); Discard releases it without a version; after an approval the published major's card carries the step's comment, or "published from v1.1 “…”" when the forms engine had to publish it
 
 ### UAT-DOC-032 — Replace content
@@ -313,7 +313,7 @@ preconditions: a draft standard you own; a new file
 steps:
 1. Open it → ⋯ → Replace content…
 2. Pick the new file; Replace.
-expected: the file is swapped, the properties stay, a new minor version appears with the replace comment; the viewer shows the new content
+expected: the file is swapped and EVERY property stays — owner, approvers, status, dates, terms, links, change records (the dialog reads them before the copy and writes them back after; anything it could not restore is named, never lost silently); a new minor version appears with the check-in comment; the viewer shows the new content
 
 ## Journey 4 — Lifecycle
 
@@ -396,9 +396,9 @@ persona: controller
 modules: docs/lifecycleCmds.ts docs/model.ts
 preconditions: two approved standards
 steps:
-1. On one: ⋯ → Supersede… naming the other.
+1. On one: ⋯ → Supersede…; search and pick the other as "Superseded by" (required); confirm.
 2. On another approved standard: ⋯ → Make obsolete…
-expected: the superseded document carries the mapped status and a link to its successor; the obsolete one carries its status; both leave the approved-only register and show when "Show only approved" is unticked
+expected: the superseded document carries the mapped status, a "Superseded by" link to its successor in its Linked documents and the comment "Superseded by “<name>”"; the successor's pane lists it under "Supersedes" (derived); the obsolete one carries its status; both leave the approved-only register and show when "Show only approved" is unticked
 
 ### UAT-DOC-042 — The notify panel: Teams and email, people chips
 persona: owner
@@ -772,3 +772,53 @@ steps:
 1. Drag the panel's right edge narrower, then wider.
 2. Reload.
 expected: the Folders pane follows the drag between its limits, labels wrap instead of clipping, and the width is remembered
+
+## Journey 13 — End to end, several people
+
+Each case is run by several people, each on their own sign-in and device; the step names who acts. Set the people up first: a reader not named on the standard, its owner, a reviewer, an approver, and a document controller.
+
+### UAT-DOC-082 — A reader's revision, from request to publication
+persona: team
+modules: docs/accessRequests.ts docs/lifecycleCmds.ts docs/notifyPanel.ts docs/docsScreen.ts
+preconditions: an approved standard with an owner, a reviewer and an approver named; a reader not named on it; the Revision editors column mapped
+steps:
+1. [Reader] Open the standard → "Request edit access…" with a reason.
+2. [Owner] Document tasks → the request → Approve & grant; send the card.
+3. [Reader] From the card's link: Start revision; Check out & edit; Check in with a comment.
+4. [Reader] Submit for review; keep the reviewer; Send on Teams.
+5. [Reviewer] From the card: open → Review complete with a comment.
+6. [Reader] Submit for approval; Send on Teams.
+7. [Approver] From the card: Approve with a comment.
+8. [Everyone] Reopen the standard.
+expected: the request shows in the owner's Document tasks and nowhere else; the grant lands at once and the reader's card opens the document with Start revision live; the draft minor carries the reader's comment; the reviewer's task appears on submit and clears on Review complete; the approver's task appears and clears on Approve; the approved major carries "Approved by <approver> — <comment>" and the review date moves by the cadence; the reader's grant is released; readers see the new content only after the approval
+
+### UAT-DOC-083 — A revision sent back, fixed and approved
+persona: team
+modules: docs/lifecycleCmds.ts docs/docsScreen.ts
+preconditions: a draft revision in review; its owner, the reviewer and an approver on separate devices
+steps:
+1. [Reviewer] Open → Request revision with a reason.
+2. [Owner] Document tasks → the document → Check out & edit → Check in → Submit for review.
+3. [Reviewer] Review complete.
+4. [Owner] Submit for approval.
+5. [Approver] Approve.
+expected: Request revision returns the status to Draft with the reason in the version comment and on the owner's card; the owner's Document tasks lists it under "Needs revision"; the second review and the approval run as in DOC-082; the version history shows every step with its comment
+
+### UAT-DOC-084 — A flag raised by a reader, acted on by the owner
+persona: team
+modules: docs/flagDialog.ts docs/docFlags.ts docs/lifecycleCmds.ts
+preconditions: an approved standard; a reader; its owner
+steps:
+1. [Reader] Flag for review… with a level and a comment.
+2. [Owner] From the Teams card: open → read the flag chip → Mark reviewed… and accept "close the open flags".
+3. [Reader] Reopen the document.
+expected: the owner's card quotes the comment with an Open link; the flag shows on the register row and in the owner's Document tasks; Mark reviewed offers to close the open flags and the chip clears; the reader sees no open flag
+
+### UAT-DOC-085 — Supersede with a successor, seen by everyone
+persona: team
+modules: docs/lifecycleCmds.ts docs/viewer.ts docs/linksIndex.ts
+preconditions: two approved standards (A the old, B the new); a controller; a reader
+steps:
+1. [Controller] On A: ⋯ → Supersede…; pick B as "Superseded by"; confirm.
+2. [Reader] Open A; follow its "Superseded by" link; read B's pane.
+expected: A carries the Superseded status and a "Superseded by" link to B; B's pane lists A under "Supersedes" (derived); A leaves the approved-only register and shows with "Show only approved" unticked; the reader reaches B from A's link and "‹ Back to A" returns
