@@ -201,6 +201,28 @@ for (const file of files) {
   }
 }
 
+// Rule D (2026-10-29): ingestion is the ONE place a document's status is
+// set by hand (the documents arrive with their history), and
+// buildFieldEditors skips the status column unless asked — every call in
+// ingestionScreen.ts must ask (v0.79's rule silently emptied the grid's
+// status editor; 2026-10-28 reports 4 and 5).
+{
+  const ing = resolve(SRC, "docs", "ingestionScreen.ts");
+  if (existsSync(ing)) {
+    const src = readFileSync(ing, "utf8");
+    const calls = src.split("buildFieldEditors({").slice(1);
+    calls.forEach((tail, i) => {
+      // the call's argument object ends at the first "})" — every call
+      // here closes its options object that way
+      const body = tail.slice(0, tail.indexOf("})"));
+      if (!/includeStatus:\s*true/.test(body)) {
+        violations.push(`RULE D — ingestionScreen.ts buildFieldEditors call ${i + 1} lacks includeStatus: true (the status is set by hand in ingestion)`);
+      }
+    });
+    if (calls.length === 0) violations.push("RULE D — ingestionScreen.ts has no buildFieldEditors call (the rule's anchor moved)");
+  }
+}
+
 if (violations.length > 0) {
   console.error(`import-gate: ${violations.length} violation(s)\n`);
   for (const v of violations) console.error(`  ${v}\n`);

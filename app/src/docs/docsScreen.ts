@@ -1780,32 +1780,34 @@ export function mountDocs(
           // edit-access requests (5G2): decisions about PEOPLE lead —
           // someone is blocked until the owner answers
           if (t.requests.length > 0) {
+            // the panel widens while it holds requests (Ellen, 2026-10-28:
+            // the reason was only readable inside the Approve dialog)
+            panel.classList.add("app-docs-taskspanel-wide");
             bodyEl.appendChild(
               el("div", "app-docs-tasksgroup", `Edit-access requests (${t.requests.length})`)
             );
             for (const rt of t.requests) {
-              const rowEl = el("div", "app-docs-taskrow");
+              // a request is a small CARD, not a one-line row: the
+              // document name in full, who asked and when, the whole
+              // reason, then the decision buttons — nothing is read for
+              // the first time inside a decision dialog
+              const rowEl = el("div", "app-docs-reqcard");
+              rowEl.append(
+                el("div", "app-docs-reqname", rt.req.name),
+                el("div", "app-field-hint", `${rt.req.who.name} asked${rt.req.when !== "" ? ` · ${formatWhen(rt.req.when)}` : ""}${rt.libName !== "" ? ` · ${rt.libName}` : ""}`),
+                el("div", "app-docs-reqreason", rt.req.reason !== "" ? rt.req.reason : "(no reason given)")
+              );
+              const acts = el("div", "app-docs-reqacts");
+              rowEl.appendChild(acts);
               if (rt.row !== null) {
                 const liveRow = rt.row;
-                rowEl.setAttribute("role", "button");
-                rowEl.tabIndex = 0;
-                const open = () => {
+                const openLink = el("button", "app-link", "Open document") as HTMLButtonElement;
+                openLink.addEventListener("click", () => {
                   closePanel();
                   onRowOpen(liveRow, { details: true });
-                };
-                rowEl.addEventListener("click", open);
-                rowEl.addEventListener("keydown", (e) => {
-                  if (e.key === "Enter") open();
                 });
+                acts.appendChild(openLink);
               }
-              rowEl.append(
-                el("span", "app-docs-taskname", rt.req.name),
-                el(
-                  "span",
-                  "app-field-hint",
-                  `${rt.req.who.name} · ${rt.req.reason}`
-                )
-              );
               const decided = () => {
                 refreshTasksBadge();
                 reload();
@@ -1844,11 +1846,11 @@ export function mountDocs(
                     });
                   });
                 });
-                rowEl.appendChild(app2);
+                acts.appendChild(app2);
               } else {
                 rowEl.appendChild(
                   el(
-                    "span",
+                    "div",
                     "app-field-hint",
                     rt.row === null
                       ? "Document not found — decline to clear."
@@ -1879,7 +1881,7 @@ export function mountDocs(
                   });
                 });
               });
-              rowEl.appendChild(dec);
+              acts.appendChild(dec);
               bodyEl.appendChild(rowEl);
             }
           }
@@ -6024,6 +6026,25 @@ export function mountDocs(
                 flagsOf: (listId, itemId) => (openFlags.get(flagKey(listId, itemId)) ?? []).length,
               });
             });
+          }
+        );
+      }
+      // the owners & approvers group managed from the register (2026-10-28
+      // report 3): controllers own it (a super admin's add makes them so)
+      if (docAdmin() && app.ownersGroupId !== "") {
+        item(
+          "Owners & approvers group…",
+          "Who may be named owner or approver — add people from the directory or remove them. You must own the group in Entra.",
+          () => {
+            void import("./groupMembers").then(({ openGroupMembers }) =>
+              openGroupMembers({
+                host: dialogHost,
+                kind: "pool",
+                group: { id: app.ownersGroupId, name: app.ownersGroupName || "Owners & approvers" },
+                pool: null,
+                viewer: { objectId: currentViewer()?.objectId ?? "", name: currentViewer()?.name ?? "" },
+              })
+            );
           }
         );
       }

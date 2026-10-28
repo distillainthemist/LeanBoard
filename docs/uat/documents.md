@@ -425,9 +425,10 @@ persona: owner
 modules: docs/accessRequests.ts docs/docsScreen.ts
 preconditions: a pending request on a document you own
 steps:
-1. Document tasks → Edit-access requests → Approve.
-2. On a second request: Decline with a reason.
-expected: Approve adds the person to the revision editors and the requester's card says so; Decline carries the reason; both leave the queue; the requester's "Your access requests" shows the outcome
+1. Document tasks → Edit-access requests: read the request before deciding.
+2. Approve.
+3. On a second request: Decline with a reason.
+expected: each request is a card — the document name in full, who asked and when, the library, and the whole reason — with Open document, Approve… and Decline… beneath; the panel is wider while requests are listed; nothing is read for the first time inside the Approve dialog; Approve adds the person to the revision editors and the requester's card says so; Decline carries the reason; both leave the queue; the requester's "Your access requests" shows the outcome
 
 ### UAT-DOC-045 — Revoke a grant
 persona: owner
@@ -593,9 +594,9 @@ persona: controller
 modules: docs/ingestionScreen.ts docs/ingestionStore.ts
 preconditions: the ingestion library exposed; a destination standards library
 steps:
-1. Register kebab → New ingestion task…: name, destination, assignees, defaults; Create.
+1. Register kebab → New ingestion task…: name, destination, assignees, defaults — set the Status default to Approved; Create.
 2. Open the task sheet; Open folder ↗.
-expected: a sub-folder of the ingestion library is created and linked; the assignees get a Teams card; the sheet shows the destination, assignees and status chip
+expected: Task defaults offers the Status column under its heading (it is set by hand in ingestion only — the documents arrive with their history); a sub-folder of the ingestion library is created and linked; the assignees get a Teams card; the sheet shows the destination, assignees and status chip
 
 ### UAT-DOC-063 — Fill the grid
 persona: author
@@ -603,8 +604,8 @@ modules: docs/ingestionScreen.ts docs/ingestionDraft.ts docs/ingestionModel.ts
 preconditions: an open task you are assigned to with three files in its folder
 steps:
 1. Refresh; read the ✱ required columns and the ⚠ marks.
-2. Edit cells; Fill blanks from defaults; Set for selected… on two rows; Save.
-expected: the header and every row share one set of column widths (no drift between rows); required cells drive the ✓/⚠ mark and its tooltip — a Management of change column is required only when SharePoint marks it so; the MoC cell shows its records as "MOC-12, MOC-14" and opens the records editor, never raw JSON; dirty cells and rows are marked until Save; Save writes the values to the ingestion items and the marks turn ✓; the Run button is greyed until every file is ready and saved
+2. Edit cells, including a Status cell from Draft to Approved; Fill blanks from defaults; Set for selected… on two rows, once with the Status column; Save.
+expected: the Status cell and Set for selected… both offer the status editor (never "no editable columns configured"); the header and every row share one set of column widths (no drift between rows); required cells drive the ✓/⚠ mark and its tooltip — a Management of change column is required only when SharePoint marks it so; the MoC cell shows its records as "MOC-12, MOC-14" and opens the records editor, never raw JSON; dirty cells and rows are marked until Save; Save writes the values to the ingestion items and the marks turn ✓; the Run button is greyed until every file is ready and saved
 
 ### UAT-DOC-064 — Edit a task without losing its people
 persona: controller
@@ -641,16 +642,27 @@ steps:
 1. Run ingestion including both.
 expected: each is refused with the reason in its ⚠ tooltip and the run log; the other files land; nothing half-moves
 
-### UAT-DOC-068 — Message assignees and close the task
+### UAT-DOC-068 — Message assignees and end the task
 persona: controller
 modules: docs/ingestionScreen.ts
 preconditions: an open task with at least one assignee who is not you, whose files have all moved
 steps:
 1. Message assignees… → read the recipients, type a note, Send.
-2. Close task…
-expected: a dialog lists every assignee (you marked as not messaged — Teams refuses a chat with yourself) with a note box; Send shows the outcome in the dialog ("Teams message sent to …" or the refusal) and each other assignee gets the card with your note quoted under it; with you as the only assignee the dialog says so and Send is disabled; the task closes with its log, leaves the open lists and the badge, and reopens from Settings if needed
+2. End task… (the header button; the ✕ only closes the window and says so in its tooltip)
+expected: a dialog lists every assignee (you marked as not messaged — Teams refuses a chat with yourself) with a note box; Send shows the outcome in the dialog ("Teams message sent to …" or the refusal) and each other assignee gets the card with your note quoted under it; with you as the only assignee the dialog says so and Send is disabled; End task… confirms with the count of files not yet ingested, then the task closes with its log, leaves the open lists and the badge, and reopens from Settings if needed
 
 ## Journey 10 — Health and the term store
+
+### UAT-DOC-086 — The owners & approvers group from the register
+persona: controller
+modules: docs/groupMembers.ts docs/docsScreen.ts store/accessGroup.ts
+preconditions: the owners & approvers group linked (Settings → Access control); you own it in Entra (a super admin added you to Document controllers); someone in the directory who is not in the group
+steps:
+1. Register kebab → Owners & approvers group…; read the ownership line and the members.
+2. Search the directory for the person; ＋ Add.
+3. Open Edit properties on a standard and search the Owner picker for them.
+4. Back in the dialog, Remove them; confirm.
+expected: the dialog says you own the group and lists its members with mail; the add lands with a tick and the person is at once offered by the owner and approver pickers (no reload); Remove asks first and names what they lose; a controller who does NOT own the group sees the members only, with a line saying who can make them an owner
 
 ### UAT-DOC-069 — Document control health
 persona: controller

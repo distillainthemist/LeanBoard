@@ -1263,11 +1263,16 @@ async function renderAccessControl(body: HTMLElement, me: RosterPerson): Promise
   );
   let cfg = await appDocsConfig();
 
+  // "Members…" (2026-10-28 report 3): the group's membership managed in
+  // the app — the dialog needs a positioned host for its overlay
+  const dlgHost = el("div", "app-dlghost");
+  body.appendChild(dlgHost);
   const groupRow = (
     label: string,
     hint: string,
     read: () => { id: string; name: string },
-    write: (id: string, name: string) => void
+    write: (id: string, name: string) => void,
+    members?: "controllers" | "pool"
   ) => {
     const wrap = el("div", "app-settings-row app-access-grouprow");
     const text = el("div", "");
@@ -1276,11 +1281,27 @@ async function renderAccessControl(body: HTMLElement, me: RosterPerson): Promise
     text.appendChild(current);
     const choose = el("button", "app-btn", "") as HTMLButtonElement;
     const drop = el("button", "app-link", "Unlink") as HTMLButtonElement;
+    const membersBtn = el("button", "app-btn", "Members…") as HTMLButtonElement;
+    membersBtn.title = "List, add and remove the group's members (you must own the group)";
+    membersBtn.addEventListener("click", () => {
+      const g = read();
+      if (g.id === "" || members === undefined) return;
+      void import("../docs/groupMembers").then(({ openGroupMembers }) =>
+        openGroupMembers({
+          host: dlgHost,
+          kind: members,
+          group: g,
+          pool: members === "controllers" && cfg.ownersGroupId !== "" ? { id: cfg.ownersGroupId, name: cfg.ownersGroupName } : null,
+          viewer: { objectId: me.whoId, name: me.who },
+        })
+      );
+    });
     const paint = () => {
       const g = read();
       current.textContent = g.id !== "" ? g.name : "Not linked yet.";
       choose.textContent = g.id !== "" ? "Change…" : "Link group…";
       drop.style.display = g.id !== "" ? "" : "none";
+      membersBtn.style.display = g.id !== "" && members !== undefined ? "" : "none";
     };
     const save = async (id: string, name: string) => {
       write(id, name);
@@ -1304,7 +1325,7 @@ async function renderAccessControl(body: HTMLElement, me: RosterPerson): Promise
       })();
     });
     drop.addEventListener("click", () => void save("", ""));
-    wrap.append(text, el("span", "app-bar-gap"), choose, drop);
+    wrap.append(text, el("span", "app-bar-gap"), membersBtn, choose, drop);
     card.appendChild(wrap);
     card.appendChild(el("div", "app-field-hint", hint));
     paint();
@@ -1317,7 +1338,8 @@ async function renderAccessControl(body: HTMLElement, me: RosterPerson): Promise
     (id, name) => {
       cfg.controllersGroupId = id;
       cfg.controllersGroupName = name;
-    }
+    },
+    "controllers"
   );
   groupRow(
     "Document owners & approvers",
@@ -1326,7 +1348,8 @@ async function renderAccessControl(body: HTMLElement, me: RosterPerson): Promise
     (id, name) => {
       cfg.ownersGroupId = id;
       cfg.ownersGroupName = name;
-    }
+    },
+    "pool"
   );
   // The Entra "Temporary document editors" group is RETIRED (Ben,
   // 2026-08-14): the SharePoint site group is the one enforcement road

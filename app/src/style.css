@@ -2549,6 +2549,27 @@ button.app-docs-navterm.app-docs-navterm-on {
   color: var(--app-accent); font-weight: 500;
 }
 .app-docs-taskact { align-self: flex-start; margin-top: 4px; font-size: 12px; padding: 3px 10px; }
+/* an edit-access request is a CARD (2026-10-28 report 1): the whole
+   request readable before any decision; the panel widens to hold it */
+.app-docs-taskspanel-wide { width: min(520px, calc(100vw - 24px)); }
+.app-docs-reqcard {
+  display: flex; flex-direction: column; gap: 3px;
+  padding: 8px; border-radius: 5px; border: 1px solid #eceae5; margin-bottom: 6px;
+}
+.app-docs-reqname { font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.app-docs-reqreason { font-size: 13px; white-space: pre-wrap; overflow-wrap: anywhere; margin: 2px 0; }
+.app-docs-reqacts { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+.app-docs-reqacts .app-docs-taskact { align-self: auto; margin-top: 0; }
+.app-docs-reqacts .app-link { font-size: 12px; margin-left: auto; }
+
+/* group members dialog (2026-10-28 report 3) */
+.app-grp-search { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.app-grp-hits, .app-grp-list { display: flex; flex-direction: column; gap: 2px; }
+.app-grp-row { display: flex; align-items: center; gap: 10px; padding: 6px 4px; border-bottom: 1px solid #eceae5; }
+.app-grp-row:last-child { border-bottom: none; }
+.app-grp-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.app-grp-text .app-user-email { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app-grp-row .app-link { font-size: 12px; }
 
 /* the ONE column manager (Part II S1): per-row grids share a template
    so cells align across rows, which is what lets rows be DRAG targets */

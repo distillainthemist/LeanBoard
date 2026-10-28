@@ -276,7 +276,7 @@ export async function groupMembers(groupId: string): Promise<GroupMember[]> {
  * left ownerless (Graph allows it for pure security groups). Throws a
  * readable error instead, which the roster UI surfaces.
  */
-async function removeOwnerGuarded(groupId: string, entraId: string): Promise<void> {
+export async function removeOwnerGuarded(groupId: string, entraId: string): Promise<void> {
   const owners = await idSet(groupId, "owners");
   if (!owners.has(entraId)) return;
   if (owners.size <= 1) {

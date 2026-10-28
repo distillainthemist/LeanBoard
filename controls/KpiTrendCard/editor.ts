@@ -17,7 +17,7 @@ import { htmlToPng, htmlToSvg, saveSvg, SnapshotScheduler } from "../../shared/e
 import { newId, nowIso, todayIso } from "../../shared/schema/id";
 import { KpiPoint, KpiTrendEnvelope, SCHEMA_ID } from "./types";
 import { EMPTY_SPEC_SERIES, specFor, SpecSeries } from "../../shared/schema/specSeries";
-import { BucketCadence, defaultReadingDate } from "../../shared/schema/buckets";
+import { BucketCadence, bucketSpan, defaultReadingDate, parseDay, trendTickLabel, trendWindow } from "../../shared/schema/buckets";
 import { selectInput } from "../../shared/ui/dialog";
 import { KPITREND_CSS } from "./styles";
 
@@ -428,22 +428,15 @@ export class KpiTrendEditor {
       svg.appendChild(sep);
     });
     svg.appendChild(svgEl("line", { x1: left, y1: M.top + plotH, x2: left + plotW, y2: M.top + plotH, class: "ltk-kt-axis" }));
-    const x = (i: number) => left + (points.length === 1 ? plotW / 2 : (i / (points.length - 1)) * plotW);
+    const axis = this.timeAxis(points, left, plotW);
+    const x = axis.x;
     const idx = (p: KpiPoint) => {
       const s = this.stateOf(p);
       const k = opts.findIndex((o) => o.label === s.label);
       return k >= 0 ? k : Math.max(0, Math.min(n - 1, Math.round(p.value)));
     };
     const y = (k: number) => M.top + (k + 0.5) * rowH;
-    // x tick labels: first + last dates
-    const first = svgEl("text", { x: x(0), y: VB_H - 12, class: "ltk-kt-tick", "text-anchor": "start" });
-    first.textContent = points[0].date.slice(5);
-    svg.appendChild(first);
-    if (points.length > 1) {
-      const last = svgEl("text", { x: x(points.length - 1), y: VB_H - 12, class: "ltk-kt-tick", "text-anchor": "end" });
-      last.textContent = points[points.length - 1].date.slice(5);
-      svg.appendChild(last);
-    }
+    axis.ticks(svg);
     const line = svgEl("polyline", {
       points: points.map((pt, i) => `${x(i)},${y(idx(pt))}`).join(" "),
       fill: "none", "stroke-width": 2.5, "stroke-linejoin": "round", "stroke-linecap": "round",
@@ -462,6 +455,34 @@ export class KpiTrendEditor {
       svg.appendChild(dot);
     });
     return svg;
+  }
+
+  /** The time axis (Ben, 2026-10-28): readings sit at their dates on a
+   *  window no shorter than the cadence's floor (daily 4 weeks, weekly
+   *  13 weeks, monthly 12 months, annually 5 years), ending at the later
+   *  of the last reading and the current period — a monthly card shows
+   *  the year even with two readings, and a missed period is a gap. */
+  private timeAxis(points: KpiPoint[], left: number, plotW: number): { x: (i: number) => number; ticks: (svg: SVGSVGElement) => void } {
+    const cadence = this.reading.cadence;
+    const w = trendWindow(points.map((p) => p.date), cadence, todayIso());
+    const t0 = parseDay(w.from).getTime();
+    const t1 = parseDay(w.to).getTime();
+    const pos = (date: string) =>
+      t1 <= t0 ? left + plotW / 2 : left + ((parseDay(bucketSpan(date, cadence).from).getTime() - t0) / (t1 - t0)) * plotW;
+    return {
+      x: (i) => pos(points[i].date),
+      ticks: (svg) => {
+        const axisY = M.top + (VB_H - M.top - M.bottom);
+        w.buckets.forEach((b, k) => {
+          const px = pos(b);
+          svg.appendChild(svgEl("line", { x1: px, y1: axisY, x2: px, y2: axisY + 4, class: "ltk-kt-axis" }));
+          if (k % w.labelEvery !== 0) return;
+          const t = svgEl("text", { x: px, y: VB_H - 12, class: "ltk-kt-tick", "text-anchor": "middle" });
+          t.textContent = trendTickLabel(b, cadence);
+          svg.appendChild(t);
+        });
+      },
+    };
   }
 
   private renderChart(): SVGSVGElement {
@@ -496,8 +517,10 @@ export class KpiTrendEditor {
     lo -= pad;
     hi += pad;
 
-    const x = (i: number) =>
-      M.left + (points.length === 1 ? plotW / 2 : (i / (points.length - 1)) * plotW);
+    // the x axis is TIME (Ben, 2026-10-28): readings at their dates on
+    // a window no shorter than the cadence's floor
+    const axis = this.timeAxis(points, M.left, plotW);
+    const x = axis.x;
     const y = (v: number) => M.top + plotH - ((v - lo) / (hi - lo)) * plotH;
 
     // spec-limit zones (drawn first, behind everything): the band between the
@@ -538,19 +561,7 @@ export class KpiTrendEditor {
       t.textContent = String(Math.round(v * 100) / 100);
       svg.appendChild(t);
     }
-    // x tick labels: first + last dates
-    const first = svgEl("text", {
-      x: x(0), y: VB_H - 12, class: "ltk-kt-tick", "text-anchor": "start",
-    });
-    first.textContent = points[0].date.slice(5);
-    svg.appendChild(first);
-    if (points.length > 1) {
-      const last = svgEl("text", {
-        x: x(points.length - 1), y: VB_H - 12, class: "ltk-kt-tick", "text-anchor": "end",
-      });
-      last.textContent = points[points.length - 1].date.slice(5);
-      svg.appendChild(last);
-    }
+    axis.ticks(svg);
 
     // a spec line: flat across the plot when constant, a step through the
     // readings' dates when the grid has set per-period values
@@ -654,7 +665,8 @@ export class KpiTrendEditor {
     const every = Math.max(1, Math.ceil(points.length / 16));
     points.forEach((pt, i) => {
       if (i % every !== 0 && i !== points.length - 1) return;
-      const lbl = svgEl("text", { x: x(i), y: y(pt.value) - 9, class: "ltk-kt-vlabel", "text-anchor": i === 0 ? "start" : i === points.length - 1 ? "end" : "middle" });
+      const px = x(i);
+      const lbl = svgEl("text", { x: px, y: y(pt.value) - 9, class: "ltk-kt-vlabel", "text-anchor": px - M.left < 18 ? "start" : M.left + plotW - px < 18 ? "end" : "middle" });
       lbl.textContent = String(Math.round(pt.value * 100) / 100);
       svg.appendChild(lbl);
     });

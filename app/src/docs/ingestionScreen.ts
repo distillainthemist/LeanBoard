@@ -366,7 +366,7 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
   titleBlock.append(titleRow, el("div", "app-ing-meta", "Loading…"));
   head.appendChild(titleBlock);
   const closeBtn = btn("✕", "app-btn app-docs-viewclose");
-  closeBtn.title = "Close";
+  closeBtn.title = "Close this window — the task stays open";
   closeBtn.addEventListener("click", close);
   head.appendChild(closeBtn);
   sheet.appendChild(head);
@@ -550,8 +550,10 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
       });
       runBtn = btn("Run ingestion…", "app-btn app-btn-primary");
       runBtn.disabled = true;
-      const closeTask = btn("Close task…");
-      closeTask.title = "The batch is complete: the folder goes, the task keeps its log";
+      // "End task…", not "Close task…" (Ellen, 2026-10-28: close read as
+      // close-the-window); not "Cancel" — it completes the task
+      const closeTask = btn("End task…");
+      closeTask.title = "The batch is complete: the folder goes, the task keeps its log and leaves Ingestion tasks";
       closeTask.addEventListener("click", () => void closeOut());
       right.append(edit, closeTask, runBtn);
       runBtn.addEventListener("click", () => void startRun());
@@ -798,7 +800,10 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
         else if (v.kind === "person") initial.set(f.internal, { people: v.people ?? [] });
         else initial.set(f.internal, { text: v.text ?? "" });
       }
-      const editors = buildFieldEditors({ site: ctx.site, box, fields: [f], columns: [{ internal: f.internal, available: true }], dictBy: ctx.dictBy, onChange: () => undefined, initial, includeSystemDates: true });
+      // includeStatus: ingestion is the one place a status is set by hand —
+      // the documents arrive with their history (issue 25; regression
+      // from v0.79's status-out-of-forms rule, 2026-10-28 reports 4 and 5)
+      const editors = buildFieldEditors({ site: ctx.site, box, fields: [f], columns: [{ internal: f.internal, available: true }], dictBy: ctx.dictBy, onChange: () => undefined, initial, includeSystemDates: true, includeStatus: true });
       const closePop = () => {
         pop.remove();
         document.removeEventListener("pointerdown", off, true);
@@ -1148,7 +1153,7 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
       dlg.body.append(el("div", "app-field-label", "Column"), pick, box, note);
       let editors: ReturnType<typeof buildFieldEditors> = [];
       const paint = () => {
-        editors = buildFieldEditors({ site: ctx.site, box, fields: gridFields.filter((f) => f.internal === pick.value), columns: [{ internal: pick.value, available: true }], dictBy: ctx.dictBy, onChange: () => undefined, includeSystemDates: true });
+        editors = buildFieldEditors({ site: ctx.site, box, fields: gridFields.filter((f) => f.internal === pick.value), columns: [{ internal: pick.value, available: true }], dictBy: ctx.dictBy, onChange: () => undefined, includeSystemDates: true, includeStatus: true });
       };
       pick.addEventListener("change", paint);
       paint();
@@ -1344,7 +1349,7 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
       o.onChanged();
       await reload();
       const thisRun = task.log.slice(-ready.length);
-      status.textContent = `Run finished — ${logSummary(thisRun)}.${rows.length === 0 ? " Every file has moved — Close task when the batch is complete." : " Refused files stay here with the reason on the glyph."}`;
+      status.textContent = `Run finished — ${logSummary(thisRun)}.${rows.length === 0 ? " Every file has moved — End task when the batch is complete." : " Refused files stay here with the reason on the glyph."}`;
     };
     /** The explicit close-out: the folder (with anything left in it) goes
      *  to the recycle bin, the task reads closed and keeps its log. */
@@ -1354,9 +1359,9 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
       const left = Number(((counts.data ?? {}) as { ItemCount?: unknown }).ItemCount ?? NaN);
       const n = counts.ok && Number.isFinite(left) ? left : rows.length;
       const ok = await promptConfirm({
-        title: `Close the task "${task.name}"?`,
+        title: `End the task "${task.name}"?`,
         note: n > 0 ? `${n} file${n === 1 ? " has" : "s have"} NOT been ingested; the folder and those files go to the site's recycle bin. The task keeps its log and leaves Ingestion tasks.` : "The empty folder is removed; the task keeps its log and leaves Ingestion tasks.",
-        confirmLabel: "Close task",
+        confirmLabel: "End task",
         danger: n > 0,
       });
       if (!ok || dead) return;
@@ -1596,6 +1601,7 @@ export function openIngestionTaskEditor(o: IngestionEditorOpts): void {
         // edit-properties dialog shows for that library
         sections: dialogSections(ctx!.cellCtx.dict, dest.libType),
         includeSystemDates: true,
+        includeStatus: true,
       });
     };
     destSel.addEventListener("change", () => void paintDefaults());

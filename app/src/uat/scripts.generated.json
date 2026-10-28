@@ -6,6 +6,10 @@
    "date": "2026-10-27"
   },
   {
+   "tag": "v0.81.0",
+   "date": "2026-10-27"
+  },
+  {
    "tag": "v0.77.0",
    "date": "2026-10-26"
   },
@@ -1289,12 +1293,13 @@
        ],
        "preconditions": "a pending request on a document you own",
        "steps": [
-        "Document tasks → Edit-access requests → Approve.",
+        "Document tasks → Edit-access requests: read the request before deciding.",
+        "Approve.",
         "On a second request: Decline with a reason."
        ],
-       "expected": "Approve adds the person to the revision editors and the requester's card says so; Decline carries the reason; both leave the queue; the requester's \"Your access requests\" shows the outcome",
-       "hash": "e4cef1f8",
-       "changed": "2026-10-19"
+       "expected": "each request is a card — the document name in full, who asked and when, the library, and the whole reason — with Open document, Approve… and Decline… beneath; the panel is wider while requests are listed; nothing is read for the first time inside the Approve dialog; Approve adds the person to the revision editors and the requester's card says so; Decline carries the reason; both leave the queue; the requester's \"Your access requests\" shows the outcome",
+       "hash": "960cc727",
+       "changed": "2026-10-27"
       },
       {
        "id": "UAT-DOC-045",
@@ -1636,12 +1641,12 @@
        ],
        "preconditions": "the ingestion library exposed; a destination standards library",
        "steps": [
-        "Register kebab → New ingestion task…: name, destination, assignees, defaults; Create.",
+        "Register kebab → New ingestion task…: name, destination, assignees, defaults — set the Status default to Approved; Create.",
         "Open the task sheet; Open folder ↗."
        ],
-       "expected": "a sub-folder of the ingestion library is created and linked; the assignees get a Teams card; the sheet shows the destination, assignees and status chip",
-       "hash": "b5daf5d4",
-       "changed": "2026-10-19"
+       "expected": "Task defaults offers the Status column under its heading (it is set by hand in ingestion only — the documents arrive with their history); a sub-folder of the ingestion library is created and linked; the assignees get a Teams card; the sheet shows the destination, assignees and status chip",
+       "hash": "f878b785",
+       "changed": "2026-10-27"
       },
       {
        "id": "UAT-DOC-063",
@@ -1656,11 +1661,11 @@
        "preconditions": "an open task you are assigned to with three files in its folder",
        "steps": [
         "Refresh; read the ✱ required columns and the ⚠ marks.",
-        "Edit cells; Fill blanks from defaults; Set for selected… on two rows; Save."
+        "Edit cells, including a Status cell from Draft to Approved; Fill blanks from defaults; Set for selected… on two rows, once with the Status column; Save."
        ],
-       "expected": "the header and every row share one set of column widths (no drift between rows); required cells drive the ✓/⚠ mark and its tooltip — a Management of change column is required only when SharePoint marks it so; the MoC cell shows its records as \"MOC-12, MOC-14\" and opens the records editor, never raw JSON; dirty cells and rows are marked until Save; Save writes the values to the ingestion items and the marks turn ✓; the Run button is greyed until every file is ready and saved",
-       "hash": "e4bcf02d",
-       "changed": "2026-10-21"
+       "expected": "the Status cell and Set for selected… both offer the status editor (never \"no editable columns configured\"); the header and every row share one set of column widths (no drift between rows); required cells drive the ✓/⚠ mark and its tooltip — a Management of change column is required only when SharePoint marks it so; the MoC cell shows its records as \"MOC-12, MOC-14\" and opens the records editor, never raw JSON; dirty cells and rows are marked until Save; Save writes the values to the ingestion items and the marks turn ✓; the Run button is greyed until every file is ready and saved",
+       "hash": "cd9e3927",
+       "changed": "2026-10-27"
       },
       {
        "id": "UAT-DOC-064",
@@ -1734,7 +1739,7 @@
       },
       {
        "id": "UAT-DOC-068",
-       "title": "Message assignees and close the task",
+       "title": "Message assignees and end the task",
        "journey": "Journey 9 — Ingestion",
        "persona": "controller",
        "modules": [
@@ -1743,17 +1748,38 @@
        "preconditions": "an open task with at least one assignee who is not you, whose files have all moved",
        "steps": [
         "Message assignees… → read the recipients, type a note, Send.",
-        "Close task…"
+        "End task… (the header button; the ✕ only closes the window and says so in its tooltip)"
        ],
-       "expected": "a dialog lists every assignee (you marked as not messaged — Teams refuses a chat with yourself) with a note box; Send shows the outcome in the dialog (\"Teams message sent to …\" or the refusal) and each other assignee gets the card with your note quoted under it; with you as the only assignee the dialog says so and Send is disabled; the task closes with its log, leaves the open lists and the badge, and reopens from Settings if needed",
-       "hash": "d2777ec2",
-       "changed": "2026-10-26"
+       "expected": "a dialog lists every assignee (you marked as not messaged — Teams refuses a chat with yourself) with a note box; Send shows the outcome in the dialog (\"Teams message sent to …\" or the refusal) and each other assignee gets the card with your note quoted under it; with you as the only assignee the dialog says so and Send is disabled; End task… confirms with the count of files not yet ingested, then the task closes with its log, leaves the open lists and the badge, and reopens from Settings if needed",
+       "hash": "2117af99",
+       "changed": "2026-10-27"
       }
      ]
     },
     {
      "title": "Journey 10 — Health and the term store",
      "cases": [
+      {
+       "id": "UAT-DOC-086",
+       "title": "The owners & approvers group from the register",
+       "journey": "Journey 10 — Health and the term store",
+       "persona": "controller",
+       "modules": [
+        "docs/groupMembers.ts",
+        "docs/docsScreen.ts",
+        "store/accessGroup.ts"
+       ],
+       "preconditions": "the owners & approvers group linked (Settings → Access control); you own it in Entra (a super admin added you to Document controllers); someone in the directory who is not in the group",
+       "steps": [
+        "Register kebab → Owners & approvers group…; read the ownership line and the members.",
+        "Search the directory for the person; ＋ Add.",
+        "Open Edit properties on a standard and search the Owner picker for them.",
+        "Back in the dialog, Remove them; confirm."
+       ],
+       "expected": "the dialog says you own the group and lists its members with mail; the add lands with a tick and the person is at once offered by the owner and approver pickers (no reload); Remove asks first and names what they lose; a controller who does NOT own the group sees the members only, with a line saying who can make them an owner",
+       "hash": "c738ac54",
+       "changed": "2026-10-27"
+      },
       {
        "id": "UAT-DOC-069",
        "title": "Document control health",
@@ -2356,7 +2382,33 @@
   },
   "rituals": {
    "title": "Rituals & boards",
-   "journeys": []
+   "journeys": [
+    {
+     "title": "Journey 1 — Metric cards",
+     "cases": [
+      {
+       "id": "UAT-RIT-001",
+       "title": "The trend's time axis",
+       "journey": "Journey 1 — Metric cards",
+       "persona": "owner",
+       "modules": [
+        "cardRegistry.ts",
+        "controls/KpiTrendCard/editor.ts",
+        "shared/schema/buckets.ts"
+       ],
+       "preconditions": "a monthly metric with two readings (this month and last); a weekly metric with readings over three months; a daily metric with a missed day",
+       "steps": [
+        "Open the board; read the monthly card's chart.",
+        "Read the weekly card's chart.",
+        "Read the daily card's chart."
+       ],
+       "expected": "the monthly chart spans twelve months ending at the current month, each month ticked and named, the two readings sitting at their months at the right; the weekly chart shows its full three months (more than the 13-week floor) with thinned labels; the daily chart shows four weeks with the missed day as a gap in the line; plan, forecast and limit labels keep their place at the right edge",
+       "hash": "2455a38f",
+       "changed": "2026-10-27"
+      }
+     ]
+    }
+   ]
   },
   "actions": {
    "title": "Actions",
@@ -2393,6 +2445,32 @@
        ],
        "expected": "the note at the top says site admins add people from the directory into their site; the directory matches show; the placement row's Site is fixed to the admin's own site and Role to User (both greyed, with a tooltip saying why), department and crew offer the site's own; the person lands on the roster placed in that site; a super admin sees the full placement row with every site and role",
        "hash": "e551ef2e",
+       "changed": "2026-10-27"
+      }
+     ]
+    },
+    {
+     "title": "Journey 2 — Access control",
+     "cases": [
+      {
+       "id": "UAT-SET-002",
+       "title": "Members of the document control groups",
+       "journey": "Journey 2 — Access control",
+       "persona": "superadmin",
+       "modules": [
+        "screens/settings.ts",
+        "docs/groupMembers.ts",
+        "store/accessGroup.ts"
+       ],
+       "preconditions": "the Document controllers and Owners & approvers groups linked under Settings → Access control, both owned by you in Entra; a person in the directory who is in neither",
+       "steps": [
+        "Settings → Access control → Document controllers → Members…; read the note and the ownership line.",
+        "Search the directory for the person; ＋ Add. In Entra (or the Owners & approvers → Members… dialog) check the owners & approvers group.",
+        "Remove them from Document controllers; confirm. Check the owners & approvers group again.",
+        "Owners & approvers → Members…: add and remove someone."
+       ],
+       "expected": "Members… shows only on a linked group; the controllers dialog says an add also makes the person a member and owner of the owners & approvers group; after the add they are a controller AND a member and owner of the pool; after the remove they are no controller and no longer an owner of the pool but still its member; the pool dialog adds and removes members alone; removing the group's only owner is refused with a readable line; you cannot remove yourself",
+       "hash": "082946b5",
        "changed": "2026-10-27"
       }
      ]
