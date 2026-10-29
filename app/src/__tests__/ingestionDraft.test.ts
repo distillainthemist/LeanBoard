@@ -59,3 +59,20 @@ describe("applyToRows", () => {
     expect(applyToRows(d2, rows, [org], false)).toBe(0); // nothing new
   });
 });
+
+describe("clear (features-plan-2026-10-29)", () => {
+  it("a clear over a saved value is a dirty cell reading blank; over a blank it is nothing", () => {
+    const d: Draft = new Map();
+    const saved = { DMSOrganisation: "Pechey", DMSTitle: "" };
+    expect(setCell(d, "u1", saved, { internal: "DMSOrganisation", kind: "taxonomy", clear: true })).toBe(true);
+    expect(draftDisplay(d.get("u1")!.get("DMSOrganisation")!)).toBe("");
+    expect(effectiveValues(saved, d.get("u1")).DMSOrganisation).toBe("");
+    expect(writesFor(d, "u1")).toEqual([{ internal: "DMSOrganisation", kind: "taxonomy", clear: true }]);
+    // over a blank saved value a clear changes nothing
+    expect(setCell(d, "u1", saved, { internal: "DMSTitle", kind: "text", clear: true })).toBe(true);
+    expect(d.get("u1")!.has("DMSTitle")).toBe(false);
+    // a plain blank (the forms' rule) still drops the cell
+    setCell(d, "u1", saved, { internal: "DMSOrganisation", kind: "taxonomy", label: "", termId: "" });
+    expect(dirtyRows(d)).toEqual([]);
+  });
+});

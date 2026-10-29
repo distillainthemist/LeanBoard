@@ -14,6 +14,7 @@ export type Draft = Map<string, Map<string, AddFieldValue>>;
  *  term labels and people names ";"-joined, text as typed, a date as
  *  yyyy-mm-dd. */
 export function draftDisplay(v: AddFieldValue): string {
+  if (v.clear === true) return "";
   if (v.kind === "taxonomy") return taxonomyTermsOf(v).map((t) => t.label).join("; ");
   if (v.kind === "person") return (v.people ?? []).map((p) => p.name || p.email).filter((s) => s !== "").join("; ");
   return (v.text ?? "").trim();
@@ -31,12 +32,14 @@ export function savedDisplay(values: Record<string, string>, internal: string, k
   return (values[internal] ?? "").trim();
 }
 
-/** Set (or, when blank or unchanged from the saved value, clear) one
- *  cell's draft. Returns true when the row is dirty afterwards. */
+/** Set (or, when blank or unchanged from the saved value, drop) one
+ *  cell's draft. A CLEAR (`clear: true`, features-plan-2026-10-29) is a
+ *  draft cell while the saved value is non-blank — it reads as "" and
+ *  writes an empty value. Returns true when the row is dirty afterwards. */
 export function setCell(d: Draft, uniqueId: string, saved: Record<string, string>, v: AddFieldValue): boolean {
   let row = d.get(uniqueId);
   const same = draftDisplay(v) === savedDisplay(saved, v.internal, v.kind);
-  if (isBlank(v) || same) {
+  if ((isBlank(v) && v.clear !== true) || same) {
     row?.delete(v.internal);
     if (row && row.size === 0) d.delete(uniqueId);
     return (d.get(uniqueId)?.size ?? 0) > 0;

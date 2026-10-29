@@ -605,7 +605,7 @@ preconditions: an open task you are assigned to with three files in its folder
 steps:
 1. Refresh; read the ✱ required columns and the ⚠ marks.
 2. Edit cells, including a Status cell from Draft to Approved; Fill blanks from defaults; Set for selected… on two rows, once with the Status column; Save.
-expected: the Status cell and Set for selected… both offer the status editor (never "no editable columns configured"); the header and every row share one set of column widths (no drift between rows); required cells drive the ✓/⚠ mark and its tooltip — a Management of change column is required only when SharePoint marks it so; the MoC cell shows its records as "MOC-12, MOC-14" and opens the records editor, never raw JSON; dirty cells and rows are marked until Save; Save writes the values to the ingestion items and the marks turn ✓; the Run button is greyed until every file is ready and saved
+expected: the Status cell and Set for selected… both offer the status editor (never "no editable columns configured"); the header and every row share one set of column widths (no drift between rows); required cells drive the ✓/⚠ mark and its tooltip — a Management of change column is required only when SharePoint marks it so; the MoC cell shows its records as "MOC-12, MOC-14" and opens the records editor, never raw JSON; dirty cells and rows are marked until Save; emptying a text, choice or date cell that held a value, or Clear in a term / people popover, marks the cell dirty reading "—" and Save clears the value in SharePoint (a blank over a blank is nothing; the name never clears); Save writes the values to the ingestion items and the marks turn ✓; the Run button is greyed until every file is ready and saved
 
 ### UAT-DOC-064 — Edit a task without losing its people
 persona: controller
@@ -650,6 +650,24 @@ steps:
 1. Message assignees… → read the recipients, type a note, Send.
 2. End task… (the header button; the ✕ only closes the window and says so in its tooltip)
 expected: a dialog lists every assignee (you marked as not messaged — Teams refuses a chat with yourself) with a note box; Send shows the outcome in the dialog ("Teams message sent to …" or the refusal) and each other assignee gets the card with your note quoted under it; with you as the only assignee the dialog says so and Send is disabled; End task… confirms with the count of files not yet ingested, then the task closes with its log, leaves the open lists and the badge, and reopens from Settings if needed
+
+### UAT-DOC-087 — Export the grid as a spreadsheet
+persona: author
+modules: docs/ingestionScreen.ts docs/sheetRoundTrip.ts docs/xlsx.ts
+preconditions: an open task you are assigned to with files in its folder, some details saved; the owners & approvers group linked
+steps:
+1. Edit a cell without saving; Export sheet.
+2. Save (or Discard); Export sheet; open the workbook in Excel.
+expected: with unsaved changes the export is refused with "Save or discard your changes first"; otherwise a workbook `ingestion-<task>-<date>.xlsx` downloads; its Files sheet has one row per file with the name and every grid column (the MoC column left out), term cells as full paths ("Pechey › Bell Bay › Casting"), people as "Name <email>", dates as yyyy-mm-dd, required columns marked ✱, the two header rows frozen; column A and row 2 are hidden keys; the Values sheet lists every term path, choice and the owners & approvers pool per column; a single-value term, choice or owner cell offers an Excel dropdown of those values and refuses a typed value outside them
+
+### UAT-DOC-088 — Upload an edited spreadsheet
+persona: author
+modules: docs/ingestionScreen.ts docs/sheetRoundTrip.ts docs/xlsx.ts docs/ingestionDraft.ts
+preconditions: the workbook from DOC-087
+steps:
+1. In Excel: change a status from the dropdown, pick an owner, type a term's leaf label ("Casting") in another file's organisation cell by pasting over the validation, empty a title cell, rename a file in Name on ingestion, type "Nov 3" in a date cell, and delete a file's row; save.
+2. Upload sheet… → drop or choose the workbook; read the report; Apply to grid; Save changes.
+expected: the report says how many cells on how many files change and lists each problem with its Excel row, file, column, value and reason — the leaf label says to use the full path, "Nov 3" says yyyy-mm-dd — and the deleted row's file is simply untouched; Apply marks the changed cells dirty in the grid (the emptied title reads "—"), leaves the problem cells as they were, and the status line counts the problems; Save writes the changes, renames the file, and clears the title in SharePoint; uploading the untouched export reports "0 cells on 0 files to change" with Apply greyed; a workbook that is not this task's export is refused with a message, nothing applied
 
 ## Journey 10 — Health and the term store
 

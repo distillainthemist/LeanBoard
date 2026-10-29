@@ -2385,3 +2385,23 @@ describe("normaliseMocUrl", () => {
   });
 
 });
+
+describe("splitAddWrites — clear (features-plan-2026-10-29)", () => {
+  it("writes an empty value per kind and ignores the payload", async () => {
+    const { splitAddWrites } = await import("../docs/model");
+    const { formValues, patch } = splitAddWrites([
+      { internal: "DMSTitle", kind: "text", text: "ignored", clear: true },
+      { internal: "DMSStatus", kind: "choice", clear: true },
+      { internal: "DMSOrg", kind: "taxonomy", label: "Pechey", termId: "t1", clear: true },
+      { internal: "DMSOwner", kind: "person", people: [{ email: "a@x.test", name: "A" }], clear: true },
+      { internal: "DMSEffective", kind: "date", text: "2026-01-01", clear: true },
+    ]);
+    expect(formValues).toEqual([
+      { FieldName: "DMSTitle", FieldValue: "" },
+      { FieldName: "DMSStatus", FieldValue: "" },
+      { FieldName: "DMSOrg", FieldValue: "" },
+      { FieldName: "DMSOwner", FieldValue: "[]" },
+    ]);
+    expect(patch).toEqual({ DMSEffective: null });
+  });
+});

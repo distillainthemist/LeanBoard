@@ -4948,3 +4948,9 @@ input.app-vg-in.app-vg-folded { background: #fff7e0; }
 @media (max-width: 719px) { .app-hc-grid, .app-hc-comments { grid-template-columns: 1fr; } }
 .app-cp-hchost { display: inline-flex; }
 .app-cp-hcchip { margin-left: 8px; font-size: 11px; font-weight: 600; background: rgba(255,255,255,0.85); color: #26241f; border-radius: 999px; padding: 1px 7px; vertical-align: middle; }
+
+/* ---- ingestion: the spreadsheet round trip (features-plan-2026-10-29) ---- */
+.app-ing-sheetreport { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.app-ing-sheetprobs { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.app-ing-sheetprob { padding: 6px 8px; border: 1px solid var(--ltk-hairline); border-radius: 6px; background: var(--ltk-bg); }
+.app-ing-sheetprob b { display: block; font-weight: 600; margin-bottom: 2px; }

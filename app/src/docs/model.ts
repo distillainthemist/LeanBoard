@@ -2651,6 +2651,13 @@ export interface AddFieldValue {
   terms?: { label: string; termId: string }[];
   /** person payload — emails resolve through the claims key. */
   people?: { email: string; name: string }[];
+  /** CLEAR the column (features-plan-2026-10-29, feature 2: an emptied
+   *  spreadsheet cell, an emptied grid cell): the payload is ignored and
+   *  an empty value is written — "" through the validator for text,
+   *  choice and taxonomy, "[]" for people, null through the patch for a
+   *  date. The forms never produce one (their rule: a blank editor
+   *  writes nothing). */
+  clear?: boolean;
 }
 
 /** The terms a taxonomy value carries: the list for a multi column,
@@ -2667,6 +2674,11 @@ export function splitAddWrites(values: AddFieldValue[]): {
   const formValues: { FieldName: string; FieldValue: string }[] = [];
   const patch: Record<string, unknown> = {};
   for (const v of values) {
+    if (v.clear === true) {
+      if (v.kind === "date") patch[v.internal] = null;
+      else formValues.push({ FieldName: v.internal, FieldValue: v.kind === "person" ? "[]" : "" });
+      continue;
+    }
     if (v.kind === "taxonomy") {
       const terms = taxonomyTermsOf(v);
       if (terms.length === 0) continue;

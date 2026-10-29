@@ -72,6 +72,8 @@ import {
   validateUpdateListItem,
 } from "./sp";
 import { buildFieldEditors, editorKind } from "./fieldEditors";
+import { POOL_ROLES } from "./accessGates";
+import type { ParsedSheet, SheetColumn, SheetFile } from "./sheetRoundTrip";
 import { IngestionAssignee, IngestionTask, RunLogEntry, blanksToFill, ingestComment, latestByFile, logSummary, missingFor, taskFolderName } from "./ingestionModel";
 import { saveIngestionTask, deleteIngestionTask, getIngestionTask, listIngestionTasks } from "./ingestionStore";
 import { listPeople } from "../store/people";
@@ -450,6 +452,14 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
     const fillBtn = btn("Fill blanks from defaults");
     fillBtn.disabled = task.defaults.length === 0;
     fillBtn.title = task.defaults.length === 0 ? "No task defaults set (Edit task…)" : "Put each default into the files that lack it (saved with Save changes)";
+    // the spreadsheet round trip (features-plan-2026-10-29, feature 2):
+    // the grid out as a workbook with dropdowns, an edited workbook back
+    // INTO THE DRAFT — Save changes is the one write road
+    const exportBtn = btn("Export sheet");
+    exportBtn.title = "Download the grid as an Excel workbook — a Files sheet to edit, a Values sheet with every valid value";
+    const uploadBtn = btn("Upload sheet…");
+    uploadBtn.title = "Read an edited workbook back into the grid — Save changes writes it";
+    uploadBtn.disabled = task.status === "closed";
     // the folder is edited in SharePoint: a refresh re-reads it (Ben, 2026-10-09)
     const refresh = btn("↻ Refresh");
     refresh.title = "Re-read the folder's files and details";
@@ -470,7 +480,7 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
     // Refresh, Save and Discard at the far right (Ben, 2026-10-09)
     const farRight = el("span", "app-ing-actions-right");
     farRight.append(discardBtn, refresh, saveBtn);
-    actions.append(setSel, fillBtn, search, fitBtn, selectedCount, farRight);
+    actions.append(setSel, fillBtn, exportBtn, uploadBtn, search, fitBtn, selectedCount, farRight);
     // the task-level buttons live in the title row, before ✕ (Ben, 2026-10-09)
     const right = el("span", "app-ing-headactions");
     right.appendChild(openFolder); // (Ben, 2026-10-09: with the task buttons)
@@ -685,6 +695,11 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
       const old = gridHost.querySelector<HTMLElement>(`[data-row="${row.uniqueId}"] .app-ing-readymark`);
       if (old) old.replaceWith(readyMark(row));
     };
+    /** A blank typed over a saved value is a CLEAR (features-plan-
+     *  2026-10-29, Ben: "clear the value"); over a blank it is nothing.
+     *  The name column never clears — a file keeps a name. */
+    const typed = (row: DocRow, f: SpField, kind: AddFieldValue["kind"], text: string): AddFieldValue =>
+      text.trim() === "" && f !== NAME && savedDisplay(row.values, f.internal, kind) !== "" ? { internal: f.internal, kind, clear: true } : { internal: f.internal, kind, text };
     const commit = (row: DocRow, v: AddFieldValue) => {
       setCell(draft, row.uniqueId, row.values, v);
       const cellEl = gridHost.querySelector<HTMLElement>(`[data-row="${row.uniqueId}"] [data-col="${v.internal}"]`);
@@ -791,6 +806,19 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
       const set = btn("Set", "app-btn app-btn-primary");
       const cancel = btn("Cancel", "app-link");
       bar.append(cancel, set);
+      // a cell with a value offers Clear (features-plan-2026-10-29) — it
+      // lands in the draft like any edit and writes an empty value on Save
+      if (current(row, f) !== "" && f !== NAME) {
+        const clr = btn("Clear", "app-link");
+        clr.title = `Clear ${labelOf(f)} on this file`;
+        clr.addEventListener("click", () => {
+          closePop();
+          commit(row, { internal: f.internal, kind: editorKind(f) ?? "text", clear: true });
+          const cellEl = gridHost.querySelector<HTMLElement>(`[data-row="${row.uniqueId}"] [data-col="${f.internal}"]`);
+          if (cellEl) paintCell(cellEl, row, f);
+        });
+        bar.prepend(clr);
+      }
       pop.append(box, bar);
       // the current value as the editor's starting point
       const initial = new Map<string, { text?: string; people?: { email: string; name: string }[]; term?: { label: string; termId: string }; terms?: { label: string; termId: string }[] }>();
@@ -885,20 +913,20 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
           sel.appendChild(o);
         }
         if (f.choices.includes(value)) sel.value = value;
-        sel.addEventListener("change", () => commit(row, { internal: f.internal, kind: "choice", text: sel.value }));
+        sel.addEventListener("change", () => commit(row, typed(row, f, "choice", sel.value)));
         keyNav(sel, row, f, () => (sel.value = current(row, f)));
         cellEl.appendChild(sel);
       } else if (kind === "date") {
         const inp = el("input", "app-input app-ing-ctl") as HTMLInputElement;
         inp.type = "date";
         inp.value = /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : "";
-        inp.addEventListener("change", () => commit(row, { internal: f.internal, kind: "date", text: inp.value }));
+        inp.addEventListener("change", () => commit(row, typed(row, f, "date", inp.value)));
         keyNav(inp, row, f, () => (inp.value = current(row, f)));
         cellEl.appendChild(inp);
       } else if (kind === "text" && f.type !== "Note") {
         const inp = el("input", "app-input app-ing-ctl") as HTMLInputElement;
         inp.value = value;
-        inp.addEventListener("change", () => commit(row, { internal: f.internal, kind: "text", text: inp.value }));
+        inp.addEventListener("change", () => commit(row, typed(row, f, "text", inp.value)));
         keyNav(inp, row, f, () => (inp.value = current(row, f)));
         cellEl.appendChild(inp);
       } else {
@@ -1179,6 +1207,169 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
       paintGrid();
       paintDirty();
       status.textContent = touched === 0 ? "Nothing to fill — no file lacks a default's column." : `${touched} file${touched === 1 ? "" : "s"} filled in the grid — Save changes writes them.`;
+    });
+
+    // ---- the spreadsheet round trip (features-plan-2026-10-29, feature 2) ----
+    /** The grid's columns as the sheet knows them, with each listed
+     *  column's valid values: term paths, choices, the pool for the
+     *  owner / approver columns (reviewers may be anyone). The MoC
+     *  records column stays out — JSON in a cell invites corruption. */
+    const sheetColumns = async (): Promise<SheetColumn[]> => {
+      const { PATH_SEP, personText } = await import("./sheetRoundTrip");
+      const out: SheetColumn[] = [];
+      let pool: { email: string; name: string }[] | null = null;
+      for (const f of gridFields) {
+        const kind = editorKind(f);
+        if (kind === null) continue;
+        const role = ctx.dictBy.get(f.internal)?.role ?? "";
+        if (role === "managementOfChange") continue;
+        const col: SheetColumn = {
+          internal: f.internal,
+          label: labelOf(f),
+          kind,
+          multi: f.type === "TaxonomyFieldTypeMulti" || f.type === "UserMulti",
+          options: [],
+          poolBound: kind === "person" && POOL_ROLES.has(role) && role !== "reviewers",
+          required: requiredSet.has(f.internal),
+        };
+        if (kind === "taxonomy") {
+          const setId = ctx.dictBy.get(f.internal)?.termSetId || f.termSetId;
+          if (setId !== "") {
+            const walk = await cachedTermPaths(ctx.site, setId).catch(() => ({ nodes: [] as { id: string; labels: string[] }[] }));
+            col.options = walk.nodes.map((n) => ({ text: n.labels.join(PATH_SEP), label: n.labels[n.labels.length - 1], termId: n.id }));
+          }
+        } else if (kind === "choice") {
+          col.options = f.choices.map((c) => ({ text: c }));
+        } else if (col.poolBound) {
+          if (pool === null) {
+            const { poolState } = await import("./accessGates");
+            const st = await poolState().catch(() => ({ configured: false, members: null }));
+            pool = (st.members ?? []).map((m) => ({ email: m.email.toLowerCase(), name: m.name })).filter((m) => m.email !== "");
+          }
+          col.options = pool.map((m) => ({ text: personText(m.name, m.email), email: m.email, name: m.name }));
+        }
+        out.push(col);
+      }
+      return out;
+    };
+    /** Every file as the sheet shows it (saved values only). */
+    const sheetFiles = async (cols: SheetColumn[]): Promise<SheetFile[]> => {
+      const { exportCell, NAME_INTERNAL } = await import("./sheetRoundTrip");
+      return rows.map((r) => ({
+        uniqueId: r.uniqueId,
+        name: r.name,
+        cells: Object.fromEntries([[NAME_INTERNAL, stemOf(r.name)], ...cols.map((c) => [c.internal, exportCell(c, r.values)])]),
+      }));
+    };
+    exportBtn.addEventListener("click", () => {
+      void (async () => {
+        // saved values only (Ben, 2026-10-29): a sheet built over a draft
+        // would carry values SharePoint does not hold yet
+        if (dirtyRows(draft).length > 0) {
+          status.textContent = "Save or discard your changes first — the sheet carries saved values only.";
+          return;
+        }
+        if (rows.length === 0) {
+          status.textContent = "No files in the folder yet — nothing to export.";
+          return;
+        }
+        exportBtn.disabled = true;
+        status.textContent = "Building the sheet…";
+        try {
+          const [{ buildSheets }, { writeXlsx }] = await Promise.all([import("./sheetRoundTrip"), import("./xlsx")]);
+          const cols = await sheetColumns();
+          const files = await sheetFiles(cols);
+          const when = new Date();
+          const bytes = writeXlsx(buildSheets(cols, files, { task: task.name, library: libName(dest ?? undefined), exportedAt: when.toISOString().replace("T", " ").slice(0, 16) + " UTC" }));
+          const a = el("a", "") as HTMLAnchorElement;
+          a.href = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+          a.download = `ingestion-${taskFolderName(task.name)}-${when.toISOString().slice(0, 10)}.xlsx`;
+          a.click();
+          URL.revokeObjectURL(a.href);
+          status.textContent = `${rows.length} file${rows.length === 1 ? "" : "s"} exported — edit the Files sheet in Excel, then Upload sheet… brings it back into the grid.`;
+        } catch (err) {
+          status.textContent = `Could not build the sheet: ${err instanceof Error ? err.message : String(err)}`;
+        } finally {
+          exportBtn.disabled = false;
+        }
+      })();
+    });
+    uploadBtn.addEventListener("click", () => {
+      void (async () => {
+        const [{ parseSheet, parseSummary, FILES_SHEET }, { readXlsx, browserInflate }, { buildFilePicker }] = await Promise.all([import("./sheetRoundTrip"), import("./xlsx"), import("./filePicker")]);
+        const dlg = openDialog({
+          host: sheet,
+          title: "Upload an edited sheet",
+          maxWidth: 680,
+          buttons: [
+            { label: "Cancel", kind: "secondary", onClick: () => dlg.close() },
+            { label: "Apply to grid", kind: "primary", onClick: () => apply() },
+          ],
+        });
+        const applyBtn = dlg.root.querySelector(".ltk-btn-primary") as HTMLButtonElement;
+        applyBtn.disabled = true;
+        const hint = el("div", "app-field-hint", "The workbook exported from this task, edited in Excel. A cell equal to what was exported is left alone; an emptied cell clears the value; a value that cannot be read is listed here and left unchanged. Nothing is written until Save changes.");
+        const report = el("div", "app-ing-sheetreport");
+        let parsed: ParsedSheet | null = null;
+        const paintReport = (p: ParsedSheet) => {
+          clear(report);
+          report.appendChild(el("div", p.error !== "" ? "app-docs-health app-docs-health-warn" : "app-field-label", parseSummary(p)));
+          if (p.unknownFiles.length > 0) report.appendChild(el("div", "app-field-hint", `Not in the folder any more (skipped): ${p.unknownFiles.join(", ")}`));
+          if (p.problems.length > 0) {
+            const list = el("div", "app-ing-sheetprobs");
+            for (const pr of p.problems) {
+              const line = el("div", "app-ing-sheetprob");
+              line.appendChild(el("b", "", `Row ${pr.row} · ${pr.file} · ${pr.column}`));
+              line.appendChild(el("span", "", ` “${pr.value}” — ${pr.reason}`));
+              list.appendChild(line);
+            }
+            report.appendChild(list);
+          }
+          applyBtn.disabled = p.changes.length === 0;
+        };
+        const picker = buildFilePicker({
+          accept: ".xlsx",
+          invite: "Drop the workbook here, or",
+          onPick: (file) => {
+            clear(report);
+            parsed = null;
+            applyBtn.disabled = true;
+            if (file === null) return;
+            void (async () => {
+              picker.note("Reading the workbook…");
+              try {
+                const sheets = await readXlsx(new Uint8Array(await file.arrayBuffer()), browserInflate);
+                const filesSheet = sheets.find((x) => x.name === FILES_SHEET) ?? sheets[0];
+                if (!filesSheet) throw new Error("the workbook has no sheets");
+                const cols = await sheetColumns();
+                const files = await sheetFiles(cols);
+                const resolver = async (q: string) => (await searchEntra(q)).map((h) => ({ email: (h.mail ?? "").toLowerCase(), name: h.displayName })).filter((x) => x.email !== "");
+                parsed = await parseSheet(filesSheet.rows, cols, files, resolver);
+                picker.note("");
+                paintReport(parsed);
+              } catch (err) {
+                picker.note(`Could not read the workbook: ${err instanceof Error ? err.message : String(err)}`, true);
+              }
+            })();
+          },
+        });
+        dlg.body.append(hint, picker.root, report);
+        const apply = () => {
+          if (!parsed || parsed.changes.length === 0) return;
+          const touched = new Set<string>();
+          for (const c of parsed.changes) {
+            const row = rows.find((r) => r.uniqueId === c.uniqueId);
+            if (!row) continue;
+            setCell(draft, row.uniqueId, row.values, c.value);
+            touched.add(row.uniqueId);
+          }
+          const probs = parsed.problems.length;
+          dlg.close();
+          paintGrid();
+          paintDirty();
+          status.textContent = `${touched.size} file${touched.size === 1 ? "" : "s"} changed in the grid from the sheet — Save changes writes them.${probs > 0 ? ` ${probs} problem cell${probs === 1 ? "" : "s"} left unchanged.` : ""}`;
+        };
+      })();
     });
 
     // ---- the run ----------------------------------------------------------------

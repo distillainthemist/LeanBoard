@@ -1,0 +1,188 @@
+// The dependency-free .xlsx writer and reader (docs/xlsx.ts, features-
+// plan-2026-10-29). Written files read back; Excel-style files (shared
+// strings, deflated entries) read too — node's zlib stands in for the
+// browser's DecompressionStream.
+import { describe, expect, it } from "vitest";
+import { colIndex, colLetters, crc32, excelSerialToIso, parseSheetXml, readXlsx, readZip, writeXlsx, writeZip, xmlEscape, xmlUnescape } from "../docs/xlsx";
+
+// node's zlib stands in for the browser's DecompressionStream; the
+// specifier is built so the app's tsconfig (no node types) is not asked
+// to resolve it
+type Zlib = { deflateRawSync: (d: Uint8Array) => Uint8Array; inflateRawSync: (d: Uint8Array) => Uint8Array };
+const zlib = (): Promise<Zlib> => import(/* @vite-ignore */ "node:" + "zlib") as Promise<Zlib>;
+const nodeInflate = async (d: Uint8Array) => new Uint8Array((await zlib()).inflateRawSync(d));
+const enc = new TextEncoder();
+
+describe("column letters", () => {
+  it("round-trips", () => {
+    expect(colLetters(0)).toBe("A");
+    expect(colLetters(25)).toBe("Z");
+    expect(colLetters(26)).toBe("AA");
+    expect(colLetters(701)).toBe("ZZ");
+    for (const i of [0, 1, 25, 26, 27, 51, 52, 701, 702, 16383]) expect(colIndex(colLetters(i))).toBe(i);
+  });
+});
+
+describe("xml escaping", () => {
+  it("escapes and unescapes, entities included", () => {
+    const s = `a & b < c > "d" 'e'`;
+    expect(xmlUnescape(xmlEscape(s))).toBe(s);
+    expect(xmlUnescape("&#x2023; &#8250;")).toBe("‣ ›");
+  });
+});
+
+describe("zip", () => {
+  it("writes stored entries that read back, and crc matches a known value", () => {
+    expect(crc32(enc.encode("123456789")).toString(16)).toBe("cbf43926");
+    const z = writeZip([
+      { name: "a.txt", data: enc.encode("hello") },
+      { name: "dir/b.txt", data: enc.encode("wörld") },
+    ]);
+    return readZip(z, nodeInflate).then((parts) => {
+      expect([...parts.keys()]).toEqual(["a.txt", "dir/b.txt"]);
+      expect(new TextDecoder().decode(parts.get("dir/b.txt"))).toBe("wörld");
+    });
+  });
+  it("reads deflated entries through the injected inflate", async () => {
+    // a hand-built zip with one deflated entry (method 8), as Excel saves
+    const name = enc.encode("x.txt");
+    const plain = enc.encode("deflated content ".repeat(20));
+    const comp = new Uint8Array((await zlib()).deflateRawSync(plain));
+    const local = new Uint8Array(30 + name.length + comp.length);
+    const lv = new DataView(local.buffer);
+    lv.setUint32(0, 0x04034b50, true);
+    lv.setUint16(8, 8, true);
+    lv.setUint32(14, crc32(plain), true);
+    lv.setUint32(18, comp.length, true);
+    lv.setUint32(22, plain.length, true);
+    lv.setUint16(26, name.length, true);
+    local.set(name, 30);
+    local.set(comp, 30 + name.length);
+    const central = new Uint8Array(46 + name.length);
+    const cv = new DataView(central.buffer);
+    cv.setUint32(0, 0x02014b50, true);
+    cv.setUint16(10, 8, true);
+    cv.setUint32(16, crc32(plain), true);
+    cv.setUint32(20, comp.length, true);
+    cv.setUint32(24, plain.length, true);
+    cv.setUint16(28, name.length, true);
+    cv.setUint32(42, 0, true);
+    central.set(name, 46);
+    const eocd = new Uint8Array(22);
+    const ev = new DataView(eocd.buffer);
+    ev.setUint32(0, 0x06054b50, true);
+    ev.setUint16(8, 1, true);
+    ev.setUint16(10, 1, true);
+    ev.setUint32(12, central.length, true);
+    ev.setUint32(16, local.length, true);
+    const z = new Uint8Array(local.length + central.length + eocd.length);
+    z.set(local, 0);
+    z.set(central, local.length);
+    z.set(eocd, local.length + central.length);
+    const parts = await readZip(z, nodeInflate);
+    expect(new TextDecoder().decode(parts.get("x.txt"))).toBe("deflated content ".repeat(20));
+  });
+  it("refuses what is not a zip", async () => {
+    await expect(readZip(enc.encode("not a zip at all, nothing here"), nodeInflate)).rejects.toThrow(/Not a zip/);
+  });
+});
+
+describe("workbook round trip", () => {
+  it("writes two sheets with hidden parts and validations, and reads the cells back", async () => {
+    const bytes = writeXlsx([
+      {
+        name: "Files",
+        rows: [
+          ["File id", "Name", "Owner ✱"],
+          ["__id", "__name", "DMSOwner"],
+          ["u1", "Policy & scope <v2>", "Ann Ray <ann@x.test>"],
+          ["u2", "Plan", null],
+          [],
+          ["u3", "", ""],
+        ],
+        hiddenCols: [0],
+        hiddenRows: [1],
+        boldRows: [0],
+        freezeRows: 2,
+        validations: [{ col: 2, fromRow: 2, toRow: 50, listSheet: "Values", listCol: 0, listFromRow: 3, listToRow: 4 }],
+      },
+      { name: "Values", rows: [["note"], [], ["Owner"], ["Ann Ray <ann@x.test>"], ["Bob <bob@x.test>"]], freezeRows: 3 },
+    ]);
+    const parts = await readZip(bytes, nodeInflate);
+    const sheet1 = new TextDecoder().decode(parts.get("xl/worksheets/sheet1.xml"));
+    expect(sheet1).toContain(`<col min="1" max="1" width="2" customWidth="1" hidden="1"/>`);
+    expect(sheet1).toContain(`<row r="2" hidden="1">`);
+    expect(sheet1).toContain(`<c r="A1" s="1" t="inlineStr">`);
+    expect(sheet1).toContain(`<pane ySplit="2" topLeftCell="A3"`);
+    expect(sheet1).toContain(`sqref="C3:C51"><formula1>Values!$A$4:$A$5</formula1>`);
+    expect(sheet1).toContain("Policy &amp; scope &lt;v2&gt;");
+    // dataValidations must follow sheetData (the schema's order)
+    expect(sheet1.indexOf("<dataValidations")).toBeGreaterThan(sheet1.indexOf("</sheetData>"));
+    const sheets = await readXlsx(bytes, nodeInflate);
+    expect(sheets.map((s) => s.name)).toEqual(["Files", "Values"]);
+    expect(sheets[0].rows[2]).toEqual(["u1", "Policy & scope <v2>", "Ann Ray <ann@x.test>"]);
+    expect(sheets[0].rows[3]).toEqual(["u2", "Plan", ""]);
+    expect(sheets[0].rows[5]).toEqual(["u3", "", ""]);
+    expect(sheets[1].rows[4]).toEqual(["Bob <bob@x.test>"]);
+  });
+  it("quotes a sheet name with a space in a validation formula", () => {
+    const bytes = writeXlsx([
+      { name: "My Files", rows: [["a"]], validations: [{ col: 0, fromRow: 0, toRow: 0, listSheet: "Valid Values", listCol: 1, listFromRow: 0, listToRow: 2 }] },
+      { name: "Valid Values", rows: [["x", "y"]] },
+    ]);
+    return readZip(bytes, nodeInflate).then((parts) => {
+      expect(new TextDecoder().decode(parts.get("xl/worksheets/sheet1.xml"))).toContain("<formula1>&apos;Valid Values&apos;!$B$1:$B$3</formula1>");
+    });
+  });
+});
+
+describe("parseSheetXml — what Excel writes", () => {
+  it("reads shared strings with rich runs, inline strings, numbers, booleans and errors", () => {
+    const shared = ["plain", "rich text"];
+    const xml =
+      `<worksheet><sheetData>` +
+      `<row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c><c r="D1"><v>46000</v></c></row>` +
+      `<row r="3"><c r="A3" t="inlineStr"><is><t xml:space="preserve"> padded </t></is></c><c r="B3" t="b"><v>1</v></c><c r="C3" t="e"><v>#N/A</v></c><c r="E3" s="2"/></row>` +
+      `</sheetData></worksheet>`;
+    const rows = parseSheetXml(xml, shared);
+    expect(rows).toEqual([
+      ["plain", "rich text", "", "46000", ""],
+      ["", "", "", "", ""],
+      [" padded ", "TRUE", "", "", ""],
+    ]);
+  });
+  it("joins the runs of a rich shared string", async () => {
+    // a workbook whose strings live in sharedStrings.xml, as Excel saves
+    const parts = [
+      { name: "[Content_Types].xml", data: enc.encode("<Types/>") },
+      { name: "xl/workbook.xml", data: enc.encode(`<workbook><sheets><sheet name="Files" sheetId="1" r:id="rId1"/></sheets></workbook>`) },
+      { name: "xl/_rels/workbook.xml.rels", data: enc.encode(`<Relationships><Relationship Id="rId1" Type="w" Target="worksheets/sheet1.xml"/></Relationships>`) },
+      { name: "xl/sharedStrings.xml", data: enc.encode(`<sst><si><t>one</t></si><si><r><rPr><b/></rPr><t>Bell Bay</t></r><r><t xml:space="preserve"> › Casting</t></r></si></sst>`) },
+      { name: "xl/worksheets/sheet1.xml", data: enc.encode(`<worksheet><sheetData><row r="1"><c r="A1" t="s"><v>1</v></c></row></sheetData></worksheet>`) },
+    ];
+    const sheets = await readXlsx(writeZip(parts), nodeInflate);
+    expect(sheets[0].rows).toEqual([["Bell Bay › Casting"]]);
+  });
+  it("resolves an absolute relationship target", async () => {
+    const parts = [
+      { name: "xl/workbook.xml", data: enc.encode(`<workbook><sheets><sheet name="S" sheetId="1" r:id="rId9"/></sheets></workbook>`) },
+      { name: "xl/_rels/workbook.xml.rels", data: enc.encode(`<Relationships><Relationship Id="rId9" Type="w" Target="/xl/worksheets/sheet7.xml"/></Relationships>`) },
+      { name: "xl/worksheets/sheet7.xml", data: enc.encode(`<worksheet><sheetData><row r="2"><c r="B2"><v>3.5</v></c></row></sheetData></worksheet>`) },
+    ];
+    const sheets = await readXlsx(writeZip(parts), nodeInflate);
+    expect(sheets[0].rows).toEqual([
+      ["", ""],
+      ["", "3.5"],
+    ]);
+  });
+});
+
+describe("excelSerialToIso", () => {
+  it("maps the 1900 date system", () => {
+    expect(excelSerialToIso(1)).toBe("1900-01-01");
+    expect(excelSerialToIso(61)).toBe("1900-03-01");
+    expect(excelSerialToIso(46304)).toBe("2026-10-09");
+    expect(excelSerialToIso(0)).toBe("");
+    expect(excelSerialToIso(Number.NaN)).toBe("");
+  });
+});
