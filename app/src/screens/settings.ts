@@ -406,14 +406,6 @@ export function mountSettings(parent: HTMLElement, initialTab = ""): () => void 
       paintSaveBar();
     };
     renderTabs();
-    // a site admin's Process tab shows only when their site has a type
-    if (me.role === "siteadmin") {
-      void import("../store/processes").then(({ allSiteProcessTypes }) =>
-        allSiteProcessTypes().then((types) => {
-          if ((types[me.site] ?? "") === "") tabsBar.querySelector<HTMLElement>('[data-key="processes"]')?.remove();
-        }).catch(() => undefined)
-      );
-    }
     await tabByKey(current).render();
     sectionStrip.refresh();
 
@@ -2248,11 +2240,8 @@ async function renderOrg(
   const tree = parseOrgTree(await orgJson(true)) as OrgSiteNode[];
   const archived = await archivedSites();
   const hubTabsBySite = await allSiteHubTabs();
-  // the site's process TYPE (term-store-proposal §6): which hierarchy of
-  // processes its people pick from — read here, saved on change
-  const { allSiteProcessTypes, saveSiteProcessType, listProcessNodes } = await import("../store/processes");
-  const [processTypes, processNodes] = await Promise.all([allSiteProcessTypes().catch(() => ({}) as Record<string, string>), listProcessNodes().catch(() => [])]);
-  const typeChoices = processNodes.filter((n) => n.level === 0 && !n.archived).sort((a, b) => a.order - b.order);
+  // (the site's process TYPE select left this card 2026-10-29: a site
+  // owns its own tree under Settings → Processes — features-plan §1)
   // the per-site cascade floor lives here too (Ben, 2026-10-08 — moved
   // from Settings → Priorities: a site setting sits with the site)
   const cascadeBySite = await allSitePrioritySettings();
@@ -2371,6 +2360,8 @@ async function renderOrg(
       if (!(await guardLeave())) return;
       await renameSiteRow(site, name); // the owners column travels with the row
       await renameBoardsSite(site, name);
+      // the site's process tree follows (its root term renames through the sync)
+      await import("../store/processes").then((m) => m.renameSiteProcessRoot(site, name)).catch(() => undefined);
       // the Organisation term set: journaled, then pushed at once
       await import("../docs/orgJournal").then((m) => m.journalOrgRenames([{ from: [site], to: [name] }])).catch(() => undefined);
       for (const p of await listPeople(true)) {
@@ -2654,29 +2645,6 @@ async function renderOrg(
     });
     cascRow.appendChild(cascSel);
     card.appendChild(cascRow);
-
-    // process type (Ben, 2026-10-12): the hierarchy this site's processes
-    // come from — set in Settings → Processes, assigned here
-    const procRow = el("div", "app-site-tabs app-site-cascade");
-    procRow.appendChild(el("span", "app-site-tabs-label", "Process type"));
-    const procSel = el("select", "app-input app-site-cascade-sel") as HTMLSelectElement;
-    const noneOpt = el("option", "", "— none —") as HTMLOptionElement;
-    noneOpt.value = "";
-    procSel.appendChild(noneOpt);
-    for (const t of typeChoices) {
-      const o = el("option", "", t.name) as HTMLOptionElement;
-      o.value = t.nodeId;
-      if ((processTypes[site] ?? "") === t.nodeId) o.selected = true;
-      procSel.appendChild(o);
-    }
-    procSel.disabled = !canEdit;
-    procSel.title = typeChoices.length === 0 ? "No process types yet — Settings → Processes" : "The process hierarchy this site's rituals, initiatives, value drivers and documents pick from";
-    procSel.addEventListener("change", () => {
-      processTypes[site] = procSel.value;
-      void saveSiteProcessType(site, procSel.value);
-    });
-    procRow.appendChild(procSel);
-    card.appendChild(procRow);
 
     const deptList = el("div", "app-dept-list");
     card.appendChild(deptList);

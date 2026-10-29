@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { buildMeetingSection, parseMeetingInfo } from "../../../shared/schema/meeting";
 import { ProcessNode, buildProcessTree, flatProcessOptions, inSubtree } from "../../../shared/schema/process";
 
-const n = (nodeId: string, level: 0 | 1 | 2 | 3, name: string, parentId = "", order = 10, over: Partial<ProcessNode> = {}): ProcessNode => ({ rowId: "", nodeId, parentId, level, name, order, termId: "", aliases: {}, archived: false, ...over });
+const n = (nodeId: string, level: 0 | 1 | 2 | 3, name: string, parentId = "", order = 10, over: Partial<ProcessNode> = {}): ProcessNode => ({ rowId: "", nodeId, parentId, level, name, order, termId: "", aliases: {}, archived: false, site: "", centralId: "", ...over });
 const tree = buildProcessTree([n("t1", 0, "Smelter"), n("a1", 1, "Casting", "t1", 10, { aliases: { "bell bay": "Casthouse" } }), n("p1", 2, "Ingot casting", "a1"), n("s1", 3, "Line 2", "p1"), n("a2", 1, "Anodes", "t1", 20), n("x", 2, "Old", "a2", 5, { archived: true })]);
 
 describe("meeting blob", () => {
@@ -26,8 +26,8 @@ describe("inSubtree / flatProcessOptions", () => {
     expect(inSubtree(tree, "", "a1")).toBe(false);
     expect(inSubtree(tree, "", "")).toBe(true);
   });
-  it("lists the type's live nodes, indented, with the site's local names, to a depth", () => {
-    expect(flatProcessOptions(tree, "t1", "Bell Bay").map((o) => o.label)).toEqual(["Casthouse", "  Ingot casting", "    Line 2", "Anodes"]);
+  it("lists the root's live nodes, indented, by name (local names retired 2026-10-29), to a depth", () => {
+    expect(flatProcessOptions(tree, "t1", "Bell Bay").map((o) => o.label)).toEqual(["Casting", "  Ingot casting", "    Line 2", "Anodes"]);
     expect(flatProcessOptions(tree, "t1", "", 2).map((o) => o.value)).toEqual(["a1", "p1", "a2"]);
     expect(flatProcessOptions(tree, "", "Bell Bay")).toEqual([]);
   });

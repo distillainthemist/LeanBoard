@@ -1,16 +1,16 @@
-// The ONE process picker (term-store-proposal §6): area › process ›
-// sub-process as cascading selects under the site's type, any level a
-// valid leaf, "—" clears. Rebuilt in place on change (no outer
+// The ONE process picker (term-store-proposal §6; site trees since
+// 2026-10-29): area › process › sub-process as cascading selects under
+// the SITE's root, any level a valid leaf, "—" clears. Rebuilt in place on change (no outer
 // re-render). Used by the app's forms and by the MeetingWizard control,
 // so the select class is the caller's (app-input / ltk-mw-input).
 
 import { el } from "./dom";
-import { ProcessLevel, ProcessTree, liveChildren, processLabel, processPath, typeOf } from "../schema/process";
+import { ProcessLevel, ProcessTree, liveChildren, processLabel, processPath, siteRootOf, typeOf } from "../schema/process";
 
 export interface ProcessPickerOpts {
   tree: ProcessTree;
-  /** site → type node id */
-  siteTypes: Record<string, string>;
+  /** site → its tree's root node id (allSiteRoots) */
+  siteRoots: Record<string, string>;
   site: string;
   /** The chosen node id ("" = none). */
   value: string;
@@ -33,12 +33,12 @@ export function mountProcessPicker(host: HTMLElement, o: ProcessPickerOpts): Pro
   host.appendChild(root);
   let site = o.site;
   let value = o.value;
-  const typeId = () => o.siteTypes[site] ?? "";
+  const typeId = () => (o.siteRoots[site] ?? "") || siteRootOf(o.tree, site);
   const paint = () => {
     root.replaceChildren();
     const t = typeId();
     if (t === "" || !o.tree.byId.has(t)) {
-      root.appendChild(el("span", "ltk-procpick-none", site === "" ? "Pick a site first." : "This site has no process type (Settings → Organisation)."));
+      root.appendChild(el("span", "ltk-procpick-none", site === "" ? "Pick a site first." : "This site has no process hierarchy yet (Settings → Processes)."));
       return;
     }
     if (value !== "" && typeOf(o.tree, value) !== t) value = "";
@@ -85,4 +85,64 @@ export function mountProcessPicker(host: HTMLElement, o: ProcessPickerOpts): Pro
       if (value !== before) o.onChange(value);
     },
   };
+}
+
+/** The CENTRAL picker (features-plan-2026-10-29 §1): a process type,
+ *  then area › process › sub-process beneath it through the one picker.
+ *  For the cross-site filters and the link dialog — the central tree
+ *  has several roots, so the type comes first. */
+export interface CentralPickerOpts {
+  tree: ProcessTree;
+  /** The chosen central node id ("" = none). */
+  value: string;
+  selectClass: string;
+  disabled?: boolean;
+  onChange: (nodeId: string) => void;
+}
+
+export function mountCentralPicker(host: HTMLElement, o: CentralPickerOpts): { root: HTMLElement; value: () => string } {
+  const root = el("div", "ltk-procpick ltk-procpick-central");
+  host.appendChild(root);
+  const types = o.tree.types.filter((t) => !t.archived || t.nodeId === typeOf(o.tree, o.value));
+  let value = o.value;
+  let typeId = value === "" ? "" : typeOf(o.tree, value);
+  const typeSel = el("select", o.selectClass) as HTMLSelectElement;
+  const ph = el("option", undefined, "— any type —") as HTMLOptionElement;
+  ph.value = "";
+  typeSel.appendChild(ph);
+  for (const t of types) {
+    const opt = el("option", undefined, t.name + (t.archived ? " (archived)" : "")) as HTMLOptionElement;
+    opt.value = t.nodeId;
+    typeSel.appendChild(opt);
+  }
+  typeSel.value = typeId;
+  typeSel.disabled = o.disabled === true;
+  const below = el("span", "ltk-procpick-below");
+  root.append(typeSel, below);
+  const paintBelow = () => {
+    below.replaceChildren();
+    if (typeId === "") return;
+    // the one picker under a pseudo-site keyed to the type
+    const key = `\u0000central:${typeId}`;
+    mountProcessPicker(below, {
+      tree: o.tree,
+      siteRoots: { [key]: typeId },
+      site: key,
+      value: typeOf(o.tree, value) === typeId ? value : "",
+      selectClass: o.selectClass,
+      disabled: o.disabled,
+      onChange: (v) => {
+        value = v === "" ? typeId : v;
+        o.onChange(value);
+      },
+    });
+  };
+  typeSel.addEventListener("change", () => {
+    typeId = typeSel.value;
+    value = typeId;
+    paintBelow();
+    o.onChange(value);
+  });
+  paintBelow();
+  return { root, value: () => value };
 }

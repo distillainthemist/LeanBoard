@@ -72,7 +72,7 @@ export interface InitiativeFormOpts {
   siteCo: Record<string, string>;
   roster: RosterPerson[];
   /** The process model (term-store-proposal §6): absent = no Process row. */
-  processes?: { tree: ProcessTree; siteTypes: Record<string, string> };
+  processes?: { tree: ProcessTree; siteRoots: Record<string, string> };
   imp: ImprovementSettings;
   /** The roles the form offers (template roles, or the snapshot's). */
   roleDefs: TemplateRole[];
@@ -202,7 +202,7 @@ export function renderInitiativeForm(o: InitiativeFormOpts): InitiativeFormHandl
     const procHost = el("div", "app-im-procpick");
     procPicker = mountProcessPicker(procHost, {
       tree: o.processes.tree,
-      siteTypes: o.processes.siteTypes,
+      siteRoots: o.processes.siteRoots,
       site: siteSel.value,
       value: processValue,
       selectClass: "app-input",

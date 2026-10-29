@@ -198,3 +198,21 @@ export async function replicateBoard(
   }
   return newBoardId;
 }
+
+/** The process migration (features-plan-2026-10-29 §1): a ritual's
+ *  process reference moves to the site's clone — the column and the
+ *  blob's meeting.processNodeId together, so the Cadence feed and the
+ *  wizard agree. */
+export async function repointBoardProcess(board: BoardSummary, nodeId: string): Promise<void> {
+  let blobRaw = board.occurrenceSettingsRaw;
+  try {
+    const blob = JSON.parse(blobRaw) as Record<string, unknown>;
+    const meeting = (blob.meeting ?? {}) as Record<string, unknown>;
+    meeting.processNodeId = nodeId;
+    blob.meeting = meeting;
+    blobRaw = JSON.stringify(blob);
+  } catch {
+    /* an unparseable blob keeps its text; the column still moves */
+  }
+  await writing("boards", Ben_ltkboardsService.update(board.id, { ben_processnodeid: nodeId, ben_occurrencesettings: blobRaw }));
+}

@@ -32,7 +32,7 @@ import {
   userPrefsJson,
 } from "../store/config";
 import { parseManifest } from "../store/mappers";
-import { allSiteProcessTypes, listProcessNodes } from "../store/processes";
+import { allSiteProcessRoots, listProcessNodes } from "../store/processes";
 import { listPeople, upsertPerson, viewerPerson } from "../store/people";
 import {
   ACTIONS,
@@ -59,7 +59,7 @@ interface HubData {
   sourceLabels: Record<string, string>;
   visibleBoards: Awaited<ReturnType<typeof listBoards>>;
   processNodes: Awaited<ReturnType<typeof listProcessNodes>>;
-  siteTypes: Record<string, string>;
+  siteRoots: Record<string, string>;
   categories: Awaited<ReturnType<typeof meetingCategories>>;
   me: Awaited<ReturnType<typeof viewerPerson>>;
 }
@@ -164,7 +164,7 @@ async function fetchHubData(viewer: {
     ),
     orgRaw: org,
     processNodes: await listProcessNodes().catch(() => []),
-    siteTypes: await allSiteProcessTypes().catch(() => ({}) as Record<string, string>),
+    siteRoots: await allSiteProcessRoots().catch(() => ({}) as Record<string, string>),
     // the one read that depends on another (the viewer's site)
     protectedRaw: site !== "" ? await protectedTimesJson(site) : "[]",
     prefsRaw: prefs,
@@ -289,7 +289,7 @@ export function mountHub(parent: HTMLElement): () => void {
     view.setChrome("", "");
     view.setMeetings(parseHubMeetings(meetingsRaw));
     view.setOrgTree(parseOrgTree(orgRaw));
-    view.setProcesses(hubCache?.processNodes ?? [], hubCache?.siteTypes ?? {});
+    view.setProcesses(hubCache?.processNodes ?? [], hubCache?.siteRoots ?? {});
     view.setPeople(parsePeople(peopleRaw), viewerId);
     view.setProtectedTimes(parseProtectedTimes(protectedRaw));
     view.setActions(actions);
@@ -452,7 +452,7 @@ export function mountHub(parent: HTMLElement): () => void {
             site = fresh.site; // onProtected closes over this
             view.setMeetings(parseHubMeetings(fresh.meetingsRaw));
             view.setOrgTree(parseOrgTree(fresh.orgRaw));
-            view.setProcesses(fresh.processNodes, fresh.siteTypes);
+            view.setProcesses(fresh.processNodes, fresh.siteRoots);
             view.setPeople(parsePeople(fresh.peopleRaw), fresh.viewerId);
             view.setProtectedTimes(parseProtectedTimes(fresh.protectedRaw));
             view.setActions(fresh.actions);

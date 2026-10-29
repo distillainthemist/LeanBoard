@@ -15,6 +15,7 @@ export type Ben_ltkprocessnodesstatuscode = keyof typeof Ben_ltkprocessnodesstat
 
 export interface Ben_ltkprocessnodesBase {
   ben_aliasesjson?: string;
+  ben_centralnodeid?: string;
   ben_isarchived?: boolean;
   ben_level?: string;
   ben_ltkprocessnodeid: string;
@@ -22,6 +23,7 @@ export interface Ben_ltkprocessnodesBase {
   ben_nodeid: string;
   ben_order?: string;
   ben_parentid?: string;
+  ben_site?: string;
   ben_termid?: string;
   importsequencenumber?: number;
   overriddencreatedon?: string;

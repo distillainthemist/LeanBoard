@@ -11,7 +11,7 @@
 // Settings: view preferences, plus the protected-time editor for site
 // admins (canEditSite).
 
-import { ProcessNode, ProcessTree, buildProcessTree, flatProcessOptions, inSubtree, typeOf } from "../../shared/schema/process";
+import { ProcessNode, ProcessTree, buildProcessTree, flatProcessOptions, inSubtree, siteRootOf, typeOf } from "../../shared/schema/process";
 import { mountProcessPicker } from "../../shared/ui/processPicker";
 import { applyThemeVars, defaultTheme, Theme } from "../../shared/tokens";
 import { LTK_BASE_CSS } from "../../shared/ui/baseCss";
@@ -152,7 +152,7 @@ export class LeanHubView {
   /** The process model (term-store-proposal §6): a Process filter under
    *  the organisation scope, when the scope's site has a type. */
   private processTree: ProcessTree = buildProcessTree([]);
-  private siteTypes: Record<string, string> = {};
+  private siteRoots: Record<string, string> = {};
   private scopeProcess = "";
 
   constructor(
@@ -204,9 +204,9 @@ export class LeanHubView {
     this.render();
   }
 
-  setProcesses(nodes: ProcessNode[], siteTypes: Record<string, string>): void {
+  setProcesses(nodes: ProcessNode[], siteRoots: Record<string, string>): void {
     this.processTree = buildProcessTree(nodes);
-    this.siteTypes = siteTypes;
+    this.siteRoots = siteRoots;
     this.render();
   }
 
@@ -215,7 +215,7 @@ export class LeanHubView {
    *  2026-10-12 — never a flat list); nothing when the site has no type. */
   private processFilter(): HTMLElement | null {
     const site = this.scopeOrg.site;
-    const typeId = site === "" ? "" : (this.siteTypes[site] ?? "");
+    const typeId = site === "" ? "" : siteRootOf(this.processTree, site);
     if (typeId === "" || flatProcessOptions(this.processTree, typeId, site).length === 0) {
       this.scopeProcess = "";
       return null;
@@ -224,7 +224,7 @@ export class LeanHubView {
     const host = el("span", "ltk-lh-procfilter");
     mountProcessPicker(host, {
       tree: this.processTree,
-      siteTypes: this.siteTypes,
+      siteRoots: this.siteRoots,
       site,
       value: this.scopeProcess,
       selectClass: "ltk-lh-input",

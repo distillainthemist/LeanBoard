@@ -1244,7 +1244,7 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
     void openManager(app.processSetId, app.processSetName || "Process area");
   });
   procSetRow.append(procSetSel, manageProc);
-  termStoreHost.appendChild(field("Process area term set", procSetRow, "Mirrors Settings → Processes: type › area › process › sub-process; local names become synonyms. Map a site column to the \"Process area\" role to tag documents with it."));
+  termStoreHost.appendChild(field("Process area term set", procSetRow, "Mirrors Settings → Processes: each site's tree — site › area › process › sub-process. Map a site column to the \"Process area\" role to tag documents with it."));
   // the sets themselves, as tiles
   termStoreHost.append(el("div", "app-section", "Term sets"), palNote, palBox);
 
@@ -1662,7 +1662,7 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
   };
   // ---- Align term sets: both sets, one click, a verdict each ----------
   termStoreHost.appendChild(el("div", "app-section", "Alignment"));
-  termStoreHost.appendChild(note("Pushes the app's organisation and process model into their term sets and confirms the result with a fresh walk: creates what is missing, renames bound terms in place, pushes local names as synonyms, never deletes. A term the app does not know is reported — decide it in the drift reports below (pair it with an app node, or retire it)."));
+  termStoreHost.appendChild(note("Pushes the app's organisation and process model into their term sets and confirms the result with a fresh walk: creates what is missing, renames bound terms in place, never deletes. A term the app does not know is reported — decide it in the drift reports below (pair it with an app node, or retire it)."));
   const alignBtn = el("button", "app-btn app-btn-primary", "Align term sets") as HTMLButtonElement;
   const alignRow = el("div", "app-docs-siterow");
   alignRow.appendChild(alignBtn);
@@ -1716,7 +1716,7 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
 
   // ---- Process area sync (step 5): the process model is the master ----
   termStoreHost.appendChild(el("div", "app-section", "Process area sync"));
-  termStoreHost.appendChild(note("Compares Settings → Processes with the Process area term set: creates what is missing (parents first), renames bound terms in place, pushes each node's local names as synonyms, and never deletes — an archived node's term is listed and left alone."));
+  termStoreHost.appendChild(note("Compares each site's tree in Settings → Processes with the Process area term set: creates what is missing (parents first), renames bound terms in place, removes the synonyms the retired local names once pushed, and never deletes — an archived node's term and the old type-rooted terms are listed and left alone (retire them below)."));
   const procDriftBtn = el("button", "app-btn", "Load process drift report") as HTMLButtonElement;
   const procDriftRow = el("div", "app-docs-siterow");
   procDriftRow.appendChild(procDriftBtn);
@@ -1772,7 +1772,7 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
         procDriftBox.appendChild(note("✓ Nothing to sync — the trees agree."));
         return;
       }
-      // local names ride every apply (synonyms are added, never removed)
+      // retired local names ride every apply (their synonyms come off)
       wireApply(procDriftBox, adapter, plan, termNodes, new Map<string, OrphanDecision>(), adapter.withAliases > 0 ? 1 : 0, decisionsHost);
     })();
   });

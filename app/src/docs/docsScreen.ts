@@ -3371,6 +3371,36 @@ export function mountDocs(
             if (walk.truncated || (walk.failed ?? 0) > 0) {
               pills.before(el("div", "app-field-hint", "The vocabulary loaded only partly (the term store was slow) — deeper terms may be missing; reopen Filters in a minute."));
             }
+            // the Process area column compares ACROSS SITES through the
+            // central hierarchy (features-plan-2026-10-29 §1): a central
+            // pick expands to every linked site node's term, OR'd
+            if (dictBy.get(col)?.role === "processArea") {
+              void Promise.all([import("../store/processes"), import("../processes/model"), import("../../../shared/ui/processPicker")]).then(([{ listProcessNodes }, { buildProcessTree, siteNodesUnderCentral }, { mountCentralPicker }]) =>
+                listProcessNodes().then((pnodes) => {
+                  if (dead || !menu || !menu.contains(pills)) return;
+                  const ptree = buildProcessTree(pnodes);
+                  if (!ptree.types.some((t) => !t.archived)) return;
+                  const box = el("div", "app-docs-fcentral");
+                  box.appendChild(el("div", "app-field-hint", "Compare across sites — a central process matches every site's own process linked to it:"));
+                  mountCentralPicker(box, {
+                    tree: ptree,
+                    value: "",
+                    selectClass: "app-input",
+                    onChange: (central) => {
+                      const termIds = new Set(siteNodesUnderCentral(ptree, central).map((n) => n.termId.toLowerCase()).filter((id) => id !== ""));
+                      const picks = nodes.filter((n) => termIds.has(n.id.toLowerCase()));
+                      filters = filters.filter((f) => f.col !== col);
+                      if (central !== "" && picks.length > 0) filters.push(filterFromPicks(col, picks, nodes));
+                      paintTreeSelection();
+                      paintChips();
+                      void load(true);
+                      paintPills();
+                    },
+                  });
+                  pills.before(box);
+                })
+              ).catch(() => undefined);
+            }
             // top two levels as pills; deeper active picks still show
             const shallow = nodes.filter((n) => n.labels.length <= 2);
             const CAP = 14;

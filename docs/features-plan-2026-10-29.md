@@ -2,8 +2,8 @@
 
 Two features Ben raised on 2026-10-29, analysed against the code as it
 stands at v0.82.0. Status: questions answered (the Decisions section);
-feature 2 BUILT 2026-10-29 (dev, unreleased — see "Built"); feature 1
-not started.
+feature 2 BUILT 2026-10-29 (dev, unreleased); feature 1 BUILT
+2026-10-29 (dev, unreleased, SOLUTION-CARRYING) — see "Built".
 
 ---
 
@@ -385,3 +385,48 @@ Order: feature 2 first (app-only), then feature 1 (solution-carrying).
 - Tests: `xlsx.test.ts` (11), `sheetRoundTrip.test.ts`, clear cases in
   `ingestionDraft.test.ts` and `docsModel.test.ts` — 930 in all. UAT:
   DOC-063 (clearing in the grid), DOC-087 (export), DOC-088 (upload).
+
+---
+
+## Built (2026-10-29) — feature 1
+
+- **Schema** (dev-deployed 2026-10-29; solution-carrying): `ben_site`
+  and `ben_centralnodeid` on `ben_ltkprocessnode`. `ben_processtype`
+  on the site row and `ben_aliasesjson` stay as columns, retired.
+- **Model** `shared/schema/process.ts`: `site` / `centralId` on the
+  node; `siteRoots` on the tree, `siteRootOf` (case-blind),
+  `allSiteRoots`; `centralOf` (own link, else inherited, a central node
+  its own), `inCentralSubtree`, `siteNodesUnderCentral`, `rootLabel`;
+  `processTermPaths` walks site roots only; `processLabel` is the name
+  (aliases retired), `processLabelWithCentral`; `synonymsToRemove`
+  replaces `synonymsToAdd`; the migration's `cloneTypeForSite`,
+  `processNameFor`, `repointedNodeId`. Tests rewritten.
+- **Store** `store/processes.ts`: `allSiteProcessRoots` (the map every
+  consumer takes — `siteTypes` → `siteRoots`, one rename across the
+  picker, LeanHub, MeetingWizard, Improvement, VDT, hub, wizard);
+  `allSiteProcessTypes` kept for the migration readout;
+  `clearSiteProcessType`; `renameSiteProcessRoot` (called by the
+  Organisation page's site rename).
+- **Migration** `processes/migrate.ts`: `sitesAwaitingMigration`;
+  `migrateSiteFromType` clones, re-points rituals (column + blob,
+  `repointBoardProcess`), initiatives and value drivers of that site,
+  clears the retired type. Run per site from Settings → Processes
+  ("Clone this type", the retired type preselected).
+- **Settings → Processes** rewritten: a strip of sites (site admins
+  their own) plus "Central hierarchy" (super admins); a site with no
+  tree starts empty or clones a type; the tree editor as before minus
+  Local names; every site node shows "↔ <central path>" / "(inherited)"
+  / "not linked" — super admins open the link dialog (`mountCentralPicker`:
+  type, then the cascading picker; Inherit clears); central nodes show
+  "↔ n site nodes"; the site card on the Organisation page lost its
+  "Process type" select.
+- **Sync** `docs/processSync.ts`: site paths; the synonym step now
+  STRIPS the app's synonyms from central nodes that still carry
+  aliases and clears them. Settings → Documents wording follows.
+- **Cross-site filters**: the Improvement tab at company scope offers
+  "Process (across sites)" (central picker; `inCentralSubtree`); the
+  register's Process area column offers "Compare across sites" (the
+  central pick expands to the linked site nodes' terms through
+  `filterFromPicks`). Cadence and value drivers: later (decision 7).
+- **UAT**: SET-003/004/005 (Journey 3 — Processes), DOC-072 reworded,
+  DOC-089 (register across sites).

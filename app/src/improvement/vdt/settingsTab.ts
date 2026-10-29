@@ -15,8 +15,8 @@ import { viewerPerson } from "../../store/people";
 import { parseOrgTree } from "../../../../shared/schema/meeting";
 import { nowIso } from "../../../../shared/schema/id";
 import { deleteDriverTree, listDrivers, saveDriver } from "../../store/valueDrivers";
-import { allSiteProcessTypes, listProcessNodes } from "../../store/processes";
-import { buildProcessTree, flatProcessOptions, inSubtree } from "../../processes/model";
+import { allSiteProcessRoots, listProcessNodes } from "../../store/processes";
+import { buildProcessTree, flatProcessOptions, inSubtree, siteRootOf } from "../../processes/model";
 import { mountProcessPicker } from "../../../../shared/ui/processPicker";
 import { parseImprovementSettings, serializeImprovementSettings } from "../templateModel";
 import {
@@ -62,7 +62,7 @@ function formulaFromNames(text: string, kids: DriverNode[]): string {
 export async function renderValueDriversSettings(body: HTMLElement): Promise<void> {
   clear(body);
   const viewer = currentViewer();
-  const [treeRaw, impRaw, me, processNodes, siteTypes] = await Promise.all([orgJson(), improvementSettingsJson(), viewer ? viewerPerson(viewer.objectId).catch(() => null) : Promise.resolve(null), listProcessNodes().catch(() => []), allSiteProcessTypes().catch(() => ({}) as Record<string, string>)]);
+  const [treeRaw, impRaw, me, processNodes, siteRoots] = await Promise.all([orgJson(), improvementSettingsJson(), viewer ? viewerPerson(viewer.objectId).catch(() => null) : Promise.resolve(null), listProcessNodes().catch(() => []), allSiteProcessRoots().catch(() => ({}) as Record<string, string>)]);
   const sites = parseOrgTree(treeRaw).map((s) => s.site);
   // the process model (term-store-proposal §6): a Process on each driver,
   // and a by-process filter that dims the rest of the tree
@@ -108,7 +108,7 @@ export async function renderValueDriversSettings(body: HTMLElement): Promise<voi
   const procFilterHost = el("span", "app-vd-procfilter");
   const paintProcFilter = () => {
     clear(procFilterHost);
-    const opts = flatProcessOptions(processTree, siteTypes[site] ?? "", site);
+    const opts = flatProcessOptions(processTree, siteRootOf(processTree, site), site);
     if (opts.length === 0) {
       processFilter = "";
       return;
@@ -118,7 +118,7 @@ export async function renderValueDriversSettings(body: HTMLElement): Promise<voi
     const host = el("span", "app-vd-procpick-filter");
     mountProcessPicker(host, {
       tree: processTree,
-      siteTypes,
+      siteRoots,
       site,
       value: processFilter,
       selectClass: "app-input",
@@ -257,7 +257,7 @@ export async function renderValueDriversSettings(body: HTMLElement): Promise<voi
     sourceUrl.type = "url";
     field("Source link", sourceUrl, "Optional — the source line on the card opens it.");
     const procHost = el("div", "app-vd-procpick");
-    const procPicker = mountProcessPicker(procHost, { tree: processTree, siteTypes, site, value: draft.processNodeId, selectClass: "app-input", onChange: () => undefined });
+    const procPicker = mountProcessPicker(procHost, { tree: processTree, siteRoots, site, value: draft.processNodeId, selectClass: "app-input", onChange: () => undefined });
     field("Process", procHost, "Optional — the process this driver sits under; a parent level is a valid choice.");
     const cadSel = el("select", "app-input") as HTMLSelectElement;
     for (const c of CADENCES) {

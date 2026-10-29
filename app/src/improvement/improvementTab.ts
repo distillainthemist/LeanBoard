@@ -45,10 +45,10 @@ import { fieldInput } from "./fieldInput";
 import { isFieldEmpty } from "./fieldCodec";
 import { assigneePeople } from "../../../shared/schema/people";
 import { renderInitiativeForm } from "./initiativeForm";
-import { buildProcessTree, flatProcessOptions, inSubtree, processPathLabel } from "../processes/model";
-import { mountProcessPicker } from "../../../shared/ui/processPicker";
+import { buildProcessTree, flatProcessOptions, inCentralSubtree, inSubtree, processPathLabel, siteRootOf } from "../processes/model";
+import { mountCentralPicker, mountProcessPicker } from "../../../shared/ui/processPicker";
 import { mountOrgCascade } from "../priorities/orgCascade";
-import { allSiteProcessTypes, listProcessNodes } from "../store/processes";
+import { allSiteProcessRoots, listProcessNodes } from "../store/processes";
 import { initiativeRag } from "../priorities/model";
 import {
   primaryMetric,
@@ -82,7 +82,7 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
 
   void (async () => {
     const who = currentViewer();
-    const [initiatives, templates, roster, owners, treeRaw, siteCo, impRaw, prSettingsRaw, initActions, allBoards, initRows, palettes, cascade, processNodes, siteTypes] = await Promise.all([
+    const [initiatives, templates, roster, owners, treeRaw, siteCo, impRaw, prSettingsRaw, initActions, allBoards, initRows, palettes, cascade, processNodes, siteRoots] = await Promise.all([
       listInitiatives(),
       listTemplates(),
       listPeople(),
@@ -99,7 +99,7 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
       // a rename shows on the next open — no label is stored on the link)
       loadCascade("").catch(() => null),
       listProcessNodes().catch(() => []),
-      allSiteProcessTypes().catch(() => ({}) as Record<string, string>),
+      allSiteProcessRoots().catch(() => ({}) as Record<string, string>),
     ]);
     if (dead) return;
     stopLoading();
@@ -173,7 +173,7 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
     const f: Filters = { pdca: "", period: currentPeriod, status: "active", flagOnly: false, method: "", teamScope: "", process: "" };
     // the process model (term-store-proposal §6): the filter and the chip
     const processTree = buildProcessTree(processNodes);
-    const processTypeOfScope = () => (scope.site !== "" ? (siteTypes[scope.site] ?? "") : "");
+    const processRootOfScope = () => (scope.site !== "" ? siteRootOf(processTree, scope.site) : "");
     const processText = (i: Initiative): string => (i.processNodeId ?? "") === "" ? "" : processPathLabel(processTree, i.processNodeId ?? "", i.org.site);
     let viewMode: "list" | "tiles" | "gantt" = "list";
     let ganttUnmount: (() => void) | null = null;
@@ -186,7 +186,10 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
       (f.status === "all" || i.status === f.status) &&
       (!f.flagOnly || i.flag !== "") &&
       (f.method === "" || i.method === f.method) &&
-      (f.process === "" || inSubtree(processTree, i.processNodeId ?? "", f.process)) &&
+      // a site in scope filters by its own tree; across sites (company
+      // scope) the pick is a CENTRAL node and an initiative matches
+      // through its site node's link (features-plan-2026-10-29 §1)
+      (f.process === "" || (scope.site !== "" ? inSubtree(processTree, i.processNodeId ?? "", f.process) : inCentralSubtree(processTree, i.processNodeId ?? "", f.process))) &&
       (f.pdca === "" || i.snapshot.stages.find((s) => s.id === i.stageId)?.pdca === f.pdca);
 
     /** The Documents-register filters popover: anchored under the Filters
@@ -495,14 +498,28 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
           });
         }
         // Process: the scope site's areas and processes (a pick includes
-        // everything beneath it); nothing at company level
-        if (processTypeOfScope() !== "" && flatProcessOptions(processTree, processTypeOfScope(), scope.site, 1).length > 0) {
+        // everything beneath it); at company level the CENTRAL tree, so
+        // sites compare on one process (features-plan-2026-10-29 §1)
+        if (scope.site === "" && processTree.types.some((t) => !t.archived)) {
+          const procGroup = group("Process (across sites)");
+          const host = el("div", "app-im-procfilter");
+          mountCentralPicker(host, {
+            tree: processTree,
+            value: f.process,
+            selectClass: "app-input",
+            onChange: (v) => {
+              f.process = v;
+              render();
+            },
+          });
+          procGroup.appendChild(host);
+        } else if (processRootOfScope() !== "" && flatProcessOptions(processTree, processRootOfScope(), scope.site, 1).length > 0) {
           // the cascading picker, never a flat list (Ben, 2026-10-12)
           const procGroup = group("Process");
           const host = el("div", "app-im-procfilter");
           mountProcessPicker(host, {
             tree: processTree,
-            siteTypes,
+            siteRoots,
             site: scope.site,
             value: f.process,
             selectClass: "app-input",
@@ -858,7 +875,7 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
             endorsement: false,
           },
           fiCtx: { people: assigneePeople([], roster, "search"), palette: stateColors },
-          processes: { tree: processTree, siteTypes },
+          processes: { tree: processTree, siteRoots },
           canPromote: canPromoteDrivers(),
           loadPriorities: (company) => loadCascade(company).then((data) => data.priorities),
         });

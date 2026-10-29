@@ -18,6 +18,14 @@
           "x-ms-schema-name": "ben_aliasesjson",
           "maxLength": 20000
         },
+        "ben_centralnodeid": {
+          "type": "string",
+          "title": "Central node id (soft link)",
+          "x-ms-dataverse-attribute": "ben_centralnodeid",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "ben_centralnodeid",
+          "maxLength": 40
+        },
         "ben_isarchived": {
           "type": "string",
           "title": "Archived",
@@ -100,6 +108,14 @@
           "x-ms-dataverse-type": "StringType",
           "x-ms-schema-name": "ben_parentid",
           "maxLength": 40
+        },
+        "ben_site": {
+          "type": "string",
+          "title": "Site ('' = central)",
+          "x-ms-dataverse-attribute": "ben_site",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "ben_site",
+          "maxLength": 100
         },
         "ben_termid": {
           "type": "string",

@@ -927,13 +927,20 @@ Key concepts (details: [leanboard-standard-documents-plan.md](leanboard-standard
   (`docs/orgJournal.ts`), every sync binds app paths to term ids
   (`termBindings`), and `orgSyncPlan` reads both before it infers from
   labels. Next: the process model and its synced set (proposal §6).
-- **The process model** (2026-10-12, proposal §6): `ben_ltkprocessnode`
-  — one row per node (type · area · process · sub-process), local names
-  per site as JSON, a bound term id; `processes/model.ts` holds the
-  tree and the ONE display rule `processLabel(node, site)`; Settings →
-  Processes edits it (writes at once, archive never delete); a site's
-  type sits on its settings row (`ben_processtype`); boards, initiatives
-  and value drivers carry an optional `ben_processnodeid`. The model
+- **The process model** (2026-10-12, proposal §6; site trees
+  2026-10-29, features-plan-2026-10-29 §1): `ben_ltkprocessnode` — one
+  row per node. A SITE owns its tree: the root carries the site's name
+  (`ben_site`), then area · process · sub-process; the CENTRAL
+  hierarchy is the type trees (`ben_site` = ""), the key sites compare
+  on — each site node soft-links to one central node
+  (`ben_centralnodeid`, inherited down the tree; `centralOf` is the
+  one rule). Local names and the site's type on its settings row are
+  retired (the migration reads them; `processes/migrate.ts` clones a
+  type for a site and re-points its rituals, initiatives and value
+  drivers). Settings → Processes edits a site's tree (site admins their
+  own, super admins every tree, the central tree and the links; writes
+  at once, archive never delete); boards, initiatives and value drivers
+  carry an optional `ben_processnodeid` (a site node). The model
   lives in `shared/schema/process.ts` and the ONE picker in
   `shared/ui/processPicker.ts`, so the MeetingWizard (a ritual's
   process, on the blob and mirrored to the column) and LeanHub (a
@@ -941,8 +948,9 @@ Key concepts (details: [leanboard-standard-documents-plan.md](leanboard-standard
   form, the Improvement filters and chips, the driver editor and the
   by-process dimming of the driver tree are the app-side consumers.
   The **Process area term set** (`docs/processSync.ts`) mirrors the
-  model: the binding is the node's own `termId`, the local names go
-  up as synonyms, nothing is deleted; a "Process area" column role
+  SITE trees only — site › area › process › sub-process: the binding
+  is the node's own `termId`, the synonyms once pushed for local names
+  come off, nothing is deleted; a "Process area" column role
   tags documents and the register's taxonomy filter includes a pick's
   subtree. Solution-carrying.
 - **Document ingestion** (2026-10-08, [document-ingestion-proposal-2026-10.md](document-ingestion-proposal-2026-10.md)).

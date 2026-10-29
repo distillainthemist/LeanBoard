@@ -14,8 +14,8 @@ import { appPalettes, improvementSettingsJson, orgJson, prioritySettingsJson } f
 import { paletteMap } from "../../../../shared/palette";
 import { listPeople, viewerPerson } from "../../store/people";
 import { listDrivers, saveDriver } from "../../store/valueDrivers";
-import { allSiteProcessTypes, listProcessNodes } from "../../store/processes";
-import { buildProcessTree, flatProcessOptions, inSubtree } from "../../processes/model";
+import { allSiteProcessRoots, listProcessNodes } from "../../store/processes";
+import { buildProcessTree, flatProcessOptions, inSubtree, siteRootOf } from "../../processes/model";
 import { mountProcessPicker } from "../../../../shared/ui/processPicker";
 import { driverActual, listDriverPoints, listDriverRaw, putDriverPoint, refoldDriverPeriod, writePeriodSpread } from "../../store/driverSeries";
 import { parseOrgTree } from "../../../../shared/schema/meeting";
@@ -47,7 +47,7 @@ export function mountValueDrivers(parent: HTMLElement): () => void {
 
   void (async () => {
     const viewer = currentViewer();
-    const [treeRaw, impRaw, prRaw, me, roster, palettes, processNodes, siteTypes] = await Promise.all([
+    const [treeRaw, impRaw, prRaw, me, roster, palettes, processNodes, siteRoots] = await Promise.all([
       orgJson(),
       improvementSettingsJson(),
       prioritySettingsJson(),
@@ -55,7 +55,7 @@ export function mountValueDrivers(parent: HTMLElement): () => void {
       listPeople().catch(() => []),
       appPalettes().catch(() => ({ states: [], titles: [] })),
       listProcessNodes().catch(() => []),
-      allSiteProcessTypes().catch(() => ({}) as Record<string, string>),
+      allSiteProcessRoots().catch(() => ({}) as Record<string, string>),
     ]);
     const stateColors = paletteMap(palettes.states);
     const ragColor = (rag: "green" | "amber" | "red"): string => stateColors[ragPaletteKey(rag)] ?? "#9a948a";
@@ -206,14 +206,14 @@ export function mountValueDrivers(parent: HTMLElement): () => void {
         render();
       });
       bar.append(el("span", "app-field-label", "Show"), showSel, cmpSel);
-      const procOpts = flatProcessOptions(processTree, siteTypes[site] ?? "", site);
+      const procOpts = flatProcessOptions(processTree, siteRootOf(processTree, site), site);
       if (procOpts.length > 0) {
         if (processFilter !== "" && !procOpts.some((o) => o.value === processFilter)) processFilter = "";
         // the cascading picker (Ben, 2026-10-12), dimming the drivers outside the pick
         const procHost = el("span", "app-vd-procpick-filter");
         mountProcessPicker(procHost, {
           tree: processTree,
-          siteTypes,
+          siteRoots,
           site,
           value: processFilter,
           selectClass: "app-input app-vd-sel",

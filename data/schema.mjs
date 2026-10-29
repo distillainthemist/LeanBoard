@@ -562,8 +562,15 @@ export const TABLES = [
       ben_level: { ...text(2), display: "Level (0 type · 1 area · 2 process · 3 sub-process)" },
       ben_order: { ...text(10), display: "Order (numeric string)" },
       ben_termid: { ...text(40), display: "Bound term id" },
-      ben_aliasesjson: { ...memo(20000), display: "Local names per site (JSON)" },
+      ben_aliasesjson: { ...memo(20000), display: "Local names per site (JSON)" }, // retired 2026-10-29 (features-plan-2026-10-29 §1): read by the migration only
       ben_isarchived: { kind: "bool", display: "Archived", default: false },
+      // features-plan-2026-10-29 feature 1: a SITE owns its own tree (its
+      // root node carries the site name, level 0, ben_site = the site);
+      // "" = a node of the CENTRAL hierarchy (today's type trees). A site
+      // node soft-links to one central node for cross-site comparison;
+      // "" = inherit the nearest linked ancestor's link.
+      ben_site: { ...text(100), display: "Site ('' = central)" },
+      ben_centralnodeid: { ...text(40), display: "Central node id (soft link)" },
     },
     key: ["ben_nodeid"],
     role: { delete: true },

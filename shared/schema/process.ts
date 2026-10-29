@@ -1,9 +1,12 @@
 // The process model's pure parts (term-store-proposal-2026-10.md §6,
-// built 2026-10-12): a process TYPE (Mine, Refinery, Smelter) is a named
-// hierarchy of area › process › sub-process; a site is assigned one
-// type; a node carries local names per site (the "Casthouse" that one
-// site calls "Casting"); every surface reads a node's name through ONE
-// rule, processLabel. SDK-free, tested.
+// built 2026-10-12; reshaped 2026-10-29, features-plan-2026-10-29 §1):
+// a SITE owns its own hierarchy — its root node carries the site's name
+// (level 0, `site` = the site), then area › process › sub-process. The
+// CENTRAL hierarchy is the type trees (Mine, Refinery, Smelter: level 0,
+// `site` = ""); a site node soft-links to one central node (`centralId`,
+// inherited down the tree) so initiatives, rituals and documents compare
+// across sites. Local names (`aliases`) are RETIRED: a site's names are
+// its tree; the field is read only by the migration. SDK-free, tested.
 
 export type ProcessLevel = 0 | 1 | 2 | 3;
 
@@ -17,9 +20,16 @@ export interface ProcessNode {
   name: string;
   order: number;
   termId: string;
-  /** site (lowercased) → the local name there */
+  /** RETIRED 2026-10-29 — site (lowercased) → the local name there;
+   *  kept so the migration can clone a site's tree in its own words and
+   *  the sync can strip the synonyms the app once pushed. */
   aliases: Record<string, string>;
   archived: boolean;
+  /** The site that owns this node ("" = a node of the central tree). */
+  site: string;
+  /** The central node this site node compares as ("" = inherit the
+   *  nearest linked ancestor's; a central node links to nothing). */
+  centralId: string;
 }
 
 export interface ProcessNodeRow {
@@ -32,6 +42,8 @@ export interface ProcessNodeRow {
   ben_termid?: string;
   ben_aliasesjson?: string;
   ben_isarchived?: boolean;
+  ben_site?: string;
+  ben_centralnodeid?: string;
 }
 
 export function nodeFromRow(r: ProcessNodeRow): ProcessNode {
@@ -57,6 +69,8 @@ export function nodeFromRow(r: ProcessNodeRow): ProcessNode {
     termId: r.ben_termid ?? "",
     aliases,
     archived: r.ben_isarchived === true,
+    site: (r.ben_site ?? "").trim(),
+    centralId: (r.ben_centralnodeid ?? "").trim(),
   };
 }
 
@@ -70,6 +84,8 @@ export function rowFromNode(n: ProcessNode): ProcessNodeRow {
     ben_termid: n.termId,
     ben_aliasesjson: JSON.stringify(n.aliases),
     ben_isarchived: n.archived,
+    ben_site: n.site,
+    ben_centralnodeid: n.centralId,
   };
 }
 
@@ -82,8 +98,11 @@ export interface ProcessTree {
   byId: Map<string, ProcessNode>;
   /** parentId → children in order (archived included; callers filter). */
   childrenOf: Map<string, ProcessNode[]>;
-  /** The process types (level 0), in order. */
+  /** The CENTRAL roots — the process types (level 0, no site), in order. */
   types: ProcessNode[];
+  /** site (as spelled on the node) → its root node id; a live root wins
+   *  over an archived one. */
+  siteRoots: Record<string, string>;
 }
 
 const byOrder = (a: ProcessNode, b: ProcessNode) => a.order - b.order || a.name.localeCompare(b.name, undefined, { sensitivity: "base", numeric: true });
@@ -96,7 +115,64 @@ export function buildProcessTree(nodes: ProcessNode[]): ProcessTree {
     childrenOf.set(key, [...(childrenOf.get(key) ?? []), n]);
   }
   for (const list of childrenOf.values()) list.sort(byOrder);
-  return { byId, childrenOf, types: (childrenOf.get("") ?? []).filter((n) => n.level === 0) };
+  const roots = (childrenOf.get("") ?? []).filter((n) => n.level === 0);
+  const siteRoots: Record<string, string> = {};
+  for (const r of roots) {
+    if (r.site === "") continue;
+    const cur = siteRoots[r.site];
+    if (cur === undefined || (byId.get(cur)?.archived === true && !r.archived)) siteRoots[r.site] = r.nodeId;
+  }
+  return { byId, childrenOf, types: roots.filter((n) => n.site === ""), siteRoots };
+}
+
+/** The root of a site's tree ("" = the site has none). Matched by the
+ *  site's spelling, then blind to case. */
+export function siteRootOf(tree: ProcessTree, site: string): string {
+  const s = site.trim();
+  if (s === "") return "";
+  if (tree.siteRoots[s] !== undefined) return tree.siteRoots[s];
+  const hit = Object.keys(tree.siteRoots).find((k) => k.toLowerCase() === s.toLowerCase());
+  return hit === undefined ? "" : tree.siteRoots[hit];
+}
+
+/** Every site's root — the map the pickers and filters take. */
+export function allSiteRoots(tree: ProcessTree): Record<string, string> {
+  return { ...tree.siteRoots };
+}
+
+/** The central node a node compares as: its own link, else the nearest
+ *  linked ancestor's; a central node is its own; "" = unlinked. */
+export function centralOf(tree: ProcessTree, nodeId: string): string {
+  const path = processPath(tree, nodeId);
+  if (path.length === 0) return "";
+  if (path[0].site === "") return nodeId;
+  for (let i = path.length - 1; i >= 0; i--) if (path[i].centralId !== "") return path[i].centralId;
+  return "";
+}
+
+/** Is the node's central counterpart the central ancestor or beneath it?
+ *  ("" ancestor = any.) The cross-site filter's rule. */
+export function inCentralSubtree(tree: ProcessTree, nodeId: string, centralAncestorId: string): boolean {
+  if (centralAncestorId === "") return true;
+  const c = centralOf(tree, nodeId);
+  return c !== "" && inSubtree(tree, c, centralAncestorId);
+}
+
+/** The site nodes that compare as a central node or anything beneath
+ *  it — what a central filter expands to (the register maps them to
+ *  term ids). */
+export function siteNodesUnderCentral(tree: ProcessTree, centralAncestorId: string): ProcessNode[] {
+  const out: ProcessNode[] = [];
+  for (const n of tree.byId.values()) {
+    if (n.site === "" || n.archived) continue;
+    if (inCentralSubtree(tree, n.nodeId, centralAncestorId)) out.push(n);
+  }
+  return out;
+}
+
+/** "Site" for a site root, "Process type" for a central one. */
+export function rootLabel(node: Pick<ProcessNode, "site">): string {
+  return node.site !== "" ? "Site" : LEVEL_LABELS[0];
 }
 
 /** Live children of a node (archived left out), in order. */
@@ -104,17 +180,18 @@ export function liveChildren(tree: ProcessTree, parentId: string): ProcessNode[]
   return (tree.childrenOf.get(parentId) ?? []).filter((n) => !n.archived);
 }
 
-/** THE display rule (proposal §6): the site's local name when a site is
- *  in scope and has one, else the general name. */
-export function processLabel(node: Pick<ProcessNode, "name" | "aliases">, site: string): string {
-  const local = site.trim() === "" ? "" : (node.aliases[site.trim().toLowerCase()] ?? "");
-  return local !== "" ? local : node.name;
+/** THE display rule. Since 2026-10-29 a site's names ARE its tree, so
+ *  the label is the node's name wherever it reads; the site argument
+ *  stays so every caller keeps one call shape. */
+export function processLabel(node: Pick<ProcessNode, "name">, _site: string): string {
+  return node.name;
 }
 
-/** "Casthouse (Casting)" when the site's name differs, else the name. */
-export function processLabelWithGeneral(node: Pick<ProcessNode, "name" | "aliases">, site: string): string {
-  const local = processLabel(node, site);
-  return local !== node.name ? `${local} (${node.name})` : node.name;
+/** "Casting (Casthouse)" — the site node with its central counterpart's
+ *  name when they differ; the name alone otherwise. */
+export function processLabelWithCentral(tree: ProcessTree, node: ProcessNode): string {
+  const c = tree.byId.get(centralOf(tree, node.nodeId));
+  return c !== undefined && c.nodeId !== node.nodeId && c.name !== node.name ? `${node.name} (${c.name})` : node.name;
 }
 
 /** The node's ancestors from the type down to itself. */
@@ -130,11 +207,13 @@ export function processPath(tree: ProcessTree, nodeId: string): ProcessNode[] {
   return out;
 }
 
-/** The type a node belongs to ("" when the chain is broken). */
+/** The root a node belongs to — a site root or a central type ("" when
+ *  the chain is broken). */
 export function typeOf(tree: ProcessTree, nodeId: string): string {
   const path = processPath(tree, nodeId);
   return path[0]?.level === 0 ? path[0].nodeId : "";
 }
+export const rootOf = typeOf;
 
 /** "Area › Process › Sub-process" for a site, type left out. */
 export function processPathLabel(tree: ProcessTree, nodeId: string, site: string): string {
@@ -193,13 +272,14 @@ export function flatProcessOptions(tree: ProcessTree, typeId: string, site: stri
 
 // ---- the Process area term set (term-store-proposal §6, step 5) ---------
 
-/** The LIVE nodes as label paths for the term set — type › area ›
- *  process › sub-process in the GENERAL names (the default labels); the
- *  local names become synonyms. Parents first. */
+/** The LIVE SITE trees as label paths for the term set — site › area ›
+ *  process › sub-process (features-plan-2026-10-29 §1: the central tree
+ *  does not sync). Parents first. */
 export function processTermPaths(tree: ProcessTree): { path: string[]; node: ProcessNode }[] {
   const out: { path: string[]; node: ProcessNode }[] = [];
   const walk = (parentId: string, prefix: string[]) => {
     for (const n of liveChildren(tree, parentId)) {
+      if (n.level === 0 && n.site === "") continue; // central: not synced
       const path = [...prefix, n.name];
       out.push({ path, node: n });
       walk(n.nodeId, path);
@@ -209,20 +289,62 @@ export function processTermPaths(tree: ProcessTree): { path: string[]; node: Pro
   return out;
 }
 
-/** The local names a term's label collection does not carry yet, as
- *  synonyms in the store's language — case-insensitive, the general
- *  name never pushed as its own synonym. */
-export function synonymsToAdd(labels: { name: string; languageTag: string; isDefault: boolean }[], node: Pick<ProcessNode, "name" | "aliases">, languageTag: string): { name: string; languageTag: string; isDefault: boolean }[] {
-  // the term store writes "＆" for "&": compare both as "&"
-  const key = (s: string) => s.replace(/\uFF06/g, "&").trim().toLowerCase();
-  const have = new Set(labels.filter((l) => (l.languageTag ?? languageTag) === languageTag).map((l) => key(l.name)));
-  have.add(key(node.name));
-  const out: { name: string; languageTag: string; isDefault: boolean }[] = [];
-  for (const alias of Object.values(node.aliases)) {
-    const a = alias.trim();
-    if (a === "" || have.has(key(a))) continue;
-    have.add(key(a));
-    out.push({ name: a, languageTag, isDefault: false });
+/** The term store writes "＆" for "&": compare both as "&". */
+const labelKey = (s: string) => s.replace(/\uFF06/g, "&").trim().toLowerCase();
+
+/** The synonyms the app once pushed for a node's local names, to strip
+ *  from its term (decision 8, 2026-10-29): the non-default labels equal
+ *  to an alias value — never the default label, never a label that is
+ *  not an alias (someone typed it by hand). Returns the labels to keep
+ *  and the names removed. */
+export function synonymsToRemove(labels: { name: string; languageTag: string; isDefault: boolean }[], node: Pick<ProcessNode, "aliases">): { keep: { name: string; languageTag: string; isDefault: boolean }[]; removed: string[] } {
+  const aliasKeys = new Set(Object.values(node.aliases).map(labelKey).filter((k) => k !== ""));
+  const keep: { name: string; languageTag: string; isDefault: boolean }[] = [];
+  const removed: string[] = [];
+  for (const l of labels) {
+    if (!l.isDefault && aliasKeys.has(labelKey(l.name))) removed.push(l.name);
+    else keep.push(l);
   }
-  return out;
+  return { keep, removed };
+}
+
+// ---- the migration (features-plan-2026-10-29 §1, decision 5) ---------------
+
+/** A site's starter tree, CLONED from the type it was assigned: the root
+ *  carries the site's name; every live descendant is copied in the
+ *  site's own words (its local name when it had one) and linked to the
+ *  node it came from. Term bindings start empty — the sync creates the
+ *  site's terms. Returns the new nodes and old → new ids. */
+export function cloneTypeForSite(tree: ProcessTree, typeId: string, site: string, newId: () => string = newNodeId): { nodes: ProcessNode[]; idMap: Record<string, string> } {
+  const type = tree.byId.get(typeId);
+  const nodes: ProcessNode[] = [];
+  const idMap: Record<string, string> = {};
+  if (!type || type.level !== 0 || site.trim() === "") return { nodes, idMap };
+  const rootId = newId();
+  nodes.push({ rowId: "", nodeId: rootId, parentId: "", level: 0, name: site.trim(), order: 10, termId: "", aliases: {}, archived: false, site: site.trim(), centralId: "" });
+  idMap[typeId] = rootId;
+  const walk = (fromId: string, toId: string) => {
+    for (const n of liveChildren(tree, fromId)) {
+      const id = newId();
+      idMap[n.nodeId] = id;
+      nodes.push({ rowId: "", nodeId: id, parentId: toId, level: n.level, name: processNameFor(n, site), order: n.order, termId: "", aliases: {}, archived: false, site: site.trim(), centralId: n.nodeId });
+      walk(n.nodeId, id);
+    }
+  };
+  walk(typeId, rootId);
+  return { nodes, idMap };
+}
+
+/** What a site called a central node under the retired local-name
+ *  model — the alias when it had one, the general name otherwise. */
+export function processNameFor(node: Pick<ProcessNode, "name" | "aliases">, site: string): string {
+  const local = node.aliases[site.trim().toLowerCase()] ?? "";
+  return local !== "" ? local : node.name;
+}
+
+/** A reference's new node id after the migration: the clone for its
+ *  site when the reference points at a central node of that site's
+ *  type; unchanged otherwise (already a site node, or no clone). */
+export function repointedNodeId(nodeId: string, idMap: Record<string, string>): string {
+  return nodeId === "" ? "" : (idMap[nodeId] ?? nodeId);
 }

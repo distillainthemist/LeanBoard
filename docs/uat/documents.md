@@ -713,11 +713,19 @@ expected: the walk reads the whole set (never a cut-short walk); companies are t
 ### UAT-DOC-072 — Process area sync
 persona: superadmin
 modules: docs/processSync.ts processes/settingsTab.ts
-preconditions: the process model with a type, areas and processes; the Process area set bound
+preconditions: at least one site with its own process tree (Settings → Processes) and a central type that still carries retired local names; the Process area set bound
 steps:
 1. Settings → Documents → Term store → Load process drift report → Apply.
-2. Archive a process node; reload the report.
-expected: every node is a term in order; local names ride as synonyms; an archived node's term is retired, never deleted
+2. Archive a process node in a site's tree; reload the report.
+expected: every SITE node is a term in order under a root term named after the site (the central types do not sync); the old type-rooted terms are listed as orphans and left alone; the synonyms the retired local names once pushed are removed from the central nodes' terms and the nodes' local names clear; an archived node's term is retired, never deleted
+
+### UAT-DOC-089 — Compare documents across sites by process
+persona: reader
+modules: docs/docsScreen.ts shared/schema/process.ts
+preconditions: two sites with process trees whose nodes link to the same central process; a document on each tagged with that site's process term; a Process area column mapped
+steps:
+1. Register → Filters → the Process area column → "Compare across sites" → pick the central type and process.
+expected: the filter chip names the central process; the register shows the documents of BOTH sites tagged with their own linked process terms (and anything beneath them); clearing the chip shows everything again
 
 ## Journey 11 — Settings → Documents
 

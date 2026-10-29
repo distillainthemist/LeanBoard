@@ -114,7 +114,7 @@ export async function processAdapter(cfg: AppDocsConfig): Promise<SetAdapter & {
     setId,
     site: cfg.siteUrl,
     bound: processNodes.filter((n) => !n.archived && n.termId !== "").length,
-    withAliases: processNodes.filter((n) => !n.archived && Object.keys(n.aliases).length > 0).length,
+    withAliases: processNodes.filter((n) => n.site === "" && n.termId !== "" && Object.keys(n.aliases).length > 0).length,
     walk: () => fetchTermPaths(cfg.siteUrl, setId, 5, 6000),
     plan: async (nodes) => planProcessSync(tree, nodes, Object.keys(cfg.retiredTerms[setId] ?? {})),
     execute: (plan, nodes, log) => executeProcessSync({ site: cfg.siteUrl, setId, tree, plan, termNodes: nodes, log }),

@@ -9,7 +9,7 @@
 // Rostered cadences (daily/shiftly) pick one of the site's configured
 // rosters on the Cadence page — no custom roster entry.
 
-import { ProcessNode, ProcessTree, buildProcessTree, processPathLabel } from "../../shared/schema/process";
+import { ProcessNode, ProcessTree, buildProcessTree, processPathLabel, siteRootOf } from "../../shared/schema/process";
 import { mountProcessPicker } from "../../shared/ui/processPicker";
 import { applyThemeVars, defaultTheme, Theme } from "../../shared/tokens";
 import { LTK_BASE_CSS } from "../../shared/ui/baseCss";
@@ -54,7 +54,7 @@ export class MeetingWizardView {
   private draft: WizardDraft = emptyDraft();
   private orgTree: OrgSite[] = [];
   private processTree: ProcessTree = buildProcessTree([]);
-  private siteTypes: Record<string, string> = {};
+  private siteRoots: Record<string, string> = {};
   private people: Person[] = [];
   private theme: Theme = defaultTheme();
   private cardTitle = "";
@@ -140,9 +140,9 @@ export class MeetingWizardView {
 
   /** The process model (term-store-proposal §6): the nodes and each
    *  site's type, so the Organisation step can offer a process. */
-  setProcesses(nodes: ProcessNode[], siteTypes: Record<string, string>): void {
+  setProcesses(nodes: ProcessNode[], siteRoots: Record<string, string>): void {
     this.processTree = buildProcessTree(nodes);
-    this.siteTypes = siteTypes;
+    this.siteRoots = siteRoots;
     this.render();
   }
 
@@ -730,11 +730,11 @@ export class MeetingWizardView {
       this.commit();
     }
     // the process the ritual governs — optional, under the site's type
-    if (d.org.site !== "" && (this.siteTypes[d.org.site] ?? "") !== "") {
+    if (d.org.site !== "" && siteRootOf(this.processTree, d.org.site) !== "") {
       const host = el("div", "ltk-mw-procpick");
       mountProcessPicker(host, {
         tree: this.processTree,
-        siteTypes: this.siteTypes,
+        siteRoots: this.siteRoots,
         site: d.org.site,
         value: d.processNodeId,
         selectClass: "ltk-mw-input",

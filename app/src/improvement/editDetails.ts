@@ -22,7 +22,7 @@ import { Initiative } from "./initiativeModel";
 import { parseImprovementSettings, roleFillersAt, TemplateRole, activeRoles } from "./templateModel";
 import { renderInitiativeForm } from "./initiativeForm";
 import { buildProcessTree } from "../processes/model";
-import { allSiteProcessTypes, listProcessNodes } from "../store/processes";
+import { allSiteProcessRoots, listProcessNodes } from "../store/processes";
 
 const btn = (label: string, cls = "app-btn"): HTMLButtonElement => {
   const b = el("button", cls, label) as HTMLButtonElement;
@@ -54,7 +54,7 @@ export function openEditDetails(o: EditDetailsOpts): void {
 
   void (async () => {
     const i = o.initiative;
-    const [treeRaw, siteCo, roster, impRaw, template, palettes, processNodes, siteTypes] = await Promise.all([
+    const [treeRaw, siteCo, roster, impRaw, template, palettes, processNodes, siteRoots] = await Promise.all([
       orgJson(),
       siteCompanies(),
       listPeople(),
@@ -62,7 +62,7 @@ export function openEditDetails(o: EditDetailsOpts): void {
       i.templateId !== "" ? getTemplate(i.templateId).catch(() => null) : Promise.resolve(null),
       appPalettes().catch(() => ({ states: [], titles: [] })),
       listProcessNodes().catch(() => []),
-      allSiteProcessTypes().catch(() => ({}) as Record<string, string>),
+      allSiteProcessRoots().catch(() => ({}) as Record<string, string>),
     ]);
     clear(body);
     const sites = parseOrgTree(treeRaw);
@@ -112,7 +112,7 @@ export function openEditDetails(o: EditDetailsOpts): void {
         endorsement: i.endorsement,
       },
       fiCtx: { people: assigneePeople([], roster, "search"), palette: paletteMap(palettes.states) },
-      processes: { tree: buildProcessTree(processNodes), siteTypes },
+      processes: { tree: buildProcessTree(processNodes), siteRoots },
       canPromote,
       loadPriorities: (company) => loadCascade(company).then((data) => data.priorities),
       // linking an own metric migrates its card's private points into the driver
