@@ -400,7 +400,14 @@ Version lives in the tag alone — nothing is stamped into files.
   successor link, the full UAT report, end-to-end UAT cases) is
   app-only. STANDING RULE: an SDK bump re-runs the write probe; its
   binary steps must stay green. v0.81.0 (2026-10-27: site admins add
-  people from the directory into their own site) is app-only. Prod
+  people from the directory into their own site) is app-only. v0.82.0
+  (2026-10-29: the 2026-10-28 issue round —
+  `docs/issues-plan-2026-10-28.md`; ingestion status editors back with
+  import-gate rule D, End task, request cards, the trend chart's time
+  axis with cadence floors in `shared/schema/buckets.ts`, group
+  membership managed in the app via `docs/groupMembers.ts` — Settings →
+  Access control Members…, the register kebab, the Users register's
+  Document roles column) is app-only. Prod
   imports the managed solution FIRST. LESSON
   (2026-10-13, production's first sync): a sync must
   never run from a walk it cannot trust (budget-cut OR any failed

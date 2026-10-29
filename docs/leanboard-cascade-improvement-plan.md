@@ -1455,6 +1455,20 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-10-29 — released as v0.82.0** (app-only): the 2026-10-28 issue
+  round (`docs/issues-plan-2026-10-28.md`, 6 reports, 6/6 passed):
+  ingestion's three editors ask for the status column again
+  (`includeStatus: true`, import-gate rule D — v0.79's status-out-of-forms
+  had emptied them); "End task…" wording; edit-access requests as cards
+  in a 520 px Document tasks panel; the KPI trend chart on a TIME axis
+  with cadence floors (daily 4 weeks, weekly 13, monthly 12 months,
+  annually 5 years — `trendWindow` / `trendTickLabel` in
+  `shared/schema/buckets.ts`); group membership managed in the app
+  (`docs/groupMembers.ts`: Members… on both rows in Settings → Access
+  control, "Owners & approvers group…" in the register kebab for
+  controllers, a Document roles column in Settings → Users with
+  Controller / Owner/approver toggles; a controller added becomes a
+  member AND owner of the pool); `docs/uat/rituals.md` started.
 - **2026-10-27 — released as v0.81.0** (app-only): site admins search
   the directory and add people into their own site (site fixed, role
   User) from Settings → People; `docs/uat/settings.md` UAT-SET-001.
