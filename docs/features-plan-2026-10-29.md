@@ -439,8 +439,8 @@ Decisions: the site is OPTIONAL on a new task and defaults to the
 creator's own site ("Any site" keeps the whole sets); existing tasks
 are "Any site"; document controllers remain the ones who create tasks.
 
-Built 2026-10-29 (dev; SOLUTION-CARRYING — `ben_site` on
-`ben_ltkingestiontask`): `IngestionTask.site`; the pure
+Built and tested 2026-10-29, RELEASED as v0.84.0 (SOLUTION-CARRYING —
+`ben_site` on `ben_ltkingestiontask`): `IngestionTask.site`; the pure
 `siteTermRoots` (the site's shallowest label match in the Organisation
 set + the site's process root term), `subtreeUnder` (rebased so the
 root is the one top-level node) and `labelsOutsideRoot` in

@@ -415,8 +415,11 @@ Version lives in the tag alone — nothing is stamped into files.
   clones a site's tree from its retired type, Settings → Processes
   rewritten, the Process area set site-rooted) is SOLUTION-CARRYING —
   prod imports the managed solution, then each site clones or starts
-  its tree, then the process drift report is applied. Prod
-  imports the managed solution FIRST. LESSON
+  its tree, then the process drift report is applied. v0.84.0
+  (2026-10-29: an ingestion task constrained to one site — `ben_site`
+  on `ben_ltkingestiontask`; the organisation and process editors, the
+  sheet and the run's pre-flight follow the site) is SOLUTION-CARRYING.
+  Prod imports the managed solution FIRST. LESSON
   (2026-10-13, production's first sync): a sync must
   never run from a walk it cannot trust (budget-cut OR any failed
   children request), and the Organisation set's company-level offset

@@ -1455,6 +1455,17 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-10-29 — released as v0.84.0** (SOLUTION-CARRYING: `ben_site`
+  on `ben_ltkingestiontask`): an ingestion task may be constrained to
+  one site (features-plan-2026-10-29 addendum; 3/3 passed) — the Site
+  select in the task editor defaults to the creator's site ("Any site"
+  keeps the whole sets; earlier tasks read as any); the Organisation
+  unit and Process area editors in the grid popover, Set for selected,
+  the task defaults and the sheet's Values columns offer that site's
+  branches only (`FieldEditorOpts.termRoots`, `nodesUnderRoot`;
+  `siteTermRoots` / `subtreeUnder` / `labelsOutsideRoot` in
+  `ingestionModel.ts`); the run refuses a file tagged outside the site.
+  UAT: DOC-062/063/067/087 updated.
 - **2026-10-29 — released as v0.83.0** (SOLUTION-CARRYING: `ben_site`,
   `ben_centralnodeid` on `ben_ltkprocessnode`): the two 2026-10-29
   features (`docs/features-plan-2026-10-29.md`, every test passed).
