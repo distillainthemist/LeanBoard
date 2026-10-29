@@ -427,7 +427,13 @@ Order: feature 2 first (app-only), then feature 1 (solution-carrying).
   "Process (across sites)" (central picker; `inCentralSubtree`); the
   register's Process area column offers "Compare across sites" (the
   central pick expands to the linked site nodes' terms through
-  `filterFromPicks`). Cadence and value drivers: later (decision 7).
+  `filterFromPicks`). Cadence and value drivers followed on 2026-10-29
+  (app-only): the hub's Process filter at company scope is the central
+  picker (`inCentralSubtree`); the value driver tabs carry a Process
+  bar — "This site" / "Across sites" (`mountProcessFilterBar`,
+  `ProcessFilter` + `matchesProcessFilter` / `fitProcessFilter` in the
+  shared model) and a central pick holds across the Site select. UAT:
+  RIT-002, IMP-001 (new `docs/uat/improvement.md`).
 - **UAT**: SET-003/004/005 (Journey 3 — Processes), DOC-072 reworded,
   DOC-089 (register across sites).
 

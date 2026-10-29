@@ -11,8 +11,8 @@
 // Settings: view preferences, plus the protected-time editor for site
 // admins (canEditSite).
 
-import { ProcessNode, ProcessTree, buildProcessTree, flatProcessOptions, inSubtree, siteRootOf, typeOf } from "../../shared/schema/process";
-import { mountProcessPicker } from "../../shared/ui/processPicker";
+import { ProcessNode, ProcessTree, buildProcessTree, flatProcessOptions, inCentralSubtree, inSubtree, siteRootOf, typeOf } from "../../shared/schema/process";
+import { mountCentralPicker, mountProcessPicker } from "../../shared/ui/processPicker";
 import { applyThemeVars, defaultTheme, Theme } from "../../shared/tokens";
 import { LTK_BASE_CSS } from "../../shared/ui/baseCss";
 import { copyText } from "../../shared/ui/clipboard";
@@ -211,11 +211,34 @@ export class LeanHubView {
   }
 
   /** The Process filter for the scope's site: the cascading picker
-   *  (area › process › sub-process under the site's type, Ben
-   *  2026-10-12 — never a flat list); nothing when the site has no type. */
+   *  (area › process › sub-process under the site's tree, Ben
+   *  2026-10-12 — never a flat list); nothing when the site has no
+   *  tree. At company scope (no site) the CENTRAL picker, so rituals
+   *  compare across sites through their site node's link
+   *  (features-plan-2026-10-29 §1, decision 7). */
   private processFilter(): HTMLElement | null {
     const site = this.scopeOrg.site;
-    const typeId = site === "" ? "" : siteRootOf(this.processTree, site);
+    if (site === "") {
+      if (!this.processTree.types.some((t) => !t.archived)) {
+        this.scopeProcess = "";
+        return null;
+      }
+      // a site node left over from a site scope is not a central pick
+      if (this.scopeProcess !== "" && this.processTree.byId.get(this.scopeProcess)?.site !== "") this.scopeProcess = "";
+      const chost = el("span", "ltk-lh-procfilter");
+      mountCentralPicker(chost, {
+        tree: this.processTree,
+        value: this.scopeProcess,
+        selectClass: "ltk-lh-input",
+        onChange: (v) => {
+          this.scopeProcess = v;
+          this.scopeTouched = true;
+          this.render();
+        },
+      });
+      return chost;
+    }
+    const typeId = siteRootOf(this.processTree, site);
     if (typeId === "" || flatProcessOptions(this.processTree, typeId, site).length === 0) {
       this.scopeProcess = "";
       return null;
@@ -238,7 +261,9 @@ export class LeanHubView {
   }
 
   private matchesProcess(meeting: HubMeeting): boolean {
-    return this.scopeKind !== "org" || this.scopeProcess === "" || inSubtree(this.processTree, meeting.info?.processNodeId ?? "", this.scopeProcess);
+    if (this.scopeKind !== "org" || this.scopeProcess === "") return true;
+    const ref = meeting.info?.processNodeId ?? "";
+    return this.scopeOrg.site === "" ? inCentralSubtree(this.processTree, ref, this.scopeProcess) : inSubtree(this.processTree, ref, this.scopeProcess);
   }
 
   setPeople(people: Person[], viewerId: string): void {

@@ -1,7 +1,7 @@
 // The process model's pure parts (shared/schema/process.ts, 2026-10-12;
 // site trees and the central link 2026-10-29, features-plan §1).
 import { describe, expect, it } from "vitest";
-import { ProcessNode, allSiteRoots, buildProcessTree, centralOf, cloneTypeForSite, inCentralSubtree, liveChildren, nextOrder, nodeFromRow, processLabel, processLabelWithCentral, processNameFor, processPath, processPathLabel, reorder, repointedNodeId, rootLabel, rowFromNode, siteNodesUnderCentral, siteRootOf, typeOf } from "../../../shared/schema/process";
+import { NO_PROCESS_FILTER, ProcessNode, allSiteRoots, buildProcessTree, centralOf, cloneTypeForSite, fitProcessFilter, inCentralSubtree, liveChildren, matchesProcessFilter, nextOrder, nodeFromRow, processLabel, processLabelWithCentral, processNameFor, processPath, processPathLabel, reorder, repointedNodeId, rootLabel, rowFromNode, siteNodesUnderCentral, siteRootOf, typeOf } from "../../../shared/schema/process";
 
 const n = (nodeId: string, level: 0 | 1 | 2 | 3, name: string, parentId = "", order = 10, over: Partial<ProcessNode> = {}): ProcessNode => ({ rowId: "", nodeId, parentId, level, name, order, termId: "", aliases: {}, archived: false, site: "", centralId: "", ...over });
 // the central tree (the Smelter type) and Bell Bay's own tree
@@ -114,5 +114,25 @@ describe("the migration — clone a type for a site", () => {
     expect(repointedNodeId("a2", { a2: "n3" })).toBe("n3");
     expect(repointedNodeId("bb-a", { a2: "n3" })).toBe("bb-a");
     expect(repointedNodeId("", { a2: "n3" })).toBe("");
+  });
+});
+
+describe("the process filter a surface holds (decision 7)", () => {
+  const tree = buildProcessTree(nodes);
+  it("matches by the site's tree or through the central link; an empty filter passes all", () => {
+    expect(matchesProcessFilter(tree, "bb-p", { mode: "site", value: "bb-a" })).toBe(true);
+    expect(matchesProcessFilter(tree, "bb-x", { mode: "site", value: "bb-a" })).toBe(false);
+    expect(matchesProcessFilter(tree, "bb-p", { mode: "central", value: "t1" })).toBe(true);
+    expect(matchesProcessFilter(tree, "bb-x", { mode: "central", value: "t1" })).toBe(false);
+    expect(matchesProcessFilter(tree, "", { mode: "central", value: "" })).toBe(true);
+    expect(matchesProcessFilter(tree, "", NO_PROCESS_FILTER)).toBe(true);
+  });
+  it("clears a value that no longer fits the scope, keeping the mode", () => {
+    expect(fitProcessFilter(tree, { mode: "site", value: "bb-a" }, "Bell Bay")).toEqual({ mode: "site", value: "bb-a" });
+    expect(fitProcessFilter(tree, { mode: "site", value: "bb-a" }, "Boyne")).toEqual({ mode: "site", value: "" });
+    expect(fitProcessFilter(tree, { mode: "site", value: "a2" }, "Bell Bay")).toEqual({ mode: "site", value: "" });
+    expect(fitProcessFilter(tree, { mode: "central", value: "a2" }, "Boyne")).toEqual({ mode: "central", value: "a2" });
+    expect(fitProcessFilter(tree, { mode: "central", value: "bb-a" }, "Bell Bay")).toEqual({ mode: "central", value: "" });
+    expect(fitProcessFilter(tree, { mode: "central", value: "" }, "")).toEqual({ mode: "central", value: "" });
   });
 });

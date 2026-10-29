@@ -348,3 +348,31 @@ export function processNameFor(node: Pick<ProcessNode, "name" | "aliases">, site
 export function repointedNodeId(nodeId: string, idMap: Record<string, string>): string {
   return nodeId === "" ? "" : (idMap[nodeId] ?? nodeId);
 }
+
+// ---- the process filter a surface holds (features-plan-2026-10-29 §1, decision 7) ----
+
+/** "site": a node of the scope site's own tree, subtree semantics;
+ *  "central": a central node — a site node matches through its link.
+ *  value "" = no filter. */
+export interface ProcessFilter {
+  mode: "site" | "central";
+  value: string;
+}
+
+export const NO_PROCESS_FILTER: ProcessFilter = { mode: "site", value: "" };
+
+/** Does a referenced node pass the filter? An empty filter passes all. */
+export function matchesProcessFilter(tree: ProcessTree, nodeId: string, f: ProcessFilter): boolean {
+  if (f.value === "") return true;
+  return f.mode === "central" ? inCentralSubtree(tree, nodeId, f.value) : inSubtree(tree, nodeId, f.value);
+}
+
+/** A filter whose value no longer fits the scope — a site node from
+ *  another site's tree, a central pick on a tree with no types — is
+ *  cleared; the mode stays. */
+export function fitProcessFilter(tree: ProcessTree, f: ProcessFilter, site: string): ProcessFilter {
+  if (f.value === "") return f;
+  if (f.mode === "central") return tree.byId.get(f.value)?.site === "" ? f : { ...f, value: "" };
+  const root = siteRootOf(tree, site);
+  return root !== "" && typeOf(tree, f.value) === root ? f : { ...f, value: "" };
+}

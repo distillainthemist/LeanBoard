@@ -16,8 +16,8 @@ import { parseOrgTree } from "../../../../shared/schema/meeting";
 import { nowIso } from "../../../../shared/schema/id";
 import { deleteDriverTree, listDrivers, saveDriver } from "../../store/valueDrivers";
 import { allSiteProcessRoots, listProcessNodes } from "../../store/processes";
-import { buildProcessTree, flatProcessOptions, inSubtree, siteRootOf } from "../../processes/model";
-import { mountProcessPicker } from "../../../../shared/ui/processPicker";
+import { NO_PROCESS_FILTER, ProcessFilter, buildProcessTree, matchesProcessFilter } from "../../processes/model";
+import { mountProcessFilterBar, mountProcessPicker } from "../../../../shared/ui/processPicker";
 import { parseImprovementSettings, serializeImprovementSettings } from "../templateModel";
 import {
   AGGREGATE_LABELS,
@@ -67,8 +67,9 @@ export async function renderValueDriversSettings(body: HTMLElement): Promise<voi
   // the process model (term-store-proposal §6): a Process on each driver,
   // and a by-process filter that dims the rest of the tree
   const processTree = buildProcessTree(processNodes);
-  let processFilter = "";
-  const dimSet = (): Set<string> => new Set(processFilter === "" ? [] : nodes.filter((n) => !inSubtree(processTree, n.processNodeId, processFilter)).map((n) => n.id));
+  // "This site" or "Across sites" — a central pick holds when the site changes (decision 7)
+  let processFilter: ProcessFilter = NO_PROCESS_FILTER;
+  const dimSet = (): Set<string> => new Set(processFilter.value === "" ? [] : nodes.filter((n) => !matchesProcessFilter(processTree, n.processNodeId, processFilter)).map((n) => n.id));
   const imp = parseImprovementSettings(impRaw);
   let site = sites.includes(me?.site ?? "") ? (me?.site ?? "") : (sites[0] ?? "");
   const actor = { whoId: viewer?.objectId ?? "", who: me?.who ?? viewer?.name ?? "" };
@@ -108,25 +109,24 @@ export async function renderValueDriversSettings(body: HTMLElement): Promise<voi
   const procFilterHost = el("span", "app-vd-procfilter");
   const paintProcFilter = () => {
     clear(procFilterHost);
-    const opts = flatProcessOptions(processTree, siteRootOf(processTree, site), site);
-    if (opts.length === 0) {
-      processFilter = "";
-      return;
-    }
-    if (processFilter !== "" && !opts.some((o) => o.value === processFilter)) processFilter = "";
-    // the cascading picker (Ben, 2026-10-12), dimming the drivers outside the pick
+    // the cascading picker (Ben, 2026-10-12), dimming the drivers outside
+    // the pick — the site's own tree, or a central process across sites
     const host = el("span", "app-vd-procpick-filter");
-    mountProcessPicker(host, {
+    const bar = mountProcessFilterBar(host, {
       tree: processTree,
       siteRoots,
       site,
-      value: processFilter,
+      filter: processFilter,
       selectClass: "app-input",
-      onChange: (v) => {
-        processFilter = v;
+      onChange: (f) => {
+        processFilter = f;
         paint();
       },
     });
+    if (!bar) {
+      processFilter = { ...processFilter, value: "" };
+      return;
+    }
     procFilterHost.append(el("span", "app-field-label", "Process"), host);
   };
   paintProcFilter();

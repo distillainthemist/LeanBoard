@@ -15,8 +15,8 @@ import { paletteMap } from "../../../../shared/palette";
 import { listPeople, viewerPerson } from "../../store/people";
 import { listDrivers, saveDriver } from "../../store/valueDrivers";
 import { allSiteProcessRoots, listProcessNodes } from "../../store/processes";
-import { buildProcessTree, flatProcessOptions, inSubtree, siteRootOf } from "../../processes/model";
-import { mountProcessPicker } from "../../../../shared/ui/processPicker";
+import { NO_PROCESS_FILTER, ProcessFilter, buildProcessTree, matchesProcessFilter } from "../../processes/model";
+import { mountProcessFilterBar } from "../../../../shared/ui/processPicker";
 import { driverActual, listDriverPoints, listDriverRaw, putDriverPoint, refoldDriverPeriod, writePeriodSpread } from "../../store/driverSeries";
 import { parseOrgTree } from "../../../../shared/schema/meeting";
 import { nowIso, todayIso } from "../../../../shared/schema/id";
@@ -66,7 +66,8 @@ export function mountValueDrivers(parent: HTMLElement): () => void {
     const periodSettings = parsePrioritySettings(prRaw).period;
     // the by-process view (term-store-proposal §6): dims the rest
     const processTree = buildProcessTree(processNodes);
-    let processFilter = "";
+    // "This site" or "Across sites" — a central pick holds when the site changes (decision 7)
+    let processFilter: ProcessFilter = NO_PROCESS_FILTER;
     let site = sites.includes(me?.site ?? "") ? (me?.site ?? "") : (sites[0] ?? "");
     let period = periodFor(periodSettings, todayIso()) || periodSettings.currentPeriod;
     let mode: Mode = "read";
@@ -206,24 +207,22 @@ export function mountValueDrivers(parent: HTMLElement): () => void {
         render();
       });
       bar.append(el("span", "app-field-label", "Show"), showSel, cmpSel);
-      const procOpts = flatProcessOptions(processTree, siteRootOf(processTree, site), site);
-      if (procOpts.length > 0) {
-        if (processFilter !== "" && !procOpts.some((o) => o.value === processFilter)) processFilter = "";
-        // the cascading picker (Ben, 2026-10-12), dimming the drivers outside the pick
-        const procHost = el("span", "app-vd-procpick-filter");
-        mountProcessPicker(procHost, {
-          tree: processTree,
-          siteRoots,
-          site,
-          value: processFilter,
-          selectClass: "app-input app-vd-sel",
-          onChange: (v) => {
-            processFilter = v;
-            render();
-          },
-        });
-        bar.append(el("span", "app-field-label", "Process"), procHost);
-      } else processFilter = "";
+      // the cascading picker (Ben, 2026-10-12), dimming the drivers outside
+      // the pick — the site's own tree, or a central process across sites
+      const procHost = el("span", "app-vd-procpick-filter");
+      const procBar = mountProcessFilterBar(procHost, {
+        tree: processTree,
+        siteRoots,
+        site,
+        filter: processFilter,
+        selectClass: "app-input app-vd-sel",
+        onChange: (f) => {
+          processFilter = f;
+          render();
+        },
+      });
+      if (procBar) bar.append(el("span", "app-field-label", "Process"), procHost);
+      else processFilter = { ...processFilter, value: "" };
       bar.appendChild(el("span", "app-cp-muted app-vd-readhint", canEdit() ? "Click a driver to enter its values." : "Click a driver to see its values."));
       if (canEdit()) {
         const imp = btn("Import from finance pack…", "app-btn app-vd-importbtn");
@@ -238,7 +237,7 @@ export function mountValueDrivers(parent: HTMLElement): () => void {
       tree = renderTree(nodes, {
         host,
         mode: "values",
-        dim: new Set(processFilter === "" ? [] : nodes.filter((n) => !inSubtree(processTree, n.processNodeId, processFilter)).map((n) => n.id)),
+        dim: new Set(processFilter.value === "" ? [] : nodes.filter((n) => !matchesProcessFilter(processTree, n.processNodeId, processFilter)).map((n) => n.id)),
         values: numbers(series),
         compare: compare !== "" ? numbers(compare) : undefined,
         compareLabel: compare !== "" ? SERIES_LABELS[compare].toLowerCase() : undefined,

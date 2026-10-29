@@ -5,7 +5,7 @@
 // so the select class is the caller's (app-input / ltk-mw-input).
 
 import { el } from "./dom";
-import { ProcessLevel, ProcessTree, liveChildren, processLabel, processPath, siteRootOf, typeOf } from "../schema/process";
+import { ProcessFilter, ProcessLevel, ProcessTree, fitProcessFilter, liveChildren, processLabel, processPath, siteRootOf, typeOf } from "../schema/process";
 
 export interface ProcessPickerOpts {
   tree: ProcessTree;
@@ -145,4 +145,77 @@ export function mountCentralPicker(host: HTMLElement, o: CentralPickerOpts): { r
   });
   paintBelow();
   return { root, value: () => value };
+}
+
+/** The process FILTER bar a surface shows for a site: "This site" (the
+ *  site's own tree through the one picker) or "Across sites" (the
+ *  central picker), so one central pick holds while the site changes
+ *  (features-plan-2026-10-29 §1, decision 7 — Cadence and the value
+ *  drivers). Nothing renders when the site has no tree and the central
+ *  hierarchy is empty. */
+export interface ProcessFilterBarOpts {
+  tree: ProcessTree;
+  siteRoots: Record<string, string>;
+  site: string;
+  filter: ProcessFilter;
+  selectClass: string;
+  onChange: (f: ProcessFilter) => void;
+}
+
+export function mountProcessFilterBar(host: HTMLElement, o: ProcessFilterBarOpts): HTMLElement | null {
+  const siteRoot = siteRootOf(o.tree, o.site);
+  const hasSite = siteRoot !== "" && liveChildren(o.tree, siteRoot).length > 0;
+  const hasCentral = o.tree.types.some((t) => !t.archived && liveChildren(o.tree, t.nodeId).length > 0);
+  if (!hasSite && !hasCentral) return null;
+  const root = el("span", "ltk-procfilter");
+  host.appendChild(root);
+  let filter = fitProcessFilter(o.tree, o.filter, o.site);
+  if (filter.mode === "site" && !hasSite) filter = { mode: "central", value: "" };
+  if (filter.mode === "central" && !hasCentral) filter = { mode: "site", value: "" };
+  if (hasSite && hasCentral) {
+    const mode = el("select", o.selectClass) as HTMLSelectElement;
+    for (const [v, label] of [["site", "This site"], ["central", "Across sites"]] as const) {
+      const opt = el("option", undefined, label) as HTMLOptionElement;
+      opt.value = v;
+      mode.appendChild(opt);
+    }
+    mode.value = filter.mode;
+    mode.title = "This site: the site's own hierarchy. Across sites: a central process every site's linked process matches — the pick holds when the site changes.";
+    mode.addEventListener("change", () => {
+      filter = { mode: mode.value === "central" ? "central" : "site", value: "" };
+      paintPick();
+      o.onChange(filter);
+    });
+    root.appendChild(mode);
+  }
+  const pickHost = el("span", "ltk-procfilter-pick");
+  root.appendChild(pickHost);
+  const paintPick = () => {
+    pickHost.replaceChildren();
+    if (filter.mode === "central") {
+      mountCentralPicker(pickHost, {
+        tree: o.tree,
+        value: filter.value,
+        selectClass: o.selectClass,
+        onChange: (v) => {
+          filter = { mode: "central", value: v };
+          o.onChange(filter);
+        },
+      });
+    } else {
+      mountProcessPicker(pickHost, {
+        tree: o.tree,
+        siteRoots: o.siteRoots,
+        site: o.site,
+        value: filter.value,
+        selectClass: o.selectClass,
+        onChange: (v) => {
+          filter = { mode: "site", value: v };
+          o.onChange(filter);
+        },
+      });
+    }
+  };
+  paintPick();
+  return root;
 }

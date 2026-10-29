@@ -10,6 +10,10 @@
    "date": "2026-10-29"
   },
   {
+   "tag": "v0.84.0",
+   "date": "2026-10-29"
+  },
+  {
    "tag": "v0.80.0",
    "date": "2026-10-27"
   },
@@ -2469,6 +2473,25 @@
        "expected": "the monthly chart spans twelve months ending at the current month, each month ticked and named, the two readings sitting at their months at the right; the weekly chart shows its full three months (more than the 13-week floor) with thinned labels; the daily chart shows four weeks with the missed day as a gap in the line; plan, forecast and limit labels keep their place at the right edge",
        "hash": "2455a38f",
        "changed": "2026-10-27"
+      },
+      {
+       "id": "UAT-RIT-002",
+       "title": "Cadence across sites by process",
+       "journey": "Journey 1 — Metric cards",
+       "persona": "owner",
+       "modules": [
+        "controls/LeanHub/editor.ts",
+        "shared/ui/processPicker.ts",
+        "shared/schema/process.ts"
+       ],
+       "preconditions": "two sites whose process trees link a node each to the same central process; a ritual on each site naming its site's node",
+       "steps": [
+        "Hub → Cadence (or the Rituals directory) → scope \"Organisation\" with no site: read the Process filter — a type, then the central cascade; pick the central process.",
+        "Pick a site in the organisation cascade: read the Process filter again."
+       ],
+       "expected": "at company scope the central pick shows both rituals (each matches through its site node's link) and the pick is remembered with the scope; with a site chosen the Process filter cascades through that site's own tree and a leftover central pick is cleared; a site with no tree shows no Process filter",
+       "hash": "204ea40d",
+       "changed": "2026-10-29"
       }
      ]
     }
@@ -2479,8 +2502,35 @@
    "journeys": []
   },
   "improvement": {
-   "title": "Improvement",
-   "journeys": []
+   "title": "Improvement — UAT script",
+   "journeys": [
+    {
+     "title": "Journey 1 — Value drivers",
+     "cases": [
+      {
+       "id": "UAT-IMP-001",
+       "title": "The driver tree's process filter, this site or across sites",
+       "journey": "Journey 1 — Value drivers",
+       "persona": "lead",
+       "modules": [
+        "improvement/vdt/valuesTab.ts",
+        "improvement/vdt/settingsTab.ts",
+        "shared/ui/processPicker.ts",
+        "shared/schema/process.ts"
+       ],
+       "preconditions": "two sites with value driver trees whose drivers name site process nodes linked to the same central process",
+       "steps": [
+        "Value drivers (the hub tab) on the first site: Process → the mode select reads \"This site\" → pick an area; read the dimming.",
+        "Switch the mode to \"Across sites\" → pick the type and the central process; read the dimming; switch the Site select to the second site.",
+        "Settings → Value drivers: the same Process bar on the structure editor."
+       ],
+       "expected": "\"This site\" cascades through the site's own tree and dims the drivers outside the pick; \"Across sites\" dims the drivers whose process does not link to the central pick, and the pick HOLDS when the site changes (the second site's tree dims by the same central process); the structure editor's bar behaves the same; a site with no tree offers \"Across sites\" only, and no bar at all when the central hierarchy is empty",
+       "hash": "5ef71e59",
+       "changed": "2026-10-29"
+      }
+     ]
+    }
+   ]
   },
   "priorities": {
    "title": "Cascaded priorities",
