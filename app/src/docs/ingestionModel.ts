@@ -43,6 +43,11 @@ export interface IngestionTask {
   createdByName: string;
   createdAt: string;
   closedAt: string;
+  /** The LeanBoard site the task is constrained to (Ben, 2026-10-29):
+   *  the Organisation unit and Process area editors offer that site's
+   *  branches only and the run refuses a file tagged outside them.
+   *  "" = any site (every task made before this). */
+  site: string;
 }
 
 /** The Dataverse row, as the generated service shapes it. */
@@ -61,6 +66,7 @@ export interface IngestionTaskRow {
   ben_createdbyname?: string;
   ben_createdat?: string;
   ben_closedat?: string;
+  ben_site?: string;
 }
 
 const parseJson = <T>(raw: string | undefined, fallback: T): T => {
@@ -109,6 +115,7 @@ export function taskFromRow(r: IngestionTaskRow): IngestionTask {
     createdByName: r.ben_createdbyname ?? "",
     createdAt: r.ben_createdat ?? "",
     closedAt: r.ben_closedat ?? "",
+    site: (r.ben_site ?? "").trim(),
   };
 }
 
@@ -127,7 +134,55 @@ export function rowFromTask(t: IngestionTask): IngestionTaskRow {
     ben_createdbyname: t.createdByName,
     ben_createdat: t.createdAt,
     ben_closedat: t.closedAt,
+    ben_site: t.site,
   };
+}
+
+/** A term root per column for a task constrained to a site: the
+ *  site's own term in the Organisation set (by label — the shallowest
+ *  match, so a department named like the site never wins) and the site
+ *  root of the Process area set. Absent = the whole set. */
+export function siteTermRoots(
+  site: string,
+  cols: { orgUnit: string; processArea: string },
+  orgNodes: { id: string; labels: string[] }[],
+  processRootTermId: string
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  const s = site.trim().toLowerCase();
+  if (s === "") return out;
+  if (cols.orgUnit !== "") {
+    const hits = orgNodes.filter((n) => n.labels[n.labels.length - 1].trim().toLowerCase() === s).sort((a, b) => a.labels.length - b.labels.length);
+    if (hits.length > 0) out[cols.orgUnit] = hits[0].id;
+  }
+  if (cols.processArea !== "" && processRootTermId !== "") out[cols.processArea] = processRootTermId;
+  return out;
+}
+
+/** The nodes of a set that sit under a root, the root included, with
+ *  their label paths REBASED so the root is the one top-level node —
+ *  what a constrained editor or Values sheet offers. */
+export function subtreeUnder(nodes: { id: string; labels: string[] }[], rootId: string): { id: string; labels: string[] }[] {
+  const root = nodes.find((n) => n.id.toLowerCase() === rootId.toLowerCase());
+  if (!root) return nodes;
+  const depth = root.labels.length;
+  const key = (p: string[]) => p.map((x) => x.trim().toLowerCase()).join("¦");
+  const prefix = key(root.labels);
+  return nodes.filter((n) => n.labels.length >= depth && key(n.labels.slice(0, depth)) === prefix).map((n) => ({ ...n, labels: n.labels.slice(depth - 1) }));
+}
+
+/** The register labels of a file's value that are NOT under the root —
+ *  the run's pre-flight for a site-constrained task. A label the walk
+ *  does not know is left alone (the walk may be partial). */
+export function labelsOutsideRoot(value: string, nodes: { id: string; labels: string[] }[], rootId: string): string[] {
+  const under = new Set(subtreeUnder(nodes, rootId).map((n) => n.id.toLowerCase()));
+  if (under.size === 0) return [];
+  const out: string[] = [];
+  for (const label of value.split(";").map((x) => x.trim()).filter((x) => x !== "")) {
+    const hits = nodes.filter((n) => n.labels[n.labels.length - 1].trim().toLowerCase() === label.toLowerCase());
+    if (hits.length > 0 && !hits.some((h) => under.has(h.id.toLowerCase()))) out.push(label);
+  }
+  return out;
 }
 
 /** The sub-folder a task gets: its name, made safe for SharePoint. */

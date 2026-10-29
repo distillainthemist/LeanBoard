@@ -95,6 +95,23 @@ export interface FieldEditorOpts {
    *  "this should come via approval workflows") — never a form field
    *  unless a caller says so. */
   includeStatus?: boolean;
+  /** internal → a term id: the taxonomy editor for that column offers
+   *  only the subtree under it, the root included (an ingestion task
+   *  constrained to a site, Ben 2026-10-29). */
+  termRoots?: Record<string, string>;
+}
+
+/** The nodes of a walk under a root (the root included), their label
+ *  paths rebased so the root is the one top-level node; the whole walk
+ *  when the root is unknown. */
+export function nodesUnderRoot<T extends { id: string; labels: string[] }>(nodes: T[], rootId: string): T[] {
+  if (rootId === "") return nodes;
+  const root = nodes.find((n) => n.id.toLowerCase() === rootId.toLowerCase());
+  if (!root) return nodes;
+  const depth = root.labels.length;
+  const key = (p: string[]) => p.map((x) => x.trim().toLowerCase()).join("¦");
+  const prefix = key(root.labels);
+  return nodes.filter((n) => n.labels.length >= depth && key(n.labels.slice(0, depth)) === prefix).map((n) => ({ ...n, labels: n.labels.slice(depth - 1) }));
 }
 
 /** The required editors still empty. */
@@ -222,8 +239,9 @@ export function buildFieldEditors(opts: FieldEditorOpts): BuiltEditor[] {
       if (setId === "") continue;
       const sel = el("select", "app-input") as HTMLSelectElement;
       placeholder(sel, "—");
+      const rootId = opts.termRoots?.[f.internal] ?? "";
       void fetchTermPaths(opts.site, setId).then((walk) => {
-        for (const n of walk.nodes) {
+        for (const n of nodesUnderRoot(walk.nodes, rootId)) {
           const o = el(
             "option",
             "",
@@ -259,9 +277,10 @@ export function buildFieldEditors(opts: FieldEditorOpts): BuiltEditor[] {
       let cascade: ReturnType<typeof mountTermCascade> | null = null;
       const cascadeHost = el("div", "app-docs-termcascade");
       void fetchTermPaths(opts.site, setId).then((walk) => {
-        if (f.type === "TaxonomyFieldTypeMulti" || walk.nodes.every((n) => n.labels.length <= 1)) return;
+        const scoped = nodesUnderRoot(walk.nodes, rootId);
+        if (f.type === "TaxonomyFieldTypeMulti" || scoped.every((n) => n.labels.length <= 1)) return;
         cascade = mountTermCascade(cascadeHost, {
-          nodes: walk.nodes,
+          nodes: scoped,
           value: init?.term?.termId ?? "",
           selectClass: "app-input",
           placeholder: (depth) => (depth === 0 ? "—" : "— any —"),

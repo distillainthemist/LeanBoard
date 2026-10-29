@@ -1,10 +1,12 @@
 // Document ingestion's pure parts (ingestionModel.ts, 2026-10-08).
 import { describe, expect, it } from "vitest";
-import { blanksToFill, canSeeTask, ingestComment, latestByFile, logSummary, missingFor, rowFromTask, taskFolderName, taskFromRow, tasksForPanel, IngestionTask } from "../docs/ingestionModel";
+import { blanksToFill, canSeeTask, ingestComment, labelsOutsideRoot, latestByFile, logSummary, missingFor, rowFromTask, siteTermRoots, subtreeUnder, taskFolderName, taskFromRow, tasksForPanel, IngestionTask } from "../docs/ingestionModel";
+
+const modelOf = () => ({ taskFromRow, rowFromTask, siteTermRoots, subtreeUnder, labelsOutsideRoot });
 
 const task = (over: Partial<IngestionTask> = {}): IngestionTask => ({
   rowId: "r1", name: "Legacy SOPs", siteUrl: "https://x.sharepoint.com/sites/Dev", sourceListId: "src", folder: "/sites/Dev/Ingest/Legacy SOPs", destListId: "dst",
-  status: "open", assignees: [{ email: "ann@x.test", name: "Ann" }], defaults: [], log: [], createdByEmail: "ben@x.test", createdByName: "Ben", createdAt: "2026-10-08T01:00:00Z", closedAt: "", ...over,
+  status: "open", assignees: [{ email: "ann@x.test", name: "Ann" }], defaults: [], log: [], createdByEmail: "ben@x.test", createdByName: "Ben", createdAt: "2026-10-08T01:00:00Z", closedAt: "", site: "", ...over,
 });
 
 describe("taskFromRow / rowFromTask", () => {
@@ -61,5 +63,40 @@ describe("log helpers", () => {
     expect(logSummary([])).toBe("");
     expect(latestByFile(log).get("a.pdf")?.outcome).toBe("moved");
     expect(ingestComment("Legacy SOPs", "Ben")).toBe('Ingested — task "Legacy SOPs" by Ben');
+  });
+});
+
+describe("a task constrained to a site (2026-10-29)", () => {
+  const org = [
+    { id: "co", labels: ["Pechey"] },
+    { id: "bb", labels: ["Pechey", "Bell Bay"] },
+    { id: "bb-ops", labels: ["Pechey", "Bell Bay", "Operations"] },
+    { id: "bb-ops-cast", labels: ["Pechey", "Bell Bay", "Operations", "Casting"] },
+    { id: "by", labels: ["Pechey", "Boyne"] },
+    { id: "by-bb", labels: ["Pechey", "Boyne", "Bell Bay"] },
+  ];
+  it("round-trips the site on the row; blank = any site", () => {
+    const { taskFromRow, rowFromTask } = modelOf();
+    expect(taskFromRow({ ben_site: " Bell Bay " }).site).toBe("Bell Bay");
+    expect(taskFromRow({}).site).toBe("");
+    expect(rowFromTask({ ...taskFromRow({}), site: "Boyne" }).ben_site).toBe("Boyne");
+  });
+  it("finds the site's roots: the shallowest label match and the process root", () => {
+    const { siteTermRoots } = modelOf();
+    expect(siteTermRoots("bell bay", { orgUnit: "DMSOrg", processArea: "DMSProc" }, org, "t-root")).toEqual({ DMSOrg: "bb", DMSProc: "t-root" });
+    expect(siteTermRoots("Nowhere", { orgUnit: "DMSOrg", processArea: "DMSProc" }, org, "")).toEqual({});
+    expect(siteTermRoots("", { orgUnit: "DMSOrg", processArea: "" }, org, "t")).toEqual({});
+  });
+  it("rebases the subtree so the root is the one top-level node", () => {
+    const { subtreeUnder } = modelOf();
+    expect(subtreeUnder(org, "bb").map((n) => n.labels.join(" › "))).toEqual(["Bell Bay", "Bell Bay › Operations", "Bell Bay › Operations › Casting"]);
+    expect(subtreeUnder(org, "nope")).toBe(org);
+  });
+  it("names the labels outside the root; unknown labels are left alone", () => {
+    const { labelsOutsideRoot } = modelOf();
+    expect(labelsOutsideRoot("Boyne; Operations", org, "bb")).toEqual(["Boyne"]);
+    expect(labelsOutsideRoot("Bell Bay", org, "bb")).toEqual([]); // the Boyne department of that name does not count against it
+    expect(labelsOutsideRoot("Mystery", org, "bb")).toEqual([]);
+    expect(labelsOutsideRoot("Boyne", org, "nope")).toEqual([]);
   });
 });

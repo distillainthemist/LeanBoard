@@ -101,6 +101,14 @@
           "x-ms-dataverse-primary-name": true,
           "maxLength": 200
         },
+        "ben_site": {
+          "type": "string",
+          "title": "Site ('' = any)",
+          "x-ms-dataverse-attribute": "ben_site",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "ben_site",
+          "maxLength": 100
+        },
         "ben_siteurl": {
           "type": "string",
           "title": "Site url",

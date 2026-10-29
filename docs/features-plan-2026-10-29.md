@@ -430,3 +430,24 @@ Order: feature 2 first (app-only), then feature 1 (solution-carrying).
   `filterFromPicks`). Cadence and value drivers: later (decision 7).
 - **UAT**: SET-003/004/005 (Journey 3 — Processes), DOC-072 reworded,
   DOC-089 (register across sites).
+
+---
+
+## Addendum (Ben, 2026-10-29) — an ingestion task constrained to a site
+
+Decisions: the site is OPTIONAL on a new task and defaults to the
+creator's own site ("Any site" keeps the whole sets); existing tasks
+are "Any site"; document controllers remain the ones who create tasks.
+
+Built 2026-10-29 (dev; SOLUTION-CARRYING — `ben_site` on
+`ben_ltkingestiontask`): `IngestionTask.site`; the pure
+`siteTermRoots` (the site's shallowest label match in the Organisation
+set + the site's process root term), `subtreeUnder` (rebased so the
+root is the one top-level node) and `labelsOutsideRoot` in
+`ingestionModel.ts`; `FieldEditorOpts.termRoots` + `nodesUnderRoot` in
+`fieldEditors.ts` (the flat select and the cascade both scoped); the
+task editor's Site select (viewer's site preselected via
+`viewerPerson`); the task sheet's `taskTermRoots` feeding the grid
+popover, Set for selected, the task defaults and the sheet's Values
+columns; the run's pre-flight refusal "… is outside this task's site";
+the meta line "<site> only". UAT: DOC-062/063/067/087 updated.

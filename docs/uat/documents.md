@@ -594,9 +594,9 @@ persona: controller
 modules: docs/ingestionScreen.ts docs/ingestionStore.ts
 preconditions: the ingestion library exposed; a destination standards library
 steps:
-1. Register kebab → New ingestion task…: name, destination, assignees, defaults — set the Status default to Approved; Create.
+1. Register kebab → New ingestion task…: name, destination, read the Site select (your own site preselected; "Any site" available), assignees, defaults — set the Status default to Approved; Create.
 2. Open the task sheet; Open folder ↗.
-expected: Task defaults offers the Status column under its heading (it is set by hand in ingestion only — the documents arrive with their history); a sub-folder of the ingestion library is created and linked; the assignees get a Teams card; the sheet shows the destination, assignees and status chip
+expected: Task defaults offers the Status column under its heading (it is set by hand in ingestion only — the documents arrive with their history); with a site chosen the Organisation unit default cascades from that site's term and the Process area default from the site's own tree, nothing beyond them; a sub-folder of the ingestion library is created and linked; the assignees get a Teams card; the sheet's meta line reads "→ library · <site> only · …" and shows the assignees and status chip
 
 ### UAT-DOC-063 — Fill the grid
 persona: author
@@ -605,7 +605,7 @@ preconditions: an open task you are assigned to with three files in its folder
 steps:
 1. Refresh; read the ✱ required columns and the ⚠ marks.
 2. Edit cells, including a Status cell from Draft to Approved; Fill blanks from defaults; Set for selected… on two rows, once with the Status column; Save.
-expected: the Status cell and Set for selected… both offer the status editor (never "no editable columns configured"); the header and every row share one set of column widths (no drift between rows); required cells drive the ✓/⚠ mark and its tooltip — a Management of change column is required only when SharePoint marks it so; the MoC cell shows its records as "MOC-12, MOC-14" and opens the records editor, never raw JSON; dirty cells and rows are marked until Save; emptying a text, choice or date cell that held a value, or Clear in a term / people popover, marks the cell dirty reading "—" and Save clears the value in SharePoint (a blank over a blank is nothing; the name never clears); Save writes the values to the ingestion items and the marks turn ✓; the Run button is greyed until every file is ready and saved
+expected: the Status cell and Set for selected… both offer the status editor (never "no editable columns configured"); on a task constrained to a site the Organisation unit and Process area cells and Set for selected… cascade from that site's branch only (the site itself is a valid pick), while an "Any site" task offers the whole sets; the header and every row share one set of column widths (no drift between rows); required cells drive the ✓/⚠ mark and its tooltip — a Management of change column is required only when SharePoint marks it so; the MoC cell shows its records as "MOC-12, MOC-14" and opens the records editor, never raw JSON; dirty cells and rows are marked until Save; emptying a text, choice or date cell that held a value, or Clear in a term / people popover, marks the cell dirty reading "—" and Save clears the value in SharePoint (a blank over a blank is nothing; the name never clears); Save writes the values to the ingestion items and the marks turn ✓; the Run button is greyed until every file is ready and saved
 
 ### UAT-DOC-064 — Edit a task without losing its people
 persona: controller
@@ -637,10 +637,10 @@ expected: the pill shows in the column with the flagger and comment in its toolt
 ### UAT-DOC-067 — Refusals are honest
 persona: controller
 modules: docs/ingestionScreen.ts
-preconditions: a file whose name already exists in the destination; a file whose document id is already used
+preconditions: a file whose name already exists in the destination; a file whose document id is already used; on a task constrained to a site, a file whose Organisation unit was set to another site's department in SharePoint's grid view
 steps:
-1. Run ingestion including both.
-expected: each is refused with the reason in its ⚠ tooltip and the run log; the other files land; nothing half-moves
+1. Run ingestion including all three.
+expected: each is refused with the reason in its ⚠ tooltip and the run log — the third reads "Organisation unit "X" is outside this task's site (Y)"; the other files land; nothing half-moves
 
 ### UAT-DOC-068 — Message assignees and end the task
 persona: controller
@@ -658,7 +658,7 @@ preconditions: an open task you are assigned to with files in its folder, some d
 steps:
 1. Edit a cell without saving; Export sheet.
 2. Save (or Discard); Export sheet; open the workbook in Excel.
-expected: with unsaved changes the export is refused with "Save or discard your changes first"; otherwise a workbook `ingestion-<task>-<date>.xlsx` downloads; its Files sheet has one row per file with the name and every grid column (the MoC column left out), term cells as full paths ("Pechey › Bell Bay › Casting"), people as "Name <email>", dates as yyyy-mm-dd, required columns marked ✱, the two header rows frozen; column A and row 2 are hidden keys; the Values sheet lists every term path, choice and the owners & approvers pool per column; a single-value term, choice or owner cell offers an Excel dropdown of those values and refuses a typed value outside them
+expected: with unsaved changes the export is refused with "Save or discard your changes first"; otherwise a workbook `ingestion-<task>-<date>.xlsx` downloads; its Files sheet has one row per file with the name and every grid column (the MoC column left out), term cells as full paths ("Pechey › Bell Bay › Casting"), people as "Name <email>", dates as yyyy-mm-dd, required columns marked ✱, the two header rows frozen; column A and row 2 are hidden keys; the Values sheet lists every term path, choice and the owners & approvers pool per column — on a task constrained to a site, the Organisation unit and Process area paths are that site's branch only, starting at the site; a single-value term, choice or owner cell offers an Excel dropdown of those values and refuses a typed value outside them
 
 ### UAT-DOC-088 — Upload an edited spreadsheet
 persona: author

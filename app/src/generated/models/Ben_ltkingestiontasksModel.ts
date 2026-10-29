@@ -25,6 +25,7 @@ export interface Ben_ltkingestiontasksBase {
   ben_logjson?: string;
   ben_ltkingestiontaskid: string;
   ben_name?: string;
+  ben_site?: string;
   ben_siteurl?: string;
   ben_sourcelistid?: string;
   ben_status?: string;

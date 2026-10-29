@@ -541,6 +541,10 @@ export const TABLES = [
       ben_createdbyname: { ...text(200), display: "Created by (name)" },
       ben_createdat: { ...text(40), display: "Created at (ISO)" },
       ben_closedat: { ...text(40), display: "Closed at (ISO)" },
+      // 2026-10-29 (Ben): a task may be constrained to ONE LeanBoard site —
+      // the Organisation unit and Process area editors then offer that
+      // site's branches only; "" = any site (every task before this)
+      ben_site: { ...text(100), display: "Site ('' = any)" },
     },
     role: { delete: true },
   },

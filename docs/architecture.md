@@ -956,6 +956,9 @@ Key concepts (details: [leanboard-standard-documents-plan.md](leanboard-standard
 - **Document ingestion** (2026-10-08, [document-ingestion-proposal-2026-10.md](document-ingestion-proposal-2026-10.md)).
   A site's bulk-drop library (type "ingestion", never in the register)
   holds one folder per task (`ben_ltkingestiontask`: destination,
+  an optional SITE that narrows the organisation and process editors
+  to that site's branches and makes the run refuse a file outside them
+  (2026-10-29),
   assignees, defaults, run log). Users drop files in SharePoint and set
   details in the task sheet (`docs/ingestionScreen.ts`) or SharePoint's
   grid view; a controller runs the task — per file COPY (a move carries

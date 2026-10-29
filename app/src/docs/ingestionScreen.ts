@@ -74,7 +74,7 @@ import {
 import { buildFieldEditors, editorKind } from "./fieldEditors";
 import { POOL_ROLES } from "./accessGates";
 import type { ParsedSheet, SheetColumn, SheetFile } from "./sheetRoundTrip";
-import { IngestionAssignee, IngestionTask, RunLogEntry, blanksToFill, ingestComment, latestByFile, logSummary, missingFor, taskFolderName } from "./ingestionModel";
+import { IngestionAssignee, IngestionTask, RunLogEntry, blanksToFill, ingestComment, labelsOutsideRoot, latestByFile, logSummary, missingFor, taskFolderName } from "./ingestionModel";
 import { saveIngestionTask, deleteIngestionTask, getIngestionTask, listIngestionTasks } from "./ingestionStore";
 import { listPeople } from "../store/people";
 import { promptConfirm } from "../prompts";
@@ -136,6 +136,29 @@ interface SiteCtx {
   cellCtx: RegisterCellCtx;
   dictBy: Map<string, import("./model").SiteColumn>;
   internalForRole: (role: string) => string;
+  orgSetId: string;
+}
+
+/** A task constrained to a site (Ben, 2026-10-29): the term root per
+ *  column — the site's own term in the Organisation set and its root in
+ *  the Process area set. {} = any site. */
+async function taskTermRoots(ctx: SiteCtx, site: string): Promise<Record<string, string>> {
+  if (site.trim() === "") return {};
+  const { siteTermRoots } = await import("./ingestionModel");
+  const orgUnit = ctx.internalForRole("orgUnit");
+  const processArea = ctx.internalForRole("processArea");
+  const orgNodes = orgUnit !== "" && ctx.orgSetId !== "" ? (await cachedTermPaths(ctx.site, ctx.orgSetId, 6, 6000).catch(() => ({ nodes: [] as { id: string; labels: string[] }[] }))).nodes : [];
+  let processRoot = "";
+  if (processArea !== "") {
+    try {
+      const [{ listProcessNodes }, { buildProcessTree, siteRootOf }] = await Promise.all([import("../store/processes"), import("../processes/model")]);
+      const tree = buildProcessTree(await listProcessNodes());
+      processRoot = tree.byId.get(siteRootOf(tree, site))?.termId ?? "";
+    } catch {
+      processRoot = "";
+    }
+  }
+  return siteTermRoots(site, { orgUnit, processArea }, orgNodes, processRoot);
 }
 
 async function loadSiteCtx(): Promise<SiteCtx> {
@@ -154,6 +177,7 @@ async function loadSiteCtx(): Promise<SiteCtx> {
     cellCtx: { dict: siteDict, states: paletteMap(palettes.states), labelToId: new Map(), statusCol, myEmail },
     dictBy,
     internalForRole,
+    orgSetId: app.orgSetId,
   };
 }
 
@@ -383,7 +407,9 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
     const statusTerms = await readStatusTerms(ctx);
     if (dead) return;
     const meta = titleBlock.querySelector(".app-ing-meta")!;
-    meta.textContent = `→ ${libName(dest ?? undefined)} · ${task.assignees.length} assignee${task.assignees.length === 1 ? "" : "s"} · created by ${task.createdByName || task.createdByEmail} ${task.createdAt !== "" ? formatWhen(task.createdAt) : ""}`;
+    meta.textContent = `→ ${libName(dest ?? undefined)}${task.site !== "" ? ` · ${task.site} only` : ""} · ${task.assignees.length} assignee${task.assignees.length === 1 ? "" : "s"} · created by ${task.createdByName || task.createdByEmail} ${task.createdAt !== "" ? formatWhen(task.createdAt) : ""}`;
+    // the site's term roots narrow the organisation and process editors
+    const termRoots = await taskTermRoots(ctx, task.site);
     // a small chip beside the name, never a stretched band (Ben, 2026-10-09)
     titleRow.appendChild(statusChip(task.status === "closed" ? "✓ Closed" : task.status === "running" ? "◐ Running" : "● Open", task.status === "closed" ? "green" : "amber"));
     clear(body);
@@ -831,7 +857,7 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
       // includeStatus: ingestion is the one place a status is set by hand —
       // the documents arrive with their history (issue 25; regression
       // from v0.79's status-out-of-forms rule, 2026-10-28 reports 4 and 5)
-      const editors = buildFieldEditors({ site: ctx.site, box, fields: [f], columns: [{ internal: f.internal, available: true }], dictBy: ctx.dictBy, onChange: () => undefined, initial, includeSystemDates: true, includeStatus: true });
+      const editors = buildFieldEditors({ site: ctx.site, box, fields: [f], columns: [{ internal: f.internal, available: true }], dictBy: ctx.dictBy, onChange: () => undefined, initial, includeSystemDates: true, includeStatus: true, termRoots });
       const closePop = () => {
         pop.remove();
         document.removeEventListener("pointerdown", off, true);
@@ -1181,7 +1207,7 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
       dlg.body.append(el("div", "app-field-label", "Column"), pick, box, note);
       let editors: ReturnType<typeof buildFieldEditors> = [];
       const paint = () => {
-        editors = buildFieldEditors({ site: ctx.site, box, fields: gridFields.filter((f) => f.internal === pick.value), columns: [{ internal: pick.value, available: true }], dictBy: ctx.dictBy, onChange: () => undefined, includeSystemDates: true, includeStatus: true });
+        editors = buildFieldEditors({ site: ctx.site, box, fields: gridFields.filter((f) => f.internal === pick.value), columns: [{ internal: pick.value, available: true }], dictBy: ctx.dictBy, onChange: () => undefined, includeSystemDates: true, includeStatus: true, termRoots });
       };
       pick.addEventListener("change", paint);
       paint();
@@ -1236,7 +1262,10 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
           const setId = ctx.dictBy.get(f.internal)?.termSetId || f.termSetId;
           if (setId !== "") {
             const walk = await cachedTermPaths(ctx.site, setId).catch(() => ({ nodes: [] as { id: string; labels: string[] }[] }));
-            col.options = walk.nodes.map((n) => ({ text: n.labels.join(PATH_SEP), label: n.labels[n.labels.length - 1], termId: n.id }));
+            // a site-constrained task lists the site's branch only
+            const { subtreeUnder } = await import("./ingestionModel");
+            const scoped = termRoots[f.internal] !== undefined ? subtreeUnder(walk.nodes, termRoots[f.internal]) : walk.nodes;
+            col.options = scoped.map((n) => ({ text: n.labels.join(PATH_SEP), label: n.labels[n.labels.length - 1], termId: n.id }));
           }
         } else if (kind === "choice") {
           col.options = f.choices.map((c) => ({ text: c }));
@@ -1440,6 +1469,19 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
             return;
           }
         }
+        // a site-constrained task refuses a file tagged outside the site
+        // (set from SharePoint's own grid view, say) — the reason names
+        // the column and the value
+        for (const [internal, rootId] of Object.entries(termRoots)) {
+          const setId = ctx.dictBy.get(internal)?.termSetId ?? "";
+          if (setId === "" || (row.values[internal] ?? "").trim() === "") continue;
+          const walk = await cachedTermPaths(ctx.site, setId, 6, 6000).catch(() => ({ nodes: [] as { id: string; labels: string[] }[] }));
+          const outside = labelsOutsideRoot(row.values[internal] ?? "", walk.nodes, rootId);
+          if (outside.length > 0) {
+            refuse(`${ctx.dictBy.get(internal)?.label || internal} "${outside.join("; ")}" is outside this task's site (${task.site})`);
+            return;
+          }
+        }
         if (destRoot === "") {
           refuse("The destination library's folder could not be read");
           return;
@@ -1616,6 +1658,7 @@ export function openIngestionTaskEditor(o: IngestionEditorOpts): void {
         createdByName: viewer?.name ?? "",
         createdAt: new Date().toISOString(),
         closedAt: "",
+        site: "",
       };
   const before = new Set(t.assignees.map((a) => a.email));
   const dlg = openDialog({
@@ -1660,6 +1703,7 @@ export function openIngestionTaskEditor(o: IngestionEditorOpts): void {
   let editors: ReturnType<typeof buildFieldEditors> = [];
   let ctx: SiteCtx | null = null;
   let destSel: HTMLSelectElement | null = null;
+  let siteSel: HTMLSelectElement | null = null;
   let nameIn: HTMLInputElement | null = null;
 
   void (async () => {
@@ -1689,6 +1733,34 @@ export function openIngestionTaskEditor(o: IngestionEditorOpts): void {
     }
     destSel.disabled = !isNew;
     field("Destination library", destSel, isNew ? "Where the files land as approved version 1." : undefined);
+
+    // the site (Ben, 2026-10-29): optional, the creator's own site by
+    // default on a new task; narrows the organisation and process
+    // editors to that site's branches and the run refuses files outside
+    const [{ orgJson, archivedSites }, { parseOrgTree }, { viewerPerson }] = await Promise.all([import("../store/config"), import("../../../shared/schema/meeting"), import("../store/people")]);
+    const [orgRaw, archived] = await Promise.all([orgJson(true), archivedSites()]);
+    const orgSites = parseOrgTree(orgRaw).map((x) => x.site).filter((x) => x !== "" && !archived.includes(x));
+    if (isNew && t.site === "" && viewer) {
+      const me = await viewerPerson(viewer.objectId).catch(() => null);
+      if (me && orgSites.includes(me.site)) t.site = me.site;
+    }
+    siteSel = el("select", "app-input") as HTMLSelectElement;
+    const anyOpt = el("option", "", "Any site") as HTMLOptionElement;
+    anyOpt.value = "";
+    siteSel.appendChild(anyOpt);
+    for (const x of orgSites) {
+      const opt = el("option", "", x) as HTMLOptionElement;
+      opt.value = x;
+      if (x === t.site) opt.selected = true;
+      siteSel.appendChild(opt);
+    }
+    if (t.site !== "" && !orgSites.includes(t.site)) {
+      const opt = el("option", "", `${t.site} (not on the Organisation page)`) as HTMLOptionElement;
+      opt.value = t.site;
+      opt.selected = true;
+      siteSel.appendChild(opt);
+    }
+    field("Site", siteSel, "Optional. With a site, the Organisation unit and Process area pickers offer that site's branches only, and the run refuses a file tagged outside them.");
 
     // assignees: chips + a directory search
     const peopleBox = el("div", "app-im-links");
@@ -1780,6 +1852,7 @@ export function openIngestionTaskEditor(o: IngestionEditorOpts): void {
       }
       // the status rides the defaults too (issue 25): a legacy batch
       // can default to Superseded and the grid shows it per file
+      const termRoots = await taskTermRoots(ctx!, siteSel?.value ?? t.site);
       editors = buildFieldEditors({
         site: ctx!.site,
         box: defaultsBox,
@@ -1788,6 +1861,7 @@ export function openIngestionTaskEditor(o: IngestionEditorOpts): void {
         dictBy: ctx!.dictBy,
         onChange: () => undefined,
         initial,
+        termRoots,
         // the destination type's sections and order — the same form the
         // edit-properties dialog shows for that library
         sections: dialogSections(ctx!.cellCtx.dict, dest.libType),
@@ -1796,6 +1870,12 @@ export function openIngestionTaskEditor(o: IngestionEditorOpts): void {
       });
     };
     destSel.addEventListener("change", () => void paintDefaults());
+    siteSel.addEventListener("change", () => {
+      // the defaults already picked stay in the editors; a value outside
+      // the new site simply will not be offered again
+      t.defaults = editors.filter((e) => !e.isEmpty()).map((e) => e.read());
+      void paintDefaults();
+    });
     await paintDefaults();
     field("Task defaults", defaultsBox, "Values every file in this task shares — \"Fill blanks from defaults\" writes them into the files that lack them. Leave a column empty to set it per file.");
     body.appendChild(err);
@@ -1818,6 +1898,7 @@ export function openIngestionTaskEditor(o: IngestionEditorOpts): void {
     err.textContent = "";
     try {
       t.defaults = editors.filter((e) => !e.isEmpty()).map((e) => e.read());
+      t.site = siteSel?.value ?? t.site;
       if (isNew) {
         // one task per name and per folder: a second task on the same
         // folder would leave two rows over one batch (issue 26)
