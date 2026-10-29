@@ -12,15 +12,7 @@
 import { clear, el } from "../../../shared/ui/dom";
 import { openDialog } from "../../../shared/ui/dialog";
 import { confirmRemoval } from "../prompts";
-import {
-  addMember,
-  addOwner,
-  groupMembers,
-  isGroupOwner,
-  removeMember,
-  removeOwnerGuarded,
-  GroupMember,
-} from "../store/accessGroup";
+import { addMember, addOwner, groupMembers, isGroupOwner, removeMember, removeOwnerGuarded, GroupMember } from "../store/accessGroup";
 import { searchEntra } from "../store/people";
 import { invalidateAccessGates } from "./accessGates";
 
@@ -37,8 +29,102 @@ export interface GroupMembersOpts {
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e)).slice(0, 160);
 
+export interface DocGroups {
+  controllers: { id: string; name: string } | null;
+  pool: { id: string; name: string } | null;
+}
+
+/** The two groups' membership and the viewer's ownership of each, read
+ *  once for a register (the Users tab's Document groups column). */
+export interface DocGroupsState extends DocGroups {
+  inControllers: Set<string>;
+  inPool: Set<string>;
+  ownsControllers: boolean;
+  ownsPool: boolean;
+  /** Lookups that failed, by group name — the column says so. */
+  failed: string[];
+}
+
+export async function loadDocGroups(viewerId: string): Promise<DocGroupsState> {
+  const { appDocsConfig } = await import("./docsStore");
+  const cfg = await appDocsConfig();
+  const st: DocGroupsState = {
+    controllers: cfg.controllersGroupId !== "" ? { id: cfg.controllersGroupId, name: cfg.controllersGroupName || "Document controllers" } : null,
+    pool: cfg.ownersGroupId !== "" ? { id: cfg.ownersGroupId, name: cfg.ownersGroupName || "Owners & approvers" } : null,
+    inControllers: new Set(),
+    inPool: new Set(),
+    ownsControllers: false,
+    ownsPool: false,
+    failed: [],
+  };
+  const read = async (g: { id: string; name: string } | null, into: Set<string>, own: (v: boolean) => void) => {
+    if (g === null) return;
+    try {
+      const [members, owner] = await Promise.all([groupMembers(g.id), viewerId !== "" ? isGroupOwner(g.id, viewerId) : Promise.resolve(false)]);
+      for (const m of members) into.add(m.id);
+      own(owner);
+    } catch {
+      st.failed.push(g.name);
+    }
+  };
+  await Promise.all([read(st.controllers, st.inControllers, (v) => (st.ownsControllers = v)), read(st.pool, st.inPool, (v) => (st.ownsPool = v))]);
+  return st;
+}
+
+/** Add to a group. A controller is ALSO made a member and an owner of
+ *  the owners & approvers group (Ben, 2026-10-29). Throws when the main
+ *  add fails; returns the warnings for the side effects that did not. */
+export async function addToGroup(kind: "controllers" | "pool", groups: DocGroups, entraId: string): Promise<string[]> {
+  const main = kind === "controllers" ? groups.controllers : groups.pool;
+  if (main === null) throw new Error("the group is not linked");
+  await addMember(main.id, entraId);
+  const tails: string[] = [];
+  if (kind === "controllers" && groups.pool !== null) {
+    try {
+      await addMember(groups.pool.id, entraId);
+    } catch (e) {
+      tails.push(`not made a member of ${groups.pool.name}: ${errText(e)}`);
+    }
+    try {
+      await addOwner(groups.pool.id, entraId);
+    } catch (e) {
+      tails.push(`not made an owner of ${groups.pool.name}: ${errText(e)}`);
+    }
+  }
+  invalidateAccessGates();
+  return tails;
+}
+
+/** Remove from a group. A controller removed also loses the ownership
+ *  of the owners & approvers group (last-owner guard); the membership
+ *  stays. Throws when the main remove fails; returns the warnings. */
+export async function removeFromGroup(kind: "controllers" | "pool", groups: DocGroups, entraId: string): Promise<string[]> {
+  const main = kind === "controllers" ? groups.controllers : groups.pool;
+  if (main === null) throw new Error("the group is not linked");
+  await removeMember(main.id, entraId);
+  const tails: string[] = [];
+  if (kind === "controllers" && groups.pool !== null) {
+    try {
+      await removeOwnerGuarded(groups.pool.id, entraId);
+    } catch (e) {
+      tails.push(`they still own ${groups.pool.name}: ${errText(e)}`);
+    }
+  }
+  invalidateAccessGates();
+  return tails;
+}
+
+/** The confirm wording before a removal — shared by the dialog and the
+ *  Users register's column. */
+export function removalNote(kind: "controllers" | "pool"): string {
+  return kind === "controllers"
+    ? "They lose document admin at once. Their ownership of the owners & approvers group goes too; their membership of it stays, so documents naming them keep their owner or approver."
+    : "They can no longer be picked as an owner or approver. Documents already naming them keep them — the health report lists those.";
+}
+
 export function openGroupMembers(opts: GroupMembersOpts): void {
   const { group, kind } = opts;
+  const groups: DocGroups = kind === "controllers" ? { controllers: group, pool: opts.pool } : { controllers: null, pool: group };
   const dlg = openDialog({
     host: opts.host,
     title: `Members — ${group.name}`,
@@ -109,60 +195,34 @@ export function openGroupMembers(opts: GroupMembersOpts): void {
   };
 
   const remove = async (m: GroupMember, btn: HTMLButtonElement) => {
-    const ok = await confirmRemoval(
-      `${m.name || m.email} from ${group.name}`,
-      kind === "controllers"
-        ? "They lose document admin at once. Their ownership of the owners & approvers group goes too; their membership of it stays, so documents naming them keep their owner or approver."
-        : "They can no longer be picked as an owner or approver. Documents already naming them keep them — the health report lists those."
-    );
+    const ok = await confirmRemoval(`${m.name || m.email} from ${group.name}`, removalNote(kind));
     if (!ok) return;
     btn.disabled = true;
     say(`Removing ${m.name || m.email}…`);
+    let tails: string[];
     try {
-      await removeMember(group.id, m.id);
+      tails = await removeFromGroup(kind, groups, m.id);
     } catch (e) {
       btn.disabled = false;
       say(`Could not remove ${m.name || m.email}: ${errText(e)}`, true);
       return;
     }
-    let tail = "";
-    if (kind === "controllers" && opts.pool !== null) {
-      try {
-        await removeOwnerGuarded(opts.pool.id, m.id);
-      } catch (e) {
-        tail = ` — they still own ${opts.pool.name}: ${errText(e)}`;
-      }
-    }
-    invalidateAccessGates();
     opts.onChanged?.();
-    say(`${m.name || m.email} removed ✓${tail}`, tail !== "");
+    say(`${m.name || m.email} removed ✓${tails.length > 0 ? ` — ${tails.join("; ")}` : ""}`, tails.length > 0);
     await reload();
   };
 
   const add = async (hit: { objectId: string; displayName: string; mail: string }, btn: HTMLButtonElement) => {
     btn.disabled = true;
     say(`Adding ${hit.displayName}…`);
+    let tails: string[];
     try {
-      await addMember(group.id, hit.objectId);
+      tails = await addToGroup(kind, groups, hit.objectId);
     } catch (e) {
       btn.disabled = false;
       say(`Could not add ${hit.displayName}: ${errText(e)}`, true);
       return;
     }
-    const tails: string[] = [];
-    if (kind === "controllers" && opts.pool !== null) {
-      try {
-        await addMember(opts.pool.id, hit.objectId);
-      } catch (e) {
-        tails.push(`not made a member of ${opts.pool.name}: ${errText(e)}`);
-      }
-      try {
-        await addOwner(opts.pool.id, hit.objectId);
-      } catch (e) {
-        tails.push(`not made an owner of ${opts.pool.name}: ${errText(e)}`);
-      }
-    }
-    invalidateAccessGates();
     opts.onChanged?.();
     say(`${hit.displayName} added ✓${tails.length > 0 ? ` — ${tails.join("; ")}` : ""}`, tails.length > 0);
     search.value = "";

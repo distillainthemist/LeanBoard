@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-27",
+ "generatedAt": "2026-10-29",
  "releases": [
   {
    "tag": "v0.80.0",
@@ -2467,11 +2467,12 @@
         "Settings → Access control → Document controllers → Members…; read the note and the ownership line.",
         "Search the directory for the person; ＋ Add. In Entra (or the Owners & approvers → Members… dialog) check the owners & approvers group.",
         "Remove them from Document controllers; confirm. Check the owners & approvers group again.",
-        "Owners & approvers → Members…: add and remove someone."
+        "Owners & approvers → Members…: add and remove someone.",
+        "Settings → Users: read the Document groups column; tick Controller on a person; untick Owner/approver on another."
        ],
-       "expected": "Members… shows only on a linked group; the controllers dialog says an add also makes the person a member and owner of the owners & approvers group; after the add they are a controller AND a member and owner of the pool; after the remove they are no controller and no longer an owner of the pool but still its member; the pool dialog adds and removes members alone; removing the group's only owner is refused with a readable line; you cannot remove yourself",
-       "hash": "082946b5",
-       "changed": "2026-10-27"
+       "expected": "the Users register's Document groups column shows a Controller and an Owner/approver box per person, ticked from the groups' live membership, writable only for a super admin who owns the group (the tooltip says why otherwise, and your own Controller box cannot be unticked); ticking Controller also ticks Owner/approver; unticking asks first and a refusal reverts the box with the reason under the row; Members… shows only on a linked group; the controllers dialog says an add also makes the person a member and owner of the owners & approvers group; after the add they are a controller AND a member and owner of the pool; after the remove they are no controller and no longer an owner of the pool but still its member; the pool dialog adds and removes members alone; removing the group's only owner is refused with a readable line; you cannot remove yourself",
+       "hash": "f45a028c",
+       "changed": "2026-10-29"
       }
      ]
     }

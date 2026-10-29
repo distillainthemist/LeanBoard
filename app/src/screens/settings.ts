@@ -1453,10 +1453,17 @@ async function renderUsers(body: HTMLElement, me: RosterPerson): Promise<void> {
       el("div", "app-settings-note", `Site admins can add people from the directory into ${me.site || "their site"}, place people who have no site yet into it, and set department and crew for their own site's people. Roles and moves between sites need a super admin.`)
     );
   }
+  // the document groups' membership, read once beside the roster (Ben,
+  // 2026-10-29: "manage it as a column in the Users tab too") — a
+  // failed read leaves the column saying so, never the register
+  const groupsPending = import("../docs/groupMembers")
+    .then(({ loadDocGroups }) => loadDocGroups(me.whoId))
+    .catch(() => null);
   const orgTree = parseOrgTree(await orgJson());
   const sites = orgTree.map((s) => s.site);
   const crewLib = await rosterPatternLibrary();
   let people = await listPeople(true);
+  const docGroups = await groupsPending;
   // reload the roster and repaint the list in place (keeps the cards'
   // own notes — e.g. the sync summary — on screen)
   const reloadPeople = async () => {
@@ -1580,7 +1587,8 @@ async function renderUsers(body: HTMLElement, me: RosterPerson): Promise<void> {
     el("span", "app-user-head-col", "Area"),
     el("span", "app-user-head-col", "Crew"),
     el("span", "app-user-head-col", "Role"),
-    el("span", "app-user-head-col", "Access")
+    el("span", "app-user-head-col", "Access"),
+    el("span", "app-user-head-col", "Document groups")
   );
   body.appendChild(head);
   const list = el("div", "app-people-list");
@@ -1605,7 +1613,7 @@ async function renderUsers(body: HTMLElement, me: RosterPerson): Promise<void> {
     count.textContent =
       `${shown.length} of ${people.length} ${people.length === 1 ? "person" : "people"}` +
       (revoked > 0 ? ` · ${revoked} revoked` : "");
-    for (const p of shown) list.appendChild(userRow(p, sites, crewLib, canEdit, me, dir, draw, orgTree));
+    for (const p of shown) list.appendChild(userRow(p, sites, crewLib, canEdit, me, dir, draw, orgTree, docGroups));
     if (shown.length === 0) {
       const empty = el("div", "app-settings-note app-users-empty", "No users match those filters.");
       if (canEdit && query !== "") {
@@ -1698,7 +1706,8 @@ function userRow(
   me: RosterPerson,
   dir: DirectoryLookup,
   onChanged: () => void,
-  orgTree: { site: string; departments: { department: string; areas: string[] }[] }[] = []
+  orgTree: { site: string; departments: { department: string; areas: string[] }[] }[] = [],
+  docGroups: import("../docs/groupMembers").DocGroupsState | null = null
 ): HTMLElement {
   const r = el("div", "app-user-row");
   r.dataset.whoid = p.whoId;
@@ -1890,6 +1899,93 @@ function userRow(
   } else {
     // an empty cell keeps the grid's columns aligned
     controls.append(el("span", "app-user-field"));
+  }
+
+  // Document groups (Ben, 2026-10-29): controller and owner/approver as
+  // two toggles per person — the same Graph road as the Members…
+  // dialogs under Access control. A super admin who OWNS the group in
+  // Entra writes; everyone else reads. Unticking asks first (a settings
+  // change that writes at once).
+  {
+    const cell = el("div", "app-user-groups");
+    if (docGroups === null || (docGroups.controllers === null && docGroups.pool === null)) {
+      const none = el("span", "app-user-selfhint", docGroups === null ? "not read" : "none linked");
+      none.title = docGroups === null ? "The document groups could not be read" : "Link the document control groups under Settings → Access control";
+      cell.appendChild(none);
+    } else {
+      const toggle = (kind: "controllers" | "pool", label: string) => {
+        const g = kind === "controllers" ? docGroups.controllers : docGroups.pool;
+        if (g === null) return;
+        const members = kind === "controllers" ? docGroups.inControllers : docGroups.inPool;
+        const owns = kind === "controllers" ? docGroups.ownsControllers : docGroups.ownsPool;
+        const failed = docGroups.failed.includes(g.name);
+        const line = el("label", "app-check app-user-groupcheck");
+        const box = el("input") as HTMLInputElement;
+        box.type = "checkbox";
+        box.checked = members.has(p.whoId);
+        const selfController = kind === "controllers" && p.whoId === me.whoId;
+        const writable = canEdit && owns && p.active && !failed && !selfController;
+        box.disabled = !writable;
+        line.title = failed
+          ? `${g.name}: the membership could not be read`
+          : !canEdit
+            ? `${g.name} — a super admin changes this`
+            : !owns
+              ? `${g.name} — you are not an owner of this group in Entra, so it reads only here`
+              : selfController
+                ? "You cannot remove yourself from Document controllers here"
+                : !p.active
+                  ? "Restore access first"
+                  : kind === "controllers"
+                    ? `${g.name} — ticking also makes them a member and owner of the owners & approvers group`
+                    : `${g.name} — who may be named owner or approver`;
+        line.append(box, document.createTextNode(label));
+        const note = el("span", "app-user-syncwarn");
+        note.style.display = "none";
+        box.addEventListener("change", () => {
+          const want = box.checked;
+          box.disabled = true;
+          void (async () => {
+            const { addToGroup, removeFromGroup, removalNote } = await import("../docs/groupMembers");
+            if (!want) {
+              const ok = await confirmRemoval(`${p.who} from ${g.name}`, removalNote(kind));
+              if (!ok) {
+                box.checked = true;
+                box.disabled = false;
+                return;
+              }
+            }
+            try {
+              const tails = want ? await addToGroup(kind, docGroups, p.whoId) : await removeFromGroup(kind, docGroups, p.whoId);
+              if (want) {
+                members.add(p.whoId);
+                // a controller is a pool member too — the other box follows
+                if (kind === "controllers" && docGroups.pool !== null) {
+                  docGroups.inPool.add(p.whoId);
+                  const other = cell.querySelector<HTMLInputElement>("input[data-kind=pool]");
+                  if (other !== null) other.checked = true;
+                }
+              } else members.delete(p.whoId);
+              if (tails.length > 0) {
+                note.textContent = tails.join("; ");
+                note.style.display = "";
+              } else note.style.display = "none";
+            } catch (e) {
+              box.checked = !want;
+              note.textContent = `Could not ${want ? "add" : "remove"}: ${(e instanceof Error ? e.message : String(e)).slice(0, 160)}`;
+              note.style.display = "";
+            }
+            box.disabled = false;
+          })();
+        });
+        box.dataset.kind = kind;
+        cell.append(line);
+        r.appendChild(note);
+      };
+      toggle("controllers", "Controller");
+      toggle("pool", "Owner/approver");
+    }
+    controls.append(labelledControl("Document groups", cell));
   }
 
   // a phone (mobile review, 2026-10-07): the six controls hide behind

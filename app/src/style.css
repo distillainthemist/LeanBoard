@@ -1039,7 +1039,7 @@ input[type="color"].app-color:disabled { opacity: 0.4; cursor: default; }
 @media (min-width: 1280px) {
   .app-user-head {
     display: grid;
-    grid-template-columns: minmax(240px, 1.4fr) 130px 140px 130px 120px 140px 150px;
+    grid-template-columns: minmax(240px, 1.4fr) 130px 140px 130px 120px 140px 150px 150px;
     gap: 16px;
     align-items: end;
     padding: 4px 14px 0;
@@ -1052,7 +1052,7 @@ input[type="color"].app-color:disabled { opacity: 0.4; cursor: default; }
   .app-user-head-count { text-transform: none; letter-spacing: 0; font-weight: 400; font-size: 12.5px; }
   .app-user-row {
     display: grid;
-    grid-template-columns: minmax(240px, 1.4fr) 130px 140px 130px 120px 140px 150px;
+    grid-template-columns: minmax(240px, 1.4fr) 130px 140px 130px 120px 140px 150px 150px;
     align-items: center;
     column-gap: 16px;
   }
@@ -2570,6 +2570,11 @@ button.app-docs-navterm.app-docs-navterm-on {
 .app-grp-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .app-grp-text .app-user-email { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .app-grp-row .app-link { font-size: 12px; }
+/* the Users register's Document groups column (2026-10-29) */
+.app-user-groups { display: flex; flex-direction: column; gap: 0; }
+.app-user-groupcheck { min-height: 28px; font-size: 12.5px; gap: 6px; }
+.app-user-groupcheck input { width: 18px; height: 18px; }
+.app-user-groupcheck input:disabled { opacity: 0.55; }
 
 /* the ONE column manager (Part II S1): per-row grids share a template
    so cells align across rows, which is what lets rows be DRAG targets */
