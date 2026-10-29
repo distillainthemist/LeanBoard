@@ -1588,7 +1588,7 @@ async function renderUsers(body: HTMLElement, me: RosterPerson): Promise<void> {
     el("span", "app-user-head-col", "Crew"),
     el("span", "app-user-head-col", "Role"),
     el("span", "app-user-head-col", "Access"),
-    el("span", "app-user-head-col", "Document groups")
+    el("span", "app-user-head-col", "Document roles")
   );
   body.appendChild(head);
   const list = el("div", "app-people-list");
@@ -1985,7 +1985,7 @@ function userRow(
       toggle("controllers", "Controller");
       toggle("pool", "Owner/approver");
     }
-    controls.append(labelledControl("Document groups", cell));
+    controls.append(labelledControl("Document roles", cell));
   }
 
   // a phone (mobile review, 2026-10-07): the six controls hide behind
