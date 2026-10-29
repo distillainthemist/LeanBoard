@@ -2,8 +2,8 @@
 
 Two features Ben raised on 2026-10-29, analysed against the code as it
 stands at v0.82.0. Status: questions answered (the Decisions section);
-feature 2 BUILT 2026-10-29 (dev, unreleased); feature 1 BUILT
-2026-10-29 (dev, unreleased, SOLUTION-CARRYING) — see "Built".
+both features BUILT and tested 2026-10-29, RELEASED as v0.83.0
+(solution-carrying) — see "Built".
 
 ---
 

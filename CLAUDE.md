@@ -407,7 +407,15 @@ Version lives in the tag alone — nothing is stamped into files.
   axis with cadence floors in `shared/schema/buckets.ts`, group
   membership managed in the app via `docs/groupMembers.ts` — Settings →
   Access control Members…, the register kebab, the Users register's
-  Document roles column) is app-only. Prod
+  Document roles column) is app-only. v0.83.0 (2026-10-29:
+  `docs/features-plan-2026-10-29.md` — the ingestion spreadsheet round
+  trip with the hand-rolled `docs/xlsx.ts` and the CLEAR write, and
+  site-owned process hierarchies with the central link: `ben_site` +
+  `ben_centralnodeid` on `ben_ltkprocessnode`, `processes/migrate.ts`
+  clones a site's tree from its retired type, Settings → Processes
+  rewritten, the Process area set site-rooted) is SOLUTION-CARRYING —
+  prod imports the managed solution, then each site clones or starts
+  its tree, then the process drift report is applied. Prod
   imports the managed solution FIRST. LESSON
   (2026-10-13, production's first sync): a sync must
   never run from a walk it cannot trust (budget-cut OR any failed

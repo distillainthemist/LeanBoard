@@ -1455,6 +1455,26 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-10-29 — released as v0.83.0** (SOLUTION-CARRYING: `ben_site`,
+  `ben_centralnodeid` on `ben_ltkprocessnode`): the two 2026-10-29
+  features (`docs/features-plan-2026-10-29.md`, every test passed).
+  Feature 2 — the ingestion spreadsheet round trip: a dependency-free
+  .xlsx writer / reader (`docs/xlsx.ts`: stored zip, inline strings,
+  Excel list validations; native inflate to read), the Files / Values
+  sheets and the strict way back (`docs/sheetRoundTrip.ts`), "Export
+  sheet" (saved values only) and "Upload sheet…" into the DRAFT, and a
+  CLEAR write (`AddFieldValue.clear`) the grid uses too. Feature 1 —
+  site-owned process hierarchies: a site's tree has the site at its
+  root; a site node soft-links to one central node (`centralOf`,
+  inherited down the tree); the central hierarchy is the old type
+  trees; local names and the site's process type retired;
+  `processes/migrate.ts` clones a type for a site and re-points its
+  rituals, initiatives and value drivers; Settings → Processes
+  rewritten (site chips, Central hierarchy, the link dialog through
+  `mountCentralPicker`, the starter); the Process area set mirrors
+  site trees and strips the old synonyms; cross-site filters on the
+  Improvement tab (company scope) and the register's Process area
+  column. UAT: SET-003/004/005, DOC-063/072/087/088/089.
 - **2026-10-29 — released as v0.82.0** (app-only): the 2026-10-28 issue
   round (`docs/issues-plan-2026-10-28.md`, 6 reports, 6/6 passed):
   ingestion's three editors ask for the status column again
