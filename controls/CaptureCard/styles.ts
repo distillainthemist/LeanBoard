@@ -15,7 +15,15 @@ export const CAPTURE_CSS = `
   overflow: hidden;
 }
 .ltk-cc-tablewrap { flex: 1; min-height: 0; overflow: auto; }
-.ltk-cc-table { border-collapse: collapse; min-width: max-content; width: 100%; height: 100%; }
+/* the table fits its container (card-responsiveness-review-2026-10-30,
+   R1): min-width: max-content made the minimum width the sum of the
+   column caps, so four text columns overflowed a tile and scrolled a
+   phone sideways; the head and the row label stay put while the rest
+   scrolls */
+.ltk-cc-table { border-collapse: separate; border-spacing: 0; min-width: 100%; width: 100%; height: 100%; }
+.ltk-cc-table thead th { position: sticky; top: 0; background: var(--ltk-bg); z-index: 2; }
+.ltk-cc-table td.ltk-cc-rowhead, .ltk-cc-table td.ltk-cr-source, .ltk-cc-table td.ltk-vr-charter { position: sticky; left: 0; background: var(--ltk-bg); z-index: 1; }
+.ltk-cc-table thead th:first-child { left: 0; z-index: 3; }
 .ltk-cc-table th {
   font-size: 11px;
   font-weight: 600;

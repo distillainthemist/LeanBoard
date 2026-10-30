@@ -105,6 +105,10 @@ export class ProcessMapEditor {
 
   private model: PmModel = emptyModel();
   private needsFit = false;
+  /** The view follows the svg's size until the person pans or zooms
+   *  (card-responsiveness-review-2026-10-30, R1); Fit hands it back. */
+  private autoFit = true;
+  private svgObserver: ResizeObserver | null = null;
   private view: Viewport = { tx: 60, ty: 40, scale: 1 };
   private selected: Selection | null = null;
   private readOnly = false;
@@ -254,6 +258,7 @@ export class ProcessMapEditor {
    */
   private requestFit(): void {
     this.needsFit = true;
+    this.autoFit = true;
     requestAnimationFrame(() => {
       if (!this.needsFit) return;
       const r = this.svg.getBoundingClientRect();
@@ -265,6 +270,7 @@ export class ProcessMapEditor {
   }
 
   destroy(): void {
+    this.svgObserver?.disconnect();
     window.removeEventListener("pointermove", this.onWinMove);
     window.removeEventListener("pointerup", this.onWinUp);
     window.removeEventListener("keydown", this.onKey);
@@ -287,6 +293,19 @@ export class ProcessMapEditor {
     this.svg.setAttribute("class", "pm-svg");
     this.svg.addEventListener("pointerdown", (e) => this.startPanOrDeselect(e));
     this.svg.addEventListener("wheel", (e) => this.handleWheel(e), { passive: false });
+    // the stage follows its host now (R0): refit whenever the svg's box
+    // changes, until the person has panned or zoomed
+    if (typeof ResizeObserver !== "undefined") {
+      this.svgObserver = new ResizeObserver(() => {
+        if (!this.autoFit) return;
+        const r = this.svg.getBoundingClientRect();
+        if (r.width > 40 && r.height > 40) {
+          this.needsFit = false;
+          this.fitView();
+        }
+      });
+      this.svgObserver.observe(this.svg);
+    }
 
     this.defs = document.createElementNS(SVG_NS, "defs") as SVGDefsElement;
     this.defs.appendChild(this.makeArrowMarker(this.arrowId(), "#555"));
@@ -1125,6 +1144,7 @@ export class ProcessMapEditor {
       return;
     }
     if (this.panning) {
+      if (Math.abs(e.clientX - this.panning.sx) + Math.abs(e.clientY - this.panning.sy) > 3) this.autoFit = false;
       this.view.tx = this.panning.tx + (e.clientX - this.panning.sx);
       this.view.ty = this.panning.ty + (e.clientY - this.panning.sy);
       this.world.setAttribute(
@@ -1477,6 +1497,7 @@ export class ProcessMapEditor {
   }
 
   private zoomAt(clientX: number, clientY: number, factor: number): void {
+    this.autoFit = false;
     const r = this.svg.getBoundingClientRect();
     const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, this.view.scale * factor));
     const f = newScale / this.view.scale;

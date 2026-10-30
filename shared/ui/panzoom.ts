@@ -12,6 +12,9 @@
 const MIN_SCALE = 0.3;
 const MAX_SCALE = 2;
 const FIT_PAD = 28;
+/** A fit may ENLARGE a small diagram up to this in the focused view
+ *  (card-responsiveness-review-2026-10-30, R1); in a tile it stays 1:1. */
+const FIT_ENLARGE_MAX = 1.5;
 
 interface View {
   tx: number;
@@ -35,6 +38,9 @@ export class PanZoom {
   private viewport: HTMLElement | null = null;
   private world: HTMLElement | null = null;
   private needsFit = false;
+  /** The view follows the viewport's size until the person pans or
+   *  zooms; "Fit to view" hands it back (R1). */
+  private autoFit = true;
   private ro: ResizeObserver | null = null;
   private pan: { sx: number; sy: number; tx: number; ty: number } | null = null;
 
@@ -71,7 +77,7 @@ export class PanZoom {
 
     if (this.ro) this.ro.disconnect();
     this.ro = new ResizeObserver(() => {
-      if (this.needsFit) this.tryFit();
+      if (this.needsFit || this.autoFit) this.tryFit();
     });
     this.ro.observe(viewport);
 
@@ -81,6 +87,7 @@ export class PanZoom {
   /** Auto-fit on the next layout (call when a document is (re)loaded). */
   requestFit(): void {
     this.needsFit = true;
+    this.autoFit = true;
     this.tryFit();
   }
 
@@ -146,8 +153,10 @@ export class PanZoom {
     if (cw < 1 || ch < 1) return;
 
     this.needsFit = false;
-    // fit shrinks a big tree to the card; it never enlarges a small one past 1:1
-    const scale = Math.max(this.min, Math.min(1, (vw - FIT_PAD * 2) / cw, (vh - FIT_PAD * 2) / ch));
+    // fit shrinks a big tree to the card; in the focused view it may also
+    // enlarge a small one (to FIT_ENLARGE_MAX); a tile stays at 1:1
+    const enlargeTo = vp.closest(".ltk-tile") ? 1 : Math.min(this.max, FIT_ENLARGE_MAX);
+    const scale = Math.max(this.min, Math.min(enlargeTo, (vw - FIT_PAD * 2) / cw, (vh - FIT_PAD * 2) / ch));
     this.view.scale = scale;
     this.view.tx = Math.max(FIT_PAD, (vw - cw * scale) / 2);
     this.view.ty = FIT_PAD;
@@ -157,6 +166,7 @@ export class PanZoom {
 
   private fit(): void {
     this.needsFit = true;
+    this.autoFit = true;
     this.tryFit();
   }
 
@@ -172,6 +182,7 @@ export class PanZoom {
     if (!vp) return;
     const r = vp.getBoundingClientRect();
     const next = this.clamp(this.view.scale * factor);
+    this.autoFit = false;
     const k = next / this.view.scale;
     const px = clientX - r.left;
     const py = clientY - r.top;
@@ -198,6 +209,7 @@ export class PanZoom {
 
   private readonly onMove = (e: PointerEvent): void => {
     if (!this.pan) return;
+    if (Math.abs(e.clientX - this.pan.sx) + Math.abs(e.clientY - this.pan.sy) > 3) this.autoFit = false;
     this.view.tx = this.pan.tx + (e.clientX - this.pan.sx);
     this.view.ty = this.pan.ty + (e.clientY - this.pan.sy);
     this.apply();

@@ -255,3 +255,25 @@ Order of work: R0 → R1 → R4 (laptop cards) → R3 (wall and phone cards)
 - **The focused view is capped** at 1600 px and centred
   (`.app-editor-host`, `.app-card-row` justify-content).
 - UAT: RIT-003.
+
+## Built — R1 (2026-10-30, dev, unreleased, app-only)
+
+- **The viewport rule has its tier twin** (R0 carried it): the shared
+  narrow action-row rule fires on `[data-ltk-tier="phone"]` hosts as well
+  as under a 600 px window. LeanHub's own media queries stay — the hub
+  is not a tiered host.
+- **Tables fit their container** (`CaptureCard/styles.ts`, inherited by
+  CaptureRollup and CanvasRollup): `min-width: 100%` replaces
+  `max-content`; the head is sticky at the top, the row label / Source /
+  charter column sticky at the left (`border-collapse: separate` so
+  sticky works). RACI and SkillsMatrix (CSS grids): role / people heads
+  sticky top, deliverable / skill labels sticky left, with the card's
+  background so the gap shows nothing through.
+- **Pan / zoom keeps fitting** (`shared/ui/panzoom.ts`, ProcessMap):
+  `autoFit` holds until the person pans (> 3 px) or zooms; the
+  ResizeObserver refits on every size change while it holds; "Fit to
+  view" and a reload hand it back; a fit may ENLARGE to 1.5× in the
+  focused view and stays at 1:1 in a tile (`closest(".ltk-tile")`).
+  ProcessMap gains a ResizeObserver on its svg with the same rule
+  (disconnected on destroy).
+- UAT: RIT-004 (tables), RIT-005 (diagrams).

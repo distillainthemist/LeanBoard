@@ -32,3 +32,20 @@ steps:
 2. Set the board to three or four columns with the pane open; read the tiles.
 3. Open a card from the board (the focused view) on the laptop and on the widest screen available.
 expected: tiles fill their slot with no empty band beside or below the card and the text stays readable (never thumbnails) — a wide slot shows a wide card, a tall slot a tall one; a tile shows no scrollbar; when the slots become too narrow (three or more columns with the pane open) the board flips to the one-per-row list rather than shrinking further; the focused card is centred and no wider than about 1600 px on a big monitor and full width on the laptop; the action rows inside a narrow tile read as two lines
+
+### UAT-RIT-004 — Tables fit their card
+persona: owner
+modules: controls/CaptureCard/styles.ts controls/CaptureRollup/editor.ts controls/CanvasRollup/editor.ts controls/Raci/styles.ts controls/SkillsMatrix/styles.ts
+preconditions: a capture card with five text columns and twenty rows; a capture rollup over two boards; a RACI with six roles and ten deliverables; a skills matrix with eight people
+steps:
+1. Open each as a tile on a board, then focused; scroll the focused view down and, where it overflows, sideways.
+expected: a capture table never scrolls sideways in a tile or the focused view at laptop width — the columns share the width and long cells wrap; scrolling down keeps the column heads in view and scrolling sideways (a rollup with many fields) keeps the Source / charter column in view; the RACI keeps its role heads and deliverable labels in view the same way, the skills matrix its people heads and skill labels
+
+### UAT-RIT-005 — Diagrams keep fitting until you take over
+persona: owner
+modules: shared/ui/panzoom.ts controls/FiveWhys/editor.ts controls/FaultTree/editor.ts controls/ProcessMap/editor.ts
+preconditions: a five-whys card with a five-step chain, a fault tree, a process map; a window you can resize
+steps:
+1. Open each focused; resize the window narrower and wider; open the details pane and close it.
+2. Pan the diagram a little, then resize again; press ⤢ Fit to view.
+expected: before you touch it, the diagram refits to every size change — a small five-whys chain grows past 1:1 to fill a wide window (up to 1.5×), a big one shrinks to fit; after a pan or a zoom the view stays where you put it through further resizes; Fit to view hands the fitting back; as a tile the diagram never enlarges past 1:1

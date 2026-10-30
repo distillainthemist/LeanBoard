@@ -19,6 +19,11 @@ export const SKILLS_CSS = `
   align-content: start;
   align-items: center;
 }
+/* the people heads stay put while the matrix scrolls down, the skill
+   label while it scrolls sideways (card-responsiveness-review-2026-10-30, R1) */
+.ltk-sk-corner, .ltk-sk-personhead { position: sticky; top: 0; background: var(--ltk-bg); z-index: 2; }
+.ltk-sk-skilllabel, .ltk-sk-actlabel { position: sticky; left: 0; background: var(--ltk-bg); z-index: 1; }
+.ltk-sk-corner { left: 0; z-index: 3; }
 
 /* ---- headers ---- */
 .ltk-sk-corner { }

@@ -16,6 +16,11 @@ export const RACI_CSS = `
   gap: 4px;
   align-content: start;
 }
+/* the role heads stay put while the matrix scrolls down, the deliverable
+   label while it scrolls sideways (card-responsiveness-review-2026-10-30, R1) */
+.ltk-ra-corner, .ltk-ra-rolehead, .ltk-ra-acthead { position: sticky; top: 0; background: var(--ltk-bg); z-index: 2; }
+.ltk-ra-task { position: sticky; left: 0; background: var(--ltk-bg); z-index: 1; }
+.ltk-ra-corner { left: 0; z-index: 3; }
 
 /* ---- headers ---- */
 .ltk-ra-corner {
