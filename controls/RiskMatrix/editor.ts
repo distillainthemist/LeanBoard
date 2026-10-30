@@ -142,11 +142,11 @@ export class RiskMatrixEditor {
     // the body's padding, the two axis titles, the consequence label row
     // and the gaps between six rows — measured generously so the card
     // never scrolls for a few pixels
-    const chromeH = (this.cardTitle.trim() !== "" && !tile ? 36 : 0) + 20 /* body padding */ + 24 /* likelihood title */ + 24 /* consequence title */ + 28 /* consequence labels */ + 5 * 3 /* gaps */ + 8;
+    const chromeH = (this.cardTitle.trim() !== "" && !tile ? 36 : 0) + 20 /* body padding */ + 24 /* consequence title */ + 28 /* consequence labels */ + 5 * 3 /* gaps */ + 8;
     const byH = (h - chromeH) / 5;
     // the matrix may take up to 60% of the width beside a register, all of it when narrow
     const matrixW = w < 480 ? w - 24 : (w - 24) * 0.6;
-    const byW = (matrixW - 92 - 4 * 3) / 5;
+    const byW = (matrixW - 92 - 22 /* the vertical likelihood title */ - 4 * 3) / 5;
     const cell = Math.max(36, Math.min(120, Math.floor(Math.min(byW, byH))));
     if (this.root.style.getPropertyValue("--rm-cell") !== `${cell}px`) this.root.style.setProperty("--rm-cell", `${cell}px`);
   }
@@ -264,8 +264,13 @@ export class RiskMatrixEditor {
         el("div", "ltk-rm-axis-cell ltk-rm-axis-con", CONSEQUENCE_LABELS[c - 1])
       );
     }
-    left.appendChild(el("div", "ltk-rm-axis-title", "Likelihood ↑"));
-    left.appendChild(grid);
+    // the likelihood title runs ALONG the vertical axis, to the left of
+    // the row labels (Ben, 2026-10-30: it sat above the matrix); the
+    // consequence title stays under its axis
+    const row = el("div", "ltk-rm-matrixrow");
+    row.appendChild(el("div", "ltk-rm-axis-title ltk-rm-axis-title-lik", "Likelihood →"));
+    row.appendChild(grid);
+    left.appendChild(row);
     left.appendChild(
       el("div", "ltk-rm-axis-title ltk-rm-axis-title-con", "Consequence / severity →")
     );

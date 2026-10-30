@@ -74,7 +74,20 @@ export const RISKMATRIX_CSS = `
   text-align: center;
   padding: 2px 0 0 92px;
 }
-.ltk-rm-axis-title-con { padding-left: 92px; }
+.ltk-rm-axis-title-con { padding-left: calc(92px + 22px); }
+/* the matrix with its vertical title beside it */
+.ltk-rm-matrixrow { display: flex; align-items: stretch; gap: 0; }
+.ltk-rm-axis-title-lik {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  padding: 0;
+  width: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* the title spans the five cell rows, not the label row beneath */
+  margin-bottom: 28px;
+}
 .ltk-rm-chip {
   position: relative;
   min-width: 20px;
