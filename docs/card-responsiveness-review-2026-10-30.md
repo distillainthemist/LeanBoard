@@ -277,3 +277,31 @@ Order of work: R0 → R1 → R4 (laptop cards) → R3 (wall and phone cards)
   ProcessMap gains a ResizeObserver on its svg with the same rule
   (disconnected on destroy).
 - UAT: RIT-004 (tables), RIT-005 (diagrams).
+
+## Built — R4 (2026-10-30, dev, unreleased, app-only)
+
+- **AgendaCard**: tile body clips (no scrollbar); phone tier wraps the
+  row — who · minutes · actions under the title in one row; wide tier
+  caps the body at 1100 px, centred.
+- **ActionBoard**: fluid kanban columns (`flex: 1 1 0; min-width:
+  160px`, none in a tile), tile body clips; `ACTIONBOARD_GANTT_MIN` 760 —
+  the Gantt falls back to the list under it with a note (`viewFor`
+  gains `ganttRoom`; tested).
+- **CanvasCard**: a reading canvas (`.ltk-cv-grow`) lets rows grow to a
+  tall host (`minmax(step, 1fr)`; the designer keeps the fixed step);
+  a TILE scales the grid to fit its body (`fitTile`, floor 0.5); the
+  narrow cap `--hn` (≤ 2 steps per field).
+- **CaptureCard**: the simple font scale is capped by column width
+  (~12 characters) and no longer reserves the title bar / Add row a tile
+  hides; `.ltk-cc-simple td` lifts the 260 px cap. **CaptureRollup**:
+  the ⚑ column folds away on the phone tier.
+- **LinksCard**: the tile's six-link rule counts LINKS (the
+  `ltk-lk-overflow` class set from the sixth row; the nth-child rule
+  that counted headings is gone); wide tier lays links out in
+  `auto-fill` columns; phone tier one-column form.
+- **EmbedCard**: phone tier stacks the commentary pane under the frame
+  (≤ 40% height) and hides it in a tile.
+- **StatusTile**: `container-type: size` on the tile (its dialogs live
+  on the root, so nothing is trapped); state, reason and "updated" in
+  `clamp()` container units; the reason clamps at three lines.
+- UAT: RIT-006.

@@ -47,6 +47,7 @@ export const CAPTURE_CSS = `
   font-size: var(--cc-font, 15px);
   vertical-align: middle;
   padding: 6px 16px 6px 4px;
+  max-width: none; /* the big text needs the column's whole width (R4) */
 }
 .ltk-cc-simple th {
   font-size: calc(var(--cc-font, 15px) * 0.5);

@@ -28,11 +28,20 @@ export const CANVAS_CSS = `
   gap: 8px;
   grid-auto-rows: ${CANVAS_STEP}px;
   grid-auto-flow: row;
+  transform-origin: 0 0;
 }
+/* a reading canvas (not the designer) lets its rows GROW on a tall host
+   (card-responsiveness-review-2026-10-30, R4): the grid fills the body
+   and the surplus height is shared by the rows; the designer keeps the
+   fixed step its drop maths relies on */
+.ltk-cv-grow { display: flex; flex-direction: column; }
+.ltk-cv-grow .ltk-cv-grid { flex: 1 0 auto; grid-auto-rows: minmax(${CANVAS_STEP}px, 1fr); }
 .ltk-cv-narrow .ltk-cv-grid { grid-template-columns: 1fr !important; }
+/* narrow: one column, and a field's height span capped at two steps
+   (--hn, set by the editor) so a tall field does not eat the phone */
 .ltk-cv-narrow .ltk-cv-field {
   grid-column: auto / span 1 !important;
-  grid-row: auto / span var(--h, 1) !important;
+  grid-row: auto / span var(--hn, var(--h, 1)) !important;
 }
 .ltk-cv-narrow .ltk-cv-emptycell { display: none; }
 

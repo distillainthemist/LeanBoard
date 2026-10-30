@@ -64,7 +64,12 @@ export const LINKS_CSS = `
 .ltk-lk-empty { color: var(--ltk-muted); font-size: 13px; padding: 10px 2px; }
 /* the tile: titles only, the first six, then "+n more"; no notes */
 .ltk-tile .ltk-lk-note, .ltk-tile .ltk-lk-where { display: none; }
-.ltk-tile .ltk-lk-row:nth-child(n + 7) { display: none; }
+.ltk-tile .ltk-lk-overflow { display: none; }
+/* a wide host lays the links out in columns (R4); a group heading spans them */
+[data-ltk-tier="wide"] .ltk-lk-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 6px 10px; align-items: start; }
+[data-ltk-tier="wide"] .ltk-lk-group, [data-ltk-tier="wide"] .ltk-lk-form, [data-ltk-tier="wide"] .ltk-lk-contents { grid-column: 1 / -1; }
+/* a phone-tier host: the edit form in one column */
+[data-ltk-tier="phone"] .ltk-lk-form { grid-template-columns: minmax(0, 1fr); }
 .ltk-tile .ltk-lk-more { display: block; }
 .ltk-tile .ltk-lk-set, .ltk-tile .ltk-lk-add, .ltk-tile .ltk-lk-handle, .ltk-tile .ltk-lk-form { display: none; }
 `;

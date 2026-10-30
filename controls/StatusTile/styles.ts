@@ -21,27 +21,35 @@ export const STATUSTILE_CSS = `
   text-align: center;
   transition: filter 150ms ease;
   position: relative;
+  /* the text follows the box (card-responsiveness-review-2026-10-30, R4):
+     container units on the tile itself — the dialogs live on the root,
+     not in here, so the containment traps nothing */
+  container-type: size;
 }
 .ltk-st-tile:hover { filter: brightness(0.97); }
 .ltk-st-tile.ltk-readonly { cursor: default; }
 .ltk-st-state {
-  font-size: 30px;
+  font-size: clamp(22px, 14cqmin, 120px);
   font-weight: 700;
   line-height: 1.1;
   letter-spacing: 0.01em;
 }
 .ltk-st-reason {
-  font-size: 14px;
+  font-size: clamp(12px, 3.6cqmin, 26px);
   line-height: 1.35;
   max-width: 90%;
   opacity: 0.92;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 .ltk-st-reason.ltk-st-placeholder { opacity: 0.65; }
 .ltk-st-updated {
   position: absolute;
   bottom: 8px;
   right: 12px;
-  font-size: 11px;
+  font-size: clamp(10px, 2.4cqmin, 14px);
   opacity: 0.7;
 }
 .ltk-st-edit {

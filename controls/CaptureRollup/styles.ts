@@ -20,6 +20,10 @@ export const ROLLUP_CSS = `
 }
 .ltk-cr-source .ltk-cr-when { font-size: 11px; display: block; }
 .ltk-cr-flagcell { width: 24px; text-align: center; }
+/* a phone-tier host folds the ⚑ column away; the flagged rows still read
+   through their source (card-responsiveness-review-2026-10-30, R4) */
+[data-ltk-tier="phone"] .ltk-cr-flagcell { display: none; }
+[data-ltk-tier="phone"] .ltk-cr-source { max-width: 120px; }
 .ltk-cr-errors { padding: 6px 2px 0; }
 .ltk-cr-error { color: var(--ltk-muted); font-size: 12px; }
 .ltk-cr-note { color: var(--ltk-muted); font-size: 12px; padding: 4px 2px 0; }

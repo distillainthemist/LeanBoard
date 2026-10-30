@@ -166,6 +166,10 @@ export class LinksEditor {
       body.appendChild(el("div", "ltk-lk-empty", editable ? "No links yet — add the places this work's documents live." : "No links yet."));
     } else {
       const list = el("div", "ltk-lk-list");
+      // the tile shows the first six LINKS; the overflow class counts rows,
+      // not every child (a group heading or a folder's contents used to eat
+      // a slot — card-responsiveness-review-2026-10-30, R4)
+      let shown = 0;
       for (const g of groupLinks(links)) {
         if (g.group !== "") list.appendChild(el("div", "ltk-lk-group", g.group));
         for (const l of g.links) {
@@ -173,7 +177,9 @@ export class LinksEditor {
             list.appendChild(this.renderForm(l, false));
             continue;
           }
-          list.appendChild(this.renderRow(l, editable));
+          const row = this.renderRow(l, editable);
+          if (shown++ >= 6) row.classList.add("ltk-lk-overflow");
+          list.appendChild(row);
           this.appendContents(list, l.url, l.id);
         }
       }

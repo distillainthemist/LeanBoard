@@ -10,6 +10,8 @@ export const ACTIONBOARD_CSS = `
   flex-direction: column;
   gap: 8px;
 }
+/* a tile cannot scroll: the body clips (card-responsiveness-review-2026-10-30, R4) */
+.ltk-tile .ltk-ab-body { overflow: hidden; }
 
 /* ---- list view ---- */
 .ltk-ab-list {
@@ -32,8 +34,10 @@ export const ACTIONBOARD_CSS = `
   overflow-x: auto;
 }
 .ltk-ab-col {
-  flex: 1 0 200px;
-  min-width: 200px;
+  /* fluid columns (R4): three 200 px minimums made 624 px in a 616 px
+     body — a permanent sideways scrollbar; 160 px holds a card's title */
+  flex: 1 1 0;
+  min-width: 160px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -42,6 +46,7 @@ export const ACTIONBOARD_CSS = `
   padding: 10px;
   min-height: 120px;
 }
+.ltk-tile .ltk-ab-col { min-width: 0; }
 .ltk-ab-col-title {
   font-size: 12px;
   font-weight: 600;

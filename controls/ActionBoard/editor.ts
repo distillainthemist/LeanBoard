@@ -23,12 +23,17 @@ export type BoardView = "list" | "kanban" | "gantt";
  *  a tile, a phone, a split) the kanban and the Gantt have no room:
  *  the card shows its list and says so (mobile review M4, 2026-10-07). */
 export const ACTIONBOARD_NARROW_MAX = 480;
+/** Below this width the Gantt's fixed 480 px label block leaves the plot
+ *  almost nothing: the Gantt falls back to the list and says so, while
+ *  the kanban still fits (card-responsiveness-review-2026-10-30, R4). */
+export const ACTIONBOARD_GANTT_MIN = 760;
 
 /** The view to render: the list when narrow, else the person's choice
- *  over the card's configured default. Pure — the person's choice is
- *  kept, so a desktop gets it back. */
-export function viewFor(narrow: boolean, userView: BoardView | null, configured: BoardView): BoardView {
-  return narrow ? "list" : (userView ?? configured);
+ *  over the card's configured default — the Gantt only with room for
+ *  it. Pure — the person's choice is kept, so a desktop gets it back. */
+export function viewFor(narrow: boolean, userView: BoardView | null, configured: BoardView, ganttRoom = true): BoardView {
+  const v = narrow ? "list" : (userView ?? configured);
+  return v === "gantt" && !ganttRoom ? "list" : v;
 }
 export type KanbanGroupBy = "status" | "issue";
 
@@ -132,6 +137,8 @@ export class ActionBoardEditor {
   private readonly snapshots: SnapshotScheduler;
   /** Narrow (M4): the list, whatever was chosen — see viewFor. */
   private narrow = false;
+  /** Under ACTIONBOARD_GANTT_MIN of the card's own width (R4). */
+  private tight = false;
   private resizeObserver: ResizeObserver | null = null;
 
   // gantt state (transient): zoom level and the scroll position to restore
@@ -174,8 +181,10 @@ export class ActionBoardEditor {
   private measure(): void {
     const w = this.root.clientWidth;
     const want = w > 0 && w < ACTIONBOARD_NARROW_MAX;
-    if (want !== this.narrow) {
+    const tight = w > 0 && w < ACTIONBOARD_GANTT_MIN;
+    if (want !== this.narrow || tight !== this.tight) {
       this.narrow = want;
+      this.tight = tight;
       this.render();
     }
   }
@@ -227,7 +236,7 @@ export class ActionBoardEditor {
   }
 
   private currentView(): BoardView {
-    return viewFor(this.narrow, this.userView, this.view);
+    return viewFor(this.narrow, this.userView, this.view, !this.tight);
   }
 
   setLinkTargets(targets: { key: string; label: string }[], defaultKey = ""): void {
@@ -376,6 +385,10 @@ export class ActionBoardEditor {
       // no switch: the kanban and the Gantt need a desktop's width, and
       // the card says so rather than offering views that cannot fit
       body.appendChild(el("div", "ltk-ab-narrownote", "Board and Gantt views open on a desktop"));
+    } else if (this.tight && (this.userView ?? this.view) === "gantt") {
+      // the Gantt was asked for but the card is too tight for its plot:
+      // the list stands in and the card says why (R4)
+      body.appendChild(el("div", "ltk-ab-narrownote", "The Gantt opens when the card is wider — showing the list"));
     }
     const views = el("div", "ltk-ab-views");
     views.setAttribute("role", "group");

@@ -49,3 +49,13 @@ steps:
 1. Open each focused; resize the window narrower and wider; open the details pane and close it.
 2. Pan the diagram a little, then resize again; press ⤢ Fit to view.
 expected: before you touch it, the diagram refits to every size change — a small five-whys chain grows past 1:1 to fill a wide window (up to 1.5×), a big one shrinks to fit; after a pan or a zoom the view stays where you put it through further resizes; Fit to view hands the fitting back; as a tile the diagram never enlarges past 1:1
+
+### UAT-RIT-006 — Content cards follow their host
+persona: owner
+modules: controls/AgendaCard/styles.ts controls/ActionBoard/editor.ts controls/ActionBoard/styles.ts controls/CanvasCard/editor.ts controls/CanvasCard/styles.ts controls/CaptureCard/editor.ts controls/CaptureCard/styles.ts controls/CaptureRollup/styles.ts controls/LinksCard/editor.ts controls/LinksCard/styles.ts controls/EmbedCard/styles.ts controls/StatusTile/styles.ts
+preconditions: a ritual board with an agenda, an action board set to Gantt, a status tile, a capture card with two rows and a links card with nine links in two groups; an initiative board with its charter; a laptop (about 1366 px) and the widest screen available
+steps:
+1. On the laptop with the details pane open, read the board's tiles; then open each card focused.
+2. Widen the card (close the pane, or the big screen); narrow it (the pane open, or a split).
+3. Links: as a tile, count the links shown and read "+n more"; focused on the wide screen, read the layout.
+expected: the agenda tile clips without a scrollbar and, when narrow, puts who · minutes under each title in one row; the action board's kanban columns share the width with no sideways scrollbar, and a Gantt asked for in a card under about 760 px shows the list with "The Gantt opens when the card is wider"; the charter TILE shows the whole canvas scaled to fit (never cut at row five) and the focused charter's rows grow to fill a tall window; a two-row capture card's big text never wraps a word a line (it is capped by the column width); the status tile's state word and reason grow and shrink with the box and a long reason stops at three lines; the links tile shows exactly six LINKS (group headings do not count) and "+3 more"; on the wide screen the links lay out in columns; an embed card's commentary pane sits under the frame when the card is narrow

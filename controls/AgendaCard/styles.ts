@@ -42,6 +42,16 @@ export const AGENDA_CSS = `
 /* tile mode: the section headings are content and stay, but the disclosure
    caret advertises a collapse the tile cannot perform */
 .ltk-tile .ltk-ag-chevron { visibility: hidden; }
+/* a tile cannot scroll: the body clips (card-responsiveness-review-2026-10-30, R4) */
+.ltk-tile .ltk-ag-body { overflow: hidden; }
+/* a narrow host (the phone tier): who · minutes · actions drop under the
+   title in one row instead of squeezing the title to a word a line */
+[data-ltk-tier="phone"] .ltk-ag-row { flex-wrap: wrap; row-gap: 4px; }
+[data-ltk-tier="phone"] .ltk-ag-main { flex: 1 1 60%; min-width: 60%; }
+[data-ltk-tier="phone"] .ltk-ag-right { flex-direction: row; flex-wrap: wrap; align-items: baseline; justify-content: flex-start; gap: 8px; max-width: 100%; width: 100%; text-align: left; order: 9; padding-left: 2px; }
+[data-ltk-tier="phone"] .ltk-ag-actions { flex-direction: row; order: 9; }
+/* a wide host: the list reads at a book's width, not across a 27" screen */
+[data-ltk-tier="wide"] .ltk-ag-body { max-width: 1100px; width: 100%; margin: 0 auto; }
 .ltk-ag-head-label {
   font-size: 15px;
   font-weight: 700;

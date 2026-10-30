@@ -279,11 +279,18 @@ export class CaptureEditor {
     const h = this.root.clientHeight;
     const rows = Math.max(1, this.env.data.rows.length);
     if (h <= 0) return;
-    const addButton = this.rowHeaders.length === 0 ? 50 : 0; // free rows show ＋ Add row
+    // a tile hides the title bar and the Add row button: no room reserved
+    // for them (card-responsiveness-review-2026-10-30, R4)
+    const tile = this.root.closest(".ltk-tile") !== null;
+    const addButton = this.rowHeaders.length === 0 && !tile ? 50 : 0; // free rows show ＋ Add row
     const chromeH =
-      (this.cardTitle.trim() !== "" ? 36 : 8) + 28 + 30 + addButton; // title + header + paddings + add
+      (this.cardTitle.trim() !== "" && !tile ? 36 : 8) + 28 + 30 + addButton; // title + header + paddings + add
     const rowH = (h - chromeH) / rows;
-    const font = Math.max(14, Math.min(44, Math.floor(rowH * 0.4)));
+    // the height says how big the text MAY be; the column width says how
+    // big it can be before a value wraps a word a line (~12 characters)
+    const colW = this.root.clientWidth / Math.max(1, this.columns.length + (this.rowHeaders.length > 0 ? 1 : 0));
+    const byWidth = colW > 0 ? colW / 12 : 44;
+    const font = Math.max(14, Math.min(44, Math.floor(Math.min(rowH * 0.4, byWidth))));
     if (this.root.style.getPropertyValue("--cc-font") !== `${font}px`) {
       this.root.style.setProperty("--cc-font", `${font}px`);
     }

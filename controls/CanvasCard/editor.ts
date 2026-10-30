@@ -227,6 +227,27 @@ export class CanvasEditor {
   private applyNarrow(): void {
     const narrow = this.root.clientWidth > 0 && this.root.clientWidth < 480;
     this.root.classList.toggle("ltk-cv-narrow", narrow);
+    this.fitTile();
+  }
+
+  /** A TILE shows the whole charter: when the grid is taller than the
+   *  body it is scaled down to fit (the BoardGrid's own trick), never
+   *  below half size (card-responsiveness-review-2026-10-30, R4). The
+   *  focused view scrolls instead. */
+  private fitTile(): void {
+    const body = this.root.querySelector<HTMLElement>(".ltk-cv-body");
+    const grid = this.root.querySelector<HTMLElement>(".ltk-cv-grid");
+    if (!body || !grid) return;
+    grid.style.transform = "";
+    grid.style.width = "";
+    if (this.root.closest(".ltk-tile") === null || this.designing()) return;
+    const banner = body.querySelector<HTMLElement>(".ltk-cv-banner");
+    const avail = body.clientHeight - (banner?.offsetHeight ?? 0) - 26;
+    const need = grid.scrollHeight;
+    if (avail <= 0 || need <= avail) return;
+    const k = Math.max(0.5, avail / need);
+    grid.style.width = `${Math.round(10000 / k) / 100}%`;
+    grid.style.transform = `scale(${Math.round(k * 1000) / 1000})`;
   }
 
   private render(): void {
@@ -277,6 +298,8 @@ export class CanvasEditor {
     const grid = el("div", "ltk-cv-grid");
     grid.style.gridTemplateColumns = `repeat(${this.config.cols}, 1fr)`;
     if (this.designing() && this.gridOn) grid.classList.add("ltk-cv-gridon");
+    // a reading canvas grows its rows to the host; the designer keeps the step
+    if (!this.designing()) body.classList.add("ltk-cv-grow");
     body.appendChild(grid);
     if (this.designing()) {
       // clicking empty canvas clears the selection
@@ -414,6 +437,7 @@ export class CanvasEditor {
       box.style.gridRow = `span ${field.h}`;
     }
     box.style.setProperty("--h", String(field.h));
+    box.style.setProperty("--hn", String(Math.min(field.h, 2))); // the narrow cap
     if (field.h === 1) box.classList.add("ltk-cv-h1");
     box.dataset.fieldId = field.id;
 

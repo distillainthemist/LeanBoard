@@ -2,7 +2,7 @@
 // in for the kanban and the Gantt, and the person's choice survives.
 
 import { describe, expect, it } from "vitest";
-import { ACTIONBOARD_NARROW_MAX, viewFor } from "../../../controls/ActionBoard/editor";
+import { ACTIONBOARD_GANTT_MIN, ACTIONBOARD_NARROW_MAX, viewFor } from "../../../controls/ActionBoard/editor";
 
 describe("viewFor", () => {
   it("is the list whenever the pane is narrow, whatever was chosen or configured", () => {
@@ -15,5 +15,15 @@ describe("viewFor", () => {
   });
   it("narrows under a width a phone's card is always below", () => {
     expect(ACTIONBOARD_NARROW_MAX).toBe(480);
+  });
+});
+
+describe("viewFor — the Gantt needs room (R4, 2026-10-30)", () => {
+  it("falls back to the list for the Gantt only when the card is tight; the kanban still shows", () => {
+    expect(viewFor(false, "gantt", "list", false)).toBe("list");
+    expect(viewFor(false, null, "gantt", false)).toBe("list");
+    expect(viewFor(false, "kanban", "gantt", false)).toBe("kanban");
+    expect(viewFor(false, "gantt", "list", true)).toBe("gantt");
+    expect(ACTIONBOARD_GANTT_MIN).toBeGreaterThan(ACTIONBOARD_NARROW_MAX);
   });
 });

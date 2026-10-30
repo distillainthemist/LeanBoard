@@ -27,6 +27,12 @@ export const EMBED_CSS = `
   padding: 10px 12px 12px;
   gap: 4px;
 }
+/* a narrow host (card-responsiveness-review-2026-10-30, R4): the pane goes
+   UNDER the frame at up to 40% of the height; in a narrow tile it hides
+   so the frame keeps the room */
+[data-ltk-tier="phone"] .ltk-em-main { flex-direction: column; }
+[data-ltk-tier="phone"] .ltk-em-aside { flex: 0 0 40%; max-height: 40%; border-left: none; border-top: 1px solid var(--ltk-hairline); }
+[data-ltk-tier="phone"] .ltk-tile .ltk-em-aside { display: none; }
 .ltk-em-fmtbar { display: flex; gap: 4px; padding-bottom: 4px; }
 .ltk-em-fmt {
   font: inherit; font-size: 12.5px; width: 26px; height: 24px; line-height: 1;
