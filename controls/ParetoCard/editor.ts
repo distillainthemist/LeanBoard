@@ -15,8 +15,14 @@ import { newId, nowIso } from "../../shared/schema/id";
 import { ParetoEnvelope, ParetoItem, SCHEMA_ID } from "./types";
 import { PARETO_CSS } from "./styles";
 
-const VB_W = 640;
-const VB_H = 340;
+/** The viewBox is MEASURED from the chart's box (card-responsiveness-
+ *  review-2026-10-30, R2): one unit is one pixel, so tick and label text
+ *  stays 9–12 px from a phone tile to a 27" screen and the plot fills the
+ *  box with no blank bands. These are the first-paint defaults. */
+const DEFAULT_VB_W = 640;
+const DEFAULT_VB_H = 340;
+const MIN_VB_W = 240;
+const MIN_VB_H = 180;
 const M = { top: 16, right: 44, bottom: 100, left: 10 };
 const LABEL_BAND = 54; // vertical room for the wrapped, auto-scaled label
 
@@ -34,6 +40,9 @@ export interface ParetoEditorCallbacks {
 
 export class ParetoEditor {
   private readonly root: HTMLElement;
+  private vbW = DEFAULT_VB_W;
+  private vbH = DEFAULT_VB_H;
+  private sizeObserver: ResizeObserver | null = null;
   private env: ParetoEnvelope;
   private theme: Theme = defaultTheme();
   private cardTitle = "";
@@ -55,6 +64,10 @@ export class ParetoEditor {
     ensureStylesheet("ltk-pareto-css", PARETO_CSS);
     this.root = el("div", "ltk-root");
     host.appendChild(this.root);
+    if (typeof ResizeObserver !== "undefined") {
+      this.sizeObserver = new ResizeObserver(() => this.measureChart());
+      this.sizeObserver.observe(this.root);
+    }
     this.env = {
       schema: SCHEMA_ID,
       meta: { title: "", updated: "" },
@@ -132,7 +145,22 @@ export class ParetoEditor {
 
   destroy(): void {
     this.snapshots.cancel();
+    this.sizeObserver?.disconnect();
     this.root.remove();
+  }
+
+  /** The chart's box → the viewBox; a change re-renders once. */
+  private measureChart(): void {
+    const svg = this.root.querySelector<SVGElement>(".ltk-pa-svg");
+    if (!svg) return;
+    const r = svg.getBoundingClientRect();
+    if (r.width < 40 || r.height < 40) return;
+    const w = Math.max(MIN_VB_W, Math.round(r.width));
+    const h = Math.max(MIN_VB_H, Math.round(r.height));
+    if (w === this.vbW && h === this.vbH) return;
+    this.vbW = w;
+    this.vbH = h;
+    this.render();
   }
 
   /** Live (open) actions for a source — "" is the card bucket, an item id
@@ -270,17 +298,28 @@ export class ParetoEditor {
   private renderChart(): SVGSVGElement {
     const svg = svgEl("svg", {
       class: "ltk-pa-svg",
-      viewBox: `0 0 ${VB_W} ${VB_H}`,
+      viewBox: `0 0 ${this.vbW} ${this.vbH}`,
       preserveAspectRatio: "xMidYMid meet",
     });
-    const items = this.env.data.items
+    const sorted = this.env.data.items
       .slice()
       .sort((a, b) => b.count - a.count);
+    // a narrow plot cannot label every bar: the tail folds into one
+    // "Other (n)" bar — read-only, the vital few keep their names (R2)
+    const plotWidth = this.vbW - M.left - M.right;
+    const maxBars = Math.max(3, Math.floor(plotWidth / 44));
+    const folded = sorted.length > maxBars;
+    const items: (ParetoItem & { other?: boolean })[] = folded
+      ? [
+          ...sorted.slice(0, maxBars - 1),
+          { id: "__other", label: `Other (${sorted.length - (maxBars - 1)})`, count: sorted.slice(maxBars - 1).reduce((a, i) => a + i.count, 0), other: true } as ParetoItem & { other?: boolean },
+        ]
+      : sorted;
     const total = items.reduce((s, i) => s + i.count, 0) || 1;
     const maxCount = Math.max(...items.map((i) => i.count), 1);
 
-    const plotW = VB_W - M.left - M.right;
-    const plotH = VB_H - M.top - M.bottom;
+    const plotW = this.vbW - M.left - M.right;
+    const plotH = this.vbH - M.top - M.bottom;
     const slot = plotW / items.length;
     const barW = Math.min(64, slot * 0.7);
     const barColour = this.theme.legend[0] ?? this.theme.accent;
@@ -313,7 +352,8 @@ export class ParetoEditor {
         class: "ltk-pa-bar" + (this.readOnly ? " ltk-readonly" : ""),
       });
       (bar as SVGElement & { style: CSSStyleDeclaration }).style.fill = barColour;
-      if (!this.readOnly) {
+      if (item.other) bar.style.opacity = "0.55";
+      if (!this.readOnly && !item.other) {
         bar.addEventListener("click", () => this.editItem(item));
       }
       svg.appendChild(bar);
@@ -350,7 +390,7 @@ export class ParetoEditor {
       const { lines, fontPx } = this.fitLabel(item.label, slot - 6);
       const label = svgEl("text", {
         x: cx,
-        class: "ltk-pa-label" + (this.readOnly ? "" : " ltk-pa-labelclick"),
+        class: "ltk-pa-label" + (this.readOnly || item.other ? "" : " ltk-pa-labelclick"),
         "text-anchor": "middle",
       });
       // inline style beats the class' font-size so the scaling actually applies
@@ -368,14 +408,14 @@ export class ParetoEditor {
       const tipUnit = this.effectiveUnit();
       tip.textContent = `${item.label}: ${item.count}${tipUnit !== "" ? ` ${tipUnit}` : ""}`;
       label.appendChild(tip);
-      if (!this.readOnly) {
+      if (!this.readOnly && !item.other) {
         label.addEventListener("click", () => this.editItem(item));
       }
       svg.appendChild(label);
 
       // quick-tally increment button beneath the label band — bump the
       // count live from the chart (a Pareto often builds up during a huddle)
-      if (!this.readOnly) {
+      if (!this.readOnly && !item.other) {
         const by = M.top + plotH + LABEL_BAND + 20;
         const inc = svgEl("g", { class: "ltk-pa-inc" });
         inc.appendChild(svgEl("circle", { cx, cy: by, r: 11, class: "ltk-pa-inc-circle" }));
@@ -423,7 +463,7 @@ export class ParetoEditor {
       });
       for (const pct of [0, 50, 100]) {
         const t = svgEl("text", {
-          x: VB_W - M.right + 8,
+          x: this.vbW - M.right + 8,
           y: M.top + plotH - (pct / 100) * plotH + 3,
           class: "ltk-pa-pct",
         });

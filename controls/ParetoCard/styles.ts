@@ -10,6 +10,7 @@ export const PARETO_CSS = `
   gap: 8px;
 }
 .ltk-pa-svg { flex: 1; min-height: 0; width: 100%; }
+.ltk-pa-svg line, .ltk-pa-svg path, .ltk-pa-svg polyline, .ltk-pa-svg rect { vector-effect: non-scaling-stroke; }
 .ltk-pa-bar { cursor: pointer; }
 .ltk-pa-bar:hover { opacity: 0.85; }
 .ltk-pa-bar.ltk-readonly { cursor: default; }

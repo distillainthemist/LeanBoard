@@ -21,8 +21,14 @@ import { BucketCadence, bucketSpan, defaultReadingDate, parseDay, trendTickLabel
 import { selectInput } from "../../shared/ui/dialog";
 import { KPITREND_CSS } from "./styles";
 
-const VB_W = 640;
-const VB_H = 300;
+/** The viewBox is MEASURED from the chart's box (card-responsiveness-
+ *  review-2026-10-30, R2): one unit is one pixel, so tick and label text
+ *  stays 9–12 px from a phone tile to a 27" screen and the plot fills the
+ *  box with no blank bands. These are the first-paint defaults. */
+const DEFAULT_VB_W = 640;
+const DEFAULT_VB_H = 300;
+const MIN_VB_W = 240;
+const MIN_VB_H = 140;
 const M = { top: 14, right: 16, bottom: 34, left: 46 };
 
 const DEFAULT_GHOST = [
@@ -77,6 +83,9 @@ export interface StateTracking {
 
 export class KpiTrendEditor {
   private readonly root: HTMLElement;
+  private vbW = DEFAULT_VB_W;
+  private vbH = DEFAULT_VB_H;
+  private sizeObserver: ResizeObserver | null = null;
   private env: KpiTrendEnvelope;
   private theme: Theme = defaultTheme();
   private cardTitle = "";
@@ -106,6 +115,10 @@ export class KpiTrendEditor {
     ensureStylesheet("ltk-kpitrend-css", KPITREND_CSS);
     this.root = el("div", "ltk-root");
     host.appendChild(this.root);
+    if (typeof ResizeObserver !== "undefined") {
+      this.sizeObserver = new ResizeObserver(() => this.measureChart());
+      this.sizeObserver.observe(this.root);
+    }
     this.env = {
       schema: SCHEMA_ID,
       meta: { title: "", updated: "" },
@@ -226,7 +239,22 @@ export class KpiTrendEditor {
 
   destroy(): void {
     this.snapshots.cancel();
+    this.sizeObserver?.disconnect();
     this.root.remove();
+  }
+
+  /** The chart's box → the viewBox; a change re-renders once. */
+  private measureChart(): void {
+    const svg = this.root.querySelector<SVGElement>(".ltk-kt-svg");
+    if (!svg) return;
+    const r = svg.getBoundingClientRect();
+    if (r.width < 40 || r.height < 40) return;
+    const w = Math.max(MIN_VB_W, Math.round(r.width));
+    const h = Math.max(MIN_VB_H, Math.round(r.height));
+    if (w === this.vbW && h === this.vbH) return;
+    this.vbW = w;
+    this.vbH = h;
+    this.render();
   }
 
   /** Live (open) actions for a source — "" is the card bucket, a point id
@@ -405,12 +433,12 @@ export class KpiTrendEditor {
     const opts = t.options;
     const svg = svgEl("svg", {
       class: "ltk-kt-svg",
-      viewBox: `0 0 ${VB_W} ${VB_H}`,
+      viewBox: `0 0 ${this.vbW} ${this.vbH}`,
       preserveAspectRatio: "xMidYMid meet",
     });
     const left = 96; // room for the option labels
-    const plotW = VB_W - left - M.right;
-    const plotH = VB_H - M.top - M.bottom;
+    const plotW = this.vbW - left - M.right;
+    const plotH = this.vbH - M.top - M.bottom;
     const n = Math.max(1, opts.length);
     const rowH = plotH / n;
     // bands (top row = the first option — lists start with the good state)
@@ -472,12 +500,12 @@ export class KpiTrendEditor {
     return {
       x: (i) => pos(points[i].date),
       ticks: (svg) => {
-        const axisY = M.top + (VB_H - M.top - M.bottom);
+        const axisY = M.top + (this.vbH - M.top - M.bottom);
         w.buckets.forEach((b, k) => {
           const px = pos(b);
           svg.appendChild(svgEl("line", { x1: px, y1: axisY, x2: px, y2: axisY + 4, class: "ltk-kt-axis" }));
           if (k % w.labelEvery !== 0) return;
-          const t = svgEl("text", { x: px, y: VB_H - 12, class: "ltk-kt-tick", "text-anchor": "middle" });
+          const t = svgEl("text", { x: px, y: this.vbH - 12, class: "ltk-kt-tick", "text-anchor": "middle" });
           t.textContent = trendTickLabel(b, cadence);
           svg.appendChild(t);
         });
@@ -488,7 +516,7 @@ export class KpiTrendEditor {
   private renderChart(): SVGSVGElement {
     const svg = svgEl("svg", {
       class: "ltk-kt-svg",
-      viewBox: `0 0 ${VB_W} ${VB_H}`,
+      viewBox: `0 0 ${this.vbW} ${this.vbH}`,
       preserveAspectRatio: "xMidYMid meet",
     });
     const { points } = this.env.data;
@@ -497,8 +525,8 @@ export class KpiTrendEditor {
     const specs = points.map((pt) => this.specAt(pt.date));
     const latestSpec = specs[specs.length - 1] ?? this.effectiveSpec();
     const { target, usl, lsl } = latestSpec;
-    const plotW = VB_W - M.left - M.right;
-    const plotH = VB_H - M.top - M.bottom;
+    const plotW = this.vbW - M.left - M.right;
+    const plotH = this.vbH - M.top - M.bottom;
 
     const values = points.map((pt) => pt.value);
     for (const sp of specs) {

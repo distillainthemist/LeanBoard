@@ -68,3 +68,11 @@ steps:
 1. Read each as a tile on the laptop with the details pane open, then focused; widen and narrow the card.
 2. On the phone (or a pane under 480 px) read the risk matrix, the RACI and the heatmap.
 expected: the risk matrix's cells grow square with the card and the register drops under the matrix when the two do not fit side by side; in a narrow tile the register is hidden and the matrix fits without sideways scroll; the RACI's label column gives way before the cells, a read-only RACI has no Actions column, and under 480 px each deliverable's name sits on its own row above its cells with the roles as initials (hover for the name); the skills matrix's columns stop growing at 96 px and a tile hides its Actions row; the conditions card's label column narrows with the card (down to 90 px) with the legend aligned under it and the name text shrinking to fit; the SQDPC letters wrap into two or three rows in a narrow box with the tile size chosen for that wrap, and digits vanish under 18 px; the heatmap's list sits under the image on a narrow host and is hidden in a narrow tile
+
+### UAT-RIT-008 — Charts draw at the size they are shown
+persona: owner
+modules: controls/KpiTrendCard/editor.ts controls/KpiTrendCard/styles.ts controls/ParetoCard/editor.ts controls/ParetoCard/styles.ts
+preconditions: a KPI trend card with readings and a Pareto with twelve categories; a laptop, the widest screen available and, if possible, a phone
+steps:
+1. Read both as tiles, then focused; widen and narrow the card.
+expected: the trend chart fills its box with no blank band above or below, and its tick and value text reads the same size (about 10–12 px) in a tile, on the laptop and on the big screen — never giant on a 27" monitor, never specks on a phone; the Pareto likewise, and when the card is narrow the tail of small categories folds into one greyed "Other (n)" bar that cannot be tapped while the vital few keep their names; widening the card unfolds them

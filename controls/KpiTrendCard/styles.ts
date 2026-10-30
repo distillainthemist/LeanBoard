@@ -26,6 +26,7 @@ export const KPITREND_CSS = `
   color: var(--ltk-muted);
 }
 .ltk-kt-svg { flex: 1; min-height: 0; width: 100%; }
+.ltk-kt-svg line, .ltk-kt-svg path, .ltk-kt-svg polyline, .ltk-kt-svg rect { vector-effect: non-scaling-stroke; }
 .ltk-kt-axis { stroke: var(--ltk-hairline); stroke-width: 1; }
 .ltk-kt-tick { font-size: 10px; fill: var(--ltk-muted); }
 .ltk-kt-limit { font-size: 9px; font-weight: 600; fill: var(--ltk-muted); }

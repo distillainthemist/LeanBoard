@@ -344,3 +344,19 @@ Order of work: R0 → R1 → R4 (laptop cards) → R3 (wall and phone cards)
   width-only `aspect-ratio` cells.
 - **Fishbone** drops its 420 px floor in a tile and on the phone tier;
   its stage may shrink (`min-height: 0`).
+
+## Built — R2 (2026-10-30, dev, unreleased, app-only)
+
+- **KpiTrendCard and ParetoCard** measure their viewBox from the svg's
+  box through a ResizeObserver on the root (`measureChart`; floors
+  240 × 140 / 240 × 180; the old constants are the first-paint
+  defaults). One unit is one pixel, so the 9–12 px tick, value and label
+  text stays that size from a phone tile to a 27" screen and the plot
+  fills the box. `vector-effect: non-scaling-stroke` on the strokes.
+- **Pareto folds its tail**: under ~44 px per bar the smallest
+  categories become one greyed, untappable "Other (n)" bar; the vital
+  few keep their names and their quick-tally buttons.
+- UAT: RIT-008.
+
+All five tranches (R0, R1, R4, R3, R2) are built; R5 waits for the phone
+pass (decision 5).
