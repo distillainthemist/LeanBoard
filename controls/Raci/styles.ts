@@ -21,6 +21,10 @@ export const RACI_CSS = `
 .ltk-ra-corner, .ltk-ra-rolehead, .ltk-ra-acthead { position: sticky; top: 0; background: var(--ltk-bg); z-index: 2; }
 .ltk-ra-task { position: sticky; left: 0; background: var(--ltk-bg); z-index: 1; }
 .ltk-ra-corner { left: 0; z-index: 3; }
+/* the stacked narrow form (R3): the deliverable label spans the row above
+   its cells, the role heads are initials */
+.ltk-ra-narrow .ltk-ra-task { grid-column: 1 / -1; position: static; border-right: none; border-bottom: 1px solid var(--ltk-hairline); padding: 8px 4px 4px; }
+.ltk-ra-narrow .ltk-ra-rolehead { font-size: 11px; letter-spacing: 0.03em; }
 
 /* ---- headers ---- */
 .ltk-ra-corner {

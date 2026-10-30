@@ -35,9 +35,23 @@ export interface RaciEditorCallbacks {
 
 const LABEL_COL = 200;
 const ACTION_COL = 62;
+/** Under this width of the card's own box the matrix stacks: each
+ *  deliverable's label on its own row above its cells, the role heads
+ *  as initials (card-responsiveness-review-2026-10-30, R3). */
+export const RACI_NARROW_MAX = 480;
+
+/** "Site Manager" → "SM"; "Finance" → "Fin" — the narrow role head. */
+export function roleInitials(role: string): string {
+  const words = role.trim().split(/\s+/).filter((w) => w !== "");
+  if (words.length === 0) return "";
+  if (words.length === 1) return words[0].slice(0, 3);
+  return words.slice(0, 3).map((w) => w[0].toUpperCase()).join("");
+}
 
 export class RaciEditor {
   private readonly root: HTMLElement;
+  private narrow = false;
+  private resizeObserver: ResizeObserver | null = null;
   private env: RaciEnvelope;
   private actions: LtkAction[] = [];
   private theme: Theme = defaultTheme();
@@ -54,6 +68,19 @@ export class RaciEditor {
     ensureStylesheet("ltk-raci-css", RACI_CSS);
     this.root = el("div", "ltk-root");
     host.appendChild(this.root);
+    // the stacked narrow form flips on the card's OWN width (the pane
+    // rule — a phone list tile, a split), re-rendering across the line
+    if (typeof ResizeObserver !== "undefined") {
+      this.resizeObserver = new ResizeObserver(() => {
+        const w = this.root.clientWidth;
+        const want = w > 0 && w < RACI_NARROW_MAX;
+        if (want !== this.narrow) {
+          this.narrow = want;
+          this.render();
+        }
+      });
+      this.resizeObserver.observe(this.root);
+    }
     this.env = {
       schema: SCHEMA_ID,
       meta: { title: "", updated: "" },
@@ -104,6 +131,7 @@ export class RaciEditor {
 
   destroy(): void {
     this.snapshots.cancel();
+    this.resizeObserver?.disconnect();
     this.root.remove();
   }
 
@@ -159,20 +187,30 @@ export class RaciEditor {
     const roles = this.env.data.roles;
     const n = roles.length;
     const grid = el("div", "ltk-ra-grid");
-    grid.style.gridTemplateColumns = `${LABEL_COL}px repeat(${n}, minmax(58px, 1fr)) ${ACTION_COL}px`;
+    // the label column gives way before the cells do; the action column
+    // exists only when it holds a button (R3)
+    const withActions = !this.readOnly;
+    const narrow = this.narrow;
+    if (narrow) {
+      grid.classList.add("ltk-ra-narrow");
+      grid.style.gridTemplateColumns = `repeat(${n}, minmax(44px, 1fr))${withActions ? ` ${ACTION_COL}px` : ""}`;
+    } else {
+      grid.style.gridTemplateColumns = `minmax(110px, ${LABEL_COL}px) repeat(${n}, minmax(58px, 1fr))${withActions ? ` ${ACTION_COL}px` : ""}`;
+    }
 
     // header row: corner (labels the deliverable column) + role names + actions
-    grid.appendChild(el("div", "ltk-ra-corner", "Deliverable"));
+    if (!narrow) grid.appendChild(el("div", "ltk-ra-corner", "Deliverable"));
     roles.forEach((role, i) => {
-      const head = el("div", "ltk-ra-rolehead", role);
+      const head = el("div", "ltk-ra-rolehead", narrow ? roleInitials(role) : role);
+      if (narrow) head.title = role;
       if (!this.readOnly) {
         head.classList.add("ltk-ra-rolehead-edit");
-        head.title = "Tap to rename or remove this role";
+        head.title = narrow ? `${role} — tap to rename or remove` : "Tap to rename or remove this role";
         head.addEventListener("click", () => this.editRole(i));
       }
       grid.appendChild(head);
     });
-    grid.appendChild(el("div", "ltk-ra-acthead", "Actions"));
+    if (withActions) grid.appendChild(el("div", "ltk-ra-acthead", "Actions"));
 
     // one row per deliverable
     for (const task of this.env.data.tasks) {
@@ -180,7 +218,7 @@ export class RaciEditor {
       for (const role of roles) {
         grid.appendChild(this.renderCell(task, role));
       }
-      grid.appendChild(this.renderActionCell(task));
+      if (withActions) grid.appendChild(this.renderActionCell(task));
     }
     body.appendChild(grid);
 

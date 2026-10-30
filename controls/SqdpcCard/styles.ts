@@ -80,6 +80,7 @@ export const SQDPC_CSS = `
   pointer-events: none;
 }
 .ltk-sq-num { font-size: calc(var(--sq-tile, 30px) * 0.34); font-weight: 700; }
+.ltk-sq-small .ltk-sq-num, .ltk-sq-small .ltk-sq-sub { display: none; }
 .ltk-sq-sub { font-size: calc(var(--sq-tile, 30px) * 0.26); font-weight: 600; margin-top: 1px; opacity: 0.9; }
 .ltk-sq-halo { text-shadow: 0 1px 2px rgba(0,0,0,0.55); }
 

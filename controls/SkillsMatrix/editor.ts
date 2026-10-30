@@ -257,7 +257,9 @@ export class SkillsMatrixEditor {
     // behind the action form's search) never becomes a column
     const people = this.people.filter((p) => p.secondary !== true);
     const grid = el("div", "ltk-sk-grid");
-    grid.style.gridTemplateColumns = `${LABEL_COL}px repeat(${people.length}, minmax(60px, 1fr))`;
+    // capped columns so a few people on a wide screen do not stretch a
+    // 26 px disc across 400 px; the label gives way before the cells (R3)
+    grid.style.gridTemplateColumns = `minmax(120px, ${LABEL_COL}px) repeat(${people.length}, minmax(44px, 96px))`;
 
     // header row: corner + person names, closed by a continuous rule
     grid.appendChild(el("div", "ltk-sk-corner"));

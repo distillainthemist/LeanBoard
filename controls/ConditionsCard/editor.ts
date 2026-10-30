@@ -193,7 +193,7 @@ export class ConditionsEditor {
     const n = periods.length;
 
     const grid = el("div", "ltk-cn-grid");
-    grid.style.gridTemplateColumns = `${LABEL_COL}px repeat(${n}, var(--cn-tile-w, 40px))`;
+    grid.style.gridTemplateColumns = `var(--cn-label-w, ${LABEL_COL}px) repeat(${n}, var(--cn-tile-w, 40px))`;
     grid.style.gridTemplateRows = "auto";
     grid.style.gridAutoRows = "var(--cn-tile-h, 40px)";
 
@@ -340,11 +340,19 @@ export class ConditionsEditor {
     const n = buildPeriods(this.granularity, this.asOf).length;
     const rows = Math.max(1, this.conditions.length);
 
-    const availW = w - 24 - LABEL_COL - GAP * n; // body padding + label col + gaps
+    // the label column follows the width (card-responsiveness-review-
+    // 2026-10-30, R3): 26% of the card between 90 and 168 px, so a 330 px
+    // tile keeps room for the cells; the legend's offset follows it
+    const labelW = Math.max(90, Math.min(LABEL_COL, Math.round(w * 0.26)));
+    if (this.root.style.getPropertyValue("--cn-label-w") !== `${labelW}px`) {
+      this.root.style.setProperty("--cn-label-w", `${labelW}px`);
+    }
+    const availW = w - 24 - labelW - GAP * n; // body padding + label col + gaps
     const tileW = Math.max(20, Math.min(240, Math.floor(availW / n)));
 
+    const tile = this.root.closest(".ltk-tile") !== null; // a tile hides the title bar
     const chromeH =
-      (this.cardTitle.trim() !== "" ? 36 : 6) + // titlebar
+      (this.cardTitle.trim() !== "" && !tile ? 36 : 6) + // titlebar
       40 + // header row (weekday + date)
       34 + // legend + its offset
       20; // body padding + gaps

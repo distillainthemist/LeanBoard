@@ -305,3 +305,27 @@ Order of work: R0 → R1 → R4 (laptop cards) → R3 (wall and phone cards)
   on the root, so nothing is trapped); state, reason and "updated" in
   `clamp()` container units; the reason clamps at three lines.
 - UAT: RIT-006.
+
+## Built — R3 (2026-10-30, dev, unreleased, app-only)
+
+- **RiskMatrix**: `.ltk-rm-body` wraps so the register drops under the
+  matrix; the matrix flexes (320–640 px) with `minmax(40px, 1fr)` cells
+  that keep `aspect-ratio: 1`; a phone-tier tile hides the register;
+  the tile body clips.
+- **RACI**: label column `minmax(110px, 200px)`; the Actions column only
+  when the card is editable; `RACI_NARROW_MAX` 480 — a ResizeObserver
+  flips the stacked form (label spanning the row, role heads as
+  `roleInitials`, tested).
+- **SkillsMatrix**: columns `minmax(44px, 96px)`, label `minmax(120px,
+  190px)`, `justify-content: start`; a tile hides the Actions row and
+  clips.
+- **ConditionsCard**: `--cn-label-w` = 26% of the card clamped 90–168
+  px drives the grid, the legend offset and a `clamp()` name size; a
+  tile reserves no title bar.
+- **SqdpcCard**: the panel gap constant matches the CSS (20); the tile
+  size is chosen over one, two or three wrap rows of panels and the
+  largest wins; `.ltk-sq-small` hides digits and sub-labels under 18 px;
+  a tile reserves no title bar.
+- **HeatmapCard**: phone tier stacks the list under the image (≤ 40%);
+  a phone-tier tile hides it.
+- UAT: RIT-007.

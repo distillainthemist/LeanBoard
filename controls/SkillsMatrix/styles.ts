@@ -18,7 +18,11 @@ export const SKILLS_CSS = `
   gap: 2px;
   align-content: start;
   align-items: center;
+  justify-content: start;
 }
+.ltk-tile .ltk-sk-body { overflow: hidden; }
+/* the Actions row is for the person at the card, not a tile (R3) */
+.ltk-tile .ltk-sk-actlabel, .ltk-tile .ltk-sk-actcell { display: none; }
 /* the people heads stay put while the matrix scrolls down, the skill
    label while it scrolls sideways (card-responsiveness-review-2026-10-30, R1) */
 .ltk-sk-corner, .ltk-sk-personhead { position: sticky; top: 0; background: var(--ltk-bg); z-index: 2; }

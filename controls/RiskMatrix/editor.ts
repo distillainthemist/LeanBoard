@@ -172,7 +172,7 @@ export class RiskMatrixEditor {
   private renderMatrix(): HTMLElement {
     const left = el("div", "ltk-rm-left");
     const grid = el("div", "ltk-rm-grid");
-    grid.style.gridTemplateColumns = `92px repeat(5, minmax(48px, 1fr))`;
+    grid.style.gridTemplateColumns = `92px repeat(5, minmax(40px, 1fr))`;
 
     // rows: likelihood 5 (top) → 1 (bottom); cols: consequence 1 → 5
     for (let l = 5; l >= 1; l--) {

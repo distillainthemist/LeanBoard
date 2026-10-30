@@ -95,8 +95,10 @@ export const CONDITIONS_CSS = `
   justify-content: flex-start;
   flex-wrap: wrap;
   margin-top: 6px;
-  margin-left: 174px;
+  margin-left: calc(var(--cn-label-w, 168px) + 6px);
 }
+/* a narrow label column cannot carry a 20 px name */
+.ltk-cn-cond-name { font-size: clamp(14px, calc(var(--cn-label-w, 168px) * 0.12), 20px); }
 .ltk-cn-legend-item { display: inline-flex; align-items: center; }
 .ltk-cn-swatch {
   display: inline-block;

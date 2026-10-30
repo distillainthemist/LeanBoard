@@ -291,31 +291,49 @@ export class SqdpcEditor {
     if (w <= 0 || h <= 0) return;
 
     const GAP = 3;
-    const PANEL_GAP = 24;
+    const PANEL_GAP = 20; // = .ltk-sq-body gap (it read 24 while the CSS said 20)
     const colsArr = this.dimensions.map((d) => templateFor(d)[0].length);
     const rowsArr = this.dimensions.map((d) => templateFor(d).length);
-    const sumCols = colsArr.reduce((a, b) => a + b, 0) || 1;
-    const sumColGaps = colsArr.reduce((a, c) => a + (c - 1), 0);
     const n = this.dimensions.length;
     const maxRows = Math.max(...rowsArr, 1);
     const hasCaption = this.subtitles.some((s) => s !== "");
 
     const availW = w - 24; // body horizontal padding
-    const tileW =
-      (availW - GAP * sumColGaps - PANEL_GAP * Math.max(0, n - 1)) / sumCols;
-
+    const tile0 = this.root.closest(".ltk-tile") !== null; // a tile hides the title bar
     const chromeH =
-      (this.cardTitle.trim() !== "" ? 36 : 6) + // titlebar
+      (this.cardTitle.trim() !== "" && !tile0 ? 36 : 6) + // titlebar
       42 + // legend
       (hasCaption ? 26 : 0) + // subtitle band + margin
       18; // body padding + gaps
     const availH = h - chromeH;
-    const tileH = (availH - GAP * (maxRows - 1)) / maxRows;
 
-    const tile = Math.max(12, Math.min(88, Math.floor(Math.min(tileW, tileH))));
+    // the panels WRAP (flex-wrap): try one, two and three rows of panels
+    // and keep the largest tile — a narrow box gets two or three rows of
+    // big letters instead of one row of specks (card-responsiveness-
+    // review-2026-10-30, R3)
+    let tile = 12;
+    for (let wrapRows = 1; wrapRows <= Math.min(3, n || 1); wrapRows++) {
+      const perRow = Math.ceil((n || 1) / wrapRows);
+      let widest = 1;
+      for (let r = 0; r < wrapRows; r++) {
+        const cols = colsArr.slice(r * perRow, (r + 1) * perRow);
+        if (cols.length === 0) continue;
+        const sumCols = cols.reduce((a, b) => a + b, 0);
+        const sumColGaps = cols.reduce((a, c) => a + (c - 1), 0);
+        const needPer = (availW - GAP * sumColGaps - PANEL_GAP * (cols.length - 1)) / Math.max(1, sumCols);
+        // the tightest row of this arrangement decides its tile width
+        widest = r === 0 ? needPer : Math.min(widest, needPer);
+      }
+      const rowH = (availH - PANEL_GAP * (wrapRows - 1)) / wrapRows;
+      const tileH = (rowH - GAP * (maxRows - 1)) / maxRows;
+      tile = Math.max(tile, Math.floor(Math.min(widest, tileH)));
+    }
+    tile = Math.max(12, Math.min(88, tile));
     if (this.root.style.getPropertyValue("--sq-tile") !== `${tile}px`) {
       this.root.style.setProperty("--sq-tile", `${tile}px`);
     }
+    // digits and sub-labels under 18 px are noise: the colour carries
+    this.root.classList.toggle("ltk-sq-small", tile < 18);
   }
 
   /** Local yyyy-mm-dd — the ring must follow the wall clock, not UTC. */
