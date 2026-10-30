@@ -18,14 +18,13 @@ export const RISKMATRIX_CSS = `
 /* the matrix takes the width it is given (it was a fixed ~347 px): the
    cells grow square with their column, capped so a 27" screen does not
    draw a 200 px cell */
-.ltk-rm-left { flex: 1 1 320px; min-width: 0; max-width: 640px; display: flex; flex-direction: column; gap: 4px; }
+.ltk-rm-left { flex: 0 0 auto; display: flex; flex-direction: column; gap: 4px; }
 .ltk-rm-grid {
   display: grid;
-  grid-auto-rows: minmax(40px, auto);
+  grid-auto-rows: var(--rm-cell, 46px);
   gap: 3px;
   align-items: stretch;
 }
-.ltk-rm-cell { aspect-ratio: 1 / 1; min-height: 40px; }
 /* a narrow tile: the chips on the matrix already number the risks */
 [data-ltk-tier="phone"] .ltk-tile .ltk-rm-list { display: none; }
 .ltk-rm-cell {

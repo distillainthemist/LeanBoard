@@ -36,9 +36,15 @@ export const FISHBONE_CSS = `
 /* ---------- stage / svg ---------- */
 .fb-stage {
   flex: 1 1 auto;
+  min-height: 0;
   overflow: hidden;
   background: #fdfdfd;
 }
+/* a tile has no 420 px to give: the diagram fits whatever height the
+   stage has (card-responsiveness-review-2026-10-30; the "corner of the
+   canvas" on a phone and a short wall slot) */
+.ltk-tile .fb-root { min-height: 0; }
+[data-ltk-tier="phone"] .fb-root { min-height: 0; }
 .fb-svg {
   width: 100%;
   height: 100%;

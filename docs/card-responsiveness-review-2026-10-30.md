@@ -329,3 +329,18 @@ Order of work: R0 → R1 → R4 (laptop cards) → R3 (wall and phone cards)
 - **HeatmapCard**: phone tier stacks the list under the image (≤ 40%);
   a phone-tier tile hides it.
 - UAT: RIT-007.
+
+### R0/R3 follow-up (2026-10-30, Ben's screenshots)
+
+- **A very short slot scales down instead of cutting** (`LIVE_STAGE_MIN_H`
+  300): a five-by-four wall gave 370 × 150 px slots and the stage, following
+  the slot's shape, could not hold a matrix or a fishbone — the top rows
+  showed and the rest clipped. The stage is now at least 300 px tall,
+  `k = min(w/stageW, h/stageH)`, centred when height-bound. Readability
+  on such walls is the board's column count, not the card's.
+- **RiskMatrix no longer scrolls when focused**: `--rm-cell` from a
+  ResizeObserver — the largest square that fits five columns beside the
+  axis AND five rows under the titles, 36–120 px — replaces the
+  width-only `aspect-ratio` cells.
+- **Fishbone** drops its 420 px floor in a tile and on the phone tier;
+  its stage may shrink (`min-height: 0`).

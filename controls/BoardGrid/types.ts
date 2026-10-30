@@ -53,6 +53,11 @@ export const LIVE_STAGE_MIN_W = 480;
 /** The widest: past this a huge slot magnifies modestly rather than
  *  laying the card out across the whole wall. */
 export const LIVE_STAGE_MAX_W = 1120;
+/** The shortest stage a live tile is laid out on: a slot shorter in
+ *  proportion (a five-by-four wall gives 370 × 150 px slots) is drawn on
+ *  a 300 px-tall stage and scaled down, centred, so a matrix or a
+ *  fishbone shows whole rather than its top rows (Ben, 2026-10-30). */
+export const LIVE_STAGE_MIN_H = 300;
 /** Under this effective scale the wall flips to the list — a 1366
  *  laptop with the details pane open and three rows would otherwise
  *  show thumbnails. */
@@ -63,16 +68,21 @@ export interface LiveStage {
   h: number;
   /** The transform scale that fits the stage into the slot. */
   k: number;
+  /** The horizontal offset that centres a height-bound stage. */
+  left: number;
 }
 
 /** The stage for a slot: the slot's own shape, its width clamped to
- *  [LIVE_STAGE_MIN_W, LIVE_STAGE_MAX_W]; a slot inside the clamp renders
- *  at natural size (k = 1), a narrower one shrinks, a wider one grows. */
+ *  [LIVE_STAGE_MIN_W, LIVE_STAGE_MAX_W] and its height at least
+ *  LIVE_STAGE_MIN_H; a slot inside the clamps renders at natural size
+ *  (k = 1), a narrower one shrinks, a wider one grows, a very short one
+ *  is scaled down to its height and centred. */
 export function liveStageFor(slotW: number, slotH: number): LiveStage {
-  if (!(slotW > 0) || !(slotH > 0)) return { w: LIVE_TILE_W, h: LIVE_TILE_H, k: 1 };
+  if (!(slotW > 0) || !(slotH > 0)) return { w: LIVE_TILE_W, h: LIVE_TILE_H, k: 1, left: 0 };
   const w = Math.min(LIVE_STAGE_MAX_W, Math.max(LIVE_STAGE_MIN_W, Math.round(slotW)));
-  const h = Math.max(1, Math.round((w * slotH) / slotW));
-  return { w, h, k: slotW / w };
+  const h = Math.max(LIVE_STAGE_MIN_H, Math.round((w * slotH) / slotW));
+  const k = Math.min(slotW / w, slotH / h);
+  return { w, h, k, left: Math.max(0, Math.round(((slotW - w * k) / 2) * 100) / 100) };
 }
 
 /** Does the wall list? Under LIST_MAX_WIDTH of its own width (the phone

@@ -47,6 +47,7 @@ export interface RiskMatrixEditorCallbacks {
 
 export class RiskMatrixEditor {
   private readonly root: HTMLElement;
+  private resizeObserver: ResizeObserver | null = null;
   private env: RiskMatrixEnvelope;
   private actions: LtkAction[] = [];
   private theme: Theme = defaultTheme();
@@ -66,6 +67,13 @@ export class RiskMatrixEditor {
     ensureStylesheet("ltk-riskmatrix-css", RISKMATRIX_CSS);
     this.root = el("div", "ltk-root");
     host.appendChild(this.root);
+    // the cell size follows the body — width AND height — so the matrix
+    // never scrolls (card-responsiveness-review-2026-10-30: the square
+    // cells grew with the width and five rows ran off the bottom)
+    if (typeof ResizeObserver !== "undefined") {
+      this.resizeObserver = new ResizeObserver(() => this.applyCellSize());
+      this.resizeObserver.observe(this.root);
+    }
     this.env = {
       schema: SCHEMA_ID,
       meta: { title: "", updated: "" },
@@ -118,7 +126,26 @@ export class RiskMatrixEditor {
 
   destroy(): void {
     this.snapshots.cancel();
+    this.resizeObserver?.disconnect();
     this.root.remove();
+  }
+
+  /** --rm-cell: the largest square that fits five columns beside the
+   *  92 px axis column AND five rows plus the axis titles in the body,
+   *  between 36 and 120 px. The register takes what is left (or drops
+   *  under the matrix when nothing is). */
+  private applyCellSize(): void {
+    const w = this.root.clientWidth;
+    const h = this.root.clientHeight;
+    if (w <= 0 || h <= 0) return;
+    const tile = this.root.closest(".ltk-tile") !== null;
+    const chromeH = (this.cardTitle.trim() !== "" && !tile ? 36 : 0) + 20 /* body padding */ + 52 /* axis titles */ + 4 * 3 /* gaps */;
+    const byH = (h - chromeH) / 5;
+    // the matrix may take up to 60% of the width beside a register, all of it when narrow
+    const matrixW = w < 480 ? w - 24 : (w - 24) * 0.6;
+    const byW = (matrixW - 92 - 4 * 3) / 5;
+    const cell = Math.max(36, Math.min(120, Math.floor(Math.min(byW, byH))));
+    if (this.root.style.getPropertyValue("--rm-cell") !== `${cell}px`) this.root.style.setProperty("--rm-cell", `${cell}px`);
   }
 
   // ---- theming ----
@@ -172,7 +199,7 @@ export class RiskMatrixEditor {
   private renderMatrix(): HTMLElement {
     const left = el("div", "ltk-rm-left");
     const grid = el("div", "ltk-rm-grid");
-    grid.style.gridTemplateColumns = `92px repeat(5, minmax(40px, 1fr))`;
+    grid.style.gridTemplateColumns = `92px repeat(5, var(--rm-cell, 46px))`;
 
     // rows: likelihood 5 (top) → 1 (bottom); cols: consequence 1 → 5
     for (let l = 5; l >= 1; l--) {

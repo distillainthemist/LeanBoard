@@ -406,7 +406,7 @@ export class BoardGridView {
       stage.style.width = `${st.w}px`;
       stage.style.height = `${st.h}px`;
       stage.style.transform = st.k === 1 ? "" : `scale(${st.k})`;
-      stage.style.left = "0px";
+      stage.style.left = `${st.left}px`; // a height-bound stage sits centred
       stage.style.top = "0px";
       stage.style.setProperty("--ltk-tile-scale", String(Math.round(st.k * 1000) / 1000));
       applyHostTier(stage, st.w);
