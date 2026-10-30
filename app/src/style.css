@@ -234,6 +234,10 @@ button.app-link:disabled { cursor: default; opacity: 0.5; }
 .app-card-row .app-editor-host {
   flex: 1;
   min-width: 0;
+  /* in the walk's ROW the host must stretch to the row's height — the
+     column rule's align-self: center would float it mid-screen; the
+     row's justify-content centres it sideways instead */
+  align-self: stretch;
   /* square top so the tabs merge flush at both ends of the title bar */
   border-radius: 0 0 8px 8px;
 }
