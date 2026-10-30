@@ -149,6 +149,7 @@ async function taskTermRoots(ctx: SiteCtx, site: string): Promise<Record<string,
   const processArea = ctx.internalForRole("processArea");
   const orgNodes = orgUnit !== "" && ctx.orgSetId !== "" ? (await cachedTermPaths(ctx.site, ctx.orgSetId, 6, 6000).catch(() => ({ nodes: [] as { id: string; labels: string[] }[] }))).nodes : [];
   let processRoot = "";
+  let processNodes: { id: string; labels: string[] }[] = [];
   if (processArea !== "") {
     try {
       const [{ listProcessNodes }, { buildProcessTree, siteRootOf }] = await Promise.all([import("../store/processes"), import("../processes/model")]);
@@ -157,8 +158,12 @@ async function taskTermRoots(ctx: SiteCtx, site: string): Promise<Record<string,
     } catch {
       processRoot = "";
     }
+    // the set's own walk: the root by label when the node is not bound yet,
+    // and the check that a stale binding still names a term of this set
+    const setId = ctx.dictBy.get(processArea)?.termSetId ?? "";
+    if (setId !== "") processNodes = (await cachedTermPaths(ctx.site, setId, 6, 6000).catch(() => ({ nodes: [] as { id: string; labels: string[] }[] }))).nodes;
   }
-  return siteTermRoots(site, { orgUnit, processArea }, orgNodes, processRoot);
+  return siteTermRoots(site, { orgUnit, processArea }, orgNodes, processRoot, processNodes);
 }
 
 async function loadSiteCtx(): Promise<SiteCtx> {
@@ -410,6 +415,11 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
     meta.textContent = `→ ${libName(dest ?? undefined)}${task.site !== "" ? ` · ${task.site} only` : ""} · ${task.assignees.length} assignee${task.assignees.length === 1 ? "" : "s"} · created by ${task.createdByName || task.createdByEmail} ${task.createdAt !== "" ? formatWhen(task.createdAt) : ""}`;
     // the site's term roots narrow the organisation and process editors
     const termRoots = await taskTermRoots(ctx, task.site);
+    // a root the term set cannot give yet is said, not silently widened
+    if (task.site !== "") {
+      const unscoped = [ctx.internalForRole("orgUnit"), ctx.internalForRole("processArea")].filter((i) => i !== "" && termRoots[i] === undefined).map((i) => ctx.dictBy.get(i)?.label || i);
+      if (unscoped.length > 0) meta.textContent += ` · ${unscoped.join(" and ")} not yet in the term set${unscoped.length === 1 ? "" : "s"} for ${task.site} — the whole set is offered until the sync runs`;
+    }
     // a small chip beside the name, never a stretched band (Ben, 2026-10-09)
     titleRow.appendChild(statusChip(task.status === "closed" ? "✓ Closed" : task.status === "running" ? "◐ Running" : "● Open", task.status === "closed" ? "green" : "amber"));
     clear(body);

@@ -85,6 +85,12 @@ describe("a task constrained to a site (2026-10-29)", () => {
     const { siteTermRoots } = modelOf();
     expect(siteTermRoots("bell bay", { orgUnit: "DMSOrg", processArea: "DMSProc" }, org, "t-root")).toEqual({ DMSOrg: "bb", DMSProc: "t-root" });
     expect(siteTermRoots("Nowhere", { orgUnit: "DMSOrg", processArea: "DMSProc" }, org, "")).toEqual({});
+    // the process root by the set's own top-level term when the node is unbound, and a binding that is not in the set gives way to the label
+    const proc = [{ id: "p-bb", labels: ["Bell Bay"] }, { id: "p-bb-c", labels: ["Bell Bay", "Casting"] }, { id: "p-by", labels: ["Boyne"] }];
+    expect(siteTermRoots("Bell Bay", { orgUnit: "", processArea: "DMSProc" }, [], "", proc)).toEqual({ DMSProc: "p-bb" });
+    expect(siteTermRoots("Bell Bay", { orgUnit: "", processArea: "DMSProc" }, [], "p-bb", proc)).toEqual({ DMSProc: "p-bb" });
+    expect(siteTermRoots("Bell Bay", { orgUnit: "", processArea: "DMSProc" }, [], "stale", proc)).toEqual({ DMSProc: "p-bb" });
+    expect(siteTermRoots("Kurri", { orgUnit: "", processArea: "DMSProc" }, [], "", proc)).toEqual({});
     expect(siteTermRoots("", { orgUnit: "DMSOrg", processArea: "" }, org, "t")).toEqual({});
   });
   it("rebases the subtree so the root is the one top-level node", () => {

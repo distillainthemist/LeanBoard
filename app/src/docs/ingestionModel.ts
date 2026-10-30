@@ -146,7 +146,8 @@ export function siteTermRoots(
   site: string,
   cols: { orgUnit: string; processArea: string },
   orgNodes: { id: string; labels: string[] }[],
-  processRootTermId: string
+  processRootTermId: string,
+  processNodes: { id: string; labels: string[] }[] = []
 ): Record<string, string> {
   const out: Record<string, string> = {};
   const s = site.trim().toLowerCase();
@@ -155,7 +156,14 @@ export function siteTermRoots(
     const hits = orgNodes.filter((n) => n.labels[n.labels.length - 1].trim().toLowerCase() === s).sort((a, b) => a.labels.length - b.labels.length);
     if (hits.length > 0) out[cols.orgUnit] = hits[0].id;
   }
-  if (cols.processArea !== "" && processRootTermId !== "") out[cols.processArea] = processRootTermId;
+  if (cols.processArea !== "") {
+    // the site root node's binding first; else the set's top-level term
+    // named after the site (the sync creates it before it binds — a task
+    // opened between the two must still be scoped, 2026-10-30)
+    const byLabel = processNodes.find((n) => n.labels.length === 1 && n.labels[0].trim().toLowerCase() === s);
+    const root = processRootTermId !== "" && processNodes.some((n) => n.id.toLowerCase() === processRootTermId.toLowerCase()) ? processRootTermId : processRootTermId !== "" && processNodes.length === 0 ? processRootTermId : (byLabel?.id ?? "");
+    if (root !== "") out[cols.processArea] = root;
+  }
   return out;
 }
 
