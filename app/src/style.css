@@ -90,6 +90,12 @@ button.app-link:disabled { cursor: default; opacity: 0.5; }
 .app-editor-host {
   flex: 1;
   min-height: 0;
+  /* a focused card is capped and centred (card-responsiveness-review-
+     2026-10-30, R0 step 3): a 27" monitor gets a readable 1600 px card,
+     not a 2400 px sheet of long lines */
+  width: 100%;
+  max-width: 1600px;
+  align-self: center;
   background: #fff;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
   border-radius: 8px;
@@ -222,6 +228,7 @@ button.app-link:disabled { cursor: default; opacity: 0.5; }
   min-height: 0;
   display: flex;
   align-items: stretch;
+  justify-content: center; /* the rails hug the capped host */
   gap: 8px;
 }
 .app-card-row .app-editor-host {

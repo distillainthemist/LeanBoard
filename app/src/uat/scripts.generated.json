@@ -2492,6 +2492,28 @@
        "expected": "at company scope the central pick shows both rituals (each matches through its site node's link) and the pick is remembered with the scope; with a site chosen the Process filter cascades through that site's own tree and a leftover central pick is cleared; a site with no tree shows no Process filter",
        "hash": "204ea40d",
        "changed": "2026-10-29"
+      },
+      {
+       "id": "UAT-RIT-003",
+       "title": "Tiles fill their slot at a readable size",
+       "journey": "Journey 1 — Metric cards",
+       "persona": "owner",
+       "modules": [
+        "controls/BoardGrid/editor.ts",
+        "controls/BoardGrid/types.ts",
+        "shared/ui/tier.ts",
+        "shared/ui/baseCss.ts",
+        "cardHost.ts"
+       ],
+       "preconditions": "a ritual board with several live tiles (an agenda, an action board, a status tile); a laptop (about 1366 px) and, if available, a wall screen",
+       "steps": [
+        "Open the board on the laptop with the details pane closed, then open the pane; read the tiles.",
+        "Set the board to three or four columns with the pane open; read the tiles.",
+        "Open a card from the board (the focused view) on the laptop and on the widest screen available."
+       ],
+       "expected": "tiles fill their slot with no empty band beside or below the card and the text stays readable (never thumbnails) — a wide slot shows a wide card, a tall slot a tall one; a tile shows no scrollbar; when the slots become too narrow (three or more columns with the pane open) the board flips to the one-per-row list rather than shrinking further; the focused card is centred and no wider than about 1600 px on a big monitor and full width on the laptop; the action rows inside a narrow tile read as two lines",
+       "hash": "3582806c",
+       "changed": "2026-10-30"
       }
      ]
     }

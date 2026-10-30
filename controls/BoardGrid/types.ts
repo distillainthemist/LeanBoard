@@ -36,17 +36,59 @@ export interface BoardTile {
 }
 
 /**
- * Logical size a LIVE tile is mounted at before the fit transform scales it.
- * Fixed rather than measured so every card lays out identically whatever the
- * slot's shape — the same role the captured viewBox plays for a snapshot.
+ * The size a LIVE tile is first mounted at, before the first fit. Until
+ * 2026-10-30 every live tile was laid out on this one fixed stage and
+ * scaled to its slot — 3–7 px text on a laptop, letterbox bands on a
+ * wall, and no card could tell (card-responsiveness-review-2026-10-30).
+ * The stage now FOLLOWS THE SLOT (`liveStageFor`); these remain the
+ * initial size and the stored-snapshot path's viewBox.
  */
 export const LIVE_TILE_W = 640;
 export const LIVE_TILE_H = 420;
 
+/** The narrowest stage a live tile is laid out on: a slot narrower than
+ *  this is drawn on a 480 px stage and shrunk, so a card's narrow rule
+ *  (its "phone" tier) is what a tight slot shows, not a thumbnail. */
+export const LIVE_STAGE_MIN_W = 480;
+/** The widest: past this a huge slot magnifies modestly rather than
+ *  laying the card out across the whole wall. */
+export const LIVE_STAGE_MAX_W = 1120;
+/** Under this effective scale the wall flips to the list — a 1366
+ *  laptop with the details pane open and three rows would otherwise
+ *  show thumbnails. */
+export const LIVE_MIN_SCALE = 0.6;
+
+export interface LiveStage {
+  w: number;
+  h: number;
+  /** The transform scale that fits the stage into the slot. */
+  k: number;
+}
+
+/** The stage for a slot: the slot's own shape, its width clamped to
+ *  [LIVE_STAGE_MIN_W, LIVE_STAGE_MAX_W]; a slot inside the clamp renders
+ *  at natural size (k = 1), a narrower one shrinks, a wider one grows. */
+export function liveStageFor(slotW: number, slotH: number): LiveStage {
+  if (!(slotW > 0) || !(slotH > 0)) return { w: LIVE_TILE_W, h: LIVE_TILE_H, k: 1 };
+  const w = Math.min(LIVE_STAGE_MAX_W, Math.max(LIVE_STAGE_MIN_W, Math.round(slotW)));
+  const h = Math.max(1, Math.round((w * slotH) / slotW));
+  return { w, h, k: slotW / w };
+}
+
+/** Does the wall list? Under LIST_MAX_WIDTH of its own width (the phone
+ *  rule), or when a column's slot would scale below LIVE_MIN_SCALE. */
+export function wantsList(gridW: number, cols: number): boolean {
+  if (!(gridW > 0)) return false;
+  if (gridW < LIST_MAX_WIDTH) return true;
+  const slotW = gridW / Math.max(1, cols);
+  return slotW / LIVE_STAGE_MIN_W < LIVE_MIN_SCALE;
+}
+
 /**
- * Mounts a display-only card into `host` (already sized LIVE_TILE_W ×
- * LIVE_TILE_H) and returns its teardown. Supplied by the host app — see
- * BoardGridEditor.setLiveRenderer.
+ * Mounts a display-only card into `host` (sized LIVE_TILE_W × LIVE_TILE_H
+ * at mount, then resized to the slot's shape by the fit — the card's own
+ * layout reflows) and returns its teardown. Supplied by the host app —
+ * see BoardGridEditor.setLiveRenderer.
  */
 export type LiveTileRenderer = (host: HTMLElement, tile: BoardTile) => () => void;
 

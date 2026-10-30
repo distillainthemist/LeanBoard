@@ -30,3 +30,37 @@ describe("listOrder", () => {
     expect(LIST_MAX_WIDTH).toBe(600);
   });
 });
+
+// The adaptive live stage (card-responsiveness-review-2026-10-30, R0):
+// the slot's shape, the width clamped, and the readability floor that
+// lists a wall before its tiles become thumbnails.
+import { LIVE_STAGE_MAX_W, LIVE_STAGE_MIN_W, LIVE_TILE_H, LIVE_TILE_W, liveStageFor, wantsList } from "../../../controls/BoardGrid/types";
+
+describe("liveStageFor", () => {
+  it("renders a slot inside the clamp at natural size, in its own shape", () => {
+    expect(liveStageFor(640, 360)).toEqual({ w: 640, h: 360, k: 1 });
+    expect(liveStageFor(459, 300)).toEqual({ w: 480, h: 314, k: 459 / 480 });
+    const laptop = liveStageFor(284, 240);
+    expect(laptop.w).toBe(LIVE_STAGE_MIN_W);
+    expect(laptop.h).toBe(Math.round((480 * 240) / 284));
+    expect(laptop.k).toBeCloseTo(0.592, 3);
+  });
+  it("grows from the widest stage on a huge slot, and falls back to the fixed stage without a size", () => {
+    const wall = liveStageFor(1600, 800);
+    expect(wall.w).toBe(LIVE_STAGE_MAX_W);
+    expect(wall.h).toBe(560);
+    expect(wall.k).toBeCloseTo(1600 / 1120, 4);
+    expect(liveStageFor(0, 0)).toEqual({ w: LIVE_TILE_W, h: LIVE_TILE_H, k: 1 });
+  });
+});
+
+describe("wantsList", () => {
+  it("lists under the phone width, and when a column's slot would scale under the floor", () => {
+    expect(wantsList(375, 3)).toBe(true);
+    expect(wantsList(900, 3)).toBe(false); // 300 px slots → k 0.625
+    expect(wantsList(840, 3)).toBe(true); // 280 px slots → k 0.58
+    expect(wantsList(1366, 4)).toBe(false);
+    expect(wantsList(1100, 4)).toBe(true); // 275 px slots
+    expect(wantsList(0, 3)).toBe(false);
+  });
+});

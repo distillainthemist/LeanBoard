@@ -338,6 +338,17 @@ export const LTK_BASE_CSS = `
   .ltk-action-main { flex: 1 1 55%; min-width: 55%; }
   .ltk-action-right { flex-direction: row; align-items: baseline; gap: 10px; text-align: left; flex-wrap: wrap; }
 }
+/* ---- the host's size signal (card-responsiveness-review-2026-10-30, R0) ----
+   A card cannot read its rendered width inside a transform-scaled tile,
+   and container queries are out (layout containment would trap the
+   cards' fixed dialogs). The HOST — the BoardGrid stage, the focused
+   card host, the list slot — stamps data-ltk-tier from the width it
+   lays the card out at: phone (< 480), compact (< 900), regular
+   (< 1400), wide. Card rules read the tier the way they read the
+   viewport query above; the narrow action row is the first. */
+[data-ltk-tier="phone"] .ltk-action-row { flex-wrap: wrap; row-gap: 6px; }
+[data-ltk-tier="phone"] .ltk-action-main { flex: 1 1 55%; min-width: 55%; }
+[data-ltk-tier="phone"] .ltk-action-right { flex-direction: row; align-items: baseline; gap: 10px; text-align: left; flex-wrap: wrap; }
 .ltk-action-flag { color: var(--ltk-accent); font-weight: 600; }
 .ltk-action-edit {
   border: none;
@@ -378,6 +389,11 @@ export const LTK_BASE_CSS = `
   pointer-events: none !important;
   user-select: none;
 }
+/* a tile cannot scroll, so a scrollbar in one is dead chrome: hide every
+   scrollbar inside a tile — the content still clips at the box, the bar
+   no longer pretends otherwise (card-responsiveness-review-2026-10-30, R0) */
+.ltk-tile * { scrollbar-width: none !important; }
+.ltk-tile *::-webkit-scrollbar { display: none !important; width: 0; height: 0; }
 .ltk-tile .ltk-kebab,
 .ltk-tile .ltk-info-btn,
 .ltk-tile .ltk-pz-zoom { display: none !important; }

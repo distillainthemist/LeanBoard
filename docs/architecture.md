@@ -704,7 +704,15 @@ CSS and layout, no model change:
   reading order (`listOrder`, pure and tested), 4:3, the body
   scrolling, no empty cells; a live card is mounted at the slot's
   NATURAL size (the 640px stage scaled to a phone is 7px text), so
-  each card's own tile layout reflows. The board screen's details &
+  each card's own tile layout reflows. **Since 2026-10-30 (R0 of
+  [card-responsiveness-review-2026-10-30.md](card-responsiveness-review-2026-10-30.md))
+  the grid's live stage follows the SLOT everywhere** — `liveStageFor`:
+  the slot's shape, width clamped 480–1120, natural size inside the
+  clamp — the wall lists when a column's slot would scale under 0.6,
+  and every card host stamps `data-ltk-tier` / `--ltk-host-w`
+  (`shared/ui/tier.ts`) as the size signal cards style against (not a
+  container query: layout containment would trap the cards' fixed
+  dialogs); the focused host is capped at 1600 px. The board screen's details &
   schedule pane becomes a fixed bottom sheet with a scrim, opened from
   a phone-only Details button (`.app-phone-only`) and closed by a pick;
   the initiative handle hides. The card walk (`cardEditor`) stacks

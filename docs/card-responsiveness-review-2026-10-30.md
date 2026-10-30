@@ -224,3 +224,34 @@ on every board; R1–R4 can ship in any order after it.
 
 Order of work: R0 → R1 → R4 (laptop cards) → R3 (wall and phone cards)
 → R2 (charts), each its own app-only release; R5 later.
+
+---
+
+## Built — R0 (2026-10-30, dev, unreleased, app-only)
+
+- **The stage follows the slot** (`controls/BoardGrid/types.ts`
+  `liveStageFor`, `editor.ts renderLive`): the stage takes the slot's
+  shape with its width clamped to 480–1120 px — a slot in that range
+  renders at natural size (k = 1), a tighter one shrinks from a 480 px
+  stage, a huger one grows from 1120; left/top 0, no letterbox band. The
+  fixed 640 × 420 stays as the mount size and the snapshot viewBox
+  (decision 3). Tests in `boardGridList.test.ts`.
+- **The readability floor** (`wantsList`): the wall lists under 600 px
+  of its own width (the phone rule) OR when a column's slot would scale
+  under 0.6 — `measure()` divides the grid's width by the laid-out
+  columns.
+- **The size signal** (`shared/ui/tier.ts`): `tierFor` (phone < 480,
+  compact < 900, regular < 1400, wide), `applyHostTier` stamps
+  `data-ltk-tier` and `--ltk-host-w` on the host; the BoardGrid stage
+  stamps it on every fit (plus `--ltk-tile-scale`), the focused host
+  (`app/src/cardHost.ts editorHost`) through one shared ResizeObserver
+  that lets go of hosts that have left the document. NOT a container
+  query: layout containment would trap the cards' `position: fixed`
+  dialogs inside their root. `baseCss.ts` documents the tiers and
+  carries the first tier rule (the narrow action row, twin of the
+  viewport query); R1 moves the rest.
+- **Tiles hide every scrollbar** (`.ltk-tile *`), so a clipped body no
+  longer shows dead chrome.
+- **The focused view is capped** at 1600 px and centred
+  (`.app-editor-host`, `.app-card-row` justify-content).
+- UAT: RIT-003.

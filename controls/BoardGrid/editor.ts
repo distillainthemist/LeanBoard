@@ -13,6 +13,7 @@
 // WebKit handles correctly. Pure-vector svgs scale fine inline, and data:
 // image URIs (plain PNGs) are fine in an <img>.
 
+import { applyHostTier } from "../../shared/ui/tier";
 import { applyThemeVars, defaultTheme, parseColor, textOn, Theme } from "../../shared/tokens";
 import { LTK_BASE_CSS } from "../../shared/ui/baseCss";
 import { clear, el, ensureStylesheet } from "../../shared/ui/dom";
@@ -24,13 +25,14 @@ import {
   cellPos,
   isImageUri,
   layoutBoard,
-  LIST_MAX_WIDTH,
   LIVE_TILE_H,
   LIVE_TILE_W,
   LiveTileRenderer,
   PlacedTile,
   listOrder,
   sanitizeSvg,
+  liveStageFor,
+  wantsList,
 } from "./types";
 import { BOARDGRID_CSS } from "./styles";
 
@@ -107,13 +109,22 @@ export class BoardGridView {
    *  scaled snapshot refits. */
   private measure(): void {
     const w = this.root.clientWidth;
-    const want = w > 0 && w < LIST_MAX_WIDTH;
+    // the phone rule (under LIST_MAX_WIDTH) or the readability floor: a
+    // column whose slot would scale under LIVE_MIN_SCALE lists instead
+    // (card-responsiveness-review-2026-10-30, R0 step 3)
+    const want = w > 0 && wantsList(w, this.layoutCols());
     if (want !== this.listMode) {
       this.listMode = want;
       this.render();
       return;
     }
     this.refit();
+  }
+
+  /** The columns the wall would lay out with (the setting, or the
+   *  derived count) — what the readability floor divides the width by. */
+  private layoutCols(): number {
+    return layoutBoard(this.tiles, this.cols, this.editMode && !this.readOnly).cols;
   }
 
   /** Read mode on a phone-wide pane: one tile per row, reading order. */
@@ -382,12 +393,23 @@ export class BoardGridView {
         stage.style.transform = "";
         stage.style.left = "0px";
         stage.style.top = "0px";
+        stage.style.setProperty("--ltk-tile-scale", "1");
+        applyHostTier(stage, w);
         return;
       }
-      const k = Math.min(w / LIVE_TILE_W, h / LIVE_TILE_H);
-      stage.style.transform = `scale(${k})`;
-      stage.style.left = `${Math.max(0, (w - LIVE_TILE_W * k) / 2)}px`;
+      // the stage FOLLOWS THE SLOT (card-responsiveness-review-2026-10-30,
+      // R0): its shape, its width clamped — a slot of 480–1120 px renders
+      // at natural size, a tighter one shrinks from a 480 stage, a huger
+      // one grows from 1120; no letterbox band, and the card's own
+      // layout sees the real width
+      const st = liveStageFor(w, h);
+      stage.style.width = `${st.w}px`;
+      stage.style.height = `${st.h}px`;
+      stage.style.transform = st.k === 1 ? "" : `scale(${st.k})`;
+      stage.style.left = "0px";
       stage.style.top = "0px";
+      stage.style.setProperty("--ltk-tile-scale", String(Math.round(st.k * 1000) / 1000));
+      applyHostTier(stage, st.w);
     };
     this.fitters.push(fit);
     fit();
