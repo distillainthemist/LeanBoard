@@ -2,7 +2,7 @@
 // features-plan-2026-10-29, feature 2): the export strings, the two
 // sheets, and an edited Files sheet read back strictly.
 import { describe, expect, it } from "vitest";
-import { FILES_SHEET, FIRST_FILE_ROW, ID_INTERNAL, NAME_INTERNAL, PATH_SEP, SheetColumn, SheetFile, VALUES_FIRST_ROW, VALUES_SHEET, buildSheets, exportCell, mapCell, parsePersonText, parseSheet, parseSummary, personText } from "../docs/sheetRoundTrip";
+import { FILES_SHEET, FIRST_FILE_ROW, GUIDE_ROW, ID_INTERNAL, INTERNALS_ROW, NAME_INTERNAL, PATH_SEP, SheetColumn, SheetFile, VALUES_FIRST_ROW, VALUES_SHEET, buildSheets, columnGuidance, exportCell, mapCell, parsePersonText, parseSheet, parseSummary, personText } from "../docs/sheetRoundTrip";
 
 const org: SheetColumn = {
   internal: "DMSOrg",
@@ -68,11 +68,21 @@ describe("buildSheets", () => {
     const files = sheets[0];
     expect(files.name).toBe(FILES_SHEET);
     expect(files.rows[0]).toEqual(["File id", "Name on ingestion", "Organisation unit ✱", "Tags", "Owner ✱", "Author", "Status", "Effective", "Title"]);
-    expect(files.rows[1]).toEqual([ID_INTERNAL, NAME_INTERNAL, "DMSOrg", "DMSTags", "DMSOwner", "DMSAuthor", "DMSStatus", "DMSEffective", "DMSTitle"]);
-    expect(files.rows[FIRST_FILE_ROW]).toEqual(["U1", "Policy A", `Pechey${PATH_SEP}Bell Bay${PATH_SEP}Casting`, "Safety; Crane Ops", "Ann Ray <ann@x.test>", "Cy Lee <cy@x.test>; Di Moss <di@x.test>", "Draft", "2026-10-09", "Policy A — scope"]);
+    // the guidance row under the header, the hidden key row beneath it
+    expect((files.rows[GUIDE_ROW] as string[]).slice(2)).toEqual(cols.map(columnGuidance));
+    expect(columnGuidance(org)).toBe("Required. One term as its full path — use the dropdown (the Values sheet lists them).");
+    expect(columnGuidance(tags)).toMatch(/^One or more terms as full paths/);
+    expect(columnGuidance(owner)).toMatch(/^Required\. One person from the owners & approvers pool/);
+    expect(columnGuidance(author)).toMatch(/^Email addresses separated by/);
+    expect(columnGuidance(eff)).toMatch(/^A date — type yyyy-mm-dd/);
+    expect(files.rows[INTERNALS_ROW]).toEqual([ID_INTERNAL, NAME_INTERNAL, "DMSOrg", "DMSTags", "DMSOwner", "DMSAuthor", "DMSStatus", "DMSEffective", "DMSTitle"]);
+    // a date travels as a real date cell
+    expect(files.rows[FIRST_FILE_ROW]).toEqual(["U1", "Policy A", `Pechey${PATH_SEP}Bell Bay${PATH_SEP}Casting`, "Safety; Crane Ops", "Ann Ray <ann@x.test>", "Cy Lee <cy@x.test>; Di Moss <di@x.test>", "Draft", { date: "2026-10-09" }, "Policy A — scope"]);
     expect(files.rows[FIRST_FILE_ROW + 1]).toEqual(["U2", "Plan B", "", "", "", "", "", "", ""]);
     expect(files.hiddenCols).toEqual([0]);
-    expect(files.hiddenRows).toEqual([1]);
+    expect(files.hiddenRows).toEqual([INTERNALS_ROW]);
+    expect(files.noteRows).toEqual([GUIDE_ROW]);
+    expect(files.dateCols).toEqual([7]);
     expect(files.freezeRows).toBe(FIRST_FILE_ROW);
   });
   it("lists the valid values and validates the single-value listed columns only", () => {
@@ -82,11 +92,12 @@ describe("buildSheets", () => {
     expect(vals.rows[VALUES_FIRST_ROW]).toEqual(["Pechey", "Safety", "Ann Ray <ann@x.test>", "Draft"]);
     expect(vals.rows[VALUES_FIRST_ROW + 3]).toEqual([`Pechey${PATH_SEP}Boyne${PATH_SEP}Casting`, "", "", ""]);
     const v = sheets[0].validations ?? [];
-    // org (col 2), owner (col 4), status (col 6); tags is multi — no dropdown
-    expect(v.map((x) => x.col)).toEqual([2, 4, 6]);
-    expect(v[0]).toMatchObject({ listSheet: VALUES_SHEET, listCol: 0, listFromRow: VALUES_FIRST_ROW, listToRow: VALUES_FIRST_ROW + 3, fromRow: FIRST_FILE_ROW });
-    expect(v[1]).toMatchObject({ listCol: 2, listToRow: VALUES_FIRST_ROW + 1 });
-    expect(v[2]).toMatchObject({ listCol: 3, listToRow: VALUES_FIRST_ROW + 1 });
+    // the date column (col 7) validates as a date; org (col 2), owner
+    // (col 4), status (col 6) as lists; tags is multi — no dropdown
+    expect(v.map((x) => [x.kind, x.col])).toEqual([["date", 7], ["list", 2], ["list", 4], ["list", 6]]);
+    expect(v[1]).toMatchObject({ listSheet: VALUES_SHEET, listCol: 0, listFromRow: VALUES_FIRST_ROW, listToRow: VALUES_FIRST_ROW + 3, fromRow: FIRST_FILE_ROW });
+    expect(v[2]).toMatchObject({ listCol: 2, listToRow: VALUES_FIRST_ROW + 1 });
+    expect(v[3]).toMatchObject({ listCol: 3, listToRow: VALUES_FIRST_ROW + 1 });
     expect(v[0].toRow).toBeGreaterThan(FIRST_FILE_ROW + 1);
   });
 });
@@ -140,7 +151,8 @@ describe("mapCell — strict by kind", () => {
 });
 
 describe("parseSheet", () => {
-  const exported = buildSheets(cols, [f1, f2], { task: "t", library: "l", exportedAt: "" })[0].rows.map((r) => r.map((c) => (c === null ? "" : String(c))));
+  // as the reader hands it back: a date cell as Excel's serial
+  const exported = buildSheets(cols, [f1, f2], { task: "t", library: "l", exportedAt: "" })[0].rows.map((r) => r.map((c) => (c === null ? "" : typeof c === "object" ? "46304" : String(c))));
   it("an untouched export is zero changes", async () => {
     const p = await parseSheet(exported, cols, [f1, f2], noDirectory);
     expect(p.error).toBe("");
@@ -176,10 +188,15 @@ describe("parseSheet", () => {
     expect(p.unknownFiles).toEqual(["Gone.pdf"]);
     expect(parseSummary(p)).toBe("4 cells on 2 files to change · 2 problems · 1 row for files no longer in the folder");
   });
-  it("a column the sheet does not carry is untouched; a sheet without the key row is refused", async () => {
+  it("a column the sheet does not carry is untouched; an older export without the guidance row still reads; a sheet without the key row is refused", async () => {
     const narrow = exported.map((r) => r.slice(0, 3));
     const p = await parseSheet(narrow, cols, [f1, f2], noDirectory);
     expect(p.changes).toEqual([]);
+    const older = exported.filter((_, i) => i !== GUIDE_ROW);
+    const q = await parseSheet(older, cols, [f1, f2], noDirectory);
+    expect(q.error).toBe("");
+    expect(q.filesSeen).toBe(2);
+    expect(q.changes).toEqual([]);
     const bad = await parseSheet([["a", "b"], ["x", "y"], ["U1", "z"]], cols, [f1], noDirectory);
     expect(bad.error).toMatch(/not an export/);
     expect(bad.changes).toEqual([]);

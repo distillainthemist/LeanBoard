@@ -9,7 +9,7 @@
 
 import type { AddFieldValue } from "./model";
 import { savedDisplay } from "./ingestionDraft";
-import { SheetSpec, ListValidation, excelSerialToIso } from "./xlsx";
+import { CellValue, SheetSpec, Validation, excelSerialToIso } from "./xlsx";
 
 /** Term paths read as the app writes them everywhere else. */
 export const PATH_SEP = " › ";
@@ -50,8 +50,23 @@ export const ID_INTERNAL = "__id";
 export const NAME_INTERNAL = "__name";
 export const FILES_SHEET = "Files";
 export const VALUES_SHEET = "Values";
-/** Row 0 labels, row 1 (hidden) internals, files from row 2. */
-export const FIRST_FILE_ROW = 2;
+/** Row 0 labels, row 1 the guidance, row 2 (hidden) internals, files
+ *  from row 3. The reader finds the internals row by its key, so an
+ *  older export (no guidance row) still uploads. */
+export const GUIDE_ROW = 1;
+export const INTERNALS_ROW = 2;
+export const FIRST_FILE_ROW = 3;
+
+/** How to fill a column — the guidance row under the header (Ben,
+ *  2026-10-30). */
+export function columnGuidance(col: SheetColumn): string {
+  const req = col.required ? "Required. " : "";
+  if (col.kind === "date") return `${req}A date — type yyyy-mm-dd or pick a date; Excel refuses anything else.`;
+  if (col.kind === "choice") return `${req}One of the listed choices — use the dropdown.`;
+  if (col.kind === "taxonomy") return col.multi ? `${req}One or more terms as full paths, separated by "; " — the Values sheet lists them.` : `${req}One term as its full path — use the dropdown (the Values sheet lists them).`;
+  if (col.kind === "person") return col.poolBound ? `${req}${col.multi ? "People" : "One person"} from the owners & approvers pool — use the dropdown${col.multi ? ', several separated by "; "' : ""}.` : `${req}${col.multi ? "Email addresses separated by \"; \"" : "An email address"} — checked against the directory on upload.`;
+  return `${req}Free text.`;
+}
 /** The Values sheet: a note, a blank line, the labels, then the lists. */
 export const VALUES_FIRST_ROW = 3;
 
@@ -103,20 +118,27 @@ export interface SheetMeta {
  *  the list as reference only — Excel cannot validate a ";" list. */
 export function buildSheets(cols: SheetColumn[], files: SheetFile[], meta: SheetMeta): SheetSpec[] {
   const header: string[] = ["File id", "Name on ingestion", ...cols.map((c) => c.label + (c.required ? " ✱" : ""))];
+  const guidance: string[] = ["", "The file's name on ingestion, without its extension — a change renames the file. Leave column A and this row alone.", ...cols.map(columnGuidance)];
   const internals: string[] = [ID_INTERNAL, NAME_INTERNAL, ...cols.map((c) => c.internal)];
-  const rows: (string | number | null)[][] = [header, internals];
-  for (const f of files) rows.push([f.uniqueId, f.cells[NAME_INTERNAL] ?? f.name, ...cols.map((c) => f.cells[c.internal] ?? "")]);
+  const rows: CellValue[][] = [header, guidance, internals];
+  // a date travels as a real Excel date (shown yyyy-mm-dd, validated as a date)
+  const cell = (c: SheetColumn, text: string): CellValue => (c.kind === "date" && text !== "" ? { date: text } : text);
+  for (const f of files) rows.push([f.uniqueId, f.cells[NAME_INTERNAL] ?? f.name, ...cols.map((c) => cell(c, f.cells[c.internal] ?? ""))]);
   // the Values sheet: one column per listed column, its label on top
   const listed = cols.filter((c) => c.options.length > 0);
   const vHeader = listed.map((c) => c.label);
   const vRows: (string | number | null)[][] = [vHeader];
   const tallest = Math.max(0, ...listed.map((c) => c.options.length));
   for (let i = 0; i < tallest; i++) vRows.push(listed.map((c) => c.options[i]?.text ?? ""));
-  const validations: ListValidation[] = [];
+  const validations: Validation[] = [];
   const lastRow = Math.max(FIRST_FILE_ROW, FIRST_FILE_ROW + files.length - 1 + 200); // room for rows added by hand
+  cols.forEach((c, ci) => {
+    if (c.kind === "date") validations.push({ kind: "date", col: 2 + ci, fromRow: FIRST_FILE_ROW, toRow: lastRow });
+  });
   listed.forEach((c, li) => {
     if (c.multi) return;
     validations.push({
+      kind: "list",
       col: 2 + cols.indexOf(c),
       fromRow: FIRST_FILE_ROW,
       toRow: lastRow,
@@ -134,8 +156,11 @@ export function buildSheets(cols: SheetColumn[], files: SheetFile[], meta: Sheet
       rows,
       colWidths: [12, 40, ...cols.map((c) => (c.kind === "taxonomy" ? 36 : c.kind === "person" ? 32 : c.kind === "date" ? 14 : 24))],
       hiddenCols: [0],
-      hiddenRows: [1],
+      hiddenRows: [INTERNALS_ROW],
       boldRows: [0],
+      noteRows: [GUIDE_ROW],
+      rowHeights: { [GUIDE_ROW]: 58 },
+      dateCols: cols.map((c, ci) => (c.kind === "date" ? 2 + ci : -1)).filter((i) => i >= 0),
       freezeRows: FIRST_FILE_ROW,
       validations,
     },
@@ -204,18 +229,21 @@ export function parsePersonText(text: string): { email: string; name: string } {
  *  the choices, a pool-bound person a pool member. */
 export async function parseSheet(grid: string[][], cols: SheetColumn[], files: SheetFile[], resolvePerson: PersonResolver): Promise<ParsedSheet> {
   const out: ParsedSheet = { changes: [], problems: [], unknownFiles: [], filesSeen: 0, error: "" };
-  const internals = grid[1] ?? [];
-  if ((internals[0] ?? "").trim() !== ID_INTERNAL) {
-    out.error = "This is not an export of an ingestion task — the hidden row 2 with the column keys is missing. Export the sheet from the task first.";
+  // the key row: wherever it sits in the first rows (older exports had
+  // it on row 2, with no guidance row)
+  const internalsRow = grid.findIndex((r, i) => i < 4 && (r[0] ?? "").trim() === ID_INTERNAL);
+  if (internalsRow < 0) {
+    out.error = "This is not an export of an ingestion task — the hidden row with the column keys is missing. Export the sheet from the task first.";
     return out;
   }
+  const internals = grid[internalsRow];
   const colAt = new Map<string, number>();
   internals.forEach((k, i) => {
     if (k.trim() !== "") colAt.set(k.trim(), i);
   });
   const byId = new Map(files.map((f) => [f.uniqueId.toLowerCase(), f]));
   const problem = (row: number, file: string, column: string, value: string, reason: string) => out.problems.push({ row, file, column, value, reason });
-  for (let r = FIRST_FILE_ROW; r < grid.length; r++) {
+  for (let r = internalsRow + 1; r < grid.length; r++) {
     const line = grid[r] ?? [];
     const id = (line[colAt.get(ID_INTERNAL) ?? 0] ?? "").trim().toLowerCase();
     const nameCell = (line[colAt.get(NAME_INTERNAL) ?? 1] ?? "").trim();
@@ -235,7 +263,9 @@ export async function parseSheet(grid: string[][], cols: SheetColumn[], files: S
     for (const col of cols) {
       const idx = colAt.get(col.internal);
       if (idx === undefined) continue; // a column the sheet does not carry is untouched
-      const text = (line[idx] ?? "").trim();
+      const raw = (line[idx] ?? "").trim();
+      // a date cell reads back as Excel's serial — compare as the date
+      const text = col.kind === "date" && raw !== "" ? parseDate(raw) || raw : raw;
       const was = (file.cells[col.internal] ?? "").trim();
       if (text === was) continue;
       if (text === "") {

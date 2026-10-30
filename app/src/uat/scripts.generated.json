@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-29",
+ "generatedAt": "2026-10-30",
  "releases": [
   {
    "tag": "v0.82.0",
@@ -1781,9 +1781,9 @@
         "Edit a cell without saving; Export sheet.",
         "Save (or Discard); Export sheet; open the workbook in Excel."
        ],
-       "expected": "with unsaved changes the export is refused with \"Save or discard your changes first\"; otherwise a workbook `ingestion-<task>-<date>.xlsx` downloads; its Files sheet has one row per file with the name and every grid column (the MoC column left out), term cells as full paths (\"Pechey › Bell Bay › Casting\"), people as \"Name <email>\", dates as yyyy-mm-dd, required columns marked ✱, the two header rows frozen; column A and row 2 are hidden keys; the Values sheet lists every term path, choice and the owners & approvers pool per column — on a task constrained to a site, the Organisation unit and Process area paths are that site's branch only, starting at the site; a single-value term, choice or owner cell offers an Excel dropdown of those values and refuses a typed value outside them",
-       "hash": "52fbe339",
-       "changed": "2026-10-29"
+       "expected": "with unsaved changes the export is refused with \"Save or discard your changes first\"; otherwise a workbook `ingestion-<task>-<date>.xlsx` downloads; its Files sheet has one row per file with the name and every grid column (the MoC column left out), term cells as full paths (\"Pechey › Bell Bay › Casting\"), people as \"Name <email>\", dates as real Excel dates shown yyyy-mm-dd, required columns marked ✱; under the header a muted guidance row says how to fill each column (\"Required. One term as its full path — use the dropdown…\", \"A date — type yyyy-mm-dd or pick a date…\"); the header, guidance and key rows are frozen; typing \"Nov 3\" into a date cell is refused by Excel, a typed date shows as yyyy-mm-dd; column A and row 2 are hidden keys; the Values sheet lists every term path, choice and the owners & approvers pool per column — on a task constrained to a site, the Organisation unit and Process area paths are that site's branch only, starting at the site; a single-value term, choice or owner cell offers an Excel dropdown of those values and refuses a typed value outside them",
+       "hash": "5e3e4b92",
+       "changed": "2026-10-30"
       },
       {
        "id": "UAT-DOC-088",

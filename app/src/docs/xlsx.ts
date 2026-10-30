@@ -11,9 +11,13 @@
 
 export type Inflate = (data: Uint8Array) => Promise<Uint8Array>;
 
-export type CellValue = string | number | null;
+/** A cell: text, a number, or a DATE (yyyy-mm-dd) written as Excel's
+ *  day serial in a date-formatted cell, so Excel shows and validates it
+ *  as a date. */
+export type CellValue = string | number | { date: string } | null;
 
 export interface ListValidation {
+  kind?: "list";
   /** The validated column (0-based) on this sheet, over rows from..to (0-based, inclusive). */
   col: number;
   fromRow: number;
@@ -27,6 +31,17 @@ export interface ListValidation {
   error?: string;
 }
 
+/** A date cell must hold a date (Excel refuses "Nov 3" on entry). */
+export interface DateValidation {
+  kind: "date";
+  col: number;
+  fromRow: number;
+  toRow: number;
+  error?: string;
+}
+
+export type Validation = ListValidation | DateValidation;
+
 export interface SheetSpec {
   name: string;
   rows: CellValue[][];
@@ -35,9 +50,25 @@ export interface SheetSpec {
   hiddenCols?: number[];
   hiddenRows?: number[];
   boldRows?: number[];
+  /** Rows in the muted italic style (guidance). */
+  noteRows?: number[];
+  /** Row heights in points for rows that need more than one line. */
+  rowHeights?: Record<number, number>;
+  /** Columns whose EMPTY cells carry the date format, so a typed date
+   *  shows as a date rather than a serial. */
+  dateCols?: number[];
   /** Rows frozen at the top (0 = none). */
   freezeRows?: number;
-  validations?: ListValidation[];
+  validations?: Validation[];
+}
+
+/** yyyy-mm-dd → Excel's day serial (1900 date system); NaN when not a date. */
+export function isoToExcelSerial(iso: string): number {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso.trim());
+  if (!m) return Number.NaN;
+  const ms = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  if (Number.isNaN(ms)) return Number.NaN;
+  return Math.round((ms - Date.UTC(1899, 11, 30)) / 86400000);
 }
 
 // ---- XML helpers -----------------------------------------------------------
@@ -94,6 +125,10 @@ function sheetXml(s: SheetSpec): string {
   const hiddenCols = new Set(s.hiddenCols ?? []);
   const hiddenRows = new Set(s.hiddenRows ?? []);
   const boldRows = new Set(s.boldRows ?? []);
+  const noteRows = new Set(s.noteRows ?? []);
+  const dateCols = new Set(s.dateCols ?? []);
+  // cell styles (styles.xml cellXfs): 0 normal · 1 bold · 2 muted italic wrapped · 3 date
+  const styleOf = (r: number, c: number, isDate: boolean): string => (isDate ? ` s="3"` : boldRows.has(r) ? ` s="1"` : noteRows.has(r) ? ` s="2"` : dateCols.has(c) ? ` s="3"` : "");
   const nCols = Math.max(1, ...s.rows.map((r) => r.length));
   const parts: string[] = [];
   parts.push(CT_XML);
@@ -109,16 +144,23 @@ function sheetXml(s: SheetSpec): string {
   parts.push("<cols>");
   for (let c = 0; c < nCols; c++) {
     const w = s.colWidths?.[c] ?? 16;
-    parts.push(`<col min="${c + 1}" max="${c + 1}" width="${hiddenCols.has(c) ? 2 : w}" customWidth="1"${hiddenCols.has(c) ? ` hidden="1"` : ""}/>`);
+    parts.push(`<col min="${c + 1}" max="${c + 1}" width="${hiddenCols.has(c) ? 2 : w}" customWidth="1"${hiddenCols.has(c) ? ` hidden="1"` : ""}${dateCols.has(c) ? ` style="3"` : ""}/>`);
   }
   parts.push("</cols>");
   parts.push("<sheetData>");
   s.rows.forEach((row, r) => {
-    parts.push(`<row r="${r + 1}"${hiddenRows.has(r) ? ` hidden="1"` : ""}>`);
+    const ht = s.rowHeights?.[r];
+    parts.push(`<row r="${r + 1}"${hiddenRows.has(r) ? ` hidden="1"` : ""}${ht !== undefined ? ` ht="${ht}" customHeight="1"` : ""}>`);
     row.forEach((v, c) => {
       if (v === null || v === "") return;
       const ref = `${colLetters(c)}${r + 1}`;
-      const style = boldRows.has(r) ? ` s="1"` : "";
+      if (typeof v === "object") {
+        const serial = isoToExcelSerial(v.date);
+        if (Number.isFinite(serial)) parts.push(`<c r="${ref}"${styleOf(r, c, true)}><v>${serial}</v></c>`);
+        else if (v.date.trim() !== "") parts.push(`<c r="${ref}"${styleOf(r, c, false)} t="inlineStr"><is><t xml:space="preserve">${xmlEscape(xmlSafe(v.date))}</t></is></c>`);
+        return;
+      }
+      const style = styleOf(r, c, false);
       if (typeof v === "number" && Number.isFinite(v)) parts.push(`<c r="${ref}"${style}><v>${v}</v></c>`);
       else parts.push(`<c r="${ref}"${style} t="inlineStr"><is><t xml:space="preserve">${xmlEscape(xmlSafe(String(v)))}</t></is></c>`);
     });
@@ -130,6 +172,12 @@ function sheetXml(s: SheetSpec): string {
     parts.push(`<dataValidations count="${vals.length}">`);
     for (const v of vals) {
       const sq = `${colLetters(v.col)}${v.fromRow + 1}:${colLetters(v.col)}${v.toRow + 1}`;
+      if (v.kind === "date") {
+        parts.push(
+          `<dataValidation type="date" operator="greaterThanOrEqual" allowBlank="1" showInputMessage="1" showErrorMessage="1" errorTitle="Not a date" error="${xmlEscape(v.error ?? "Enter a date — yyyy-mm-dd, or pick one Excel recognises.")}" sqref="${sq}"><formula1>1</formula1></dataValidation>`
+        );
+        continue;
+      }
       const lc = colLetters(v.listCol);
       const f1 = `${sheetRef(v.listSheet)}!$${lc}$${v.listFromRow + 1}:$${lc}$${v.listToRow + 1}`;
       parts.push(
@@ -176,11 +224,12 @@ function workbookParts(sheets: SheetSpec[]): { path: string; text: string }[] {
     path: "xl/styles.xml",
     text:
       `${CT_XML}<styleSheet xmlns="${NS_MAIN}">` +
-      `<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>` +
+      `<numFmts count="1"><numFmt numFmtId="164" formatCode="yyyy\\-mm\\-dd"/></numFmts>` +
+      `<fonts count="3"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font><font><i/><sz val="10"/><color rgb="FF6B6B6B"/><name val="Calibri"/></font></fonts>` +
       `<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>` +
       `<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>` +
       `<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>` +
-      `<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs>` +
+      `<cellXfs count="4"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/><xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment wrapText="1" vertical="top"/></xf><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs>` +
       `<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>` +
       `</styleSheet>`,
   });

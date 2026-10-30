@@ -3,7 +3,7 @@
 // strings, deflated entries) read too — node's zlib stands in for the
 // browser's DecompressionStream.
 import { describe, expect, it } from "vitest";
-import { colIndex, colLetters, crc32, excelSerialToIso, parseSheetXml, readXlsx, readZip, writeXlsx, writeZip, xmlEscape, xmlUnescape } from "../docs/xlsx";
+import { colIndex, colLetters, crc32, excelSerialToIso, isoToExcelSerial, parseSheetXml, readXlsx, readZip, writeXlsx, writeZip, xmlEscape, xmlUnescape } from "../docs/xlsx";
 
 // node's zlib stands in for the browser's DecompressionStream; the
 // specifier is built so the app's tsconfig (no node types) is not asked
@@ -124,6 +124,36 @@ describe("workbook round trip", () => {
     expect(sheets[0].rows[3]).toEqual(["u2", "Plan", ""]);
     expect(sheets[0].rows[5]).toEqual(["u3", "", ""]);
     expect(sheets[1].rows[4]).toEqual(["Bob <bob@x.test>"]);
+  });
+  it("writes a date cell as a formatted serial, a note row in the muted style, a date validation and a column date format", async () => {
+    const bytes = writeXlsx([
+      {
+        name: "S",
+        rows: [["Effective", "Note"], ["guidance", "x"], [{ date: "2026-10-09" }, { date: "not a date" }], [{ date: "" }, "y"]],
+        noteRows: [1],
+        rowHeights: { 1: 40 },
+        dateCols: [0],
+        validations: [{ kind: "date", col: 0, fromRow: 2, toRow: 9 }],
+      },
+    ]);
+    const parts = await readZip(bytes, nodeInflate);
+    const xml = new TextDecoder().decode(parts.get("xl/worksheets/sheet1.xml"));
+    expect(xml).toContain(`<c r="A3" s="3"><v>46304</v></c>`);
+    expect(xml).toContain(`<c r="B3" t="inlineStr"><is><t xml:space="preserve">not a date</t></is></c>`);
+    expect(xml).not.toContain(`<c r="A4"`);
+    expect(xml).toContain(`<row r="2" ht="40" customHeight="1">`);
+    expect(xml).toContain(`<c r="A2" s="2" t="inlineStr">`);
+    expect(xml).toContain(`<col min="1" max="1" width="16" customWidth="1" style="3"/>`);
+    expect(xml).toContain(`<dataValidation type="date" operator="greaterThanOrEqual"`);
+    expect(xml).toContain(`sqref="A3:A10"><formula1>1</formula1>`);
+    const styles = new TextDecoder().decode(parts.get("xl/styles.xml"));
+    expect(styles).toContain(`<numFmt numFmtId="164"`);
+    expect(styles).toContain(`<cellXfs count="4">`);
+    const sheets = await readXlsx(bytes, nodeInflate);
+    expect(sheets[0].rows[2][0]).toBe("46304");
+    expect(isoToExcelSerial("2026-10-09")).toBe(46304);
+    expect(isoToExcelSerial("1900-01-01")).toBe(2); // the serial counts the phantom 29 Feb 1900 only from March on
+    expect(Number.isNaN(isoToExcelSerial("Nov 3"))).toBe(true);
   });
   it("quotes a sheet name with a space in a validation formula", () => {
     const bytes = writeXlsx([
