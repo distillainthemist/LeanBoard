@@ -58,7 +58,10 @@
     ],
     "modules": [
       "store/actions.ts",
-      "screens/myday"
+      "screens/myday",
+      "actions/",
+      "shared/ui/actionUi.ts",
+      "shared/schema/actionLinks.ts"
     ]
   },
   {

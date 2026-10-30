@@ -17,6 +17,9 @@ export interface ActionLinkContext {
   /** The card on screen as an instance key ("board:card"), "" when none —
    *  the home of an action raised there that carries no key yet. */
   openHome: string;
+  /** The open board's title, so the chip can NAME an initiative the
+   *  viewer's list does not carry (action-link-review-2026-10-30). */
+  openBoardTitle?: string;
 }
 
 let provider: (() => Promise<ActionLinkContext>) | null = null;

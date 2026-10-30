@@ -92,13 +92,46 @@ export function applyLink(a: LtkAction, target: LinkTarget | null, personalWho: 
     return;
   }
   if (target.kind === "initiative") {
-    a.initiativeId = target.id;
+    // a BOARD-ONLY target (the open initiative board, not in the viewer's
+    // list — action-link-review-2026-10-30) has no id: the key names the
+    // board and the store stamps the initiative from it at the write
+    if (target.id !== "") a.initiativeId = target.id;
+    else delete a.initiativeId;
     a.instanceId = target.boardId !== "" ? boardChannelKey(target.boardId) : `improvement:${target.id}`;
   } else {
     delete a.initiativeId;
     a.instanceId = boardChannelKey(target.boardId);
   }
   a.context = { source: "card", sourceId: "" };
+}
+
+/** The open board as a link target when the viewer's list does not carry
+ *  it (a completed or confidential initiative, a stale list): the board
+ *  alone, named by its title — the store completes the initiative id from
+ *  the board at the write (action-link-review-2026-10-30). */
+export function boardOnlyTarget(boardId: string, title: string): LinkTarget {
+  return {
+    kind: boardId.startsWith("init-") ? "initiative" : "ritual",
+    id: boardId.startsWith("init-") ? "" : boardId,
+    boardId,
+    title: title !== "" ? title : boardId.startsWith("init-") ? "the open initiative" : "the open ritual",
+    detail: "",
+    keywords: "",
+    mine: false,
+    near: false,
+    cards: {},
+  };
+}
+
+/** The board the store stamps an action's initiative FROM: the action's
+ *  own key names it; a personal key (`hub…`) names none — the caller's
+ *  board must never re-link what the person unlinked (finding 6); a key
+ *  that names no board ("" before the host stamps it) takes the caller's. */
+export function homeForStamp(instanceId: string, callerBoardId: string | undefined): string {
+  if (instanceId.startsWith("hub")) return "";
+  const own = homeBoardOf(instanceId);
+  if (own !== "") return own;
+  return instanceId === "" ? (callerBoardId ?? "") : "";
 }
 
 /** Would applying `target` change anything? The same target is a change

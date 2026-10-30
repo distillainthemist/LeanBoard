@@ -5,7 +5,7 @@
 import { actionBelongsTo, actionVisibleTo, LtkAction, visibleSetFor, settleFromParts } from "../../../shared/schema/actions";
 import { applyEndorsementRule } from "../../../shared/schema/actionEndorsement";
 import { ACTION_RULED_EVENT } from "../../../shared/ui/actionLinkProvider";
-import { homeBoardOf, homeCardOf } from "../../../shared/schema/actionLinks";
+import { homeBoardOf, homeCardOf, homeForStamp } from "../../../shared/schema/actionLinks";
 import { bumpChange } from "./changes";
 import { whenSettled } from "./inflight";
 import { Ben_ltkactionsService } from "../generated/services/Ben_ltkactionsService";
@@ -166,8 +166,10 @@ export async function upsertActions(
   const who = currentViewer();
   for (const action of actions) {
     // ANY action raised on an initiative board belongs to that initiative
-    // (Ben, 2026-09-23) — stamped here, at the one write path
-    const home = boardOf(action, boardId);
+    // (Ben, 2026-09-23) — stamped here, at the one write path, FROM THE
+    // ACTION'S OWN KEY: a personal key is never re-linked from the
+    // caller's board (action-link-review-2026-10-30, finding 6)
+    const home = homeForStamp(action.instanceId, boardId);
     if (!action.initiativeId && home.startsWith("init-")) action.initiativeId = await initiativeIdForBoard(home);
     // the key decides when it names a channel (a link made in the dialog
     // moved the action — even from a card editor that passes ITS board)

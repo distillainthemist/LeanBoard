@@ -137,3 +137,36 @@ describe("the route", () => {
     expect(sourceLabel("init-I1:board", "card", { [boardChannelKey("init-I1")]: "Reduce changeover" }, () => undefined)).toBe("Reduce changeover");
   });
 });
+
+// action-link-review-2026-10-30: the open board as a target the list does
+// not carry, and the one stamp rule.
+import { boardOnlyTarget, homeForStamp } from "../../../shared/schema/actionLinks";
+
+describe("boardOnlyTarget / applyLink", () => {
+  it("links a new action to the open initiative board by key alone; the store stamps the id", () => {
+    const t = boardOnlyTarget("init-in1", "Reduce dross loss");
+    expect(t.kind).toBe("initiative");
+    expect(t.id).toBe("");
+    expect(t.title).toBe("Reduce dross loss");
+    const a = { id: "a1", instanceId: "hub:u1", issue: "", description: "", assignees: [], start: "", due: "", status: "open" as const, pdca: "do" as const, comments: [], escalated: false, context: { source: "leanhub", sourceId: "" }, initiativeId: "stale" };
+    applyLink(a, t, "u1");
+    expect(a.instanceId).toBe("init-in1:board");
+    expect(a.initiativeId).toBeUndefined();
+    expect(a.context.source).toBe("card");
+    const r = boardOnlyTarget("b-daily", "");
+    expect(r.kind).toBe("ritual");
+    expect(r.id).toBe("b-daily");
+    expect(r.title).toBe("the open ritual");
+  });
+});
+
+describe("homeForStamp — the store stamps from the action's own key", () => {
+  it("names the key's board, never the caller's for a personal key, the caller's only for an empty key", () => {
+    expect(homeForStamp("init-in1:card7", "other")).toBe("init-in1");
+    expect(homeForStamp("init-in1:board", undefined)).toBe("init-in1");
+    expect(homeForStamp("hub:u1", "init-in1")).toBe("");
+    expect(homeForStamp("", "init-in1")).toBe("init-in1");
+    expect(homeForStamp("", undefined)).toBe("");
+    expect(homeForStamp("improvement:in9", "init-in1")).toBe("");
+  });
+});

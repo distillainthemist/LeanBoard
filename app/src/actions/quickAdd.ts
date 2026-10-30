@@ -14,6 +14,7 @@ import { currentViewer } from "../runtime";
 import { listPeople, viewerPerson } from "../store/people";
 import { upsertActions } from "../store/actions";
 import { bumpChange } from "../store/changes";
+import { openBoardId } from "./openBoard";
 
 export const ACTIONS_CHANGED_EVENT = "ltk-actions-changed";
 
@@ -46,6 +47,9 @@ export async function openQuickAction(): Promise<void> {
     people,
     isNew: true,
     linkToOpenBoard: true,
+    // the board on screen, known NOW — the link holds even if the list
+    // is slow or does not carry this initiative (action-link-review-2026-10-30)
+    openBoardId: openBoardId(window.location.hash) ?? undefined,
     onCommit: () => {
       void (async () => {
         // the store stamps the board (and the initiative, for an

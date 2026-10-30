@@ -106,5 +106,13 @@ export async function loadLinkContext(): Promise<ActionLinkContext> {
       cached = null;
     });
   }
-  return { targets: await cached.value, personalWho: whoId, openBoardId: openBoardId(window.location.hash), openHome: openCardKey(window.location.hash) };
+  const open = openBoardId(window.location.hash);
+  // the open board's title, so the chip can name an initiative the list
+  // does not carry (action-link-review-2026-10-30, finding 7)
+  let openBoardTitle = "";
+  if (open !== null) {
+    const b = (await listBoards(true).catch(() => [])).find((x) => x.boardId === open);
+    openBoardTitle = b?.name ?? "";
+  }
+  return { targets: await cached.value, personalWho: whoId, openBoardId: open, openHome: openCardKey(window.location.hash), openBoardTitle };
 }

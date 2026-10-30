@@ -8,7 +8,7 @@
 // Overdue are capitalised; circle colours are set inline (Safari rule).
 
 import { ActionComment, ActionPdca, ACTION_PDCA, isOverdue, LtkAction, newAction, newComment, PDCA_LABELS, PDCA_QUARTERS, pdcaOf } from "../schema/actions";
-import { ActionLink, applyLink, currentLink, isCardKeyed, linkChanges, linkLabel, LinkTarget, searchLinkTargets } from "../schema/actionLinks";
+import { ActionLink, applyLink, boardOnlyTarget, currentLink, isCardKeyed, linkChanges, linkLabel, LinkTarget, searchLinkTargets } from "../schema/actionLinks";
 import { ACTION_MOVED_EVENT, ActionLinkContext, actionLinkProvider, actionViewer, endorsementFor } from "./actionLinkProvider";
 import { applyEndorsementRule, awaitingEndorsement, endorse, sendBack } from "../schema/actionEndorsement";
 import { Person, splitWho } from "../schema/people";
@@ -416,6 +416,11 @@ export interface ActionDialogOptions {
   links?: ActionLinkContext;
   /** A NEW action starts linked to the board on screen (quick add). */
   linkToOpenBoard?: boolean;
+  /** The board on screen, known to the HOST before the link list loads:
+   *  a new action with `linkToOpenBoard` links to it at save even if the
+   *  list has not arrived or does not carry it (action-link-review-
+   *  2026-10-30, findings 1–4). */
+  openBoardId?: string;
   /** Who is commenting. Omitted: the host's registered viewer answers;
    *  neither: comments show, and none can be added. */
   viewer?: { whoId: string; who: string };
@@ -572,6 +577,8 @@ interface LinkField {
   chosen: () => LinkTarget | null | undefined;
   origin: () => ActionLink | null;
   personalWho: () => string;
+  /** The list has arrived (origin and the open-board default are known). */
+  loaded: () => boolean;
 }
 
 /** "Linked to": a chip naming the ritual or initiative the action belongs
@@ -658,9 +665,16 @@ function buildLinkField(o: ActionDialogOptions, body: () => HTMLElement, onTouch
     .then((c) => {
       ctx = c;
       origin = currentLink(o.action, c.targets, o.linkTarget ?? c.openHome);
-      if (o.isNew && o.linkToOpenBoard === true && c.openBoardId !== null) {
-        const open = c.targets.find((t) => t.boardId === c.openBoardId);
-        if (open) chosen = open;
+      // a link the viewer's list cannot name (a completed or confidential
+      // initiative, a stale list) is still named when it is the OPEN board
+      if (origin.kind !== "personal" && origin.target === null) {
+        const home = (o.action.instanceId !== "" ? o.action.instanceId : (o.linkTarget ?? c.openHome)).split(":")[0];
+        if (home !== "" && home === (c.openBoardId ?? o.openBoardId ?? "")) origin = { ...origin, target: boardOnlyTarget(home, c.openBoardTitle ?? "") };
+      }
+      if (o.isNew && o.linkToOpenBoard === true) {
+        // the open board, whether or not the list carries it (findings 1–3)
+        const openId = c.openBoardId ?? o.openBoardId ?? null;
+        if (openId !== null) chosen = c.targets.find((t) => t.boardId === openId) ?? boardOnlyTarget(openId, c.openBoardTitle ?? "");
       }
       paint();
     })
@@ -668,7 +682,7 @@ function buildLinkField(o: ActionDialogOptions, body: () => HTMLElement, onTouch
       while (wrap.firstChild) wrap.removeChild(wrap.firstChild);
       wrap.appendChild(el("div", "ltk-link-note", "Links could not be loaded — the action keeps its current one."));
     });
-  return { el: wrap, chosen: () => chosen, origin: () => origin, personalWho: () => ctx?.personalWho ?? "" };
+  return { el: wrap, chosen: () => chosen, origin: () => origin, personalWho: () => ctx?.personalWho ?? "", loaded: () => ctx !== null };
 }
 
 /** The raise/edit action dialog (with escalation, completion and cancel). */
@@ -772,9 +786,14 @@ export function openActionDialog(o: ActionDialogOptions): void {
     const who = o.viewer ?? actionViewer();
     if (who !== null) applyEndorsementRule(action, prior, endorsementFor(action), who, new Date().toISOString());
     const linkedNow = linkField?.origin() ?? null;
-    const picked = linkField?.chosen();
-    const moves = linkedNow !== null && picked !== undefined && linkChanges(linkedNow, picked);
-    if (moves) {
+    let picked = linkField?.chosen();
+    // the list has not arrived but the host knows the open board: a new
+    // action still links to it (finding 4 — a fast save landed personal)
+    if (o.isNew && o.linkToOpenBoard === true && picked === undefined && linkField !== null && !linkField.loaded() && (o.openBoardId ?? "") !== "") {
+      picked = boardOnlyTarget(o.openBoardId ?? "", "");
+    }
+    const moves = picked !== undefined && (linkedNow === null ? picked !== null : linkChanges(linkedNow, picked));
+    if (moves && picked !== undefined) {
       applyLink(action, picked, linkField!.personalWho());
     } else if (linkSel !== null) {
       action.instanceId = linkSel.value;
