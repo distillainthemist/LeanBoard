@@ -139,7 +139,10 @@ export class RiskMatrixEditor {
     const h = this.root.clientHeight;
     if (w <= 0 || h <= 0) return;
     const tile = this.root.closest(".ltk-tile") !== null;
-    const chromeH = (this.cardTitle.trim() !== "" && !tile ? 36 : 0) + 20 /* body padding */ + 52 /* axis titles */ + 4 * 3 /* gaps */;
+    // the body's padding, the two axis titles, the consequence label row
+    // and the gaps between six rows — measured generously so the card
+    // never scrolls for a few pixels
+    const chromeH = (this.cardTitle.trim() !== "" && !tile ? 36 : 0) + 20 /* body padding */ + 24 /* likelihood title */ + 24 /* consequence title */ + 28 /* consequence labels */ + 5 * 3 /* gaps */ + 8;
     const byH = (h - chromeH) / 5;
     // the matrix may take up to 60% of the width beside a register, all of it when narrow
     const matrixW = w < 480 ? w - 24 : (w - 24) * 0.6;
@@ -200,6 +203,9 @@ export class RiskMatrixEditor {
     const left = el("div", "ltk-rm-left");
     const grid = el("div", "ltk-rm-grid");
     grid.style.gridTemplateColumns = `92px repeat(5, var(--rm-cell, 46px))`;
+    // five cell rows, then the consequence labels at their own height —
+    // an auto-row made the label row as tall as a cell and the card scrolled
+    grid.style.gridTemplateRows = `repeat(5, var(--rm-cell, 46px)) auto`;
 
     // rows: likelihood 5 (top) → 1 (bottom); cols: consequence 1 → 5
     for (let l = 5; l >= 1; l--) {
