@@ -103,8 +103,27 @@ export interface ActionBoardCallbacks {
 /** The host's Gantt: mount into `host`, return the teardown. */
 export type GanttRenderer = (
   host: HTMLElement,
-  ctx: { actions: LtkAction[]; readOnly: boolean; actor: { whoId: string; who: string }; onChanged: () => void }
+  ctx: {
+    /** the actions as the card shows them (completed already hidden when the toggle is off) */
+    actions: LtkAction[];
+    readOnly: boolean;
+    actor: { whoId: string; who: string };
+    onChanged: () => void;
+    /** the card's own Show completed state — the Gantt follows it, no toggle of its own */
+    showCompleted: boolean;
+    /** open the action's dialog (absent when read-only) */
+    onEdit?: (a: LtkAction) => void;
+    /** the kanban's columns when it groups by issue — the Gantt groups its rows the same way (Ben, 2026-10-31) */
+    groups?: { key: string; label: string; items: LtkAction[] }[];
+  }
 ) => () => void;
+
+/** The card's actions as a view shows them: cancelled never, completed
+ *  only when asked (Ben, 2026-10-31: every view hides completed by
+ *  default). "verify" is still open work — awaiting its endorser. */
+export function visibleActions(actions: LtkAction[], showCompleted: boolean): LtkAction[] {
+  return actions.filter((a) => a.status !== "cancelled" && (showCompleted || a.status !== "done"));
+}
 
 export class ActionBoardEditor {
   private readonly root: HTMLElement;
@@ -124,6 +143,9 @@ export class ActionBoardEditor {
   /** The view the PERSON chose on the card's own switch; null = the
    *  card's configured default (2026-09-30). */
   private userView: BoardView | null = null;
+  /** Show completed — off on every view until the person switches it
+   *  (per card, for the session). */
+  private showCompleted = false;
   private onViewChosen: ((view: BoardView) => void) | null = null;
   /** The host's Gantt (the app's — one Gantt everywhere); absent, the
    *  card draws its own. */
@@ -313,7 +335,28 @@ export class ActionBoardEditor {
   // ---- rendering ----
 
   private visible(): LtkAction[] {
-    return this.actions.filter((a) => a.status !== "cancelled");
+    return visibleActions(this.actions, this.showCompleted);
+  }
+
+  /** Completed actions the toggle is hiding. */
+  private hiddenDone(): number {
+    return this.showCompleted ? 0 : this.actions.filter((a) => a.status === "done").length;
+  }
+
+  /** The Show completed switch (every view, Ben 2026-10-31). */
+  private completedToggle(): HTMLElement {
+    const hidden = this.hiddenDone();
+    const b = el("button", "ltk-ab-toggle" + (this.showCompleted ? " ltk-ab-toggle-on" : "")) as HTMLButtonElement;
+    b.type = "button";
+    b.setAttribute("role", "switch");
+    b.setAttribute("aria-checked", String(this.showCompleted));
+    b.title = this.showCompleted ? "Hide completed actions" : "Show completed actions too";
+    b.append(el("span", "ltk-ab-toggle-knob"), el("span", "ltk-ab-toggle-label", `Show completed${hidden > 0 ? ` (${hidden})` : ""}`));
+    b.addEventListener("click", () => {
+      this.showCompleted = !this.showCompleted;
+      this.render();
+    });
+    return b;
   }
 
   /**
@@ -364,6 +407,20 @@ export class ActionBoardEditor {
     this.root.appendChild(body);
 
     const visible = this.visible();
+    if (visible.length === 0 && this.hiddenDone() > 0) {
+      // every action is complete and hidden: say so, offer the switch
+      const tools = el("div", "ltk-ab-tools");
+      tools.appendChild(this.completedToggle());
+      body.appendChild(tools);
+      body.appendChild(el("div", "ltk-ab-narrownote", `All ${this.hiddenDone()} actions are complete`));
+      if (!this.readOnly) {
+        const add = el("button", "ltk-ab-add", "＋ Add action");
+        add.type = "button";
+        add.addEventListener("click", () => this.addAction());
+        body.appendChild(add);
+      }
+      return;
+    }
     if (visible.length === 0) {
       const lines = this.prompts.general.length
         ? this.prompts.general
@@ -407,7 +464,11 @@ export class ActionBoardEditor {
       });
       views.appendChild(b);
     }
-    if (!this.narrow) body.appendChild(views);
+    // the view switch and the Show completed switch share one row
+    const tools = el("div", "ltk-ab-tools");
+    if (!this.narrow) tools.appendChild(views);
+    tools.appendChild(this.completedToggle());
+    body.appendChild(tools);
 
     if (view === "kanban") {
       body.appendChild(this.renderKanban(visible));
@@ -415,13 +476,18 @@ export class ActionBoardEditor {
       if (this.ganttRenderer) {
         const host = el("div", "ltk-ab-ganttx");
         body.appendChild(host);
+        // the kanban's columns group the Gantt too (Ben, 2026-10-31)
+        const groups = this.groupBy === "issue" ? this.columns(visible).filter((c) => c.items.length > 0) : undefined;
         this.ganttTeardown = this.ganttRenderer(host, {
-          actions: this.actions,
+          actions: visible,
           readOnly: this.readOnly,
           actor: this.actor,
           // the host's Gantt writes a date change itself — nothing to
           // re-send; the shared objects already carry the new dates
           onChanged: () => undefined,
+          showCompleted: this.showCompleted,
+          onEdit: this.readOnly ? undefined : (a) => this.editAction(a),
+          groups,
         });
       } else {
         body.appendChild(this.renderGantt(visible));
@@ -532,6 +598,17 @@ export class ActionBoardEditor {
       const cards = el("div", "ltk-ab-cards");
       for (const a of this.sorted(col.items)) {
         cards.appendChild(this.renderKanbanCard(a));
+      }
+      if (this.groupBy === "status" && col.key === "done" && col.items.length === 0 && this.hiddenDone() > 0) {
+        // the column stays as the drop target; the note says what it holds
+        const note = el("button", "ltk-ab-col-hidden", `${this.hiddenDone()} completed hidden`) as HTMLButtonElement;
+        note.type = "button";
+        note.title = "Show completed actions";
+        note.addEventListener("click", () => {
+          this.showCompleted = true;
+          this.render();
+        });
+        cards.appendChild(note);
       }
       colEl.appendChild(cards);
       board.appendChild(colEl);

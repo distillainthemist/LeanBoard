@@ -1453,8 +1453,13 @@ const REGISTRY: Record<string, CardMounter> = {
           actor: g.actor,
           onChanged: g.onChanged,
           centerIso: opts.instanceWhen !== "" ? opts.instanceWhen.slice(0, 10) : undefined,
-          // the card carries the List | Kanban | Gantt switch itself
+          // the card carries the List | Kanban | Gantt switch itself,
+          // and Show completed (2026-10-31); a click on a name edits;
+          // the kanban's columns group the rows
           hideViewSwitch: true,
+          showCompleted: g.showCompleted,
+          onEdit: g.onEdit,
+          groups: g.groups,
         });
       })().catch(() => {
         if (!dead) host.replaceChildren(el("div", "app-cp-muted", "The Gantt could not load."));

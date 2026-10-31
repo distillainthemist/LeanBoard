@@ -4122,6 +4122,8 @@ a.app-ib-folderbtn { text-decoration: none; white-space: nowrap; }
 }
 .app-gx-summary { position: absolute; top: 50%; transform: translateY(-50%); height: 8px; border-radius: 4px; opacity: 0.8; }
 .app-gx-grouprow { background: #faf9f7; }
+.app-gx-label-edit { cursor: pointer; }
+.app-gx-label-edit:hover .app-gx-label-title { color: var(--app-accent, #2563eb); text-decoration: underline; }
 .app-gx-grouplabel { background: #faf9f7; flex-direction: row; align-items: center; justify-content: flex-start; gap: 6px; font-size: 13px; font-weight: 700; }
 .app-gx-caret { color: #6d675c; }
 .app-gx-group-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }

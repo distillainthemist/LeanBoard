@@ -61,6 +61,14 @@ export interface GanttOpts {
   windowWeeks?: number;
   /** The host already offers a List/Gantt switch — hide the internal one. */
   hideViewSwitch?: boolean;
+  /** The host owns Show completed (the actions card's own switch,
+   *  2026-10-31): the Gantt follows this and shows no toggle. */
+  showCompleted?: boolean;
+  /** Open an action for editing — a click on its name (2026-10-31). */
+  onEdit?: (a: LtkAction) => void;
+  /** Board scope: group the rows the way the host's kanban does (its
+   *  columns when it groups by issue), in this order; open by default. */
+  groups?: { key: string; label: string; items: LtkAction[] }[];
 }
 
 const PRESETS: { weeks: number; label: string; dayW: number }[] = [
@@ -137,8 +145,9 @@ export function mountGantt(opts: GanttOpts): () => void {
   // Ben, 2026-08-25: every Gantt surface switches to a plain action list
   let view: "gantt" | "list" = "gantt";
   let weeks = PRESETS.some((p) => p.weeks === opts.windowWeeks) ? (opts.windowWeeks as number) : 4;
-  let showCompleted = completedPref === true;
-  if (completedPref === null) {
+  const controlled = opts.showCompleted !== undefined;
+  let showCompleted = controlled ? opts.showCompleted === true : completedPref === true;
+  if (!controlled && completedPref === null) {
     void loadCompletedPref(opts.actor.whoId).then((v) => {
       if (v !== showCompleted && wrap.isConnected) {
         showCompleted = v;
@@ -148,6 +157,7 @@ export function mountGantt(opts: GanttOpts): () => void {
   }
   let assignee = "";
   const expanded = new Set<string>(); // initiative ids (org scope)
+  const collapsed = new Set<string>(); // board-scope groups folded by the person
   const uncapped = new Set<string>(); // groups past the 3-row cap
   let selected: string | null = null; // touch selection (action id)
 
@@ -338,8 +348,10 @@ export function mountGantt(opts: GanttOpts): () => void {
         bar.appendChild(sel);
       }
     }
-    // show completed: a standing toggle on the bar (was a hidden ⋮ item)
+    // show completed: a standing toggle on the bar (was a hidden ⋮ item);
+    // absent when the host's own switch governs
     const tog = el("label", "app-gx-toggle");
+    if (controlled) tog.style.display = "none";
     const sw = el("button", "app-tw-toggle" + (showCompleted ? " app-tw-toggle-on" : "")) as HTMLButtonElement;
     sw.type = "button";
     sw.setAttribute("role", "switch");
@@ -425,7 +437,11 @@ export function mountGantt(opts: GanttOpts): () => void {
         }
         r.appendChild(dates);
         r.appendChild(stateChip(a));
-        if (opts.canEdit && a.status !== "done" && a.status !== "cancelled") {
+        if (opts.onEdit) {
+          r.classList.add("app-gx-listrow-edit");
+          r.title = "Open this action";
+          r.addEventListener("click", () => opts.onEdit?.(a));
+        } else if (opts.canEdit && a.status !== "done" && a.status !== "cancelled") {
           r.classList.add("app-gx-listrow-edit");
           r.title = "Set dates";
           r.addEventListener("click", () => setDatesDialog(a));
@@ -433,7 +449,14 @@ export function mountGantt(opts: GanttOpts): () => void {
         return r;
       };
       const sortRows = (rows: LtkAction[]) => rows.sort((a, b) => ((a.due || "9999") < (b.due || "9999") ? -1 : 1));
-      if (scope === "board") {
+      if (scope === "board" && opts.groups) {
+        const groups = opts.groups.map((g) => ({ g, rows: sortRows(g.items.filter(visibleAction)) })).filter((x) => x.rows.length > 0);
+        if (groups.length === 0) listBox.appendChild(el("div", "app-gx-empty", "No open actions."));
+        for (const { g, rows } of groups) {
+          listBox.appendChild(el("div", "app-gx-listgroup", `${g.label} · ${rows.length}`));
+          for (const a of rows) listBox.appendChild(listRow(a));
+        }
+      } else if (scope === "board") {
         const rows = sortRows(opts.actions.filter(visibleAction));
         if (rows.length === 0) listBox.appendChild(el("div", "app-gx-empty", "No open actions."));
         for (const a of rows) listBox.appendChild(listRow(a));
@@ -536,6 +559,12 @@ export function mountGantt(opts: GanttOpts): () => void {
       const t = el("div", "app-gx-label-title", titleOf(a).slice(0, 90));
       t.title = titleOf(a);
       label.appendChild(t);
+      if (opts.onEdit) {
+        // the name opens the action; the bar stays for dragging dates
+        label.classList.add("app-gx-label-edit");
+        label.title = "Open this action";
+        label.addEventListener("click", () => opts.onEdit?.(a));
+      }
       const who = a.assignees.map((x) => x.who).filter((x) => x !== "").join(", ");
       label.appendChild(el("div", "app-gx-label-meta", [issueTag(a), who, a.due !== "" ? `due ${dayLabel(a.due)}` : "no due date"].filter((x) => x !== "").join(" · ")));
       r.appendChild(label);
@@ -655,8 +684,52 @@ export function mountGantt(opts: GanttOpts): () => void {
       });
     }
 
+    /** A collapsed group's one bar spanning its actions, coloured by the worst state. */
+    const summaryBar = (tl: HTMLElement, rows: LtkAction[]) => {
+      const starts = rows.map((a) => a.start || a.due).filter((d) => d !== "");
+      const dues = rows.map((a) => a.due).filter((d) => d !== "");
+      if (starts.length === 0 || dues.length === 0) return;
+      const x1 = xOf(starts.reduce((m, d) => (d < m ? d : m)));
+      const x2 = xOf(dues.reduce((m, d) => (d > m ? d : m)));
+      if (x1 === null || x2 === null || x2 < 0 || x1 > width) return;
+      const sum = el("div", "app-gx-summary");
+      const left = Math.max(-4, x1);
+      sum.style.left = `${left}px`;
+      sum.style.width = `${Math.max(dayW, Math.min(width + 4, x2 + dayW) - left)}px`;
+      const worst = rows.map((a) => barState(a, today));
+      sum.style.background = worst.includes("overdue") ? colours.overdue : worst.includes("verify") ? colours.verify : colours.ontrack;
+      tl.appendChild(sum);
+    };
+
     // ---- body ----
-    if (scope === "board") {
+    if (scope === "board" && opts.groups) {
+      // the actions card with kanban columns: a group per column, open
+      // by default (the lanes are what the person sees on the board)
+      const groups = opts.groups
+        .map((g) => ({ g, rows: g.items.filter(visibleAction).sort((a, b) => ((a.due || "9999") < (b.due || "9999") ? -1 : 1)) }))
+        .filter((x) => x.rows.length > 0);
+      if (groups.length === 0) grid.appendChild(el("div", "app-gx-empty", "No open actions in this window. Try 8 or 13 weeks."));
+      for (const { g, rows } of groups) {
+        const key = `col:${g.key}`;
+        const open = !collapsed.has(key);
+        const gr = el("div", "app-gx-row app-gx-grouprow");
+        const label = el("div", "app-gx-label app-gx-grouplabel");
+        const caret = el("span", "app-gx-caret", open ? "▾" : "▸");
+        label.append(caret, el("span", "app-gx-group-name", g.label), el("span", "app-gx-group-count", `· ${rows.length}`));
+        label.style.cursor = "pointer";
+        label.addEventListener("click", () => {
+          if (open) collapsed.add(key);
+          else collapsed.delete(key);
+          render();
+        });
+        gr.appendChild(label);
+        const tl = timelineCell();
+        if (!open) summaryBar(tl, rows);
+        gr.appendChild(tl);
+        grid.appendChild(gr);
+        if (open) for (const a of rows) grid.appendChild(actionRow(a));
+      }
+    } else if (scope === "board") {
       // the actions card: what it was given, flat — no groups, no bands
       const rows = opts.actions.filter(visibleAction).sort((a, b) => ((a.due || "9999") < (b.due || "9999") ? -1 : 1));
       if (rows.length === 0) grid.appendChild(el("div", "app-gx-empty", "No open actions in this window. Try 8 or 13 weeks."));
@@ -706,24 +779,7 @@ export function mountGantt(opts: GanttOpts): () => void {
         });
         gr.appendChild(label);
         const tl = timelineCell();
-        if (!open) {
-          // collapsed: one summary bar spanning the group's actions
-          const starts = g.rows.map((a) => a.start || a.due).filter((d) => d !== "");
-          const dues = g.rows.map((a) => a.due).filter((d) => d !== "");
-          if (starts.length > 0 && dues.length > 0) {
-            const x1 = xOf(starts.reduce((m, d) => (d < m ? d : m)));
-            const x2 = xOf(dues.reduce((m, d) => (d > m ? d : m)));
-            if (x1 !== null && x2 !== null && x2 >= 0 && x1 <= width) {
-              const sum = el("div", "app-gx-summary");
-              const left = Math.max(-4, x1);
-              sum.style.left = `${left}px`;
-              sum.style.width = `${Math.max(dayW, Math.min(width + 4, x2 + dayW) - left)}px`;
-              const worst = g.rows.map((a) => barState(a, today));
-              sum.style.background = worst.includes("overdue") ? colours.overdue : worst.includes("verify") ? colours.verify : colours.ontrack;
-              tl.appendChild(sum);
-            }
-          }
-        }
+        if (!open) summaryBar(tl, g.rows);
         gr.appendChild(tl);
         grid.appendChild(gr);
         if (open) {

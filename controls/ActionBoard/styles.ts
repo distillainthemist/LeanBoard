@@ -81,6 +81,27 @@ export const ACTIONBOARD_CSS = `
 .ltk-ab-viewbtn:hover { color: var(--ltk-fg); }
 .ltk-ab-viewbtn-on, .ltk-ab-viewbtn-on:hover { background: var(--ltk-accent); color: #fff; font-weight: 600; }
 .ltk-tile .ltk-ab-views { display: none; }
+/* the tools row: the view switch and Show completed (every view, 2026-10-31) */
+.ltk-ab-tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; align-self: stretch; }
+.ltk-ab-toggle {
+  display: inline-flex; align-items: center; gap: 8px; border: none; background: none;
+  font: inherit; font-size: 12.5px; color: var(--ltk-muted); padding: 4px 2px; min-height: 32px; cursor: pointer;
+}
+.ltk-ab-toggle-knob {
+  position: relative; width: 30px; height: 16px; border-radius: 999px; background: var(--ltk-hairline); flex: none; transition: background 0.15s;
+}
+.ltk-ab-toggle-knob::after {
+  content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #fff; transition: left 0.15s;
+}
+.ltk-ab-toggle-on { color: var(--ltk-fg); }
+.ltk-ab-toggle-on .ltk-ab-toggle-knob { background: var(--ltk-accent); }
+.ltk-ab-toggle-on .ltk-ab-toggle-knob::after { left: 16px; }
+.ltk-tile .ltk-ab-tools { display: none; }
+.ltk-ab-col-hidden {
+  border: 1px dashed var(--ltk-hairline); background: none; color: var(--ltk-muted); border-radius: 8px;
+  font: inherit; font-size: 12px; padding: 8px; cursor: pointer; text-align: center;
+}
+.ltk-ab-col-hidden:hover { color: var(--ltk-accent); border-color: var(--ltk-accent); }
 /* narrow (M4): the list stands in for the board and the Gantt — one
    quiet line says where they live; a tile keeps its silence */
 .ltk-ab-narrownote { align-self: flex-start; font-size: 11.5px; color: var(--ltk-muted); padding: 2px 0 4px; }
