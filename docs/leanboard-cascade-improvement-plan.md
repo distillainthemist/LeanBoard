@@ -1455,6 +1455,21 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-11-01 — released as v0.86.0** (app-only): ingestion tasks
+  with files in sub-folders (`docs/ingestion-subfolders-proposal-2026-11-01.md`,
+  Ben's three decisions = the recommendations): the task lists every
+  file under its folder through one recursive feed (`RenderQueryOpts.scope`,
+  `FILES_CAP` 2000); the path shows read-only under the name; the name
+  sort reads folder-then-name with a full-width group row per sub-folder
+  (checkbox selects the group for Set for selected…, count, Open ↗);
+  same-named files are held back before the run; a rename stays in the
+  file's own folder; End task and Cancel task count files, not items;
+  the landing stays flat. The sheet: Folder (locked) · Open (a locked
+  HYPERLINK cell, `?web=1`) · Name on ingestion, then the columns —
+  the workbook writer gained `lockedCols` (sheet protection with
+  unlocked style twins) and link cells. UAT: DOC-063/067/068/087/088
+  updated, DOC-090 new. Hosted: the recursive feed under
+  `FolderServerRelativeUrl` confirmed on dev (Ben's screenshot).
 - **2026-11-01 — released as v0.85.0** (SOLUTION-CARRYING:
   `ben_releasepolicy` on `ben_ltksitesettings`, `ben_lastbuild` on
   `ben_ltkpeople`): everything since v0.84.0. The release gate
