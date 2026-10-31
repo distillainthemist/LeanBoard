@@ -42,9 +42,12 @@ export function appTheme(): Theme {
 /**
  * A full-height host div for one editor instance. Editors size to their
  * container; the shell gives them the viewport below the app bar.
+ * `capped` is the FOCUSED card's readability cap (R0: 1600 px, centred) —
+ * the hub, the wizards and the card studio fill the window (Ben,
+ * 2026-11-01: the whole app had narrowed on a wide monitor).
  */
-export function editorHost(parent: HTMLElement): HTMLDivElement {
-  const host = el("div", "app-editor-host");
+export function editorHost(parent: HTMLElement, opts: { capped?: boolean } = {}): HTMLDivElement {
+  const host = el("div", "app-editor-host" + (opts.capped ? " app-editor-host-capped" : ""));
   parent.appendChild(host);
   watchHostTier(host);
   return host;

@@ -31,7 +31,8 @@ steps:
 1. Open the board on the laptop with the details pane closed, then open the pane; read the tiles.
 2. Set the board to three or four columns with the pane open; read the tiles.
 3. Open a card from the board (the focused view) on the laptop and on the widest screen available.
-expected: tiles fill their slot with no empty band beside or below the card and the text stays readable (never thumbnails) — a wide slot shows a wide card, a tall slot a tall one; a tile shows no scrollbar; when the slots become too narrow (three or more columns with the pane open) the board flips to the one-per-row list rather than shrinking further; the focused card is centred and no wider than about 1600 px on a big monitor and full width on the laptop; the action rows inside a narrow tile read as two lines
+4. Back on the widest screen, read the hub (the tabs) and open the template wizard.
+expected: tiles fill their slot with no empty band beside or below the card and the text stays readable (never thumbnails) — a wide slot shows a wide card, a tall slot a tall one; a tile shows no scrollbar; when the slots become too narrow (three or more columns with the pane open) the board flips to the one-per-row list rather than shrinking further; the focused card is centred and no wider than about 1600 px on a big monitor and full width on the laptop — while the hub, the wizards and the card studio always fill the window's width; the action rows inside a narrow tile read as two lines
 
 ### UAT-RIT-004 — Tables fit their card
 persona: owner

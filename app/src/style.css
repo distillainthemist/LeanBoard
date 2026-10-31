@@ -90,18 +90,23 @@ button.app-link:disabled { cursor: default; opacity: 0.5; }
 .app-editor-host {
   flex: 1;
   min-height: 0;
-  /* a focused card is capped and centred (card-responsiveness-review-
-     2026-10-30, R0 step 3): a 27" monitor gets a readable 1600 px card,
-     not a 2400 px sheet of long lines */
   width: 100%;
-  max-width: 1600px;
-  align-self: center;
   background: #fff;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
   border-radius: 8px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+/* a FOCUSED card is capped and centred (card-responsiveness-review-
+   2026-10-30, R0 step 3): a 27" monitor gets a readable 1600 px card, not
+   a 2400 px sheet of long lines. Only the focused card: the hub, the
+   wizards and the card studio fill the window (2026-11-01 — the cap had
+   sat on every host and narrowed the whole app on a wide monitor) */
+.app-editor-host-capped {
+  max-width: 1600px;
+  align-self: center;
 }
 
 /* the editors' .ltk-root expects to fill its container */

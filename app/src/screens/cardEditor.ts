@@ -602,12 +602,12 @@ export function mountCardEditor(
       // header above the rails; padding keeps it aligned with the editor
       wrap.insertBefore(head, walkRow);
       walkRow.appendChild(rail(seqIdx > 0 ? sequence[seqIdx - 1] : null, "prev"));
-      host = editorHost(walkRow);
+      host = editorHost(walkRow, { capped: true });
       walkRow.appendChild(
         rail(seqIdx >= 0 && seqIdx < sequence.length - 1 ? sequence[seqIdx + 1] : null, "next")
       );
     } else {
-      host = editorHost(wrap);
+      host = editorHost(wrap, { capped: true });
     }
     const rowGuid = row?.id ?? "";
 
