@@ -60,6 +60,10 @@ export interface SheetSpec {
   /** Rows frozen at the top (0 = none). */
   freezeRows?: number;
   validations?: Validation[];
+  /** With any entry the sheet is PROTECTED: these columns' cells stay
+   *  locked, every other cell (filled or empty) is editable, and rows
+   *  can still be added, deleted, sorted and filtered (2026-11-01). */
+  lockedCols?: number[];
 }
 
 /** yyyy-mm-dd → Excel's day serial (1900 date system); NaN when not a date. */
@@ -127,8 +131,16 @@ function sheetXml(s: SheetSpec): string {
   const boldRows = new Set(s.boldRows ?? []);
   const noteRows = new Set(s.noteRows ?? []);
   const dateCols = new Set(s.dateCols ?? []);
-  // cell styles (styles.xml cellXfs): 0 normal · 1 bold · 2 muted italic wrapped · 3 date
-  const styleOf = (r: number, c: number, isDate: boolean): string => (isDate ? ` s="3"` : boldRows.has(r) ? ` s="1"` : noteRows.has(r) ? ` s="2"` : dateCols.has(c) ? ` s="3"` : "");
+  // cell styles (styles.xml cellXfs): 0 normal · 1 bold · 2 muted italic wrapped · 3 date;
+  // 4–7 the same, UNLOCKED — on a protected sheet every cell outside the
+  // locked columns wears one (cells are locked by default)
+  const lockedCols = new Set(s.lockedCols ?? []);
+  const protect = lockedCols.size > 0;
+  const styleOf = (r: number, c: number, isDate: boolean): string => {
+    const base = isDate ? 3 : boldRows.has(r) ? 1 : noteRows.has(r) ? 2 : dateCols.has(c) ? 3 : 0;
+    const idx = protect && !lockedCols.has(c) ? base + 4 : base;
+    return idx === 0 ? "" : ` s="${idx}"`;
+  };
   const nCols = Math.max(1, ...s.rows.map((r) => r.length));
   const parts: string[] = [];
   parts.push(CT_XML);
@@ -144,7 +156,11 @@ function sheetXml(s: SheetSpec): string {
   parts.push("<cols>");
   for (let c = 0; c < nCols; c++) {
     const w = s.colWidths?.[c] ?? 16;
-    parts.push(`<col min="${c + 1}" max="${c + 1}" width="${hiddenCols.has(c) ? 2 : w}" customWidth="1"${hiddenCols.has(c) ? ` hidden="1"` : ""}${dateCols.has(c) ? ` style="3"` : ""}/>`);
+    // the column's default style: what an EMPTY cell wears — the date
+    // format, and on a protected sheet the unlocked variant
+    const colStyle = dateCols.has(c) ? 3 : 0;
+    const colIdx = protect && !lockedCols.has(c) ? colStyle + 4 : colStyle;
+    parts.push(`<col min="${c + 1}" max="${c + 1}" width="${hiddenCols.has(c) ? 2 : w}" customWidth="1"${hiddenCols.has(c) ? ` hidden="1"` : ""}${colIdx !== 0 ? ` style="${colIdx}"` : ""}/>`);
   }
   parts.push("</cols>");
   parts.push("<sheetData>");
@@ -167,6 +183,8 @@ function sheetXml(s: SheetSpec): string {
     parts.push("</row>");
   });
   parts.push("</sheetData>");
+  // "0" ALLOWS the action on a protected sheet; only locked cells are held
+  if (protect) parts.push(`<sheetProtection sheet="1" objects="1" scenarios="1" formatCells="0" formatColumns="0" formatRows="0" insertRows="0" deleteRows="0" sort="0" autoFilter="0"/>`);
   const vals = s.validations ?? [];
   if (vals.length > 0) {
     parts.push(`<dataValidations count="${vals.length}">`);
@@ -229,7 +247,16 @@ function workbookParts(sheets: SheetSpec[]): { path: string; text: string }[] {
       `<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>` +
       `<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>` +
       `<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>` +
-      `<cellXfs count="4"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/><xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment wrapText="1" vertical="top"/></xf><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs>` +
+      `<cellXfs count="8">` +
+      `<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>` +
+      `<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>` +
+      `<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment wrapText="1" vertical="top"/></xf>` +
+      `<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>` +
+      `<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyProtection="1"><protection locked="0"/></xf>` +
+      `<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1" applyProtection="1"><protection locked="0"/></xf>` +
+      `<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1" applyProtection="1"><alignment wrapText="1" vertical="top"/><protection locked="0"/></xf>` +
+      `<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyProtection="1"><protection locked="0"/></xf>` +
+      `</cellXfs>` +
       `<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>` +
       `</styleSheet>`,
   });

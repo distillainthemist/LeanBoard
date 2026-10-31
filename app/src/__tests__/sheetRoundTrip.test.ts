@@ -67,19 +67,21 @@ describe("buildSheets", () => {
   it("lays out the Files sheet: labels, hidden internals, one row per file", () => {
     const files = sheets[0];
     expect(files.name).toBe(FILES_SHEET);
-    expect(files.rows[0]).toEqual(["File id", "Name on ingestion", "Folder", "Organisation unit ✱", "Tags", "Owner ✱", "Author", "Status", "Effective", "Title"]);
+    expect(files.rows[0]).toEqual(["File id", "Folder", "Name on ingestion", "Organisation unit ✱", "Tags", "Owner ✱", "Author", "Status", "Effective", "Title"]);
     // the guidance row under the header, the hidden key row beneath it
     expect((files.rows[GUIDE_ROW] as string[]).slice(3)).toEqual(cols.map(columnGuidance));
-    expect((files.rows[GUIDE_ROW] as string[])[2]).toMatch(/for reference only/);
+    expect((files.rows[GUIDE_ROW] as string[])[1]).toMatch(/for reference, locked/);
+    // the id and the folder are locked; everything else edits
+    expect(files.lockedCols).toEqual([0, 1]);
     expect(columnGuidance(org)).toBe("Required. One term as its full path — use the dropdown (the Values sheet lists them).");
     expect(columnGuidance(tags)).toMatch(/^One or more terms as full paths/);
     expect(columnGuidance(owner)).toMatch(/^Required\. One person from the owners & approvers pool/);
     expect(columnGuidance(author)).toMatch(/^Email addresses separated by/);
     expect(columnGuidance(eff)).toMatch(/^A date — type yyyy-mm-dd/);
-    expect(files.rows[INTERNALS_ROW]).toEqual([ID_INTERNAL, NAME_INTERNAL, FOLDER_INTERNAL, "DMSOrg", "DMSTags", "DMSOwner", "DMSAuthor", "DMSStatus", "DMSEffective", "DMSTitle"]);
-    // a date travels as a real date cell; the folder for reference
-    expect(files.rows[FIRST_FILE_ROW]).toEqual(["U1", "Policy A", "", `Pechey${PATH_SEP}Bell Bay${PATH_SEP}Casting`, "Safety; Crane Ops", "Ann Ray <ann@x.test>", "Cy Lee <cy@x.test>; Di Moss <di@x.test>", "Draft", { date: "2026-10-09" }, "Policy A — scope"]);
-    expect(files.rows[FIRST_FILE_ROW + 1]).toEqual(["U2", "Plan B", `Plans${PATH_SEP}2024`, "", "", "", "", "", "", ""]);
+    expect(files.rows[INTERNALS_ROW]).toEqual([ID_INTERNAL, FOLDER_INTERNAL, NAME_INTERNAL, "DMSOrg", "DMSTags", "DMSOwner", "DMSAuthor", "DMSStatus", "DMSEffective", "DMSTitle"]);
+    // a date travels as a real date cell; the folder leads, for reference
+    expect(files.rows[FIRST_FILE_ROW]).toEqual(["U1", "", "Policy A", `Pechey${PATH_SEP}Bell Bay${PATH_SEP}Casting`, "Safety; Crane Ops", "Ann Ray <ann@x.test>", "Cy Lee <cy@x.test>; Di Moss <di@x.test>", "Draft", { date: "2026-10-09" }, "Policy A — scope"]);
+    expect(files.rows[FIRST_FILE_ROW + 1]).toEqual(["U2", `Plans${PATH_SEP}2024`, "Plan B", "", "", "", "", "", "", ""]);
     expect(files.hiddenCols).toEqual([0]);
     expect(files.hiddenRows).toEqual([INTERNALS_ROW]);
     expect(files.noteRows).toEqual([GUIDE_ROW]);
@@ -165,15 +167,15 @@ describe("parseSheet", () => {
   it("reads edits, clears, renames, problems and unknown rows", async () => {
     const grid = exported.map((r) => [...r]);
     const R = FIRST_FILE_ROW;
-    grid[R][1] = "Policy A v2"; // rename
-    grid[R][2] = "Moved/Elsewhere"; // the folder column is reference only — ignored
+    grid[R][2] = "Policy A v2"; // rename
+    grid[R][1] = "Moved/Elsewhere"; // the folder column is reference only (locked in Excel) — ignored if forced
     grid[R][3] = ""; // clear the org
     grid[R][7] = "Approved";
     grid[R][8] = "Nov 3"; // problem
     grid[R + 1][3] = `Pechey${PATH_SEP}Bell Bay`;
     grid[R + 1][5] = "Zed <zed@x.test>"; // not in the pool
     grid[R + 1][9] = "  "; // blank over blank: nothing
-    grid.push(["U9", "Gone.pdf", "", "", "", "", "", "", "", ""]);
+    grid.push(["U9", "", "Gone.pdf", "", "", "", "", "", "", ""]);
     grid.push(["", "", "", "", "", "", "", "", "", ""]);
     const p = await parseSheet(grid, cols, [f1, f2], noDirectory);
     expect(p.error).toBe("");

@@ -148,7 +148,7 @@ describe("workbook round trip", () => {
     expect(xml).toContain(`sqref="A3:A10"><formula1>1</formula1>`);
     const styles = new TextDecoder().decode(parts.get("xl/styles.xml"));
     expect(styles).toContain(`<numFmt numFmtId="164"`);
-    expect(styles).toContain(`<cellXfs count="4">`);
+    expect(styles).toContain(`<cellXfs count="8">`);
     const sheets = await readXlsx(bytes, nodeInflate);
     expect(sheets[0].rows[2][0]).toBe("46304");
     expect(isoToExcelSerial("2026-10-09")).toBe(46304);
@@ -214,5 +214,33 @@ describe("excelSerialToIso", () => {
     expect(excelSerialToIso(46304)).toBe("2026-10-09");
     expect(excelSerialToIso(0)).toBe("");
     expect(excelSerialToIso(Number.NaN)).toBe("");
+  });
+});
+
+describe("sheet protection (lockedCols)", () => {
+  it("protects the sheet, locks the named columns and unlocks every other cell and column default", async () => {
+    const bytes = writeXlsx([{ name: "Files", rows: [["id", "Folder", "Name", "When"], ["U1", "A › B", "Policy", { date: "2026-10-09" }]], hiddenCols: [0], dateCols: [3], boldRows: [0], lockedCols: [0, 1] }]);
+    const parts = await readZip(bytes, nodeInflate);
+    const xml = new TextDecoder().decode(parts.get("xl/worksheets/sheet1.xml"));
+    expect(xml).toContain(`<sheetProtection sheet="1" objects="1" scenarios="1" formatCells="0" formatColumns="0" formatRows="0" insertRows="0" deleteRows="0" sort="0" autoFilter="0"/>`);
+    // locked columns keep the base styles; the others wear the unlocked twins (+4)
+    expect(xml).toContain(`<c r="A1" s="1" t="inlineStr">`);
+    expect(xml).toContain(`<c r="B1" s="1" t="inlineStr">`);
+    expect(xml).toContain(`<c r="C1" s="5" t="inlineStr">`);
+    expect(xml).toContain(`<c r="B2" t="inlineStr">`);
+    expect(xml).toContain(`<c r="C2" s="4" t="inlineStr">`);
+    expect(xml).toContain(`<c r="D2" s="7"><v>46304</v></c>`);
+    // empty cells follow the column default: unlocked, dated where asked
+    expect(xml).toContain(`<col min="3" max="3" width="16" customWidth="1" style="4"/>`);
+    expect(xml).toContain(`<col min="4" max="4" width="16" customWidth="1" style="7"/>`);
+    expect(xml).toContain(`<col min="2" max="2" width="16" customWidth="1"/>`);
+    const styles = new TextDecoder().decode(parts.get("xl/styles.xml"));
+    expect(styles).toContain(`<cellXfs count="8">`);
+    expect((styles.match(/<protection locked="0"\/>/g) ?? []).length).toBe(4);
+    // an unprotected sheet is untouched
+    const plainParts = await readZip(writeXlsx([{ name: "S", rows: [["a"]] }]), nodeInflate);
+    const plain = new TextDecoder().decode(plainParts.get("xl/worksheets/sheet1.xml"));
+    expect(plain).not.toContain("sheetProtection");
+    expect(plain).toContain(`<c r="A1" t="inlineStr">`);
   });
 });
