@@ -425,6 +425,12 @@ Version lives in the tag alone — nothing is stamped into files.
   (2026-10-29: an ingestion task constrained to one site — `ben_site`
   on `ben_ltkingestiontask`; the organisation and process editors, the
   sheet and the run's pre-flight follow the site) is SOLUTION-CARRYING.
+  v0.85.0 (2026-11-01: the release gate — `ben_releasepolicy` on
+  `ben_ltksitesettings`, `ben_lastbuild` on `ben_ltkpeople`; team
+  import; card responsiveness R0–R4; action-link fixes; Action card
+  views; the priority picker; the sub-pillar health chip behind the
+  kebab's "Health check scores") is SOLUTION-CARRYING — nothing to do
+  after the import; the first clean boot records itself as current.
   Prod imports the managed solution FIRST. LESSON
   (2026-10-13, production's first sync): a sync must
   never run from a walk it cannot trust (budget-cut OR any failed

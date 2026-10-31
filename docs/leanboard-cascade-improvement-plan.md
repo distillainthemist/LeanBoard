@@ -1455,6 +1455,35 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-11-01 — released as v0.85.0** (SOLUTION-CARRYING:
+  `ben_releasepolicy` on `ben_ltksitesettings`, `ben_lastbuild` on
+  `ben_ltkpeople`): everything since v0.84.0. The release gate
+  (`docs/release-gate-2026-10-31.md`: a clean newer build records
+  itself as current at boot; a stale client is told at boot and
+  bannered while running; a build below the site's minimum is gated
+  once no leave guard holds; Settings → Branding → Version; Users
+  "Last opened on …"; UAT-SET-006). Team import
+  (`docs/team-import-proposal-2026-10-31.md`: Settings → Users "Import
+  a site's team…" walks the site owners' reporting trees through the
+  Office 365 Users connector, places people by department / area owner
+  subtrees with an Entra label fallback, reviews in a table, one write
+  pass then one access sync; UAT-SET-007). Card responsiveness R0–R4
+  (`docs/card-responsiveness-review-2026-10-30.md`; UAT-RIT-003–008; R5
+  after Ben's phone pass). Action-link fixes
+  (`docs/action-link-review-2026-10-30.md`; UAT-ACT-001/002). The Action
+  card: Show completed on every view, off by default; edit from the
+  Gantt; Gantt lanes follow the kanban columns (UAT-RIT-009). The
+  priority picker in the initiative form: the initiative's own org
+  first, searchable, parents on request; a new initiative opens on the
+  Improvement tab's scope (UAT-IMP-002); the Objectives row lists
+  metrics only (UAT-PRI-001). The sub-pillar health chip: score only,
+  right-aligned, never wraps, hollow after 90 days, opens the check,
+  shown only through the kebab's "Health check scores" (default off,
+  per person); Period left the kebab (UAT-HC-011, UAT-PRI-002).
+  Cross-site process filters on Cadence and the value drivers
+  (UAT-RIT-002, UAT-IMP-001); the ingestion sheet's guidance row, date
+  validation and process-root fallback. Prod: import the managed
+  solution FIRST; nothing else to do for the two columns.
 - **2026-10-29 — released as v0.84.0** (SOLUTION-CARRYING: `ben_site`
   on `ben_ltkingestiontask`): an ingestion task may be constrained to
   one site (features-plan-2026-10-29 addendum; 3/3 passed) — the Site
