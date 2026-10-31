@@ -434,7 +434,10 @@ Version lives in the tag alone — nothing is stamped into files.
   v0.86.0 (2026-11-01: ingestion tasks walk their sub-folders — a
   recursive feed, read-only paths, folder group rows that select,
   same-name hold, flat landing; the sheet's locked Folder and Open
-  columns via xlsx `lockedCols` and link cells) is app-only.
+  columns via xlsx `lockedCols` and link cells) is app-only. v0.87.0
+  (2026-11-01: the focused-card cap scoped to the focused card — the
+  hub fills the window again; the Users register paged at 50; the
+  team-import cap 3000) is app-only.
   Prod imports the managed solution FIRST. LESSON
   (2026-10-13, production's first sync): a sync must
   never run from a walk it cannot trust (budget-cut OR any failed

@@ -1455,6 +1455,16 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-11-01 — released as v0.87.0** (app-only): the 1600 px
+  readability cap applies to the FOCUSED card only (`editorHost(parent,
+  {capped})` → `.app-editor-host-capped`; R0 had put it on every editor
+  host, so the hub, the wizards and the card studio were narrowed and
+  centred on a wide monitor — Ben's screenshot); the Users register
+  pages at 50 rows (`shared/schema/paging.ts`: `pageCount` /
+  `pageSlice` / `pageLabel`; each row reads the directory once shown,
+  so a long roster no longer fires hundreds of calls on open; the tab's
+  three loads run side by side); the team-import walk cap rises from
+  1500 to 3000 people. UAT: RIT-003 step 4, SET-008 new.
 - **2026-11-01 — released as v0.86.0** (app-only): ingestion tasks
   with files in sub-folders (`docs/ingestion-subfolders-proposal-2026-11-01.md`,
   Ben's three decisions = the recommendations): the task lists every
