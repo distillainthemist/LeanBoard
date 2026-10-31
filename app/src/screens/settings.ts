@@ -47,7 +47,9 @@ import {
   APP_ROW,
   appPalettesJson,
   branding,
+  releasePolicy,
   saveAppPalettes,
+  saveReleasePolicy,
   companies,
   companyOwners,
   meetingCategories,
@@ -91,6 +93,8 @@ import {
   timeVaries,
 } from "../../../shared/schema/recurrence";
 import { RosterPerson } from "../store/mappers";
+import { buildLabel, compareBuilds, parseBuild } from "../../../shared/schema/release";
+import { thisBuild } from "../release/gate";
 import {
   DirectoryProfile,
   directoryProfile,
@@ -1730,6 +1734,9 @@ function userRow(
   const titleLine = el("div", "app-user-title", "…");
   const emailLine = el("div", "app-user-email", p.email || "no email on file");
   ident.append(nameLine, titleLine, emailLine);
+  // the build the person last opened (release gate): who has not reopened
+  // since a push, and which build a report came from
+  if (p.lastBuild) ident.appendChild(el("div", "app-field-hint app-user-build", `Last opened on ${buildLabel(p.lastBuild)}`));
   main.append(avatar, ident);
   r.appendChild(main);
 
@@ -3456,6 +3463,9 @@ async function renderBranding(body: HTMLElement, ctx: DirtyCtx): Promise<void> {
   });
 
   body.append(
+    sectionTitle("Version"),
+    await versionSection(),
+    sectionTitle("Branding"),
     el(
       "div",
       "app-settings-note",
@@ -3487,6 +3497,98 @@ async function renderBranding(body: HTMLElement, ctx: DirtyCtx): Promise<void> {
   // ritual categories: brand colours too (moved from Rituals, 2026-10-07);
   // Branding is a super-admin tab, so the list is editable here
   await renderCategoriesSection(body, true);
+}
+
+/**
+ * The release gate's controls (release-gate-2026-10-31.md): which build
+ * this device runs, which is recorded as current, and the oldest still
+ * allowed. The first boot of a clean newer build records itself; these
+ * buttons are the override (a rollback, a forced floor). They write at
+ * once — not through the tab's Save.
+ */
+async function versionSection(): Promise<HTMLElement> {
+  const box = el("div", "app-version-card");
+  const mine = thisBuild();
+  const me = parseBuild(mine);
+  const note = el("div", "app-settings-note", "");
+  const when = (iso: string) => (iso === "" ? "" : new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }));
+  const paint = async () => {
+    clear(box);
+    let policy;
+    try {
+      policy = await releasePolicy();
+    } catch (err) {
+      box.append(el("div", "app-settings-note", `Couldn't read the release policy: ${err instanceof Error ? err.message : String(err)}`));
+      return;
+    }
+    const cur = parseBuild(policy.current);
+    const lines = el("div", "app-version-lines");
+    lines.append(
+      el("div", "", `This device: ${buildLabel(mine)}`),
+      el("div", "app-field-hint", `stamp ${mine}`),
+      el(
+        "div",
+        "",
+        policy.current === ""
+          ? "Current build: not recorded yet — the first boot of a clean build records it."
+          : `Current build: ${buildLabel(policy.current)}${policy.recordedAt !== "" ? ` · recorded ${when(policy.recordedAt)}${policy.recordedBy !== "" ? ` by ${policy.recordedBy}` : ""}` : ""}`
+      ),
+      el("div", "", policy.minimum === "" ? "Oldest build allowed: any — older builds see a banner and are asked to reopen." : `Oldest build allowed: ${buildLabel(policy.minimum)} — anything older is locked until reopened.`)
+    );
+    const actions = el("div", "app-palette-actions");
+    const makeCurrent = el("button", "app-btn", "Make this build current") as HTMLButtonElement;
+    makeCurrent.disabled = me === null || me.dirty || (cur !== null && compareBuilds(me, cur) === 0);
+    makeCurrent.title = me === null ? "This build carries no comparable stamp" : me.dirty ? "A dirty tree never becomes the current build" : "Everyone on another build is asked to close and reopen";
+    makeCurrent.addEventListener("click", () => {
+      void (async () => {
+        const older = cur !== null && me !== null && compareBuilds(me, cur) < 0;
+        const ok = await promptConfirm({
+          title: `Make ${buildLabel(mine)} the current build?`,
+          note: older
+            ? `This is OLDER than the recorded ${buildLabel(policy.current)} — a rollback. People on the newer build keep working; the next clean build newer than this one records itself again.`
+            : "Everyone on an older build sees a banner, and is gated the next time they open the app, until they reopen it.",
+          confirmLabel: "Make current",
+        });
+        if (!ok) return;
+        await saveReleasePolicy({ ...policy, current: mine, recordedAt: new Date().toISOString(), recordedBy: currentViewer()?.name ?? "" });
+        note.textContent = `${buildLabel(mine)} is now the current build.`;
+        await paint();
+      })();
+    });
+    const requireThis = el("button", "app-btn app-btn-danger", "Require this build") as HTMLButtonElement;
+    requireThis.disabled = me === null || me.dirty || policy.minimum === mine;
+    requireThis.title = "Lock every older build at once — use it when old clients would write rows the new build cannot read";
+    requireThis.addEventListener("click", () => {
+      void (async () => {
+        const ok = await promptConfirm({
+          title: `Lock every build older than ${buildLabel(mine)}?`,
+          note: "People on an older build are locked out within five minutes, or as soon as they save what they are editing, until they close and reopen LeanBoard. Use this when a push changed what the app writes.",
+          confirmLabel: "Lock older builds",
+          danger: true,
+        });
+        if (!ok) return;
+        const next = { ...policy, minimum: mine };
+        // a floor above the record makes this build current too
+        if (cur === null || (me !== null && compareBuilds(me, cur) > 0)) Object.assign(next, { current: mine, recordedAt: new Date().toISOString(), recordedBy: currentViewer()?.name ?? "" });
+        await saveReleasePolicy(next);
+        note.textContent = `Builds older than ${buildLabel(mine)} are locked.`;
+        await paint();
+      })();
+    });
+    const clearMin = el("button", "app-btn", "Clear the minimum") as HTMLButtonElement;
+    clearMin.disabled = policy.minimum === "";
+    clearMin.addEventListener("click", () => {
+      void (async () => {
+        await saveReleasePolicy({ ...policy, minimum: "" });
+        note.textContent = "No minimum — older builds see the banner only.";
+        await paint();
+      })();
+    });
+    actions.append(makeCurrent, requireThis, clearMin);
+    box.append(lines, actions, note);
+  };
+  await paint();
+  return box;
 }
 
 // ---- Boards & meetings (admins): categories, create, edit, replicate ----

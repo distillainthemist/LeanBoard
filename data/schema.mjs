@@ -196,6 +196,10 @@ export const TABLES = [
       ben_accessgroup: { ...memo(2000), display: "Access group (JSON)" },
       ben_orgowners: { ...memo(20000), display: "Org owners (JSON)" },
       ben_logo: { ...memo(200000), display: "Logo (data URI)" },
+      // release gate (release-gate-2026-10-31.md): on the APP_ROW
+      // {current, minimum, recordedAt, recordedBy} — build stamps as the
+      // bundle carries them (git describe), compared by tag then commits ahead
+      ben_releasepolicy: { ...memo(2000), display: "Release policy (JSON)" },
     },
     key: ["ben_site"],
   },
@@ -261,6 +265,8 @@ export const TABLES = [
       ben_area: { ...text(100), display: "Area" },
       ben_role: { ...text(20), display: "Role (user|siteadmin|superadmin)" },
       ben_active: { kind: "bool", display: "Active", default: true },
+      // the build the person last booted on (release gate, 2026-10-31)
+      ben_lastbuild: { ...text(60), display: "Last build" },
     },
     key: ["ben_whoid"],
   },

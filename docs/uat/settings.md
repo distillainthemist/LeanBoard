@@ -58,3 +58,17 @@ steps:
 1. Improvement tab at company scope (no site) → Filters → "Process (across sites)" → the type, then the process.
 2. Switch the scope to one site → Filters → Process.
 expected: at company scope both initiatives match the central pick and the filter count reads 1; at site scope the Process filter cascades through that site's own tree and matches only its initiative
+
+## Journey 4 — Versions
+
+### UAT-SET-006 — People on an old build are told, then gated
+persona: superadmin
+modules: release/gate.ts screens/settings.ts shared/schema/release.ts
+preconditions: two devices (or a browser and the phone) open on the app; Settings → Branding → Version readable
+steps:
+1. Settings → Branding → Version: read "This device", "Current build" and "Oldest build allowed". Press "Make this build current" if it is not.
+2. Leave device B open. Push a new build (or on device A press "Make this build current" after a push). Wait up to five minutes on device B, or switch away from its tab and back.
+3. On device B close LeanBoard and open it again.
+4. On device A press "Require this build"; on a device still on the older build, open a card editor, make a change, wait.
+5. Settings → Users: find the two people.
+expected: step 1 names the device's build (v0.x.y, "+n" past a tag) and who recorded the current one; step 2 device B shows an amber banner under the top bar naming both builds and asking to close and reopen, nothing is blocked; a device that OPENS on the old build (a cached player) sees the full-screen gate instead and cannot use the app; step 3 clears it and, on a clean build newer than the record, records itself as current; step 4 the old device shows the red banner while the editor holds unsaved work and the gate as soon as it is saved or closed; "Clear the minimum" lifts it; step 5 each person's row reads "Last opened on <build>"

@@ -33,6 +33,7 @@ export interface Ben_ltksitesettingsesBase {
   ben_prioritysettings?: string;
   ben_processtype?: string;
   ben_protectedtimes?: string;
+  ben_releasepolicy?: string;
   ben_rosterpatterns?: string;
   ben_site: string;
   ben_siteorder?: number;

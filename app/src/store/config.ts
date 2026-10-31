@@ -6,6 +6,7 @@ import { memoRead, writing } from "./changes";
 import { Ben_ltksitesettingsesService } from "../generated/services/Ben_ltksitesettingsesService";
 import { Ben_ltkuserprefsesService } from "../generated/services/Ben_ltkuserprefsesService";
 import { parseHubTabs, serializeHubTabs } from "../../../shared/schema/hubTabs";
+import { parseReleasePolicy, ReleasePolicy, serializeReleasePolicy } from "../../../shared/schema/release";
 import {
   defaultPalette,
   defaultTitlePalette,
@@ -613,6 +614,23 @@ export async function saveAppPalettes(states: string, titles: string): Promise<v
       ben_statepalette: states,
       ben_titlepalette: titles,
     }
+  ));
+}
+
+/** The release policy on the APP_ROW (release-gate-2026-10-31.md): the
+ *  newest build any client has booted on, and the oldest still allowed.
+ *  Read fresh — the gate decides on it. */
+export async function releasePolicy(): Promise<ReleasePolicy> {
+  const rows = await allWhere(Ben_ltksitesettingsesService.getAll, eq("ben_site", APP_ROW));
+  return parseReleasePolicy(rows[0]?.ben_releasepolicy);
+}
+
+export async function saveReleasePolicy(p: ReleasePolicy): Promise<void> {
+  await writing("release", upsertWhere(
+    Ben_ltksitesettingsesService,
+    eq("ben_site", APP_ROW),
+    (row) => row.ben_ltksitesettingsid,
+    { ben_site: APP_ROW, ben_name: "App branding", ben_releasepolicy: serializeReleasePolicy(p) }
   ));
 }
 

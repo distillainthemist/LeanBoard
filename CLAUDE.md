@@ -83,6 +83,12 @@ hard way:
   "App pushed successfully" — report from the command output, not intention.
 - The player caches the bundle: after every push, Ben must **close and
   reopen the player** before testing.
+- The release gate (`app/src/release/gate.ts`, `shared/schema/release.ts`,
+  docs/release-gate-2026-10-31.md) compares the bundle's `__APP_VERSION__`
+  with the APP_ROW's `ben_releasepolicy`: a clean newer build records itself
+  as current at boot; a stale client gets a full gate at boot and a banner
+  while running; a build below the minimum is gated once no leave guard
+  holds. Never add a reload button inside the player (host handshake).
 - `pac` is already authenticated as partnership@pecheydistilling.com. If
   auth has expired, do not attempt an interactive login yourself — tell Ben,
   he runs `pac auth create` and completes the sign-in.

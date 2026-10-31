@@ -201,6 +201,10 @@
         "leanboardhealthchecks": {
           "entitySetName": "ben_ltkhealthchecks",
           "logicalName": "ben_ltkhealthcheck"
+        },
+        "people": {
+          "entitySetName": "ben_ltkpeoples",
+          "logicalName": "ben_ltkpeople"
         }
       },
       "environmentVariableName": ""

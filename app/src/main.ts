@@ -156,6 +156,11 @@ void (async () => {
     if (/^#[0-9a-fA-F]{3,8}$/.test(accent)) {
       document.documentElement.style.setProperty("--app-accent", accent);
     }
+    // the release gate (release-gate-2026-10-31.md): is this bundle the
+    // current one? Hosted only — a dev server has no policy to read
+    if (viewer) {
+      void import("./release/gate").then((m) => m.startReleaseGate(viewer, me !== null)).catch(() => undefined);
+    }
     // view-as banner: a super admin previewing a lesser role always sees
     // it flagged, with a one-click way back. NO page reloads here — a raw
     // iframe reload loses the Power Apps host handshake (getContext never

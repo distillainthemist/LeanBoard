@@ -103,7 +103,8 @@
     "modules": [
       "screens/settings.ts",
       "store/people.ts",
-      "processes/"
+      "processes/",
+      "release/"
     ]
   },
   {

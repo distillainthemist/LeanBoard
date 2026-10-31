@@ -188,6 +188,14 @@
           "x-ms-schema-name": "ben_protectedtimes",
           "maxLength": 10000
         },
+        "ben_releasepolicy": {
+          "type": "string",
+          "title": "Release policy (JSON)",
+          "x-ms-dataverse-attribute": "ben_releasepolicy",
+          "x-ms-dataverse-type": "MemoType",
+          "x-ms-schema-name": "ben_releasepolicy",
+          "maxLength": 2000
+        },
         "ben_rosterpatterns": {
           "type": "string",
           "title": "Roster Patterns (JSON)",

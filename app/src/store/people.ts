@@ -143,6 +143,15 @@ export async function managerOf(whoId: string): Promise<string> {
   });
 }
 
+/** Stamp the build the viewer booted on (release gate). A silent write:
+ *  no cache bump, and only on a row that exists — a stranger's boot must
+ *  not mint a roster row. */
+export async function recordLastBuild(whoId: string, build: string): Promise<void> {
+  const rows = await allWhere(Ben_ltkpeoplesService.getAll, eq("ben_whoid", whoId), ["ben_lastbuild"]);
+  if (rows.length === 0 || rows[0].ben_lastbuild === build) return;
+  await upsertWhere(Ben_ltkpeoplesService, eq("ben_whoid", whoId), (row) => row.ben_ltkpeopleid, { ben_whoid: whoId, ben_lastbuild: build });
+}
+
 export async function viewerPerson(entraObjectId: string): Promise<RosterPerson | null> {
   const rows = await allWhere(Ben_ltkpeoplesService.getAll, eq("ben_whoid", entraObjectId));
   return rows.length ? personFromRow(rows[0]) : null;

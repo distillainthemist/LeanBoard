@@ -274,6 +274,8 @@ export interface RosterPerson {
   /** "user" (default) | "siteadmin" | "superadmin" */
   role: string;
   active: boolean;
+  /** the build stamp the person last booted on ("" = never recorded) */
+  lastBuild?: string;
 }
 
 export function personFromRow(row: Ben_ltkpeoples): RosterPerson {
@@ -287,6 +289,7 @@ export function personFromRow(row: Ben_ltkpeoples): RosterPerson {
     area: row.ben_area ?? "",
     role: row.ben_role || "user",
     active: row.ben_active !== false,
+    lastBuild: row.ben_lastbuild ?? "",
   };
 }
 

@@ -19,6 +19,7 @@ export interface Ben_ltkpeoplesBase {
   ben_crew?: string;
   ben_department?: string;
   ben_email?: string;
+  ben_lastbuild?: string;
   ben_ltkpeopleid: string;
   ben_name?: string;
   ben_role?: string;
