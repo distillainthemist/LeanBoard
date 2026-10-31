@@ -4803,8 +4803,9 @@ input.app-vg-in.app-vg-folded { background: #fff7e0; }
 .app-ing-path { font-size: 11px; color: #8b8478; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* the folder group row: sticky at the left so it reads while the grid
    scrolls sideways; selects its files for Set for selected… */
-.app-ing-group { display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: #f4f1ea; border-bottom: 1px solid #e4dfd6; min-width: max-content; position: sticky; left: 0; z-index: 3; width: max-content; }
-.app-ing-grid-fit .app-ing-group { min-width: 0; width: auto; position: static; }
+.app-ing-group { background: #f4f1ea; border-bottom: 1px solid #e4dfd6; }
+.app-ing-group-inner { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; padding: 6px 10px; position: sticky; left: 0; width: max-content; max-width: 100%; }
+.app-ing-grid-fit .app-ing-group-inner { position: static; }
 .app-ing-group-label { font-weight: 700; font-size: 12.5px; color: #26241f; }
 .app-ing-group-count { font-size: 12px; color: #6d675c; }
 .app-ing-group-open { font-size: 12px; margin-left: 4px; }

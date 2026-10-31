@@ -1130,7 +1130,12 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
         return;
       }
       for (const g of folderGroups(shown, task.folder)) {
-        const gr = el("div", "app-ing-group");
+        // the row spans the grid's width on the rows' own template (the
+        // tint runs edge to edge); its content sits sticky at the left
+        const gr = el("div", "app-ing-gridrow app-ing-group");
+        gr.style.gridTemplateColumns = template();
+        const inner = el("div", "app-ing-group-inner");
+        gr.appendChild(inner);
         const gbox = el("input", "app-docs-libcheck") as HTMLInputElement;
         gbox.type = "checkbox";
         gbox.checked = g.items.every((r) => selected.has(r.uniqueId));
@@ -1143,12 +1148,12 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
           paintSel();
           paintGrid();
         });
-        gr.appendChild(gbox);
-        gr.appendChild(el("span", "app-ing-group-label", g.label));
-        gr.appendChild(el("span", "app-ing-group-count", `${g.items.length} file${g.items.length === 1 ? "" : "s"}`));
+        inner.appendChild(gbox);
+        inner.appendChild(el("span", "app-ing-group-label", g.label));
+        inner.appendChild(el("span", "app-ing-group-count", `${g.items.length} file${g.items.length === 1 ? "" : "s"}`));
         const open = linkBtn("Open ↗", `${ctx.origin}${task.folder}${g.path === "" ? "" : `/${g.path}`}`, "app-link app-ing-group-open");
         open.title = "This folder in SharePoint";
-        gr.appendChild(open);
+        inner.appendChild(open);
         gridHost.appendChild(gr);
         for (const row of g.items) paintRow(row);
       }
