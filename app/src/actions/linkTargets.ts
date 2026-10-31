@@ -6,7 +6,7 @@
 // listed every active one by title).
 
 import { currentViewer } from "../runtime";
-import { canSee, ImprovementViewer, Initiative, orgsOf } from "../improvement/initiativeModel";
+import { ImprovementViewer, Initiative, adminScopeFor, canSee, orgsOf } from "../improvement/initiativeModel";
 import { archivedSites, orgOwnersMap } from "../store/config";
 import { canViewBoard, listBoards } from "../store/boards";
 import { listInitiatives } from "../store/initiatives";
@@ -22,14 +22,14 @@ import { openBoardId, openCardKey } from "./openBoard";
 /** The viewer as the improvement rules know them. */
 export async function improvementViewer(): Promise<ImprovementViewer> {
   const whoId = currentViewer()?.objectId ?? "";
-  if (whoId === "") return { whoId, ownedOrgKeys: [], isAdmin: false };
+  if (whoId === "") return { whoId, ownedOrgKeys: [], adminScope: null };
   const [me, owners] = await Promise.all([viewerPerson(whoId).catch(() => null), orgOwnersMap().catch(() => ({}) as Awaited<ReturnType<typeof orgOwnersMap>>)]);
   return {
     whoId,
     ownedOrgKeys: Object.entries(owners)
       .filter(([, people]) => people.some((p) => p.whoId === whoId))
       .map(([key]) => key),
-    isAdmin: me?.role === "superadmin" || me?.role === "siteadmin",
+    adminScope: adminScopeFor(me?.role, me?.site),
   };
 }
 

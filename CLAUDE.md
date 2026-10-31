@@ -312,6 +312,14 @@ Version lives in the tag alone — nothing is stamped into files.
   hub's "my part" tick applies it both ways, the store's write
   applies the closing half. Before 2026-10-06 the hub only marked the
   part and the action stayed open everywhere else.
+- **Admin over an initiative is ONE rule**: `adminOver(i, scope)` with
+  `adminScopeFor(role, site)` (`improvement/initiativeModel.ts`) — a
+  super admin everywhere, a site admin over their own site's initiatives
+  (including ones that also span it). Every edit door, the confidential
+  view, the health, endorsement and stage gates ask it; never test
+  `role === "siteadmin"` at a surface (2026-11-01). And a screen resolves
+  the VIEWER'S roster row directly (`viewerPerson`), never only by
+  finding it in the full list.
 - **The SDK's `retrieveMultipleRecordsAsync` returns ONE page** — 500
   rows by default, with a `skipToken` for the next. `allWhere`
   (`store/dv.ts`) asks for 5000 a page and follows the token to the

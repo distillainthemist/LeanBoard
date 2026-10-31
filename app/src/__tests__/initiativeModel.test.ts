@@ -83,12 +83,12 @@ describe("initiatives — model", () => {
     // c sits on a site the viewer does NOT own — org owners see their own
     // org's confidential initiatives by design
     const c = init({ id: "in-3", confidential: true, roles: { owner: [{ whoId: "p2", who: "B" }] }, org: { company: "Pechey", site: "Refinery", department: "", area: "" } });
-    const viewer = { whoId: "p1", ownedOrgKeys: ["Pechey|Mine||"], isAdmin: false };
+    const viewer = { whoId: "p1", ownedOrgKeys: ["Pechey|Mine||"], adminScope: null };
     const g = groupInitiatives([a, b, c], viewer);
     expect(g.mine.map((x) => x.id)).toEqual(["in-1"]);
     expect(g.team.map((x) => x.id)).toEqual(["in-1", "in-2"]);
     expect(g.hiddenConfidential).toBe(1);
-    expect(canSee(c, { whoId: "p2", ownedOrgKeys: [], isAdmin: false })).toBe(true);
+    expect(canSee(c, { whoId: "p2", ownedOrgKeys: [], adminScope: null })).toBe(true);
     expect(myRoles(a, "p1")).toEqual(["owner"]);
   });
   it("pending gate parses; validation catches the essentials", () => {
@@ -203,5 +203,24 @@ describe("initiative boards keep the template's layout (2026-09-17)", () => {
     const manifest = { grid: "3", columnTitles: [], archivedSlots: [slot(9, "DocsCard", false)], slots: [slot(1, "CanvasCard", true), slot(2, "LinksCard", false), slot(3, "ActionBoard", true), slot(4, "MetricsCard", false), slot(5, "MetricsCard", false)] };
     const out = slotsFromTemplate(manifest as never, "metrics-kept");
     expect(out.map((s) => s.cardId)).toEqual(["c1", "c2", "c3", "metrics-kept"]);
+  });
+});
+
+describe("admin scope over initiatives (2026-11-01)", () => {
+  it("a super admin reaches everything, a site admin their site, a user nothing", async () => {
+    const { adminScopeFor, adminOver, adminOverSite } = await import("../improvement/initiativeModel");
+    const at = (site: string, also: string[] = []) => ({ org: { company: "Pechey", site, department: "", area: "" }, alsoOrgs: also.map((s) => ({ company: "Pechey", site: s, department: "", area: "" })) });
+    expect(adminScopeFor("superadmin", "Bell Bay")).toBe("all");
+    expect(adminScopeFor("siteadmin", "Bell Bay")).toEqual({ site: "Bell Bay" });
+    expect(adminScopeFor("siteadmin", "")).toBeNull();
+    expect(adminScopeFor("user", "Bell Bay")).toBeNull();
+    expect(adminScopeFor(undefined, undefined)).toBeNull();
+    expect(adminOver(at("Boyne"), "all")).toBe(true);
+    expect(adminOver(at("bell bay"), { site: "Bell Bay" })).toBe(true);
+    expect(adminOver(at("Boyne"), { site: "Bell Bay" })).toBe(false);
+    expect(adminOver(at("Boyne", ["Bell Bay"]), { site: "Bell Bay" })).toBe(true); // also spans the site
+    expect(adminOver(at("Boyne"), null)).toBe(false);
+    expect(adminOverSite("Bell Bay", { site: "bell bay" })).toBe(true);
+    expect(adminOverSite("", { site: "Bell Bay" })).toBe(false);
   });
 });

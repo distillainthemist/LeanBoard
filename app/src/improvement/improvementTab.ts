@@ -15,7 +15,7 @@ import { boardHash, boardUrl } from "../links";
 import { rememberBoardOrigin } from "./boardOrigin";
 import { renderMetricsList } from "./metricsList";
 import { dayLabel } from "../linkTitle";
-import { listPeople } from "../store/people";
+import { listPeople, viewerPerson } from "../store/people";
 import type { RosterPerson } from "../store/mappers";
 import { improvementSettingsJson, orgJson, orgOwnersMap, prioritySettingsJson, siteCompanies } from "../store/config";
 import { loadCascade } from "../store/priorities";
@@ -32,15 +32,7 @@ import { effectiveEnd, groupPrioritiesForPicker, isDescendant, orgFromKey, orgKe
 import { paletteMap } from "../../../shared/palette";
 import { appPalettes } from "../store/config";
 import { todayIso } from "../../../shared/schema/id";
-import {
-  groupInitiatives,
-  ImprovementViewer,
-  Initiative,
-  myRoles,
-  nextGateFor,
-  orgKeyOf,
-  ragInputsFor,
-  validateNewInitiative, orgsOf } from "./initiativeModel";
+import { ImprovementViewer, Initiative, adminScopeFor, groupInitiatives, myRoles, nextGateFor, orgKeyOf, orgsOf, ragInputsFor, validateNewInitiative } from "./initiativeModel";
 import { fieldInput } from "./fieldInput";
 import { isFieldEmpty } from "./fieldCodec";
 import { assigneePeople } from "../../../shared/schema/people";
@@ -103,7 +95,11 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
     ]);
     if (dead) return;
     stopLoading();
-    const me = roster.find((p) => p.whoId === (who?.objectId ?? "")) ?? null;
+    // the viewer's own row read DIRECTLY when the roster list lacks it
+    // (2026-11-01: production's roster had passed the SDK's first page
+    // and a super admin's row was missing — every edit door closed)
+    const me = roster.find((p) => p.whoId === (who?.objectId ?? "")) ?? (who?.objectId ? await viewerPerson(who.objectId).catch(() => null) : null);
+    if (dead) return;
     const imp = parseImprovementSettings(impRaw);
     const priorityStatement = new Map((cascade?.priorities ?? []).map((p) => [p.id, p.statement]));
     /** Who may act for a role on this initiative: the people assigned on
@@ -138,7 +134,7 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
     const viewer: ImprovementViewer = {
       whoId: who?.objectId ?? "",
       ownedOrgKeys,
-      isAdmin: me?.role === "superadmin" || me?.role === "siteadmin",
+      adminScope: adminScopeFor(me?.role, me?.site),
     };
     let list = initiatives;
     const metricState = buildMetricState(initiatives, allBoards, initRows, await loadMetricLasts(initiatives, allBoards).catch(() => new Map()));
@@ -755,7 +751,7 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
         cleanups.push(
           openInitiativeRowMenu(anchor, i, {
             host: wrap,
-            viewer: { whoId: viewer.whoId, isAdmin: viewer.isAdmin },
+            viewer: { whoId: viewer.whoId, adminScope: viewer.adminScope },
             actor,
             roster,
             currentPeriod,

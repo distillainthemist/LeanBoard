@@ -20,7 +20,7 @@ import { initialsFor } from "../../../shared/schema/people";
 import { nowIso, todayIso } from "../../../shared/schema/id";
 import { currentViewer } from "../runtime";
 import { promptConfirm, promptText } from "../prompts";
-import { listPeople } from "../store/people";
+import { listPeople, viewerPerson } from "../store/people";
 import { improvementSettingsJson } from "../store/config";
 import { currentPeriodNow } from "../store/priorities";
 import { appendInitiativeEvent, listInitiativeEvents, listInitiatives, saveInitiative } from "../store/initiatives";
@@ -29,7 +29,7 @@ import { dayLabel } from "../linkTitle";
 import { boardUrl } from "../links";
 import { WORKING_FOLDER_KEY, linkDisplayText, workingFolderUrl } from "./workingFolder";
 import { copyText } from "../../../shared/ui/clipboard";
-import { Initiative, myRoles, nextGateFor, PendingGate } from "./initiativeModel";
+import { Initiative, PendingGate, adminOver, adminScopeFor, myRoles, nextGateFor } from "./initiativeModel";
 import { mergeUserPrefs, userPrefsJson } from "../store/config";
 import { openUpdateDialog, renderTrail } from "./commentary";
 import { addUpdate, editUpdate } from "./commentaryActions";
@@ -115,8 +115,9 @@ export function mountInitiativePane(o: InitiativePaneOpts): InitiativePaneHandle
     const palettes = await import("../store/config").then((m) => m.appPalettes()).catch(() => null);
     const stateMap = palettes ? (await import("../../../shared/palette")).paletteMap(palettes.states) : {};
     const stateColor = (key: string): string => (stateMap as Record<string, string>)[key] ?? "#9a948a";
-    const me = roster.find((p) => p.whoId === (who?.objectId ?? "")) ?? null;
-    const isAdmin = me?.role === "superadmin" || me?.role === "siteadmin";
+    const me = roster.find((p) => p.whoId === (who?.objectId ?? "")) ?? (who?.objectId ? await viewerPerson(who.objectId).catch(() => null) : null);
+    // admin over THIS initiative: a super admin, or a site admin at its site
+    const isAdmin = adminOver(i, adminScopeFor(me?.role, me?.site));
     const mine = () => myRoles(i, who?.objectId ?? "").length > 0 || isAdmin;
     const actor = () => ({ whoId: who?.objectId ?? "", who: me?.who ?? who?.name ?? "" });
     let stageMode: "current" | "all" = "all"; // default All (Ben, 2026-08-28)

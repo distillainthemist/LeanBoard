@@ -7,12 +7,12 @@ import { el } from "../../../shared/ui/dom";
 import type { RosterPerson } from "../store/mappers";
 import { appendInitiativeEvent, saveInitiative } from "../store/initiatives";
 import { boardUrl } from "../links";
-import { Initiative, myRoles } from "./initiativeModel";
+import { AdminScope, Initiative, adminOver, myRoles } from "./initiativeModel";
 
 export interface RowMenuDeps {
   /** Where the Edit details / Escalate dialogs mount. */
   host: HTMLElement;
-  viewer: { whoId: string; isAdmin: boolean };
+  viewer: { whoId: string; adminScope: AdminScope };
   actor: () => { whoId: string; who: string };
   roster: RosterPerson[];
   /** The period an archive stamps as the initiative's end. */
@@ -28,9 +28,10 @@ const btn = (label: string, cls: string): HTMLButtonElement => {
   return b;
 };
 
-/** May this viewer act on the initiative: a role on it, or an admin. */
-export function mayManageInitiative(i: Initiative, viewer: { whoId: string; isAdmin: boolean }): boolean {
-  return myRoles(i, viewer.whoId).length > 0 || viewer.isAdmin;
+/** May this viewer act on the initiative: a role on it, or an admin
+ *  whose scope reaches it (a site admin: their own site's initiatives). */
+export function mayManageInitiative(i: Initiative, viewer: { whoId: string; adminScope: AdminScope }): boolean {
+  return myRoles(i, viewer.whoId).length > 0 || adminOver(i, viewer.adminScope);
 }
 
 /** Opens the menu under `anchor`; returns a remover for the caller's

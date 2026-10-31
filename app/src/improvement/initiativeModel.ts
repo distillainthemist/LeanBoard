@@ -132,7 +132,36 @@ export interface ImprovementViewer {
   whoId: string;
   /** Org keys (company|site|department|area, blanks for depth) the viewer OWNS. */
   ownedOrgKeys: string[];
-  isAdmin: boolean;
+  adminScope: AdminScope;
+}
+
+/** How far a person's admin role reaches over initiatives (Ben,
+ *  2026-11-01): a super admin everywhere, a site admin over the
+ *  initiatives at THEIR site (including ones that also span it), anyone
+ *  else nowhere. ONE rule — every edit door, the confidential view and
+ *  the health / endorsement / stage gates ask it. */
+export type AdminScope = "all" | { site: string } | null;
+
+export function adminScopeFor(role: string | undefined, site: string | undefined): AdminScope {
+  if (role === "superadmin") return "all";
+  if (role === "siteadmin") return (site ?? "").trim() === "" ? null : { site: site as string };
+  return null;
+}
+
+const siteKey = (s: string): string => s.trim().toLowerCase();
+
+/** Admin over a SITE (a ritual board, a site-level check). */
+export function adminOverSite(site: string, scope: AdminScope): boolean {
+  if (scope === "all") return true;
+  if (scope === null) return false;
+  return siteKey(site) !== "" && siteKey(site) === siteKey(scope.site);
+}
+
+/** Admin over an INITIATIVE: its org's site or any site it also spans. */
+export function adminOver(i: Pick<Initiative, "org" | "alsoOrgs">, scope: AdminScope): boolean {
+  if (scope === "all") return true;
+  if (scope === null) return false;
+  return orgsOf(i).some((o) => adminOverSite(o.site, scope));
 }
 
 export function orgKeyOf(o: Initiative["org"]): string {
@@ -177,7 +206,7 @@ export function myRoles(i: Initiative, whoId: string): string[] {
 /** Confidentiality (§5 decision 11): role-holders + org owners + admins. */
 export function canSee(i: Initiative, v: ImprovementViewer): boolean {
   if (!i.confidential) return true;
-  if (v.isAdmin) return true;
+  if (adminOver(i, v.adminScope)) return true;
   if (myRoles(i, v.whoId).length > 0) return true;
   return v.ownedOrgKeys.some((k) => orgsOf(i).some((o) => underKey(orgKeyOf(o), k)));
 }

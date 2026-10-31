@@ -8,6 +8,7 @@
 // Actions tabs state that plainly; `Add initiative` is shown disabled so
 // the overlay keeps its one solid primary in the right place.
 
+import type { AdminScope } from "../improvement/initiativeModel";
 import { el, clear } from "../../../shared/ui/dom";
 import type { RosterPerson } from "../store/mappers";
 import {
@@ -99,7 +100,7 @@ export interface LifecycleCtx {
    *  and hidden) — the row menu and the Metrics card act on it (issue 32). */
   initiativeById: (id: string) => import("../improvement/initiativeModel").Initiative | null;
   /** Super or site admin — may act on any initiative. */
-  viewerIsAdmin: boolean;
+  viewerAdminScope: AdminScope;
   /** After an initiative write from the popup: re-read the initiatives
    *  (rows, tallies) and repaint. */
   initiativesChanged: () => Promise<void>;
@@ -220,7 +221,7 @@ export async function closePriority(
  *  on the initiative's own board (the same dialog, the same writes). */
 async function mountPrimaryCommentary(host: HTMLElement, initiativeId: string, actor: { whoId: string; who: string }): Promise<void> {
   host.appendChild(el("div", "app-cp-muted", "Loading…"));
-  const [{ listInitiatives, listInitiativeEvents }, { listPeople }, { myRoles }, { updatesFrom, staleDays }, { renderUpdateCard, renderTrail, openUpdateDialog }, { addUpdate, editUpdate }, { todayIso }] = await Promise.all([
+  const [{ listInitiatives, listInitiativeEvents }, { listPeople }, { myRoles, adminOver }, { updatesFrom, staleDays }, { renderUpdateCard, renderTrail, openUpdateDialog }, { addUpdate, editUpdate }, { todayIso }] = await Promise.all([
     import("../store/initiatives"),
     import("../store/people"),
     import("../improvement/initiativeModel"),
@@ -305,10 +306,10 @@ async function mountPrimaryCard(
   host: HTMLElement,
   initiativeId: string,
   cardType: "CanvasCard" | "MetricsCard",
-  who: { actor: { whoId: string; who: string }; isAdmin: boolean }
+  who: { actor: { whoId: string; who: string }; adminScope: AdminScope }
 ): Promise<void> {
   host.appendChild(el("div", "app-cp-muted", "Loading…"));
-  const [{ listInitiatives }, { getBoard }, { parseManifest }, { liveRow, ensureLiveRow, saveCard }, { cardMounter }, { makeInitiativeBinding }, { defaultTheme }, { myRoles }, { upsertActions }] = await Promise.all([
+  const [{ listInitiatives }, { getBoard }, { parseManifest }, { liveRow, ensureLiveRow, saveCard }, { cardMounter }, { makeInitiativeBinding }, { defaultTheme }, { myRoles, adminOver }, { upsertActions }] = await Promise.all([
     import("../store/initiatives"),
     import("../store/boards"),
     import("../store/mappers"),
@@ -348,7 +349,7 @@ async function mountPrimaryCard(
   // the Metrics card is WRITABLE here for whoever may add commentary —
   // a role on the initiative, or an admin, while it is active (issue 32,
   // Ben 2026-10-19); the charter stays read-only (it is edited on the board)
-  const canEdit = cardType === "MetricsCard" && i.status === "active" && (myRoles(i, who.actor.whoId).length > 0 || who.isAdmin);
+  const canEdit = cardType === "MetricsCard" && i.status === "active" && (myRoles(i, who.actor.whoId).length > 0 || adminOver(i, who.adminScope));
   const mountRO = async (cardType: string, title: string) => {
     const slot = slots.find((s) => s.cardType === cardType);
     const mounter = slot ? cardMounter(cardType) : null;
@@ -866,7 +867,7 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
             void import("../improvement/rowMenu").then(({ openInitiativeRowMenu }) => {
               openInitiativeRowMenu(kebab, init, {
                 host: ctx.host,
-                viewer: { whoId: ctx.actor().whoId, isAdmin: ctx.viewerIsAdmin },
+                viewer: { whoId: ctx.actor().whoId, adminScope: ctx.viewerAdminScope },
                 actor: ctx.actor,
                 roster: ctx.roster,
                 currentPeriod: ctx.currentPeriod,
@@ -913,7 +914,7 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
       } else {
         const host = el("div", "app-cp-ov-charter");
         body.appendChild(host);
-        void mountPrimaryCard(host, live.primaryInitiativeId, tab === "charter" ? "CanvasCard" : "MetricsCard", { actor: ctx.actor(), isAdmin: ctx.viewerIsAdmin });
+        void mountPrimaryCard(host, live.primaryInitiativeId, tab === "charter" ? "CanvasCard" : "MetricsCard", { actor: ctx.actor(), adminScope: ctx.viewerAdminScope });
       }
     } else if (tab === "commentary") {
       if (live.primaryInitiativeId === "") {

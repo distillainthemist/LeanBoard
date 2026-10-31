@@ -5,6 +5,7 @@
 // cache; the store asks for the fresh answer at the write.
 
 import { currentViewer } from "../runtime";
+import { adminOver, adminScopeFor } from "../improvement/initiativeModel";
 import { improvementSettingsJson } from "../store/config";
 import { changeVersion } from "../store/changes";
 import { listInitiatives } from "../store/initiatives";
@@ -26,10 +27,10 @@ async function load(): Promise<Known> {
     whoId !== "" ? viewerPerson(whoId).catch(() => null) : Promise.resolve(null),
   ]);
   const imp = parseImprovementSettings(impRaw);
-  const isAdmin = me?.role === "superadmin" || me?.role === "siteadmin";
+  const scope = adminScopeFor(me?.role, me?.site);
   const known: Known = { byId: new Map(), byBoard: new Map() };
   for (const i of all) {
-    const ctx: EndorseContext = { on: endorsementOn(i), mine: isAdmin || (whoId !== "" && endorserIds(i, imp.standardRoles).includes(whoId)) };
+    const ctx: EndorseContext = { on: endorsementOn(i), mine: adminOver(i, scope) || (whoId !== "" && endorserIds(i, imp.standardRoles).includes(whoId)) };
     known.byId.set(i.id, ctx);
     if (i.boardId !== "") known.byBoard.set(i.boardId, ctx);
   }

@@ -72,6 +72,7 @@
       "member",
       "lead",
       "sponsor",
+      "siteadmin",
       "superadmin"
     ],
     "modules": [

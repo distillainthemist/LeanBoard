@@ -1,6 +1,6 @@
 # Improvement — UAT script
 
-Personas: member, lead, sponsor, superadmin. The Improvement tab's own cross-site process filter is covered by UAT-SET-005.
+Personas: member, lead, sponsor, siteadmin, superadmin. The Improvement tab's own cross-site process filter is covered by UAT-SET-005.
 
 ## Journey 1 — Value drivers
 
@@ -25,3 +25,13 @@ steps:
 2. Priorities & people → "＋ Link a priority"; read the list; type part of a company priority's statement; clear it; press "n more from above ›".
 3. Change the department in the form to one with no priorities of its own; open the picker again.
 expected: step 1 the form opens on the tab's scope, department included; step 2 the picker opens with the search box focused and lists only the department's open priorities under its name, with one line "n more from above ›"; typing narrows both the department's and the parents' priorities case-blind and shows the parents' groups; the line expands the company and site groups in chain order; step 3 a department without its own priorities shows "No open priorities at <department>" and the parents' groups straight away; Edit details on an existing initiative uses the same picker
+
+### UAT-IMP-003 — Who may edit an initiative
+persona: siteadmin
+modules: improvement/initiativeModel.ts improvement/rowMenu.ts improvement/improvementTab.ts improvement/boardHeader.ts screens/board.ts actions/endorsement.ts
+preconditions: signed in as a site admin of site A; an active initiative at site A you hold no role on, one at site B, and one at site B that also spans site A; a super admin on a second device
+steps:
+1. Improvement tab → the ⋮ on each of the three rows; read Edit details…, Flag, Escalate and Archive.
+2. Open the site-A initiative's board: Edit details in the header, the health check button, an endorsement.
+3. As the super admin, the same three rows.
+expected: the site admin may edit, flag, escalate and archive the site-A initiative and the one that also spans site A, and sees those actions greyed on the site-B-only initiative; on the board the header's Edit details, the health check and the endorsement follow the same line; a confidential site-B initiative is hidden from the site admin unless they hold a role or own its org; the super admin has every action on all three — including initiatives they did not create and hold no role on

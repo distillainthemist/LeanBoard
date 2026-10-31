@@ -63,7 +63,7 @@ import { initialsFor } from "../../../shared/schema/people";
 import { prioritiesViewUrl, takePendingPrioritiesView } from "../links";
 import { decodePrioritiesView, encodePrioritiesView } from "./viewLink";
 import { cascadeDialog, cascadeReview, closeDialog, closePriority, LifecycleCtx, openPriorityOverlay, reopenPriority, sendCascade } from "./lifecycle";
-import { Initiative, initiativesByPriority, ragInputsFor } from "../improvement/initiativeModel";
+import { Initiative, adminScopeFor, initiativesByPriority, ragInputsFor } from "../improvement/initiativeModel";
 import { REOPEN_PRIORITY_KEY } from "../improvement/boardOrigin";
 import { PDCA_TOKENS } from "../improvement/templateModel";
 import { buildMetricState, loadMetricLasts } from "../improvement/metricValues";
@@ -517,7 +517,7 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       },
       changed: reload,
       initiativeById: (id) => initiativeList.find((i) => i.id === id) ?? null,
-      viewerIsAdmin: viewer.role !== "user",
+      viewerAdminScope: adminScopeFor(viewer.role, viewer.site),
       initiativesChanged: reloadInitiatives,
       open: (p) => openOverlay(p),
     };

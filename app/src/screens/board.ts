@@ -198,15 +198,16 @@ async function renderBoard(
     void (async () => {
       const [{ mountHealthButton }, viewerRow] = await Promise.all([import("../health/entry"), viewerPerson(currentViewer()?.objectId ?? "").catch(() => null)]);
       const whoId = currentViewer()?.objectId ?? "";
-      const isAdmin = viewerRow?.role === "superadmin" || viewerRow?.role === "siteadmin";
+      const { adminOver, adminOverSite, adminScopeFor, myRoles } = await import("../improvement/initiativeModel");
+      const scope = adminScopeFor(viewerRow?.role, viewerRow?.site);
       const host = el("div", "app-dlghost");
       document.body.appendChild(host);
       cleanups.push(() => host.remove());
       if (initBoard) {
         const { listInitiatives } = await import("../store/initiatives");
-        const { myRoles } = await import("../improvement/initiativeModel");
         const i = (await listInitiatives().catch(() => [])).find((x) => x.boardId === board.boardId) ?? null;
         if (i === null) return;
+        const isAdmin = adminOver(i, scope);
         await mountHealthButton({
           host,
           parent: bar,
@@ -221,6 +222,7 @@ async function renderBoard(
         const { parsePeople } = await import("../../../shared/schema/people");
         const people = parsePeople(board.peopleRaw);
         const mine = info?.owner?.whoId === whoId || people.some((p) => p.whoId === whoId);
+        const isAdmin = adminOverSite(board.site, scope);
         await mountHealthButton({
           host,
           parent: bar,
