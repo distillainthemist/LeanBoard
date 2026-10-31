@@ -29,7 +29,7 @@ import {
   rollupWords,
   strategyChips,
   tally,
- groupPrioritiesForPicker , prevPeriod , periodWindow } from "../priorities/model";
+ groupPrioritiesForPicker , pickerSections , prevPeriod , periodWindow } from "../priorities/model";
 
 const co = orgRef("Pechey");
 const site = orgRef("Pechey", "Bendigo");
@@ -439,5 +439,33 @@ describe("period pager helpers (value drivers)", () => {
     expect(periodWindow(cal, "2026")).toEqual({ from: "2026-01-01", to: "2026-12-31" });
     expect(periodWindow({ ...fy, startMonth: 4 }, "FY26")).toEqual({ from: "2025-04-01", to: "2026-03-31" });
     expect(periodWindow({ ...fy, mode: "custom" as const }, "H1")).toBeNull();
+  });
+});
+
+describe("pickerSections (the link picker's own-org-first, searchable shape)", () => {
+  const co = { company: "Co", site: "", department: "", area: "" };
+  const site = { ...co, site: "Bell Bay" };
+  const dept = { ...site, department: "Casting" };
+  const pri = [
+    { id: "1", statement: "Zero harm", org: co },
+    { id: "2", statement: "Casthouse recovery", org: site },
+    { id: "3", statement: "Dross loss down", org: dept },
+    { id: "4", statement: "Cycle time", org: dept },
+  ];
+  it("puts the initiative's own org first and the parents after, in chain order", () => {
+    const r = pickerSections(pri, dept);
+    expect(r.here.map((g) => [g.label, g.items.map((p) => p.id)])).toEqual([["Casting", ["4", "3"]]]);
+    expect(r.above.map((g) => [g.label, g.items.map((p) => p.id)])).toEqual([["Co (company)", ["1"]], ["Bell Bay", ["2"]]]);
+  });
+  it("searches both sections, case-blind", () => {
+    const r = pickerSections(pri, dept, "RECOV");
+    expect(r.here).toEqual([]);
+    expect(r.above.map((g) => g.items.map((p) => p.id))).toEqual([["2"]]);
+    expect(pickerSections(pri, dept, "zzz")).toEqual({ here: [], above: [] });
+  });
+  it("at the company the own section is the company's", () => {
+    const r = pickerSections(pri, co);
+    expect(r.here.map((g) => g.label)).toEqual(["Co (company)"]);
+    expect(r.above).toEqual([]);
   });
 });

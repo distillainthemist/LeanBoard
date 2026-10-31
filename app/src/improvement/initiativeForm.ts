@@ -21,7 +21,7 @@ import { fieldInput, FieldInputContext } from "./fieldInput";
 import { isFieldEmpty } from "./fieldCodec";
 import { renderMetricsList } from "./metricsList";
 import { pickOwner } from "../priorities/dialogs";
-import { groupPrioritiesForPicker, isDescendant, OrgRef, orgRef, sameOrg } from "../priorities/model";
+import { isDescendant, OrgRef, orgName, orgRef, pickerSections, sameOrg } from "../priorities/model";
 import { validateNewInitiative } from "./initiativeModel";
 import { ImprovementSettings, MetricRule, normalizeMetrics, RolePerson, roleFillersAt, TemplateField, TemplateMetric, TemplateRole } from "./templateModel";
 import type { RosterPerson } from "../store/mappers";
@@ -281,19 +281,52 @@ export function renderInitiativeForm(o: InitiativeFormOpts): InitiativeFormHandl
       const open = all.filter((p) => p.status === "active" && !links.some((l) => l.priorityId === p.id) && (sameOrg(p.org, at) || isDescendant(at, p.org)));
       document.querySelectorAll(".app-im-primenu").forEach((m) => m.remove());
       const menu = el("div", "app-cp-menu app-im-primenu");
-      if (open.length === 0) menu.appendChild(el("div", "app-cp-menu-h", "No open priorities at this org or above"));
-      for (const g of groupPrioritiesForPicker(open, at)) {
-        menu.appendChild(el("div", "app-cp-menu-h", g.label));
-        for (const p of g.items) {
-          const item = btn(p.statement.slice(0, 70), "app-cp-menu-item");
-          item.addEventListener("click", () => {
-            menu.remove();
-            links.push({ priorityId: p.id, primary: links.length === 0, label: p.statement.slice(0, 40) });
-            paintLinks();
+      // searchable, and the initiative's own org first (Ben, 2026-10-31):
+      // the parents' priorities sit behind one line until asked for, or
+      // until a search is typed — unless this org has none of its own
+      const search = el("input", "app-input app-im-prisearch") as HTMLInputElement;
+      search.type = "search";
+      search.placeholder = `Search ${open.length} open ${open.length === 1 ? "priority" : "priorities"}…`;
+      search.setAttribute("aria-label", "Search priorities");
+      const items = el("div", "app-im-priitems");
+      menu.append(search, items);
+      let showAbove = false;
+      const draw = () => {
+        clear(items);
+        const q = search.value;
+        const { here, above } = pickerSections(open, at, q);
+        const aboveCount = above.reduce((n, g) => n + g.items.length, 0);
+        const addGroup = (g: { label: string; items: PriorityLite[] }) => {
+          items.appendChild(el("div", "app-cp-menu-h", g.label));
+          for (const p of g.items) {
+            const item = btn(p.statement.slice(0, 70), "app-cp-menu-item");
+            item.title = p.statement;
+            item.addEventListener("click", () => {
+              menu.remove();
+              links.push({ priorityId: p.id, primary: links.length === 0, label: p.statement.slice(0, 40) });
+              paintLinks();
+            });
+            items.appendChild(item);
+          }
+        };
+        if (here.length === 0) items.appendChild(el("div", "app-cp-menu-h", q.trim() !== "" ? `Nothing at ${orgName(at)} matches` : `No open priorities at ${orgName(at)}`));
+        for (const g of here) addGroup(g);
+        const openAbove = showAbove || q.trim() !== "" || here.length === 0;
+        if (aboveCount > 0 && !openAbove) {
+          const more = btn(`${aboveCount} more from above ›`, "app-link app-im-primore");
+          more.addEventListener("click", () => {
+            showAbove = true;
+            draw();
           });
-          menu.appendChild(item);
+          items.appendChild(more);
+        } else if (openAbove) {
+          for (const g of above) addGroup(g);
+          if (aboveCount === 0 && here.length === 0 && q.trim() === "") items.appendChild(el("div", "app-cp-menu-h", "None above either"));
         }
-      }
+      };
+      search.addEventListener("input", draw);
+      draw();
+      setTimeout(() => search.focus(), 0);
       const r = priAdd.getBoundingClientRect();
       menu.style.top = `${r.bottom + 4}px`;
       menu.style.left = `${Math.min(r.left, window.innerWidth - 340)}px`;

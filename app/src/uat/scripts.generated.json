@@ -2739,12 +2739,60 @@
        "changed": "2026-10-29"
       }
      ]
+    },
+    {
+     "title": "Journey 2 — Initiatives",
+     "cases": [
+      {
+       "id": "UAT-IMP-002",
+       "title": "Linking a priority from the new-initiative form",
+       "journey": "Journey 2 — Initiatives",
+       "persona": "lead",
+       "modules": [
+        "improvement/initiativeForm.ts",
+        "improvement/improvementTab.ts",
+        "priorities/model.ts"
+       ],
+       "preconditions": "a site with priorities at the company, the site and one department; the Improvement tab scoped to that department",
+       "steps": [
+        "Improvement → New initiative → pick a template; read the Organisation group's site, department and area.",
+        "Priorities & people → \"＋ Link a priority\"; read the list; type part of a company priority's statement; clear it; press \"n more from above ›\".",
+        "Change the department in the form to one with no priorities of its own; open the picker again."
+       ],
+       "expected": "step 1 the form opens on the tab's scope, department included; step 2 the picker opens with the search box focused and lists only the department's open priorities under its name, with one line \"n more from above ›\"; typing narrows both the department's and the parents' priorities case-blind and shows the parents' groups; the line expands the company and site groups in chain order; step 3 a department without its own priorities shows \"No open priorities at <department>\" and the parents' groups straight away; Edit details on an existing initiative uses the same picker",
+       "hash": "1eeb4396",
+       "changed": "2026-10-31"
+      }
+     ]
     }
    ]
   },
   "priorities": {
-   "title": "Cascaded priorities",
-   "journeys": []
+   "title": "UAT — Priorities",
+   "journeys": [
+    {
+     "title": "Journey 1 — The wall",
+     "cases": [
+      {
+       "id": "UAT-PRI-001",
+       "title": "The Objectives row lists metrics only",
+       "journey": "Journey 1 — The wall",
+       "persona": "viewer",
+       "modules": [
+        "priorities/prioritiesScreen.ts"
+       ],
+       "preconditions": "a wall with three or more priorities in view: one whose primary initiative has starred metrics with values, one whose primary initiative has none starred, one with no primary initiative",
+       "steps": [
+        "Priorities tab in the matrix view; read the Objectives row under each column.",
+        "Switch to the present view and step to the same priorities."
+       ],
+       "expected": "the Objectives row shows \"Name: objective\" with plan / actual and a traffic light for each starred metric, and is BLANK under a priority with no starred metric or no primary initiative — no \"No primary initiative\" or \"No metric value yet\" line anywhere in the row; the present view shows the same lines and the same blanks",
+       "hash": "2145a970",
+       "changed": "2026-10-31"
+      }
+     ]
+    }
+   ]
   },
   "settings": {
    "title": "Settings, people & organisation",

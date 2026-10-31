@@ -1205,11 +1205,10 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
      *  view carried a placeholder and never showed a metric). */
     const objectiveLinesFor = (p: Priority): HTMLElement[] => {
       const starred = p.primaryInitiativeId !== "" ? (metricState.get(p.primaryInitiativeId)?.values ?? []).filter((v) => v.starred) : [];
-      if (starred.length === 0) {
-        const line = el("div", "app-cp-objective");
-        line.appendChild(el("span", "app-cp-muted", p.primaryInitiativeId !== "" ? "No metric value yet" : "No primary initiative"));
-        return [line];
-      }
+      // no placeholder line (Ben, 2026-10-31: the row repeated "No primary
+      // initiative" / "No metric value yet" down every column) — the row
+      // lists the metrics there are, and stays blank otherwise
+      if (starred.length === 0) return [];
       return starred.map((mv) => {
         const line = el("div", "app-cp-objective");
         const light = el("span", "app-cp-objective-light");

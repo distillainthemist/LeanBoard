@@ -864,7 +864,9 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
           initial: {
             title: "",
             description: "",
-            org: { company: siteCo[defaultSite] ?? "", site: defaultSite, department: "", area: "" },
+            // the tab's organisational context, department and area
+            // included (Ben, 2026-10-31) — the priority picker opens on it
+            org: { company: siteCo[defaultSite] ?? "", site: defaultSite, department: scope.site === defaultSite ? scope.department : "", area: scope.site === defaultSite ? scope.area : "" },
             alsoOrgs: [],
             // a handoff from a priority arrives pre-linked and locked
             priorities: lockedPriority ? [{ priorityId: lockedPriority.priorityId, primary: true, label: lockedPriority.label, locked: true }] : [],

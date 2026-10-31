@@ -107,6 +107,28 @@ export function groupPrioritiesForPicker<T extends { org: OrgRef; statement: str
   return out;
 }
 
+/**
+ * The link picker's two sections (Ben, 2026-10-31: "it is listing all
+ * priorities for the current org and its parents — default to the
+ * current organisational context, and make it searchable"): `here` is
+ * the priorities AT the initiative's org, `above` the parents' in chain
+ * order. `query` narrows both by statement, case-blind.
+ */
+export function pickerSections<T extends { org: OrgRef; statement: string }>(
+  priorities: T[],
+  at: OrgRef,
+  query = ""
+): { here: { label: string; items: T[] }[]; above: { label: string; items: T[] }[] } {
+  const q = query.trim().toLowerCase();
+  const hit = (p: T) => q === "" || p.statement.toLowerCase().includes(q);
+  const groups = groupPrioritiesForPicker(priorities.filter(hit), at);
+  const hereLabel = orgName(at) + (orgLevel(at) === "company" ? " (company)" : "");
+  return {
+    here: groups.filter((g) => g.label === hereLabel),
+    above: groups.filter((g) => g.label !== hereLabel),
+  };
+}
+
 // ---- pillars -----------------------------------------------------------------
 
 export interface Pillar {
