@@ -14,7 +14,9 @@ export type Inflate = (data: Uint8Array) => Promise<Uint8Array>;
 /** A cell: text, a number, or a DATE (yyyy-mm-dd) written as Excel's
  *  day serial in a date-formatted cell, so Excel shows and validates it
  *  as a date. */
-export type CellValue = string | number | { date: string } | null;
+/** A link cell opens `link` in the browser and shows `text` — written as
+ *  a HYPERLINK formula with the text cached, so every reader shows it. */
+export type CellValue = string | number | { date: string } | { link: string; text: string } | null;
 
 export interface ListValidation {
   kind?: "list";
@@ -131,14 +133,16 @@ function sheetXml(s: SheetSpec): string {
   const boldRows = new Set(s.boldRows ?? []);
   const noteRows = new Set(s.noteRows ?? []);
   const dateCols = new Set(s.dateCols ?? []);
-  // cell styles (styles.xml cellXfs): 0 normal · 1 bold · 2 muted italic wrapped · 3 date;
-  // 4–7 the same, UNLOCKED — on a protected sheet every cell outside the
-  // locked columns wears one (cells are locked by default)
+  // cell styles (styles.xml cellXfs): 0 normal · 1 bold · 2 muted italic
+  // wrapped · 3 date · 4 link; 5–9 the same, UNLOCKED — on a protected
+  // sheet every cell outside the locked columns wears one (cells are
+  // locked by default)
+  const BASE_STYLES = 5;
   const lockedCols = new Set(s.lockedCols ?? []);
   const protect = lockedCols.size > 0;
-  const styleOf = (r: number, c: number, isDate: boolean): string => {
-    const base = isDate ? 3 : boldRows.has(r) ? 1 : noteRows.has(r) ? 2 : dateCols.has(c) ? 3 : 0;
-    const idx = protect && !lockedCols.has(c) ? base + 4 : base;
+  const styleOf = (r: number, c: number, kind: "date" | "link" | "" = ""): string => {
+    const base = kind === "date" ? 3 : kind === "link" ? 4 : boldRows.has(r) ? 1 : noteRows.has(r) ? 2 : dateCols.has(c) ? 3 : 0;
+    const idx = protect && !lockedCols.has(c) ? base + BASE_STYLES : base;
     return idx === 0 ? "" : ` s="${idx}"`;
   };
   const nCols = Math.max(1, ...s.rows.map((r) => r.length));
@@ -159,7 +163,7 @@ function sheetXml(s: SheetSpec): string {
     // the column's default style: what an EMPTY cell wears — the date
     // format, and on a protected sheet the unlocked variant
     const colStyle = dateCols.has(c) ? 3 : 0;
-    const colIdx = protect && !lockedCols.has(c) ? colStyle + 4 : colStyle;
+    const colIdx = protect && !lockedCols.has(c) ? colStyle + BASE_STYLES : colStyle;
     parts.push(`<col min="${c + 1}" max="${c + 1}" width="${hiddenCols.has(c) ? 2 : w}" customWidth="1"${hiddenCols.has(c) ? ` hidden="1"` : ""}${colIdx !== 0 ? ` style="${colIdx}"` : ""}/>`);
   }
   parts.push("</cols>");
@@ -170,13 +174,20 @@ function sheetXml(s: SheetSpec): string {
     row.forEach((v, c) => {
       if (v === null || v === "") return;
       const ref = `${colLetters(c)}${r + 1}`;
-      if (typeof v === "object") {
-        const serial = isoToExcelSerial(v.date);
-        if (Number.isFinite(serial)) parts.push(`<c r="${ref}"${styleOf(r, c, true)}><v>${serial}</v></c>`);
-        else if (v.date.trim() !== "") parts.push(`<c r="${ref}"${styleOf(r, c, false)} t="inlineStr"><is><t xml:space="preserve">${xmlEscape(xmlSafe(v.date))}</t></is></c>`);
+      if (typeof v === "object" && "link" in v) {
+        if (v.link.trim() === "") return;
+        // a formula string doubles its quotes; the shown text is cached in <v>
+        const q = (t: string) => xmlEscape(xmlSafe(t).replace(/"/g, '""'));
+        parts.push(`<c r="${ref}"${styleOf(r, c, "link")} t="str"><f>HYPERLINK("${q(v.link)}","${q(v.text)}")</f><v>${xmlEscape(xmlSafe(v.text))}</v></c>`);
         return;
       }
-      const style = styleOf(r, c, false);
+      if (typeof v === "object") {
+        const serial = isoToExcelSerial(v.date);
+        if (Number.isFinite(serial)) parts.push(`<c r="${ref}"${styleOf(r, c, "date")}><v>${serial}</v></c>`);
+        else if (v.date.trim() !== "") parts.push(`<c r="${ref}"${styleOf(r, c)} t="inlineStr"><is><t xml:space="preserve">${xmlEscape(xmlSafe(v.date))}</t></is></c>`);
+        return;
+      }
+      const style = styleOf(r, c);
       if (typeof v === "number" && Number.isFinite(v)) parts.push(`<c r="${ref}"${style}><v>${v}</v></c>`);
       else parts.push(`<c r="${ref}"${style} t="inlineStr"><is><t xml:space="preserve">${xmlEscape(xmlSafe(String(v)))}</t></is></c>`);
     });
@@ -243,20 +254,11 @@ function workbookParts(sheets: SheetSpec[]): { path: string; text: string }[] {
     text:
       `${CT_XML}<styleSheet xmlns="${NS_MAIN}">` +
       `<numFmts count="1"><numFmt numFmtId="164" formatCode="yyyy\\-mm\\-dd"/></numFmts>` +
-      `<fonts count="3"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font><font><i/><sz val="10"/><color rgb="FF6B6B6B"/><name val="Calibri"/></font></fonts>` +
+      `<fonts count="4"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font><font><i/><sz val="10"/><color rgb="FF6B6B6B"/><name val="Calibri"/></font><font><u/><sz val="11"/><color rgb="FF0563C1"/><name val="Calibri"/></font></fonts>` +
       `<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>` +
       `<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>` +
       `<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>` +
-      `<cellXfs count="8">` +
-      `<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>` +
-      `<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>` +
-      `<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment wrapText="1" vertical="top"/></xf>` +
-      `<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>` +
-      `<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyProtection="1"><protection locked="0"/></xf>` +
-      `<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1" applyProtection="1"><protection locked="0"/></xf>` +
-      `<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1" applyProtection="1"><alignment wrapText="1" vertical="top"/><protection locked="0"/></xf>` +
-      `<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyProtection="1"><protection locked="0"/></xf>` +
-      `</cellXfs>` +
+      `<cellXfs count="10"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/><xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment wrapText="1" vertical="top"/></xf><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="0" fontId="3" fillId="0" borderId="0" xfId="0" applyFont="1"/><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyProtection="1"><protection locked="0"/></xf><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1" applyProtection="1"><protection locked="0"/></xf><xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1" applyProtection="1"><alignment wrapText="1" vertical="top"/><protection locked="0"/></xf><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyProtection="1"><protection locked="0"/></xf><xf numFmtId="0" fontId="3" fillId="0" borderId="0" xfId="0" applyFont="1" applyProtection="1"><protection locked="0"/></xf></cellXfs>` +
       `<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>` +
       `</styleSheet>`,
   });

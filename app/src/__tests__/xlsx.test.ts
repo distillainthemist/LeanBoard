@@ -148,7 +148,7 @@ describe("workbook round trip", () => {
     expect(xml).toContain(`sqref="A3:A10"><formula1>1</formula1>`);
     const styles = new TextDecoder().decode(parts.get("xl/styles.xml"));
     expect(styles).toContain(`<numFmt numFmtId="164"`);
-    expect(styles).toContain(`<cellXfs count="8">`);
+    expect(styles).toContain(`<cellXfs count="10">`);
     const sheets = await readXlsx(bytes, nodeInflate);
     expect(sheets[0].rows[2][0]).toBe("46304");
     expect(isoToExcelSerial("2026-10-09")).toBe(46304);
@@ -223,24 +223,37 @@ describe("sheet protection (lockedCols)", () => {
     const parts = await readZip(bytes, nodeInflate);
     const xml = new TextDecoder().decode(parts.get("xl/worksheets/sheet1.xml"));
     expect(xml).toContain(`<sheetProtection sheet="1" objects="1" scenarios="1" formatCells="0" formatColumns="0" formatRows="0" insertRows="0" deleteRows="0" sort="0" autoFilter="0"/>`);
-    // locked columns keep the base styles; the others wear the unlocked twins (+4)
+    // locked columns keep the base styles; the others wear the unlocked twins (+5)
     expect(xml).toContain(`<c r="A1" s="1" t="inlineStr">`);
     expect(xml).toContain(`<c r="B1" s="1" t="inlineStr">`);
-    expect(xml).toContain(`<c r="C1" s="5" t="inlineStr">`);
+    expect(xml).toContain(`<c r="C1" s="6" t="inlineStr">`);
     expect(xml).toContain(`<c r="B2" t="inlineStr">`);
-    expect(xml).toContain(`<c r="C2" s="4" t="inlineStr">`);
-    expect(xml).toContain(`<c r="D2" s="7"><v>46304</v></c>`);
+    expect(xml).toContain(`<c r="C2" s="5" t="inlineStr">`);
+    expect(xml).toContain(`<c r="D2" s="8"><v>46304</v></c>`);
     // empty cells follow the column default: unlocked, dated where asked
-    expect(xml).toContain(`<col min="3" max="3" width="16" customWidth="1" style="4"/>`);
-    expect(xml).toContain(`<col min="4" max="4" width="16" customWidth="1" style="7"/>`);
+    expect(xml).toContain(`<col min="3" max="3" width="16" customWidth="1" style="5"/>`);
+    expect(xml).toContain(`<col min="4" max="4" width="16" customWidth="1" style="8"/>`);
     expect(xml).toContain(`<col min="2" max="2" width="16" customWidth="1"/>`);
     const styles = new TextDecoder().decode(parts.get("xl/styles.xml"));
-    expect(styles).toContain(`<cellXfs count="8">`);
-    expect((styles.match(/<protection locked="0"\/>/g) ?? []).length).toBe(4);
+    expect(styles).toContain(`<cellXfs count="10">`);
+    expect((styles.match(/<protection locked="0"\/>/g) ?? []).length).toBe(5);
     // an unprotected sheet is untouched
     const plainParts = await readZip(writeXlsx([{ name: "S", rows: [["a"]] }]), nodeInflate);
     const plain = new TextDecoder().decode(plainParts.get("xl/worksheets/sheet1.xml"));
     expect(plain).not.toContain("sheetProtection");
     expect(plain).toContain(`<c r="A1" t="inlineStr">`);
+  });
+});
+
+describe("link cells", () => {
+  it("writes a HYPERLINK formula with the text cached, quotes doubled, in the link style; reads back as the text", async () => {
+    const bytes = writeXlsx([{ name: "S", rows: [[{ link: "https://x.test/a b.pdf?web=1", text: "Open ↗" }, { link: "", text: "nothing" }, { link: "https://x.test/q", text: 'say "hi"' }]], lockedCols: [0] }]);
+    const parts = await readZip(bytes, nodeInflate);
+    const xml = new TextDecoder().decode(parts.get("xl/worksheets/sheet1.xml"));
+    expect(xml).toContain(`<c r="A1" s="4" t="str"><f>HYPERLINK("https://x.test/a b.pdf?web=1","Open ↗")</f><v>Open ↗</v></c>`);
+    expect(xml).not.toContain(`r="B1"`); // an empty link writes nothing
+    expect(xml).toContain(`<c r="C1" s="9" t="str"><f>HYPERLINK("https://x.test/q","say &quot;&quot;hi&quot;&quot;")</f><v>say &quot;hi&quot;</v></c>`);
+    const back = await readXlsx(bytes, nodeInflate);
+    expect(back[0].rows[0]).toEqual(["Open ↗", "", 'say "hi"']);
   });
 });

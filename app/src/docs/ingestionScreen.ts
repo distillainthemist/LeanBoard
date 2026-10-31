@@ -1377,6 +1377,7 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
           uniqueId: r.uniqueId,
           name: r.name,
           folder: subFolderOf(r.serverUrl, task.folder),
+          url: `${ctx.origin}${r.serverUrl}?web=1`,
           cells: Object.fromEntries([[NAME_INTERNAL, stemOf(r.name)], ...cols.map((c) => [c.internal, exportCell(c, r.values)])]),
         }));
     };
