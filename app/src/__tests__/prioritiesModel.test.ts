@@ -361,9 +361,17 @@ describe("priority prefs (P3)", () => {
   it("parses the priorities key inside ben_preferences and ignores the hub's keys", async () => {
     const { parsePriorityPrefs } = await import("../priorities/model");
     const raw = JSON.stringify({ scopeKind: "org", priorities: { viewByOrg: { "Pechey|Bendigo||": "dynamic", x: "nope" }, lastOrg: "Pechey|Bendigo||", rule: "ratio", showOther: true } });
-    expect(parsePriorityPrefs(raw)).toEqual({ viewByOrg: { "Pechey|Bendigo||": "dynamic" }, lastOrg: "Pechey|Bendigo||", rule: "ratio", showOther: true, groupByPillar: false });
-    expect(parsePriorityPrefs("")).toEqual({ viewByOrg: {}, lastOrg: "", rule: "strict", showOther: false, groupByPillar: false });
+    expect(parsePriorityPrefs(raw)).toEqual({ viewByOrg: { "Pechey|Bendigo||": "dynamic" }, lastOrg: "Pechey|Bendigo||", rule: "ratio", showOther: true, groupByPillar: false, showHealth: false });
+    expect(parsePriorityPrefs("")).toEqual({ viewByOrg: {}, lastOrg: "", rule: "strict", showOther: false, groupByPillar: false, showHealth: false });
     expect(parsePriorityPrefs("{bad")).toEqual(parsePriorityPrefs(""));
+    expect(parsePriorityPrefs(JSON.stringify({ priorities: { showHealth: true } })).showHealth).toBe(true);
+  });
+  it("a health chip is stale after 90 days, never on rubbish dates", async () => {
+    const { healthChipStale } = await import("../priorities/model");
+    expect(healthChipStale("2026-10-20", "2026-11-01")).toBe(false);
+    expect(healthChipStale("2026-08-03", "2026-11-01")).toBe(false); // day 90
+    expect(healthChipStale("2026-08-02", "2026-11-01")).toBe(true);
+    expect(healthChipStale("", "2026-11-01")).toBe(false);
   });
 });
 

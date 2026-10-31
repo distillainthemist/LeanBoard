@@ -100,6 +100,7 @@ import {
   PrioritySettings,
   Rag,
   ragPaletteKey,
+  healthChipStale,
   rollup,
   RollupRule,
   sameOrg,
@@ -207,6 +208,7 @@ interface ScreenState {
   rule: RollupRule;
   showOther: boolean;
   groupByPillar: boolean;
+  showHealth: boolean; // health-check score chips on the sub-pillar headers (kebab, default off)
   lastColumn: string; // the sub-pillar last interacted with (＋ Priority preselect)
   view: ViewMode; // Simple (default, TV) | Dynamic — persists per user per org
 }
@@ -320,6 +322,7 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       rule: prefs.rule,
       showOther: prefs.showOther,
       groupByPillar: prefs.groupByPillar,
+      showHealth: prefs.showHealth,
       lastColumn: "",
       view: card?.view ?? (prefs.viewByOrg[orgKey(startOrg)] ?? "simple"),
     };
@@ -339,6 +342,7 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       prefs.rule = state.rule;
       prefs.showOther = state.showOther;
       prefs.groupByPillar = state.groupByPillar;
+      prefs.showHealth = state.showHealth;
       if (state.view === "dynamic") prefs.viewByOrg[orgKey(state.org)] = "dynamic";
       else delete prefs.viewByOrg[orgKey(state.org)];
       savePriorityPrefs(viewer.whoId, prefs);
@@ -785,7 +789,7 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       }
       const more = el("button", "app-btn app-cp-more app-cp-tvbtn", "⋮") as HTMLButtonElement;
       more.type = "button";
-      more.title = "Period · status · view · roll-up rule · more";
+      more.title = "Status · view · roll-up rule · more";
       more.addEventListener("click", () => openViewOptions(more));
       bar.appendChild(more);
       return bar;
@@ -1097,13 +1101,8 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
         });
         menu.appendChild(b);
       };
-      menu.appendChild(el("div", "app-cp-menu-h", "Period"));
-      for (const per of periodsOnOffer()) {
-        item(per, state.period === per, () => {
-          state.period = per;
-          render();
-        });
-      }
+      // the period left this menu (Ben, 2026-11-01): the year pill in the
+      // header and the phone head's select are its doors
       menu.appendChild(el("div", "app-cp-menu-h", "Status"));
       for (const [v, l] of [
         ["active", "Active"],
@@ -1140,6 +1139,10 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       });
       item("Group by pillar (7+ columns)", state.groupByPillar, () => {
         state.groupByPillar = !state.groupByPillar;
+        render();
+      });
+      item("Health check scores", state.showHealth, () => {
+        state.showHealth = !state.showHealth;
         render();
       });
       // a permalink to THIS view (Ben, 2026-10-07): org, period, status,
@@ -1319,14 +1322,27 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
         head.addEventListener("click", () => {
           state.lastColumn = col.id;
         });
-        // the sub-pillar's latest health score, quietly (decision 9)
-        if (state.org.site !== "") {
+        // the sub-pillar's latest health score (decision 9) — on request
+        // only (the kebab's "Health check scores", Ben 2026-11-01): the
+        // score alone, right-aligned, never wrapping; the date and the
+        // scale live in the tooltip; a check older than
+        // HEALTH_CHIP_STALE_DAYS reads hollow; the chip opens the check
+        if (state.showHealth && state.org.site !== "") {
           void import("../health/entry").then(async ({ healthEnabled, latestFor }) => {
             if (!(await healthEnabled(state.org.site, "priorities")) || !head.isConnected) return;
-            const { latest } = await latestFor({ type: "priorities", site: state.org.site, pillarId: col.id, org: { ...state.org }, label: col.name });
+            const scope = { type: "priorities" as const, site: state.org.site, pillarId: col.id, org: { ...state.org }, label: `${col.name} — ${orgName(state.org)}` };
+            const { latest } = await latestFor(scope);
             if (latest !== null && head.isConnected) {
-              const chip = el("span", "app-cp-hcchip", `${latest.score.value === null ? "—" : latest.score.value.toFixed(1)} · ${latest.date.slice(5).replace("-", "/")}`);
-              chip.title = `Health check ${latest.date}: ${latest.score.value === null ? "no score" : `${latest.score.value.toFixed(1)} of 5`}`;
+              const stale = healthChipStale(latest.date, today);
+              const chip = el("button", "app-link app-cp-hcchip" + (stale ? " app-cp-hcchip-stale" : ""), latest.score.value === null ? "—" : latest.score.value.toFixed(1)) as HTMLButtonElement;
+              chip.type = "button";
+              chip.title = `Health check ${latest.date}${stale ? " (more than 90 days ago)" : ""}: ${latest.score.value === null ? "no score" : `${latest.score.value.toFixed(1)} of 5`} — open`;
+              chip.addEventListener("click", (e) => {
+                e.stopPropagation();
+                void import("../health/checkDialog").then(({ openHealthCheck }) =>
+                  openHealthCheck({ host: wrap, scope, mayRun: canManage(), isAdmin: viewer.role !== "user", onChanged: () => render() })
+                );
+              });
               head.appendChild(chip);
             }
           });

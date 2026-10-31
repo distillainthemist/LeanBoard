@@ -5039,7 +5039,14 @@ input.app-vg-in.app-vg-folded { background: #fff7e0; }
 .app-hc-orgsel { flex: none; width: 100%; min-height: 36px; }
 @media (max-width: 719px) { .app-hc-grid, .app-hc-comments { grid-template-columns: 1fr; } }
 .app-cp-hchost { display: inline-flex; }
-.app-cp-hcchip { margin-left: 8px; font-size: 11px; font-weight: 600; background: rgba(255,255,255,0.85); color: #26241f; border-radius: 999px; padding: 1px 7px; vertical-align: middle; }
+/* the sub-pillar header's health chip (Ben, 2026-11-01): score only, at the
+   right edge, never wrapping while the name still may; a hollow chip is a
+   check older than HEALTH_CHIP_STALE_DAYS; hidden at the tile density */
+button.app-cp-hcchip { margin-left: auto; flex: 0 0 auto; white-space: nowrap; font-size: 12px; font-weight: 700; line-height: 1.4; background: rgba(255,255,255,0.9); color: #26241f; border: 1px solid transparent; border-radius: 999px; padding: 0 8px; text-decoration: none; }
+button.app-cp-hcchip:hover { background: #fff; color: #26241f; }
+button.app-cp-hcchip.app-cp-hcchip-stale { background: transparent; color: rgba(255,255,255,0.85); border-color: rgba(255,255,255,0.6); }
+button.app-cp-hcchip.app-cp-hcchip-stale:hover { background: rgba(255,255,255,0.15); color: #fff; }
+.app-cp-cardmount-tile .app-cp-hcchip { display: none; }
 
 /* ---- ingestion: the spreadsheet round trip (features-plan-2026-10-29) ---- */
 .app-ing-sheetreport { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }

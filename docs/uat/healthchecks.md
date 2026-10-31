@@ -107,13 +107,14 @@ expected: the check runs against the Initiative criteria; the Details pane no lo
 
 ### UAT-HC-011 — Priorities health check per sub-pillar
 persona: assessor
-modules: priorities/prioritiesScreen.ts health/entry.ts
+modules: priorities/prioritiesScreen.ts health/entry.ts priorities/model.ts
 preconditions: Priorities checks enabled; an org you manage with sub-pillars
 steps:
 1. Priorities → "Health check…" after ＋ Priority: a picker of the org's sub-pillars with their last score and date.
 2. Pick one; run and submit.
-3. Read the sub-pillar's column header.
-expected: one sub-pillar at a time; the check is scoped to the sub-pillar at this organisation; the column header carries a quiet "3.4 · 10/21" chip after a check
+3. Read the sub-pillar's column header; then ⋮ → Show → Health check scores and read it again.
+4. Click the chip.
+expected: one sub-pillar at a time; the check is scoped to the sub-pillar at this organisation; the header shows NO chip until Health check scores is on (off by default, remembered per person); on, a small white "3.4" sits at the header's right edge on one line however narrow the column, its tooltip carrying the date and "of 5"; a check older than 90 days is a hollow outline chip; clicking the chip opens that sub-pillar's check (read-only for someone who cannot run one)
 
 ### UAT-HC-012 — Documents health check
 persona: assessor

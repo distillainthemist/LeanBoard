@@ -2396,17 +2396,19 @@
        "persona": "assessor",
        "modules": [
         "priorities/prioritiesScreen.ts",
-        "health/entry.ts"
+        "health/entry.ts",
+        "priorities/model.ts"
        ],
        "preconditions": "Priorities checks enabled; an org you manage with sub-pillars",
        "steps": [
         "Priorities → \"Health check…\" after ＋ Priority: a picker of the org's sub-pillars with their last score and date.",
         "Pick one; run and submit.",
-        "Read the sub-pillar's column header."
+        "Read the sub-pillar's column header; then ⋮ → Show → Health check scores and read it again.",
+        "Click the chip."
        ],
-       "expected": "one sub-pillar at a time; the check is scoped to the sub-pillar at this organisation; the column header carries a quiet \"3.4 · 10/21\" chip after a check",
-       "hash": "58812932",
-       "changed": "2026-10-21"
+       "expected": "one sub-pillar at a time; the check is scoped to the sub-pillar at this organisation; the header shows NO chip until Health check scores is on (off by default, remembered per person); on, a small white \"3.4\" sits at the header's right edge on one line however narrow the column, its tooltip carrying the date and \"of 5\"; a check older than 90 days is a hollow outline chip; clicking the chip opens that sub-pillar's check (read-only for someone who cannot run one)",
+       "hash": "48d88b0e",
+       "changed": "2026-10-31"
       },
       {
        "id": "UAT-HC-012",
@@ -2788,6 +2790,25 @@
        ],
        "expected": "the Objectives row shows \"Name: objective\" with plan / actual and a traffic light for each starred metric, and is BLANK under a priority with no starred metric or no primary initiative — no \"No primary initiative\" or \"No metric value yet\" line anywhere in the row; the present view shows the same lines and the same blanks",
        "hash": "2145a970",
+       "changed": "2026-10-31"
+      },
+      {
+       "id": "UAT-PRI-002",
+       "title": "The ⋮ menu: no period, a health-chip toggle",
+       "journey": "Journey 1 — The wall",
+       "persona": "viewer",
+       "modules": [
+        "priorities/prioritiesScreen.ts",
+        "priorities/model.ts"
+       ],
+       "preconditions": "a wall with at least one sub-pillar that has a submitted health check",
+       "steps": [
+        "Priorities tab → ⋮ in the toolbar: read the sections.",
+        "Change the year with the year pill in the header.",
+        "⋮ → Show → Health check scores; close and reopen the app."
+       ],
+       "expected": "the menu has Status · View · Roll-up rule · Show · Share and no Period section — the year pill (and the phone head's Period select) is the one period door; Health check scores is off by default and the headers carry no chip; on, the chips appear and the choice is remembered for this person across sessions",
+       "hash": "a37495ee",
        "changed": "2026-10-31"
       }
      ]

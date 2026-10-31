@@ -818,12 +818,26 @@ export interface PriorityPrefs {
   rule: RollupRule;
   showOther: boolean;
   groupByPillar: boolean;
+  /** Health-check score chips on the sub-pillar headers (off by default —
+   *  Ben, 2026-11-01: the wall stays a wall unless asked). */
+  showHealth: boolean;
+}
+
+/** A health chip older than this reads as stale (hollow): the score is
+ *  history, not a current picture. */
+export const HEALTH_CHIP_STALE_DAYS = 90;
+
+export function healthChipStale(checkDate: string, todayIso: string): boolean {
+  const a = Date.parse(checkDate);
+  const b = Date.parse(todayIso);
+  if (Number.isNaN(a) || Number.isNaN(b)) return false;
+  return b - a > HEALTH_CHIP_STALE_DAYS * 86_400_000;
 }
 
 /** Reads the `priorities` key of the person's ben_preferences JSON (the
  *  hub's own keys ride at the top level and are ignored here). */
 export function parsePriorityPrefs(raw: string): PriorityPrefs {
-  const d: PriorityPrefs = { viewByOrg: {}, lastOrg: "", rule: "strict", showOther: false, groupByPillar: false };
+  const d: PriorityPrefs = { viewByOrg: {}, lastOrg: "", rule: "strict", showOther: false, groupByPillar: false, showHealth: false };
   try {
     const o = JSON.parse(raw || "{}") as { priorities?: unknown };
     const p = o && typeof o === "object" ? (o.priorities as Record<string, unknown> | undefined) : undefined;
@@ -838,6 +852,7 @@ export function parsePriorityPrefs(raw: string): PriorityPrefs {
     if (p.rule === "ratio") d.rule = "ratio";
     d.showOther = p.showOther === true;
     d.groupByPillar = p.groupByPillar === true;
+    d.showHealth = p.showHealth === true;
   } catch {
     /* defaults */
   }
