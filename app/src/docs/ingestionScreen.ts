@@ -74,7 +74,11 @@ import {
 import { buildFieldEditors, editorKind } from "./fieldEditors";
 import { POOL_ROLES } from "./accessGates";
 import type { ParsedSheet, SheetColumn, SheetFile } from "./sheetRoundTrip";
-import { IngestionAssignee, IngestionTask, RunLogEntry, blanksToFill, ingestComment, labelsOutsideRoot, latestByFile, logSummary, missingFor, taskFolderName } from "./ingestionModel";
+import { IngestionAssignee, IngestionTask, RunLogEntry, blanksToFill, compareByFolderThenName, dirOf, duplicateNames, folderGroups, folderLabel, ingestComment, labelsOutsideRoot, latestByFile, logSummary, missingFor, subFolderOf, taskFolderName } from "./ingestionModel";
+
+/** The most files one task lists (sub-folders included); past it the
+ *  status line says to split the task. */
+const FILES_CAP = 2000;
 import { saveIngestionTask, deleteIngestionTask, getIngestionTask, listIngestionTasks } from "./ingestionStore";
 import { listPeople } from "../store/people";
 import { promptConfirm } from "../prompts";
@@ -658,12 +662,17 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
         if (n > 0) runBtn.title = "Save changes first";
       }
     };
-    const allReadySaved = () => rows.length > 0 && rows.every((r) => missingFor(r.values, required).length === 0);
+    // files sharing a name anywhere in the task (sub-folders, 2026-11-01)
+    // would collide on the flat landing: not ready until one is renamed
+    let dupes = new Set<string>();
+    const isReady = (r: DocRow) => missingFor(r.values, required).length === 0 && !dupes.has(r.uniqueId);
+    const allReadySaved = () => rows.length > 0 && rows.every(isReady);
     /** A glyph at the end of the frozen Document cell (Ben, 2026-10-09:
      *  a right-frozen column was clunky): ✓ ready, ⚠ with what is missing
      *  and the last refusal in the tooltip. */
     const readyMark = (row: DocRow): HTMLElement => {
       const missing = missingFor(effectiveValues(row.values, draft.get(row.uniqueId)), required);
+      if (dupes.has(row.uniqueId)) missing.push("a unique name — another file in this task has the same name; rename one with Name on ingestion");
       const last = lastLog.get(row.name);
       const refused = last && last.outcome === "refused" ? `\nLast run: ${last.detail}` : "";
       const mark = el("span", "app-ing-readymark " + (missing.length === 0 ? "app-ing-readymark-ok" : "app-ing-readymark-warn"), missing.length === 0 ? "✓" : "⚠");
@@ -994,8 +1003,13 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
       const isDate = col ? editorKind(col) === "date" : false;
       const num = (s: string) => (s !== "" && !Number.isNaN(Number(s)) ? Number(s) : null);
       v = v.sort((a, b) => {
-        const x = sortKey === "__name" ? a.name : isDate ? savedDisplay(effectiveValues(a.values, draft.get(a.uniqueId)), sortKey, "date") : cellText(a, sortKey);
-        const y = sortKey === "__name" ? b.name : isDate ? savedDisplay(effectiveValues(b.values, draft.get(b.uniqueId)), sortKey, "date") : cellText(b, sortKey);
+        // the name sort reads the tree: folder first, then the name
+        if (sortKey === "__name") {
+          const c = compareByFolderThenName(a, b, task.folder);
+          return sortAsc ? c : -c;
+        }
+        const x = isDate ? savedDisplay(effectiveValues(a.values, draft.get(a.uniqueId)), sortKey, "date") : cellText(a, sortKey);
+        const y = isDate ? savedDisplay(effectiveValues(b.values, draft.get(b.uniqueId)), sortKey, "date") : cellText(b, sortKey);
         // blanks last either way; numbers as numbers; otherwise natural text
         if (x === "" && y !== "") return 1;
         if (y === "" && x !== "") return -1;
@@ -1049,7 +1063,7 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
       for (const f of gridCols) {
         const h = el("div", "app-ing-cell app-ing-sorthead");
         const b = btn(labelOf(f) + (requiredSet.has(f.internal) ? " ✱" : "") + (sortKey === f.internal ? (sortAsc ? " ▲" : " ▼") : ""), "app-link app-ing-sortbtn");
-        b.title = (f === NAME ? "The document's name once ingested — change it here; the extension stays. " : requiredSet.has(f.internal) ? "Required before the file can move. " : "") + "Click to sort";
+        b.title = (f === NAME ? "The document's name once ingested — change it here; the extension stays. Sorted by folder, then name. " : requiredSet.has(f.internal) ? "Required before the file can move. " : "") + "Click to sort";
         b.addEventListener("click", () => {
           if (sortKey === f.internal) sortAsc = !sortAsc;
           else {
@@ -1075,7 +1089,7 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
         gridHost.appendChild(el("div", "app-ing-empty", `No file matches "${filterText.trim()}".`));
         return;
       }
-      for (const row of shown) {
+      const paintRow = (row: DocRow) => {
         const rowEl = el("div", "app-ing-gridrow" + (draft.has(row.uniqueId) ? " app-ing-row-dirty" : ""));
         rowEl.dataset.row = row.uniqueId;
         rowEl.style.gridTemplateColumns = template();
@@ -1088,7 +1102,15 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
           else selected.delete(row.uniqueId);
           paintSel();
         });
-        doc.append(box, el("span", "app-ing-dirtydot", "●"), nameCell(row), readyMark(row));
+        const nameWrap = el("div", "app-ing-namewrap");
+        nameWrap.appendChild(nameCell(row));
+        const sub = row.values.__folder ?? "";
+        if (sub !== "") {
+          const pathEl = el("div", "app-ing-path", folderLabel(sub));
+          pathEl.title = `In the task folder under ${sub} — the file lands flat in the destination`;
+          nameWrap.appendChild(pathEl);
+        }
+        doc.append(box, el("span", "app-ing-dirtydot", "●"), nameWrap, readyMark(row));
         rowEl.appendChild(doc);
         for (const f of gridCols) {
           const c = el("div", "app-ing-cell app-ing-cell-edit" + (draft.get(row.uniqueId)?.has(f.internal) ? " app-ing-cell-dirty" : ""));
@@ -1098,30 +1120,80 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
           if (f === NAME) rowEl.appendChild(flagCell(row));
         }
         gridHost.appendChild(rowEl);
+      };
+      // a tree reads as a tree (Ben, 2026-11-01): in the name order a
+      // group row per sub-folder — its path, count, a checkbox selecting
+      // every file in it (then Set for selected…), Open ↗ to the folder
+      const grouped = sortKey === "__name" && rows.some((r) => (r.values.__folder ?? "") !== "");
+      if (!grouped) {
+        for (const row of shown) paintRow(row);
+        return;
+      }
+      for (const g of folderGroups(shown, task.folder)) {
+        const gr = el("div", "app-ing-group");
+        const gbox = el("input", "app-docs-libcheck") as HTMLInputElement;
+        gbox.type = "checkbox";
+        gbox.checked = g.items.every((r) => selected.has(r.uniqueId));
+        gbox.title = `Select every file in ${g.label}`;
+        gbox.addEventListener("change", () => {
+          for (const r of g.items) {
+            if (gbox.checked) selected.add(r.uniqueId);
+            else selected.delete(r.uniqueId);
+          }
+          paintSel();
+          paintGrid();
+        });
+        gr.appendChild(gbox);
+        gr.appendChild(el("span", "app-ing-group-label", g.label));
+        gr.appendChild(el("span", "app-ing-group-count", `${g.items.length} file${g.items.length === 1 ? "" : "s"}`));
+        const open = linkBtn("Open ↗", `${ctx.origin}${task.folder}${g.path === "" ? "" : `/${g.path}`}`, "app-link app-ing-group-open");
+        open.title = "This folder in SharePoint";
+        gr.appendChild(open);
+        gridHost.appendChild(gr);
+        for (const row of g.items) paintRow(row);
       }
     };
     const reload = async (): Promise<void> => {
       status.textContent = "Reading the folder…";
-      const page = await renderListPage(ctx.site, src.listId, buildRenderViewXml({ fields: feedFields, rowLimit: 500, sortName: true, asc: true }), "", task.folder);
-      if (dead) return;
-      if (page.error !== "") {
-        status.textContent = `Could not read the folder: ${page.error}`;
-        return;
+      // every file under the task folder, sub-folders included (Ben,
+      // 2026-11-01): one recursive feed, followed page by page to the cap
+      const got: DocRow[] = [];
+      let next = "";
+      let capped = false;
+      for (;;) {
+        const page = await renderListPage(ctx.site, src.listId, buildRenderViewXml({ fields: feedFields, rowLimit: 500, sortName: true, asc: true, scope: "recursive" }), next, task.folder);
+        if (dead) return;
+        if (page.error !== "") {
+          status.textContent = `Could not read the folder: ${page.error}`;
+          return;
+        }
+        got.push(...page.rows);
+        if (page.next === "") break;
+        if (got.length >= FILES_CAP) {
+          capped = true;
+          break;
+        }
+        next = page.next;
       }
-      rows = page.rows;
+      rows = got;
       await reloadFileFlags();
       if (dead) return;
-      for (const r of rows) r.values.__name = stemOf(r.name);
+      for (const r of rows) {
+        r.values.__name = stemOf(r.name);
+        r.values.__folder = subFolderOf(r.serverUrl, task.folder);
+      }
+      dupes = duplicateNames(rows);
+      const subFolders = new Set(rows.map((r) => r.values.__folder ?? "").filter((f) => f !== "")).size;
       for (const id of [...selected]) if (!rows.some((r) => r.uniqueId === id)) selected.delete(id);
       for (const id of [...draft.keys()]) if (!rows.some((r) => r.uniqueId === id)) draft.delete(id);
       paintGrid();
       paintSel();
-      const ready = rows.filter((r) => missingFor(r.values, required).length === 0).length;
-      status.textContent = rows.length === 0 ? "" : `${rows.length} file${rows.length === 1 ? "" : "s"} · ${ready} ready${task.log.length > 0 ? ` · log: ${logSummary(task.log)}` : ""}`;
+      const ready = rows.filter(isReady).length;
+      status.textContent = rows.length === 0 ? "" : `${rows.length} file${rows.length === 1 ? "" : "s"}${subFolders > 0 ? ` in ${subFolders} sub-folder${subFolders === 1 ? "" : "s"}` : ""}${capped ? ` (the first ${FILES_CAP} — split the task)` : ""} · ${ready} ready${dupes.size > 0 ? ` · ${dupes.size} share a name` : ""}${task.log.length > 0 ? ` · log: ${logSummary(task.log)}` : ""}`;
       if (runBtn) {
         const allReady = rows.length > 0 && ready === rows.length;
         runBtn.disabled = !allReady || running || dirtyRows(draft).length > 0;
-        runBtn.title = rows.length === 0 ? "No files in the folder yet" : allReady ? "Copy every file into the destination as approved version 1" : `${rows.length - ready} file${rows.length - ready === 1 ? " is" : "s are"} missing required details — set them first`;
+        runBtn.title = rows.length === 0 ? "No files in the folder yet" : allReady ? "Copy every file into the destination as approved version 1" : `${rows.length - ready} file${rows.length - ready === 1 ? " is" : "s are"} not ready — missing details or a shared name; see the ⚠ marks`;
       }
       paintDirty();
     };
@@ -1161,7 +1233,7 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
               return;
             }
             const newName = `${stem}${extPart(row.name)}`;
-            const newUrl = `${task.folder}/${newName}`;
+            const newUrl = `${dirOf(row.serverUrl) || task.folder}/${newName}`;
             const mv = await moveFileByPath(ctx.site, `${ctx.origin}${row.serverUrl}`, `${ctx.origin}${newUrl}`);
             if (!mv.ok) {
               const text = spErrorText(mv.status);
@@ -1294,11 +1366,14 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
     /** Every file as the sheet shows it (saved values only). */
     const sheetFiles = async (cols: SheetColumn[]): Promise<SheetFile[]> => {
       const { exportCell, NAME_INTERNAL } = await import("./sheetRoundTrip");
-      return rows.map((r) => ({
-        uniqueId: r.uniqueId,
-        name: r.name,
-        cells: Object.fromEntries([[NAME_INTERNAL, stemOf(r.name)], ...cols.map((c) => [c.internal, exportCell(c, r.values)])]),
-      }));
+      return [...rows]
+        .sort((a, b) => compareByFolderThenName(a, b, task.folder))
+        .map((r) => ({
+          uniqueId: r.uniqueId,
+          name: r.name,
+          folder: subFolderOf(r.serverUrl, task.folder),
+          cells: Object.fromEntries([[NAME_INTERNAL, stemOf(r.name)], ...cols.map((c) => [c.internal, exportCell(c, r.values)])]),
+        }));
     };
     exportBtn.addEventListener("click", () => {
       void (async () => {
@@ -1420,7 +1495,7 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
         return;
       }
       await reload();
-      const ready = rows.filter((r) => missingFor(r.values, required).length === 0);
+      const ready = rows.filter(isReady);
       /** The status a file lands with: its grid value, else Approved;
        *  approved / superseded / obsolete publish as a major version,
        *  any other stage (draft, in review) lands as a minor, unpublished. */
@@ -1598,12 +1673,15 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
      *  to the recycle bin, the task reads closed and keeps its log. */
     const closeOut = async (): Promise<void> => {
       if (running || dirtyRows(draft).length > 0) return;
-      const counts = await fetchFolderCounts(ctx.site, task.folder);
-      const left = Number(((counts.data ?? {}) as { ItemCount?: unknown }).ItemCount ?? NaN);
-      const n = counts.ok && Number.isFinite(left) ? left : rows.length;
+      // files, not items: a sub-folder counted as ONE item before
+      // 2026-11-01, so forty nested files read as "1 file"
+      await reload();
+      if (dead) return;
+      const n = rows.length;
+      const subs = new Set(rows.map((r) => r.values.__folder ?? "").filter((f) => f !== "")).size;
       const ok = await promptConfirm({
         title: `End the task "${task.name}"?`,
-        note: n > 0 ? `${n} file${n === 1 ? " has" : "s have"} NOT been ingested; the folder and those files go to the site's recycle bin. The task keeps its log and leaves Ingestion tasks.` : "The empty folder is removed; the task keeps its log and leaves Ingestion tasks.",
+        note: n > 0 ? `${n} file${n === 1 ? " has" : "s have"}${subs > 0 ? ` (in ${subs} sub-folder${subs === 1 ? "" : "s"})` : ""} NOT been ingested; the folder and everything in it go to the site's recycle bin. The task keeps its log and leaves Ingestion tasks.` : "The empty folder is removed; the task keeps its log and leaves Ingestion tasks.",
         confirmLabel: "End task",
         danger: n > 0,
       });
@@ -1945,13 +2023,24 @@ export function openIngestionTaskEditor(o: IngestionEditorOpts): void {
   };
 }
 
-/** How many items the task's folder holds (0 when unreadable). */
+/** How many FILES the task's folder holds, sub-folders included (the
+ *  folder's own item count counts a sub-folder as one); 0 when unreadable. */
 async function folderItemCount(task: IngestionTask): Promise<number> {
   if (task.folder === "") return 0;
   const ctx = await loadSiteCtx();
-  const counts = await fetchFolderCounts(ctx.site, task.folder);
-  const left = Number(((counts.data ?? {}) as { ItemCount?: unknown }).ItemCount ?? NaN);
-  return counts.ok && Number.isFinite(left) ? left : 0;
+  let n = 0;
+  let next = "";
+  for (;;) {
+    const page = await renderListPage(ctx.site, task.sourceListId, buildRenderViewXml({ rowLimit: 500, scope: "recursive" }), next, task.folder);
+    if (page.error !== "") {
+      const counts = await fetchFolderCounts(ctx.site, task.folder);
+      const left = Number(((counts.data ?? {}) as { ItemCount?: unknown }).ItemCount ?? NaN);
+      return counts.ok && Number.isFinite(left) ? Math.max(n, left) : n;
+    }
+    n += page.rows.length;
+    if (page.next === "" || n >= FILES_CAP) return n;
+    next = page.next;
+  }
 }
 
 /** Cancel a task (controllers): the folder goes to the recycle bin WITH

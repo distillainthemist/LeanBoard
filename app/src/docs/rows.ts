@@ -108,6 +108,9 @@ function camlJoin(op: "And" | "Or", parts: string[]): string {
 export interface RenderQueryOpts {
   sortName?: boolean;
   asc?: boolean;
+  /** "recursive" lists every file under the folder (or the library), at
+   *  any depth — ingestion tasks with sub-folders (2026-11-01). */
+  scope?: "recursive";
   modifiedAfterIso?: string;
   modifiedBeforeIso?: string;
   /** Words that must EACH appear in the file name or Title. */
@@ -245,7 +248,7 @@ export function buildRenderViewXml(opts: RenderQueryOpts = {}): string {
     .map((f) => `<FieldRef Name="${xmlEsc(f)}"/>`)
     .join("");
   return (
-    `<View><Query>${where}${order}</Query>` +
+    `<View${opts.scope === "recursive" ? ' Scope="RecursiveAll"' : ""}><Query>${where}${order}</Query>` +
     `<ViewFields>${fields}</ViewFields>` +
     `<RowLimit Paged="TRUE">${opts.rowLimit ?? 50}</RowLimit></View>`
   );

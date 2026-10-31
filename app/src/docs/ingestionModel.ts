@@ -247,3 +247,79 @@ export function latestByFile(log: RunLogEntry[]): Map<string, RunLogEntry> {
 export function ingestComment(taskName: string, by: string): string {
   return `Ingested — task "${taskName}" by ${by}`;
 }
+
+// ---- sub-folders (Ben, 2026-11-01) ------------------------------------------
+// A task's folder may hold a tree. The listing walks it; every file lands
+// FLAT in the destination; the path is shown, never edited.
+
+/** The file's place under the task folder: "Policies/2024" for
+ *  <folder>/Policies/2024/x.pdf; "" at the root or outside the folder. */
+export function subFolderOf(serverUrl: string, taskFolder: string): string {
+  const root = taskFolder.replace(/\/+$/, "");
+  if (root === "" || !serverUrl.startsWith(`${root}/`)) return "";
+  const rest = serverUrl.slice(root.length + 1);
+  const cut = rest.lastIndexOf("/");
+  return cut < 0 ? "" : rest.slice(0, cut);
+}
+
+/** The folder a file sits in (server-relative), "" when there is none. */
+export function dirOf(serverUrl: string): string {
+  const cut = serverUrl.lastIndexOf("/");
+  return cut <= 0 ? "" : serverUrl.slice(0, cut);
+}
+
+/** "Policies/2024" → "Policies › 2024"; the root reads as the task folder. */
+export const ROOT_GROUP_LABEL = "Task folder";
+export function folderLabel(path: string): string {
+  return path === "" ? ROOT_GROUP_LABEL : path.split("/").join(" › ");
+}
+
+/** Files that share a name (case-blind) anywhere in the task: on the flat
+ *  landing they would collide, so both are held back until one is renamed. */
+export function duplicateNames(files: { uniqueId: string; name: string }[]): Set<string> {
+  const byName = new Map<string, string[]>();
+  for (const f of files) {
+    const k = f.name.trim().toLowerCase();
+    byName.set(k, [...(byName.get(k) ?? []), f.uniqueId]);
+  }
+  const out = new Set<string>();
+  for (const ids of byName.values()) if (ids.length > 1) for (const id of ids) out.add(id);
+  return out;
+}
+
+export interface FolderGroup<T> {
+  path: string;
+  label: string;
+  items: T[];
+}
+
+/** The files grouped by sub-folder, in order of first appearance (callers
+ *  sort by folder then name first); the root group leads when present. */
+export function folderGroups<T extends { serverUrl: string }>(files: T[], taskFolder: string): FolderGroup<T>[] {
+  const groups = new Map<string, FolderGroup<T>>();
+  for (const f of files) {
+    const path = subFolderOf(f.serverUrl, taskFolder);
+    let g = groups.get(path);
+    if (!g) {
+      g = { path, label: folderLabel(path), items: [] };
+      groups.set(path, g);
+    }
+    g.items.push(f);
+  }
+  const all = [...groups.values()];
+  const root = all.find((g) => g.path === "");
+  return root ? [root, ...all.filter((g) => g !== root)] : all;
+}
+
+/** Folder first (the root before any sub-folder), then the name — the
+ *  grid's and the sheet's default order. */
+export function compareByFolderThenName(a: { serverUrl: string; name: string }, b: { serverUrl: string; name: string }, taskFolder: string): number {
+  const fa = subFolderOf(a.serverUrl, taskFolder);
+  const fb = subFolderOf(b.serverUrl, taskFolder);
+  if (fa !== fb) {
+    if (fa === "") return -1;
+    if (fb === "") return 1;
+    return fa.localeCompare(fb, undefined, { numeric: true, sensitivity: "base" });
+  }
+  return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" });
+}

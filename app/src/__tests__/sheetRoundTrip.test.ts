@@ -2,7 +2,7 @@
 // features-plan-2026-10-29, feature 2): the export strings, the two
 // sheets, and an edited Files sheet read back strictly.
 import { describe, expect, it } from "vitest";
-import { FILES_SHEET, FIRST_FILE_ROW, GUIDE_ROW, ID_INTERNAL, INTERNALS_ROW, NAME_INTERNAL, PATH_SEP, SheetColumn, SheetFile, VALUES_FIRST_ROW, VALUES_SHEET, buildSheets, columnGuidance, exportCell, mapCell, parsePersonText, parseSheet, parseSummary, personText } from "../docs/sheetRoundTrip";
+import { FILES_SHEET, FIRST_FILE_ROW, FOLDER_INTERNAL, GUIDE_ROW, ID_INTERNAL, INTERNALS_ROW, NAME_INTERNAL, PATH_SEP, SheetColumn, SheetFile, VALUES_FIRST_ROW, VALUES_SHEET, buildSheets, columnGuidance, exportCell, mapCell, parsePersonText, parseSheet, parseSummary, personText } from "../docs/sheetRoundTrip";
 
 const org: SheetColumn = {
   internal: "DMSOrg",
@@ -39,9 +39,9 @@ const values = {
   DMSEffective: "9 Oct 2026",
   DMSTitle: "Policy A — scope",
 };
-const fileOf = (uniqueId: string, name: string, v: Record<string, string>): SheetFile => ({ uniqueId, name, cells: Object.fromEntries([[NAME_INTERNAL, v.__name ?? ""], ...cols.map((c) => [c.internal, exportCell(c, v)])]) });
+const fileOf = (uniqueId: string, name: string, v: Record<string, string>, folder = ""): SheetFile => ({ uniqueId, name, folder, cells: Object.fromEntries([[NAME_INTERNAL, v.__name ?? ""], ...cols.map((c) => [c.internal, exportCell(c, v)])]) });
 const f1 = fileOf("U1", "Policy A.pdf", values);
-const f2 = fileOf("U2", "Plan B.docx", { __name: "Plan B" });
+const f2 = fileOf("U2", "Plan B.docx", { __name: "Plan B" }, "Plans/2024");
 const noDirectory = async () => [];
 
 describe("exportCell", () => {
@@ -67,22 +67,23 @@ describe("buildSheets", () => {
   it("lays out the Files sheet: labels, hidden internals, one row per file", () => {
     const files = sheets[0];
     expect(files.name).toBe(FILES_SHEET);
-    expect(files.rows[0]).toEqual(["File id", "Name on ingestion", "Organisation unit ✱", "Tags", "Owner ✱", "Author", "Status", "Effective", "Title"]);
+    expect(files.rows[0]).toEqual(["File id", "Name on ingestion", "Folder", "Organisation unit ✱", "Tags", "Owner ✱", "Author", "Status", "Effective", "Title"]);
     // the guidance row under the header, the hidden key row beneath it
-    expect((files.rows[GUIDE_ROW] as string[]).slice(2)).toEqual(cols.map(columnGuidance));
+    expect((files.rows[GUIDE_ROW] as string[]).slice(3)).toEqual(cols.map(columnGuidance));
+    expect((files.rows[GUIDE_ROW] as string[])[2]).toMatch(/for reference only/);
     expect(columnGuidance(org)).toBe("Required. One term as its full path — use the dropdown (the Values sheet lists them).");
     expect(columnGuidance(tags)).toMatch(/^One or more terms as full paths/);
     expect(columnGuidance(owner)).toMatch(/^Required\. One person from the owners & approvers pool/);
     expect(columnGuidance(author)).toMatch(/^Email addresses separated by/);
     expect(columnGuidance(eff)).toMatch(/^A date — type yyyy-mm-dd/);
-    expect(files.rows[INTERNALS_ROW]).toEqual([ID_INTERNAL, NAME_INTERNAL, "DMSOrg", "DMSTags", "DMSOwner", "DMSAuthor", "DMSStatus", "DMSEffective", "DMSTitle"]);
-    // a date travels as a real date cell
-    expect(files.rows[FIRST_FILE_ROW]).toEqual(["U1", "Policy A", `Pechey${PATH_SEP}Bell Bay${PATH_SEP}Casting`, "Safety; Crane Ops", "Ann Ray <ann@x.test>", "Cy Lee <cy@x.test>; Di Moss <di@x.test>", "Draft", { date: "2026-10-09" }, "Policy A — scope"]);
-    expect(files.rows[FIRST_FILE_ROW + 1]).toEqual(["U2", "Plan B", "", "", "", "", "", "", ""]);
+    expect(files.rows[INTERNALS_ROW]).toEqual([ID_INTERNAL, NAME_INTERNAL, FOLDER_INTERNAL, "DMSOrg", "DMSTags", "DMSOwner", "DMSAuthor", "DMSStatus", "DMSEffective", "DMSTitle"]);
+    // a date travels as a real date cell; the folder for reference
+    expect(files.rows[FIRST_FILE_ROW]).toEqual(["U1", "Policy A", "", `Pechey${PATH_SEP}Bell Bay${PATH_SEP}Casting`, "Safety; Crane Ops", "Ann Ray <ann@x.test>", "Cy Lee <cy@x.test>; Di Moss <di@x.test>", "Draft", { date: "2026-10-09" }, "Policy A — scope"]);
+    expect(files.rows[FIRST_FILE_ROW + 1]).toEqual(["U2", "Plan B", `Plans${PATH_SEP}2024`, "", "", "", "", "", "", ""]);
     expect(files.hiddenCols).toEqual([0]);
     expect(files.hiddenRows).toEqual([INTERNALS_ROW]);
     expect(files.noteRows).toEqual([GUIDE_ROW]);
-    expect(files.dateCols).toEqual([7]);
+    expect(files.dateCols).toEqual([8]);
     expect(files.freezeRows).toBe(FIRST_FILE_ROW);
   });
   it("lists the valid values and validates the single-value listed columns only", () => {
@@ -92,9 +93,9 @@ describe("buildSheets", () => {
     expect(vals.rows[VALUES_FIRST_ROW]).toEqual(["Pechey", "Safety", "Ann Ray <ann@x.test>", "Draft"]);
     expect(vals.rows[VALUES_FIRST_ROW + 3]).toEqual([`Pechey${PATH_SEP}Boyne${PATH_SEP}Casting`, "", "", ""]);
     const v = sheets[0].validations ?? [];
-    // the date column (col 7) validates as a date; org (col 2), owner
-    // (col 4), status (col 6) as lists; tags is multi — no dropdown
-    expect(v.map((x) => [x.kind, x.col])).toEqual([["date", 7], ["list", 2], ["list", 4], ["list", 6]]);
+    // the date column (col 8) validates as a date; org (col 3), owner
+    // (col 5), status (col 7) as lists; tags is multi — no dropdown
+    expect(v.map((x) => [x.kind, x.col])).toEqual([["date", 8], ["list", 3], ["list", 5], ["list", 7]]);
     expect(v[1]).toMatchObject({ listSheet: VALUES_SHEET, listCol: 0, listFromRow: VALUES_FIRST_ROW, listToRow: VALUES_FIRST_ROW + 3, fromRow: FIRST_FILE_ROW });
     expect(v[2]).toMatchObject({ listCol: 2, listToRow: VALUES_FIRST_ROW + 1 });
     expect(v[3]).toMatchObject({ listCol: 3, listToRow: VALUES_FIRST_ROW + 1 });
@@ -165,14 +166,15 @@ describe("parseSheet", () => {
     const grid = exported.map((r) => [...r]);
     const R = FIRST_FILE_ROW;
     grid[R][1] = "Policy A v2"; // rename
-    grid[R][2] = ""; // clear the org
-    grid[R][6] = "Approved";
-    grid[R][7] = "Nov 3"; // problem
-    grid[R + 1][2] = `Pechey${PATH_SEP}Bell Bay`;
-    grid[R + 1][4] = "Zed <zed@x.test>"; // not in the pool
-    grid[R + 1][8] = "  "; // blank over blank: nothing
-    grid.push(["U9", "Gone.pdf", "", "", "", "", "", "", ""]);
-    grid.push(["", "", "", "", "", "", "", "", ""]);
+    grid[R][2] = "Moved/Elsewhere"; // the folder column is reference only — ignored
+    grid[R][3] = ""; // clear the org
+    grid[R][7] = "Approved";
+    grid[R][8] = "Nov 3"; // problem
+    grid[R + 1][3] = `Pechey${PATH_SEP}Bell Bay`;
+    grid[R + 1][5] = "Zed <zed@x.test>"; // not in the pool
+    grid[R + 1][9] = "  "; // blank over blank: nothing
+    grid.push(["U9", "Gone.pdf", "", "", "", "", "", "", "", ""]);
+    grid.push(["", "", "", "", "", "", "", "", "", ""]);
     const p = await parseSheet(grid, cols, [f1, f2], noDirectory);
     expect(p.error).toBe("");
     expect(p.changes).toEqual([

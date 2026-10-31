@@ -601,11 +601,12 @@ expected: Task defaults offers the Status column under its heading (it is set by
 ### UAT-DOC-063 — Fill the grid
 persona: author
 modules: docs/ingestionScreen.ts docs/ingestionDraft.ts docs/ingestionModel.ts
-preconditions: an open task you are assigned to with three files in its folder
+preconditions: an open task you are assigned to with three files in its folder, two of them inside a sub-folder "Policies/2024"
 steps:
-1. Refresh; read the ✱ required columns and the ⚠ marks.
+1. Refresh; read the ✱ required columns and the ⚠ marks; read the Document column.
 2. Edit cells, including a Status cell from Draft to Approved; Fill blanks from defaults; Set for selected… on two rows, once with the Status column; Save.
-expected: the Status cell and Set for selected… both offer the status editor (never "no editable columns configured"); on a task constrained to a site the Organisation unit and Process area cells and Set for selected… cascade from that site's branch only (the site itself is a valid pick), while an "Any site" task offers the whole sets; the header and every row share one set of column widths (no drift between rows); required cells drive the ✓/⚠ mark and its tooltip — a Management of change column is required only when SharePoint marks it so; the MoC cell shows its records as "MOC-12, MOC-14" and opens the records editor, never raw JSON; dirty cells and rows are marked until Save; emptying a text, choice or date cell that held a value, or Clear in a term / people popover, marks the cell dirty reading "—" and Save clears the value in SharePoint (a blank over a blank is nothing; the name never clears); Save writes the values to the ingestion items and the marks turn ✓; the Run button is greyed until every file is ready and saved
+3. Tick the checkbox on the "Policies › 2024" group row; Set for selected…; untick it.
+expected: the two nested files are listed with a muted "Policies › 2024" line under the name (read-only, the tooltip says the file lands flat) and sit under a group row "Policies › 2024 · 2 files · Open ↗" after the "Task folder" group; the group's checkbox selects exactly its files for Set for selected… and clears them again; sorting by another column drops the group rows and keeps the path lines; the Status cell and Set for selected… both offer the status editor (never "no editable columns configured"); on a task constrained to a site the Organisation unit and Process area cells and Set for selected… cascade from that site's branch only (the site itself is a valid pick), while an "Any site" task offers the whole sets; the header and every row share one set of column widths (no drift between rows); required cells drive the ✓/⚠ mark and its tooltip — a Management of change column is required only when SharePoint marks it so; the MoC cell shows its records as "MOC-12, MOC-14" and opens the records editor, never raw JSON; dirty cells and rows are marked until Save; emptying a text, choice or date cell that held a value, or Clear in a term / people popover, marks the cell dirty reading "—" and Save clears the value in SharePoint (a blank over a blank is nothing; the name never clears); Save writes the values to the ingestion items and the marks turn ✓; the Run button is greyed until every file is ready and saved
 
 ### UAT-DOC-064 — Edit a task without losing its people
 persona: controller
@@ -637,19 +638,20 @@ expected: the pill shows in the column with the flagger and comment in its toolt
 ### UAT-DOC-067 — Refusals are honest
 persona: controller
 modules: docs/ingestionScreen.ts
-preconditions: a file whose name already exists in the destination; a file whose document id is already used; on a task constrained to a site, a file whose Organisation unit was set to another site's department in SharePoint's grid view
+preconditions: a file whose name already exists in the destination; a file whose document id is already used; on a task constrained to a site, a file whose Organisation unit was set to another site's department in SharePoint's grid view; two files with the same name in different sub-folders of the task
 steps:
-1. Run ingestion including all three.
-expected: each is refused with the reason in its ⚠ tooltip and the run log — the third reads "Organisation unit "X" is outside this task's site (Y)"; the other files land; nothing half-moves
+1. Read the two same-named files' ⚠ marks and the Run button; rename one with Name on ingestion and Save.
+2. Run ingestion including the other three.
+expected: before the rename both same-named files read ⚠ "Missing: a unique name — another file in this task has the same name…", the status line counts "2 share a name" and Run is greyed; after the rename both are ✓; in the run each of the three is refused with the reason in its ⚠ tooltip and the run log — the third reads "Organisation unit "X" is outside this task's site (Y)"; the other files land flat in the destination (no sub-folder is created there); nothing half-moves
 
 ### UAT-DOC-068 — Message assignees and end the task
 persona: controller
 modules: docs/ingestionScreen.ts
-preconditions: an open task with at least one assignee who is not you, whose files have all moved
+preconditions: an open task with at least one assignee who is not you, whose files have all moved; a second open task with files left in two sub-folders
 steps:
 1. Message assignees… → read the recipients, type a note, Send.
 2. End task… (the header button; the ✕ only closes the window and says so in its tooltip)
-expected: a dialog lists every assignee (you marked as not messaged — Teams refuses a chat with yourself) with a note box; Send shows the outcome in the dialog ("Teams message sent to …" or the refusal) and each other assignee gets the card with your note quoted under it; with you as the only assignee the dialog says so and Send is disabled; End task… confirms with the count of files not yet ingested, then the task closes with its log, leaves the open lists and the badge, and reopens from Settings if needed
+expected: a dialog lists every assignee (you marked as not messaged — Teams refuses a chat with yourself) with a note box; Send shows the outcome in the dialog ("Teams message sent to …" or the refusal) and each other assignee gets the card with your note quoted under it; with you as the only assignee the dialog says so and Send is disabled; End task… confirms with the count of files not yet ingested, then the task closes with its log, leaves the open lists and the badge, and reopens from Settings if needed; on the second task End task… counts the FILES "(in 2 sub-folders)", not the folders, and Cancel task… in the task editor counts the same way
 
 ### UAT-DOC-087 — Export the grid as a spreadsheet
 persona: author
@@ -658,16 +660,27 @@ preconditions: an open task you are assigned to with files in its folder, some d
 steps:
 1. Edit a cell without saving; Export sheet.
 2. Save (or Discard); Export sheet; open the workbook in Excel.
-expected: with unsaved changes the export is refused with "Save or discard your changes first"; otherwise a workbook `ingestion-<task>-<date>.xlsx` downloads; its Files sheet has one row per file with the name and every grid column (the MoC column left out), term cells as full paths ("Pechey › Bell Bay › Casting"), people as "Name <email>", dates as real Excel dates shown yyyy-mm-dd, required columns marked ✱; under the header a muted guidance row says how to fill each column ("Required. One term as its full path — use the dropdown…", "A date — type yyyy-mm-dd or pick a date…"); the header, guidance and key rows are frozen; typing "Nov 3" into a date cell is refused by Excel, a typed date shows as yyyy-mm-dd; column A and row 2 are hidden keys; the Values sheet lists every term path, choice and the owners & approvers pool per column — on a task constrained to a site, the Organisation unit and Process area paths are that site's branch only, starting at the site; a single-value term, choice or owner cell offers an Excel dropdown of those values and refuses a typed value outside them
+expected: with unsaved changes the export is refused with "Save or discard your changes first"; otherwise a workbook `ingestion-<task>-<date>.xlsx` downloads; its Files sheet has one row per file, in folder-then-name order, with the name, a read-only Folder column ("Plans › 2024", blank at the root) whose guidance says it is for reference only, and every grid column (the MoC column left out), term cells as full paths ("Pechey › Bell Bay › Casting"), people as "Name <email>", dates as real Excel dates shown yyyy-mm-dd, required columns marked ✱; under the header a muted guidance row says how to fill each column ("Required. One term as its full path — use the dropdown…", "A date — type yyyy-mm-dd or pick a date…"); the header, guidance and key rows are frozen; typing "Nov 3" into a date cell is refused by Excel, a typed date shows as yyyy-mm-dd; column A and row 2 are hidden keys; the Values sheet lists every term path, choice and the owners & approvers pool per column — on a task constrained to a site, the Organisation unit and Process area paths are that site's branch only, starting at the site; a single-value term, choice or owner cell offers an Excel dropdown of those values and refuses a typed value outside them
 
 ### UAT-DOC-088 — Upload an edited spreadsheet
 persona: author
 modules: docs/ingestionScreen.ts docs/sheetRoundTrip.ts docs/xlsx.ts docs/ingestionDraft.ts
 preconditions: the workbook from DOC-087
 steps:
-1. In Excel: change a status from the dropdown, pick an owner, type a term's leaf label ("Casting") in another file's organisation cell by pasting over the validation, empty a title cell, rename a file in Name on ingestion, type "Nov 3" in a date cell, and delete a file's row; save.
+1. In Excel: change a status from the dropdown, pick an owner, type a term's leaf label ("Casting") in another file's organisation cell by pasting over the validation, empty a title cell, rename a file in Name on ingestion, type something into a Folder cell, type "Nov 3" in a date cell, and delete a file's row; save.
 2. Upload sheet… → drop or choose the workbook; read the report; Apply to grid; Save changes.
-expected: the report says how many cells on how many files change and lists each problem with its Excel row, file, column, value and reason — the leaf label says to use the full path, "Nov 3" says yyyy-mm-dd — and the deleted row's file is simply untouched; Apply marks the changed cells dirty in the grid (the emptied title reads "—"), leaves the problem cells as they were, and the status line counts the problems; Save writes the changes, renames the file, and clears the title in SharePoint; uploading the untouched export reports "0 cells on 0 files to change" with Apply greyed; a workbook that is not this task's export is refused with a message, nothing applied
+expected: the report says how many cells on how many files change and lists each problem with its Excel row, file, column, value and reason — the leaf label says to use the full path, "Nov 3" says yyyy-mm-dd — the edited Folder cell is ignored without a problem line, and the deleted row's file is simply untouched; Apply marks the changed cells dirty in the grid (the emptied title reads "—"), leaves the problem cells as they were, and the status line counts the problems; Save writes the changes, renames the file, and clears the title in SharePoint; uploading the untouched export reports "0 cells on 0 files to change" with Apply greyed; a workbook that is not this task's export is refused with a message, nothing applied
+
+### UAT-DOC-090 — A nested drop lists and lands flat
+persona: controller
+modules: docs/ingestionScreen.ts docs/ingestionModel.ts docs/rows.ts
+preconditions: an open task; in SharePoint, a folder tree dropped into its folder — files at the root, in "Policies", in "Policies/2024" and in "Archive/2019"; one file renamed in the grid
+steps:
+1. Refresh the task; read the status line and the grid.
+2. Rename a nested file with Name on ingestion; Save; check the file in SharePoint.
+3. Set every required detail (use the group checkboxes); Run.
+4. End task.
+expected: every file at every depth is listed — the status line reads "n files in 3 sub-folders · …"; the grid groups them under Task folder, Archive › 2019, Policies, Policies › 2024 with the path under each nested name; the renamed file keeps its place in its sub-folder (it does not move to the task root); the run copies every file into the destination library's ROOT with no sub-folder created, the sources are recycled and the emptied sub-folders stay; End task counts 0 files and removes the folder with its empty sub-folders
 
 ## Journey 10 — Health and the term store
 

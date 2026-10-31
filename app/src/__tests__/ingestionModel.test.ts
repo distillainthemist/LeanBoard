@@ -1,6 +1,6 @@
 // Document ingestion's pure parts (ingestionModel.ts, 2026-10-08).
 import { describe, expect, it } from "vitest";
-import { blanksToFill, canSeeTask, ingestComment, labelsOutsideRoot, latestByFile, logSummary, missingFor, rowFromTask, siteTermRoots, subtreeUnder, taskFolderName, taskFromRow, tasksForPanel, IngestionTask } from "../docs/ingestionModel";
+import { blanksToFill, canSeeTask, compareByFolderThenName, dirOf, duplicateNames, folderGroups, folderLabel, ingestComment, labelsOutsideRoot, latestByFile, logSummary, missingFor, rowFromTask, siteTermRoots, subFolderOf, subtreeUnder, taskFolderName, taskFromRow, tasksForPanel, IngestionTask } from "../docs/ingestionModel";
 
 const modelOf = () => ({ taskFromRow, rowFromTask, siteTermRoots, subtreeUnder, labelsOutsideRoot });
 
@@ -104,5 +104,39 @@ describe("a task constrained to a site (2026-10-29)", () => {
     expect(labelsOutsideRoot("Bell Bay", org, "bb")).toEqual([]); // the Boyne department of that name does not count against it
     expect(labelsOutsideRoot("Mystery", org, "bb")).toEqual([]);
     expect(labelsOutsideRoot("Boyne", org, "nope")).toEqual([]);
+  });
+});
+
+describe("sub-folders in a task (2026-11-01)", () => {
+  const F = "/sites/Dev/Ingest/Legacy SOPs";
+  const file = (uniqueId: string, serverUrl: string) => ({ uniqueId, serverUrl, name: serverUrl.slice(serverUrl.lastIndexOf("/") + 1) });
+  it("reads the path under the task folder, blank at the root or outside", () => {
+    expect(subFolderOf(`${F}/Policies/2024/Fatigue.pdf`, F)).toBe("Policies/2024");
+    expect(subFolderOf(`${F}/Fatigue.pdf`, F)).toBe("");
+    expect(subFolderOf(`${F}/Fatigue.pdf`, `${F}/`)).toBe("");
+    expect(subFolderOf("/sites/Dev/Other/x.pdf", F)).toBe("");
+    expect(subFolderOf(`${F}2/x.pdf`, F)).toBe(""); // a sibling folder with the same prefix
+    expect(dirOf(`${F}/Policies/x.pdf`)).toBe(`${F}/Policies`);
+    expect(dirOf("x.pdf")).toBe("");
+    expect(folderLabel("")).toBe("Task folder");
+    expect(folderLabel("Policies/2024")).toBe("Policies › 2024");
+  });
+  it("marks every file that shares a name, case-blind", () => {
+    const d = duplicateNames([file("a", `${F}/Policies/Fatigue.pdf`), file("b", `${F}/Archive/fatigue.PDF`), file("c", `${F}/Fatigue v2.pdf`)]);
+    expect([...d].sort()).toEqual(["a", "b"]);
+    expect(duplicateNames([]).size).toBe(0);
+  });
+  it("groups by folder in order, the root first, and sorts folder then name", () => {
+    const files = [file("1", `${F}/Policies/B.pdf`), file("2", `${F}/Z.pdf`), file("3", `${F}/Archive/2019/A.pdf`), file("4", `${F}/Policies/A.pdf`), file("5", `${F}/A.pdf`)];
+    const sorted = [...files].sort((a, b) => compareByFolderThenName(a, b, F));
+    expect(sorted.map((f) => f.uniqueId)).toEqual(["5", "2", "3", "4", "1"]);
+    const g = folderGroups(sorted, F);
+    expect(g.map((x) => [x.label, x.items.map((f) => f.name)])).toEqual([
+      ["Task folder", ["A.pdf", "Z.pdf"]],
+      ["Archive › 2019", ["A.pdf"]],
+      ["Policies", ["A.pdf", "B.pdf"]],
+    ]);
+    // a tree without root files has no root group
+    expect(folderGroups([file("1", `${F}/P/x.pdf`)], F).map((x) => x.path)).toEqual(["P"]);
   });
 });

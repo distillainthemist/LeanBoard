@@ -43,11 +43,17 @@ export interface SheetColumn {
 export interface SheetFile {
   uniqueId: string;
   name: string;
+  /** The file's sub-folder under the task folder ("" at the root) —
+   *  shown in the sheet for reference, never read back (2026-11-01). */
+  folder: string;
   cells: Record<string, string>;
 }
 
 export const ID_INTERNAL = "__id";
 export const NAME_INTERNAL = "__name";
+export const FOLDER_INTERNAL = "__folder";
+/** File id · Name on ingestion · Folder, then the task's columns. */
+const FIXED_COLS = 3;
 export const FILES_SHEET = "Files";
 export const VALUES_SHEET = "Values";
 /** Row 0 labels, row 1 the guidance, row 2 (hidden) internals, files
@@ -117,13 +123,13 @@ export interface SheetMeta {
  *  range so Excel offers a dropdown offline. Multi-value columns get
  *  the list as reference only — Excel cannot validate a ";" list. */
 export function buildSheets(cols: SheetColumn[], files: SheetFile[], meta: SheetMeta): SheetSpec[] {
-  const header: string[] = ["File id", "Name on ingestion", ...cols.map((c) => c.label + (c.required ? " ✱" : ""))];
-  const guidance: string[] = ["", "The file's name on ingestion, without its extension — a change renames the file. Leave column A and this row alone.", ...cols.map(columnGuidance)];
-  const internals: string[] = [ID_INTERNAL, NAME_INTERNAL, ...cols.map((c) => c.internal)];
+  const header: string[] = ["File id", "Name on ingestion", "Folder", ...cols.map((c) => c.label + (c.required ? " ✱" : ""))];
+  const guidance: string[] = ["", "The file's name on ingestion, without its extension — a change renames the file. Leave column A and this row alone.", "Where the file sits in the task's folder — for reference only; a change here is ignored. Every file lands flat in the destination.", ...cols.map(columnGuidance)];
+  const internals: string[] = [ID_INTERNAL, NAME_INTERNAL, FOLDER_INTERNAL, ...cols.map((c) => c.internal)];
   const rows: CellValue[][] = [header, guidance, internals];
   // a date travels as a real Excel date (shown yyyy-mm-dd, validated as a date)
   const cell = (c: SheetColumn, text: string): CellValue => (c.kind === "date" && text !== "" ? { date: text } : text);
-  for (const f of files) rows.push([f.uniqueId, f.cells[NAME_INTERNAL] ?? f.name, ...cols.map((c) => cell(c, f.cells[c.internal] ?? ""))]);
+  for (const f of files) rows.push([f.uniqueId, f.cells[NAME_INTERNAL] ?? f.name, f.folder === "" ? "" : f.folder.split("/").join(PATH_SEP), ...cols.map((c) => cell(c, f.cells[c.internal] ?? ""))]);
   // the Values sheet: one column per listed column, its label on top
   const listed = cols.filter((c) => c.options.length > 0);
   const vHeader = listed.map((c) => c.label);
@@ -133,13 +139,13 @@ export function buildSheets(cols: SheetColumn[], files: SheetFile[], meta: Sheet
   const validations: Validation[] = [];
   const lastRow = Math.max(FIRST_FILE_ROW, FIRST_FILE_ROW + files.length - 1 + 200); // room for rows added by hand
   cols.forEach((c, ci) => {
-    if (c.kind === "date") validations.push({ kind: "date", col: 2 + ci, fromRow: FIRST_FILE_ROW, toRow: lastRow });
+    if (c.kind === "date") validations.push({ kind: "date", col: FIXED_COLS + ci, fromRow: FIRST_FILE_ROW, toRow: lastRow });
   });
   listed.forEach((c, li) => {
     if (c.multi) return;
     validations.push({
       kind: "list",
-      col: 2 + cols.indexOf(c),
+      col: FIXED_COLS + cols.indexOf(c),
       fromRow: FIRST_FILE_ROW,
       toRow: lastRow,
       listSheet: VALUES_SHEET,
@@ -154,13 +160,13 @@ export function buildSheets(cols: SheetColumn[], files: SheetFile[], meta: Sheet
     {
       name: FILES_SHEET,
       rows,
-      colWidths: [12, 40, ...cols.map((c) => (c.kind === "taxonomy" ? 36 : c.kind === "person" ? 32 : c.kind === "date" ? 14 : 24))],
+      colWidths: [12, 40, 28, ...cols.map((c) => (c.kind === "taxonomy" ? 36 : c.kind === "person" ? 32 : c.kind === "date" ? 14 : 24))],
       hiddenCols: [0],
       hiddenRows: [INTERNALS_ROW],
       boldRows: [0],
       noteRows: [GUIDE_ROW],
       rowHeights: { [GUIDE_ROW]: 58 },
-      dateCols: cols.map((c, ci) => (c.kind === "date" ? 2 + ci : -1)).filter((i) => i >= 0),
+      dateCols: cols.map((c, ci) => (c.kind === "date" ? FIXED_COLS + ci : -1)).filter((i) => i >= 0),
       freezeRows: FIRST_FILE_ROW,
       validations,
     },

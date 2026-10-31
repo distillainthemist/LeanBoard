@@ -118,3 +118,19 @@ and lands flat).
    (recommended), or keep the run-time refusal only.
 3. The sheet's Folder column: include, read-only (recommended), or leave
    the sheet as it is.
+
+## Built (2026-11-01, Ben: the recommended option on all three)
+
+`RenderQueryOpts.scope: "recursive"` → `<View Scope="RecursiveAll">`; the
+task's reload follows the feed to `FILES_CAP` 2000; `subFolderOf`,
+`dirOf`, `folderLabel`, `duplicateNames`, `folderGroups`,
+`compareByFolderThenName` in `ingestionModel.ts` (tests); the name sort
+is folder-then-name and paints a `.app-ing-group` row per sub-folder
+(checkbox selects the group, count, Open ↗); `.app-ing-path` under a
+nested name; `isReady` = required details AND a unique name (`dupes`),
+Run greyed and the ⚠ tooltip naming the clash; rename targets
+`dirOf(row.serverUrl)`; the sheet's "Folder" column (`FOLDER_INTERNAL`,
+`FIXED_COLS` 3) is written and never read; End task and Cancel task count
+files through the recursive feed. UAT: DOC-063/067/068/087/088 updated,
+DOC-090 new. Hosted check: the recursive feed under
+`FolderServerRelativeUrl` (DOC-090 step 1).
