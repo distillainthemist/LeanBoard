@@ -75,6 +75,16 @@ expected: step 1 names the device's build (v0.x.y, "+n" past a tag) and who reco
 
 ## Journey 5 — Bulk-adding a site's people
 
+### UAT-SET-008 — The roster pages
+persona: superadmin
+modules: screens/settings.ts
+preconditions: a roster of more than 50 people
+steps:
+1. Settings → Users; read the count line and the list; scroll to the bottom.
+2. Next ›; then filter by a site with fewer than 50 people; then clear the filter.
+3. Type part of a name in the search box.
+expected: the tab opens with the first 50 people and the count reads "n of n people · 1–50 of n"; a pager under the list reads "Page 1 of m · 1–50 of n" with ‹ Previous greyed; Next › shows 51–100 and scrolls the list head into view; a filter that fits one page shows no pager; every filter and the search start again from page 1; job titles fill in for the rows on screen only (the search matches name and email everywhere, job title on rows that have been shown)
+
 ### UAT-SET-007 — Import a site's team from the directory
 persona: superadmin
 modules: people/importTeam.ts store/directoryWalk.ts shared/schema/teamImport.ts

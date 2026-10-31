@@ -117,7 +117,7 @@ About a day.
 3. People already on another site: shown with an "on <site>" chip,
    unticked; ticking moves them.
 4. Roots: the site owner prefilled, add or remove through directory search.
-5. Caps: 1500 people, 8 levels, 4 connector calls at a time.
+5. Caps: 1500 people, 8 levels, 4 connector calls at a time (the people cap raised to 3000 on 2026-11-01).
 
 ## Decisions as first proposed
 
@@ -129,7 +129,7 @@ About a day.
    when ticked (recommended); or hidden.
 4. **Roots**: the site owner prefilled with add/remove (recommended), or
    the site owner only.
-5. **Caps**: 1500 people / 8 levels / concurrency 4 (defaults).
+5. **Caps**: 1500 people / 8 levels / concurrency 4 (defaults; people cap 3000 since 2026-11-01).
 
 ## Built (2026-10-31, app-only)
 

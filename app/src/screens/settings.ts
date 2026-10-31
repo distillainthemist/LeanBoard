@@ -94,6 +94,10 @@ import {
 } from "../../../shared/schema/recurrence";
 import { RosterPerson } from "../store/mappers";
 import { buildLabel, compareBuilds, parseBuild } from "../../../shared/schema/release";
+import { pageCount, pageLabel, pageSlice } from "../../../shared/schema/paging";
+
+/** Roster rows per page — each row reads the directory once shown. */
+const USERS_PAGE_SIZE = 50;
 import { thisBuild } from "../release/gate";
 import {
   DirectoryProfile,
@@ -1455,10 +1459,11 @@ async function renderUsers(body: HTMLElement, me: RosterPerson): Promise<void> {
   const groupsPending = import("../docs/groupMembers")
     .then(({ loadDocGroups }) => loadDocGroups(me.whoId))
     .catch(() => null);
-  const orgTree = parseOrgTree(await orgJson());
+  // the three reads side by side (2026-11-01: the tab opened in series)
+  const [orgRaw, crewLib, firstPeople] = await Promise.all([orgJson(), rosterPatternLibrary(), listPeople(true)]);
+  const orgTree = parseOrgTree(orgRaw);
   const sites = orgTree.map((s) => s.site);
-  const crewLib = await rosterPatternLibrary();
-  let people = await listPeople(true);
+  let people = firstPeople;
   const docGroups = await groupsPending;
   // reload the roster and repaint the list in place (keeps the cards'
   // own notes — e.g. the sync summary — on screen)
@@ -1508,14 +1513,22 @@ async function renderUsers(body: HTMLElement, me: RosterPerson): Promise<void> {
   const search = el("input", "app-input") as HTMLInputElement;
   search.type = "search";
   search.placeholder = "Search name, email or job title";
+  // the roster is PAGED (Ben, 2026-11-01: every row read the directory
+  // on open, so a long roster meant hundreds of calls) — a page of rows
+  // at a time, the filters starting from the first page
+  let page = 0;
+  const restart = () => {
+    page = 0;
+    draw();
+  };
   search.addEventListener("input", () => {
     query = search.value.trim().toLowerCase();
-    draw();
+    restart();
   });
   const siteSel = labelledFilter("Any site", sites.map((s) => ({ value: s, label: s })));
   siteSel.addEventListener("change", () => {
     siteFilter = siteSel.value;
-    draw();
+    restart();
   });
   const roleSel = labelledFilter(
     "Any role",
@@ -1523,7 +1536,7 @@ async function renderUsers(body: HTMLElement, me: RosterPerson): Promise<void> {
   );
   roleSel.addEventListener("change", () => {
     roleFilter = roleSel.value;
-    draw();
+    restart();
   });
   const statusSel = labelledFilter("Any status", [
     { value: "active", label: "Active" },
@@ -1531,7 +1544,7 @@ async function renderUsers(body: HTMLElement, me: RosterPerson): Promise<void> {
   ]);
   statusSel.addEventListener("change", () => {
     statusFilter = statusSel.value;
-    draw();
+    restart();
   });
   const bar = el("div", "app-settings-row app-users-filters");
   bar.append(search, siteSel, roleSel, statusSel);
@@ -1602,10 +1615,13 @@ async function renderUsers(body: HTMLElement, me: RosterPerson): Promise<void> {
   body.appendChild(head);
   const list = el("div", "app-people-list");
   body.appendChild(list);
+  const pager = el("div", "app-users-pager");
+  body.appendChild(pager);
   body.appendChild(roleLegend());
 
   const draw = () => {
     clear(list);
+    clear(pager);
     const shown = people.filter((p) => {
       if (siteFilter !== "" && p.site !== siteFilter) return false;
       if (roleFilter !== "" && p.role !== roleFilter) return false;
@@ -1619,10 +1635,33 @@ async function renderUsers(body: HTMLElement, me: RosterPerson): Promise<void> {
       return true;
     });
     const revoked = people.filter((p) => !p.active).length;
+    const pages = pageCount(shown.length, USERS_PAGE_SIZE);
+    page = Math.min(page, Math.max(0, pages - 1));
+    const slice = pageSlice(shown, page, USERS_PAGE_SIZE);
     count.textContent =
       `${shown.length} of ${people.length} ${people.length === 1 ? "person" : "people"}` +
+      (pages > 1 ? ` · ${pageLabel(shown.length, page, USERS_PAGE_SIZE)}` : "") +
       (revoked > 0 ? ` · ${revoked} revoked` : "");
-    for (const p of shown) list.appendChild(userRow(p, sites, crewLib, canEdit, me, dir, draw, orgTree, docGroups));
+    for (const p of slice) list.appendChild(userRow(p, sites, crewLib, canEdit, me, dir, draw, orgTree, docGroups));
+    if (pages > 1) {
+      const prev = el("button", "app-btn", "‹ Previous") as HTMLButtonElement;
+      prev.type = "button";
+      prev.disabled = page === 0;
+      prev.addEventListener("click", () => {
+        page -= 1;
+        draw();
+        head.scrollIntoView({ block: "start", behavior: "smooth" });
+      });
+      const next = el("button", "app-btn", "Next ›") as HTMLButtonElement;
+      next.type = "button";
+      next.disabled = page >= pages - 1;
+      next.addEventListener("click", () => {
+        page += 1;
+        draw();
+        head.scrollIntoView({ block: "start", behavior: "smooth" });
+      });
+      pager.append(prev, el("span", "app-users-pager-label", `Page ${page + 1} of ${pages} · ${pageLabel(shown.length, page, USERS_PAGE_SIZE)}`), next);
+    }
     if (shown.length === 0) {
       const empty = el("div", "app-settings-note app-users-empty", "No users match those filters.");
       if (canEdit && query !== "") {

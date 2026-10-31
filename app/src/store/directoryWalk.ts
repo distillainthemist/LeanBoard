@@ -1,14 +1,15 @@
 // The reporting-tree walk behind "Import a site's team…"
 // (team-import-proposal-2026-10-31.md): breadth-first over DirectReports
 // from the chosen roots, one connector call per manager, a few at a
-// time, with caps (decision 5: 1500 people, 8 levels, 4 calls at once).
+// time, with caps (decision 5: 1500 people, 8 levels, 4 calls at once;
+// the people cap raised to 3000 — Ben, 2026-11-01).
 // Returns directory people for the pure planner; never throws for one
 // failed manager — that branch is noted and the walk goes on.
 import { Office365UsersService } from "../generated/services/Office365UsersService";
 import type { GraphUser_V1 } from "../generated/models/Office365UsersModel";
 import { DirectoryPerson, WalkResult } from "../../../shared/schema/teamImport";
 
-export const WALK_MAX_PEOPLE = 1500;
+export const WALK_MAX_PEOPLE = 3000;
 export const WALK_MAX_DEPTH = 8;
 export const WALK_CONCURRENCY = 4;
 const SELECT = "id,displayName,mail,userPrincipalName,jobTitle,department,officeLocation,accountEnabled,userType";
