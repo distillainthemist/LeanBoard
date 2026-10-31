@@ -10,6 +10,8 @@ export interface ListResult<T> {
   success?: boolean;
   data?: T[];
   error?: { message?: string };
+  /** The SDK's token for the next page; absent on the last page. */
+  skipToken?: string;
 }
 
 export interface OneResult<T> {
@@ -52,7 +54,17 @@ type GetAll<T> = (options?: {
   select?: string[];
   orderBy?: string[];
   top?: number;
+  maxPageSize?: number;
+  skipToken?: string;
 }) => Promise<ListResult<T>>;
+
+/** The page the SDK is asked for (Dataverse's ceiling is 5000; the SDK's
+ *  own default is 500). */
+export const READ_PAGE_SIZE = 5000;
+/** The most rows one "all" read will follow pages for — a guard against
+ *  a runaway table, not a budget (production's roster crossed the SDK's
+ *  500-row first page on 2026-11-01). */
+export const READ_ROWS_CAP = 50_000;
 
 export async function firstWhere<T>(
   getAll: GetAll<T>,
@@ -63,14 +75,26 @@ export async function firstWhere<T>(
   return result.data?.[0] ?? null;
 }
 
+/** EVERY matching row. The SDK's retrieveMultiple returns ONE page (500
+ *  rows by default) and a skip token for the next; until 2026-11-01 this
+ *  read the first page only, so a roster past 500 people showed 500. The
+ *  pages are asked for at Dataverse's ceiling and followed to the end. */
 export async function allWhere<T>(
   getAll: GetAll<T>,
   filter?: string,
   select?: string[],
   orderBy?: string[]
 ): Promise<T[]> {
-  const result = settle(await getAll({ filter, select, orderBy }), "read");
-  return result.data ?? [];
+  const out: T[] = [];
+  let skipToken: string | undefined;
+  for (;;) {
+    const result = settle(await getAll({ filter, select, orderBy, maxPageSize: READ_PAGE_SIZE, ...(skipToken ? { skipToken } : {}) }), "read");
+    const page = result.data ?? [];
+    out.push(...page);
+    const next = result.skipToken;
+    if (!next || page.length === 0 || out.length >= READ_ROWS_CAP) return out;
+    skipToken = next;
+  }
 }
 
 /**

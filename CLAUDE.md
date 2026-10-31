@@ -312,6 +312,12 @@ Version lives in the tag alone — nothing is stamped into files.
   hub's "my part" tick applies it both ways, the store's write
   applies the closing half. Before 2026-10-06 the hub only marked the
   part and the action stayed open everywhere else.
+- **The SDK's `retrieveMultipleRecordsAsync` returns ONE page** — 500
+  rows by default, with a `skipToken` for the next. `allWhere`
+  (`store/dv.ts`) asks for 5000 a page and follows the token to the
+  end (2026-11-01: production's roster passed 500 and the Users register
+  showed 500). A direct `Service.getAll({ top })` is a deliberate bound;
+  anything meant to be "every row" goes through `allWhere`.
 - **Clearing a Dataverse lookup on update sends `null`** for the
   `@odata.bind` property; `undefined` is stripped by the SDK and the
   old reference stays (`savePriority` never un-parented a priority

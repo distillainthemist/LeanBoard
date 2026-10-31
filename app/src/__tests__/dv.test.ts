@@ -24,6 +24,27 @@ describe("dv helpers refuse to read failure as emptiness", () => {
     await expect(allWhere(refused)).rejects.toThrow(/prvReadben_ltkdoclibrary/);
   });
 
+  it("allWhere follows the SDK's skip token to the last page, asking for Dataverse's page ceiling", async () => {
+    const calls: Record<string, unknown>[] = [];
+    const paged = (o?: Record<string, unknown>) => {
+      calls.push(o ?? {});
+      const token = o?.skipToken as string | undefined;
+      if (token === undefined) return Promise.resolve({ success: true, data: [1, 2], skipToken: "p2" });
+      if (token === "p2") return Promise.resolve({ success: true, data: [3], skipToken: "p3" });
+      return Promise.resolve({ success: true, data: [4] });
+    };
+    expect(await allWhere(paged, "x eq 1", ["a"], ["a asc"])).toEqual([1, 2, 3, 4]);
+    expect(calls.length).toBe(3);
+    expect(calls[0]).toEqual({ filter: "x eq 1", select: ["a"], orderBy: ["a asc"], maxPageSize: 5000 });
+    expect(calls[1].skipToken).toBe("p2");
+    expect(calls[2].skipToken).toBe("p3");
+    // a token on an empty page never loops; a refusal mid-way throws
+    expect(await allWhere(() => ok([]))).toEqual([]);
+    let n = 0;
+    const midway = () => (n++ === 0 ? Promise.resolve({ success: true, data: [1], skipToken: "t" }) : refused());
+    await expect(allWhere(midway)).rejects.toThrow(/prvRead/);
+  });
+
   it("firstWhere: null on empty, throw on refusal", async () => {
     expect(await firstWhere(() => ok([]), eq("a", "b"))).toBeNull();
     await expect(firstWhere(refused, eq("a", "b"))).rejects.toThrow(/failed/);
