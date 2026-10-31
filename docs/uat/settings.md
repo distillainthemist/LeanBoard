@@ -72,3 +72,17 @@ steps:
 4. On device A press "Require this build"; on a device still on the older build, open a card editor, make a change, wait.
 5. Settings → Users: find the two people.
 expected: step 1 names the device's build (v0.x.y, "+n" past a tag) and who recorded the current one; step 2 device B shows an amber banner under the top bar naming both builds and asking to close and reopen, nothing is blocked; a device that OPENS on the old build (a cached player) sees the full-screen gate instead and cannot use the app; step 3 clears it and, on a clean build newer than the record, records itself as current; step 4 the old device shows the red banner while the editor holds unsaved work and the gate as soon as it is saved or closed; "Clear the minimum" lifts it; step 5 each person's row reads "Last opened on <build>"
+
+## Journey 5 — Bulk-adding a site's people
+
+### UAT-SET-007 — Import a site's team from the directory
+persona: superadmin
+modules: people/importTeam.ts store/directoryWalk.ts shared/schema/teamImport.ts
+preconditions: a site with a site owner and at least one department owner set in Settings → Organisation; some of that site's people not yet on the roster; one of them placed on a different site
+steps:
+1. Settings → Users → "Import a site's team…" → pick the site; read the "Start from" chip; add a second starting person by search; remove it again.
+2. Walk the directory; watch the progress line.
+3. In the list: read the counts; find a person under a department owner and read their proposed department; find the one on another site; tick "Show skipped and already here".
+4. Untick one person, change another's department, tick the other-site person; press "Add n".
+5. Run the import again for the same site.
+expected: step 1 the chip reads the site owner with "site owner", a searched person can be added and removed; step 2 the line counts people, managers and levels; step 3 the counts add up to the total, people under a department owner carry that department (an area owner's team carries the area too), the directory label fills gaps blind to case, disabled / guest / no-mailbox / office-elsewhere accounts are unticked with a red or amber chip and hidden until the toggle, the other-site person is unticked with an "on <site>" chip; step 4 the ticked people appear on Users as users of the site with the chosen departments, the moved person now shows the new site, the result names the access group's members added; step 5 everyone just added reads "already here" and the button is disabled with 0 to add

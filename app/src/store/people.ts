@@ -28,7 +28,8 @@ export async function listPeople(includeInactive = false): Promise<RosterPerson[
  */
 export async function upsertPerson(
   person: RosterPerson,
-  onAccessSyncError?: (err: unknown) => void
+  onAccessSyncError?: (err: unknown) => void,
+  opts: { /** a batch reconciles the group ONCE afterwards (team import) */ skipAccessSync?: boolean } = {}
 ): Promise<void> {
   // through writing(): every "people" reader drops its cache as the
   // row lands (issue 31, 2026-10-18 round: a changed site needed a
@@ -52,6 +53,7 @@ export async function upsertPerson(
       }
     )
   );
+  if (opts.skipAccessSync) return;
   void syncPersonAccess(person, currentViewer()?.objectId ?? "").catch((err) => {
     console.warn("access-group sync failed", err);
     onAccessSyncError?.(err);

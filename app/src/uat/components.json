@@ -104,7 +104,8 @@
       "screens/settings.ts",
       "store/people.ts",
       "processes/",
-      "release/"
+      "release/",
+      "people/"
     ]
   },
   {

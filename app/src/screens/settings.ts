@@ -1568,6 +1568,19 @@ async function renderUsers(body: HTMLElement, me: RosterPerson): Promise<void> {
     // a phone opens the tab to ADD someone (Ben, 2026-10-07): the search
     // box is the first thing, the button beside it
     if (isPhoneWindow()) search.focus();
+    // a whole site at once (team-import-proposal-2026-10-31.md): the
+    // site owner's reporting tree, reviewed, then written in one pass
+    if (canEdit) {
+      const importBtn = el("button", "app-btn", "Import a site's team…") as HTMLButtonElement;
+      importBtn.type = "button";
+      importBtn.title = "Walk the site owner's reporting lines in the directory, review the list, add them as this site's users";
+      importBtn.addEventListener("click", () => {
+        void import("../people/importTeam").then(({ openTeamImport }) =>
+          openTeamImport({ host: body, me, orgTree, site: siteFilter || undefined, onDone: () => void reloadPeople() })
+        );
+      });
+      bar.appendChild(importBtn);
+    }
   } else {
     body.appendChild(bar);
   }

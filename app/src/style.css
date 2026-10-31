@@ -954,6 +954,36 @@ body.app-update-gated > #app { filter: blur(2px); pointer-events: none; user-sel
 .app-version-card { display: flex; flex-direction: column; gap: 8px; }
 .app-version-lines { display: flex; flex-direction: column; gap: 4px; font-size: 13.5px; }
 .app-user-build { font-size: 11.5px; }
+/* Import a site's team (team-import-proposal-2026-10-31.md) */
+.app-ti-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.app-ti-chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 6px 3px 10px; border: 1px solid #e0ddd6; border-radius: 999px; background: #faf9f6; font-size: 13px; }
+.app-ti-chip-x { padding: 0 6px; min-height: 22px; line-height: 1; }
+.app-ti-hits { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.app-ti-hit { display: flex; align-items: center; gap: 10px; padding: 4px 8px; border: 1px solid #eceae5; border-radius: 8px; font-size: 13px; }
+.app-ti-hit .app-btn { margin-left: auto; }
+.app-ti-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
+.app-ti-progress { font-size: 13.5px; font-weight: 600; padding: 12px 0; }
+.app-ti-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.app-ti-summary { font-size: 13px; font-weight: 600; }
+.app-ti-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; }
+.app-ti-table { display: flex; flex-direction: column; gap: 4px; max-height: min(56vh, 620px); overflow: auto; border: 1px solid #eceae5; border-radius: 8px; padding: 4px; }
+.app-ti-row { display: grid; grid-template-columns: 24px minmax(160px, 1.4fr) minmax(120px, 1fr) 150px 130px minmax(120px, 1fr); gap: 10px; align-items: center; padding: 6px 8px; border-radius: 6px; font-size: 13px; }
+.app-ti-row:nth-child(even) { background: #faf9f6; }
+.app-ti-row-off { opacity: 0.6; }
+.app-ti-head { position: sticky; top: 0; background: #fff; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; color: #6d675c; z-index: 1; }
+.app-ti-name { font-weight: 600; }
+.app-ti-select { min-width: 0; width: 100%; }
+.app-ti-flags { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.app-ti-flag { font-size: 11px; padding: 1px 7px; border-radius: 999px; background: #f1efe9; color: #57534a; white-space: nowrap; }
+.app-ti-flag-otherSite, .app-ti-flag-twoOwners, .app-ti-flag-outsideSite { background: #fef3c7; color: #78350f; }
+.app-ti-flag-disabled, .app-ti-flag-revoked, .app-ti-flag-guest, .app-ti-flag-noMail { background: #fee2e2; color: #7f1d1d; }
+.app-ti-warn { color: #7c2d12; }
+.app-ti-result { display: flex; flex-direction: column; gap: 6px; font-size: 13.5px; }
+@media (max-width: 900px) {
+  .app-ti-row { grid-template-columns: 24px 1fr 1fr; }
+  .app-ti-row > :nth-child(3), .app-ti-head > :nth-child(3) { display: none; }
+  .app-ti-row > :nth-child(6) { grid-column: 2 / -1; }
+}
 .app-settings-body { display: flex; flex-direction: column; gap: 10px; background: #fff; border-radius: 8px; padding: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
 .app-settings-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .app-settings-label { width: 120px; font-size: 12.5px; color: #6d675c; font-weight: 600; }
