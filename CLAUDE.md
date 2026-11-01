@@ -320,6 +320,14 @@ Version lives in the tag alone — nothing is stamped into files.
   `role === "siteadmin"` at a surface (2026-11-01). And a screen resolves
   the VIEWER'S roster row directly (`viewerPerson`), never only by
   finding it in the full list.
+- **A probe measures the NEGATIVE shape too, and timing beats theory**
+  (2026-11-01, `docs/membership-roads-2026-11-01.md`): the one-user
+  Graph path road answered 200 for a member and looked like the fast
+  gate — until the non-member run showed its 404 names the GROUP id,
+  word for word a broken link. And the "slow" group listing measured one
+  call at ~110 ms, faster than the filter query, so the gates kept it;
+  the seconds were serialised reads and a first load waiting on them.
+  Switch a road only on a measured win for both answers.
 - **The SDK's `retrieveMultipleRecordsAsync` returns ONE page** — 500
   rows by default, with a `skipToken` for the next. `allWhere`
   (`store/dv.ts`) asks for 5000 a page and follows the token to the
@@ -451,7 +459,11 @@ Version lives in the tag alone — nothing is stamped into files.
   columns via xlsx `lockedCols` and link cells) is app-only. v0.87.0
   (2026-11-01: the focused-card cap scoped to the focused card — the
   hub fills the window again; the Users register paged at 50; the
-  team-import cap 3000) is app-only.
+  team-import cap 3000) is app-only. v0.88.0 (2026-11-01: `allWhere`
+  follows the skip token — the SDK pages at 500; admin over an
+  initiative is one scoped rule; the Documents open paints controller
+  standing from the last visit and the gates share the register's
+  config read; the membership probe kept the listing) is app-only.
   Prod imports the managed solution FIRST. LESSON
   (2026-10-13, production's first sync): a sync must
   never run from a walk it cannot trust (budget-cut OR any failed

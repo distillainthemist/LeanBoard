@@ -1455,6 +1455,32 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-11-01 — released as v0.88.0** (app-only): three production
+  fixes. (1) `allWhere` follows the SDK's skip token (`READ_PAGE_SIZE`
+  5000, `READ_ROWS_CAP` 50 000): the SDK returns 500 rows a page and the
+  helper had taken the first page only, so production's roster showed
+  500 of several thousand — and Ben's own row fell outside it, which
+  is why he could not edit initiatives he had not created. (2) Admin
+  over an initiative is ONE scoped rule (`adminScopeFor(role, site)` /
+  `adminOver(i, scope)`: super admins everywhere, site admins over their
+  own site's initiatives, case-blind on the site, alsoOrgs counted);
+  every screen resolves the viewer's own row directly (`viewerPerson`)
+  rather than from the roster list. (3) The Documents open no longer
+  waits on standing (`docs/membership-roads-2026-11-01.md`): the gates
+  read the config from the register's shared cache instead of a fresh
+  Dataverse row; the last visit's controller/pool answer
+  (`DocUiPrefs.standing`) paints the affordances at once while the live
+  check confirms, and `whenStanding` re-runs the standing-bound surfaces
+  if the live answer moves it (a live no replaces a remembered yes; only
+  an outage keeps it); the first live load no longer waits on Graph.
+  The membership probe (Access diagnostics → "Membership roads", timed:
+  listing vs filter vs path, viewer and a non-member) measured the
+  listing as one call and faster than the one-user filter query, whose
+  eventual index could lag a fresh grant, and the path road's 404 as
+  naming the group — so the gates keep listing. The Graph passthrough
+  now carries custom headers; the timing readout names "controllers
+  group". UAT: IMP-003, DOC-091, SET-009 new; improvement personas +
+  siteadmin.
 - **2026-11-01 — released as v0.87.0** (app-only): the 1600 px
   readability cap applies to the FOCUSED card only (`editorHost(parent,
   {capped})` → `.app-editor-host-capped`; R0 had put it on every editor
