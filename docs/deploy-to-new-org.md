@@ -163,6 +163,17 @@ Updates are the same import — managed upgrades apply tables, the role
 and the app in place, and all data (boards, meetings, cards, actions,
 people) lives in the tables, untouched by app updates.
 
+**The latest managed solution suffices.** Every release exports the
+solution fresh from dev, so `LeanBoard_<latest>_managed.zip` carries
+every column and table listed in the schema table below — an org that
+skipped several solution-carrying releases imports ONE managed solution
+(the newest), then the newest app package. There is no need to import
+the intermediate releases' solutions in order. The one rule is the
+ORDER within a release: the managed solution before the app package,
+because a newer app reads and writes the newer columns on its first
+boot and Dataverse refuses a select or a write that names a column it
+does not have yet (2026-11-01).
+
 ## Optional add-on flows
 
 LeanBoard runs flow-free; the app never invokes Power Automate. What an
@@ -192,6 +203,10 @@ The pushed app is identical; it just lives outside the solution until
 someone does the portal Add-existing step there.
 
 ## What each schema-carrying release added (import the managed solution first)
+
+The newest release's managed solution contains all of these — the table
+says WHAT each release added and any step to take after the import, not
+a sequence of imports to perform.
 
 | Release | Schema change | Notes |
 |---|---|---|
