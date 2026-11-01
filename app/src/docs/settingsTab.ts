@@ -164,6 +164,9 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
     exposed = await listDocLibraries();
     invalidateDocsCache(); // the #/docs area re-reads on next entry
     invalidateTermPaths(); // a changed group/set must not serve the old tree
+    // a relinked controllers/pool group must not serve the old answers
+    const { invalidateAccessGates } = await import("./accessGates");
+    invalidateAccessGates();
     ctx.markClean();
     paintLibraries();
     void paintDictionary();

@@ -67,7 +67,7 @@ import {
   stageOfTerm,
   termForStage,
   termsForStage, isRegisterLibrary, libRoleInternal, SiteColumn, reviewsOutstanding, orgTreePaths, orgTreePathsWithCompany, pathKey } from "./model";
-import { viewerInPool, viewerIsController } from "./accessGates";
+import { controllerLookupFailed, viewerInPool, viewerIsController } from "./accessGates";
 import {
   TermNode,
   TermWalk,
@@ -514,19 +514,50 @@ export function mountDocs(
      *  that differ by standing (T1: template library rows) reveal off
      *  this rather than guessing at paint time. */
     let adminReady: Promise<unknown> = Promise.resolve();
+    /** Surfaces that paint by standing register here: they run once
+     *  when an answer is in (remembered or live) and again if the live
+     *  answer moves it. */
+    const standingWatchers: (() => void)[] = [];
+    const whenStanding = (fn: () => void): void => {
+      standingWatchers.push(fn);
+      void adminReady.then(() => {
+        if (!dead) fn();
+      });
+    };
     if (whoId !== "") {
-      adminReady = viewerIsController(whoId).then(
-        (v) => {
-          meIsController = v;
-        },
-        () => {}
-      );
-      void viewerInPool(whoId).then(
-        (v) => {
-          meInPool = v;
-        },
-        () => {}
-      );
+      // The last visit's answer (2026-11-01, Ben: "it can take a while
+      // for document controller functions to become visible"): paint
+      // from it at once, confirm live in the background, and record the
+      // live answer for the next open. A remembered yes cannot grant
+      // anything real — SharePoint is the hard gate — and a revocation
+      // lags by at most one visit.
+      const remembered = uiState.standing;
+      if (remembered !== null) {
+        meIsController = remembered.controller;
+        meInPool = remembered.pool;
+      }
+      const live = Promise.all([
+        viewerIsController(whoId).catch(() => false),
+        viewerInPool(whoId).catch(() => null as boolean | null),
+      ]).then(([c, p]) => {
+        if (dead) return;
+        // the controller lookup fails CLOSED (false) — but a remembered
+        // yes is not an elevation, so an OUTAGE keeps it; a live no
+        // replaces it. controllerLookupFailed tells the two apart.
+        const controller = c || (remembered?.controller === true && controllerLookupFailed());
+        const moved = controller !== meIsController || p !== meInPool;
+        meIsController = controller;
+        meInPool = p;
+        if (remembered === null || moved) {
+          uiState = { ...uiState, standing: { controller, pool: p, at: new Date().toISOString() } };
+          saveDocUi(whoId, uiState);
+        }
+        // with a remembered answer the watchers already ran — run them
+        // again only if the live answer moved it (no answer remembered:
+        // adminReady IS this promise and runs them once, below)
+        if (moved && remembered !== null) for (const fn of standingWatchers) fn();
+      });
+      adminReady = remembered !== null ? Promise.resolve() : live;
     }
     const docAdmin = () => meIsController;
     /** The timing readout on the status line is a diagnostic for super
@@ -2278,10 +2309,10 @@ export function mountDocs(
       const row = el("div", `app-docs-librow2${on ? " app-docs-librow2-on" : ""}`);
       if (lib.libType === "template") {
         // hidden until the admin answer lands — an admin's row appears,
-        // everyone else never sees it
+        // everyone else never sees it (and it follows a moved answer)
         row.style.display = "none";
-        void adminReady.then(() => {
-          if (!dead && docAdmin()) row.style.display = "";
+        whenStanding(() => {
+          row.style.display = docAdmin() ? "" : "none";
         });
       }
       const box = el("input", "app-docs-libcheck") as HTMLInputElement;
@@ -3189,8 +3220,8 @@ export function mountDocs(
 
     // a controller's template libraries join the Library select once the
     // admin answer lands (the card does the same)
-    void adminReady.then(() => {
-      if (!dead && phone) paintPhoneFilters();
+    whenStanding(() => {
+      if (phone) paintPhoneFilters();
     });
 
     const filterBar = el("div", "app-docs-filterbar");
@@ -6136,8 +6167,7 @@ export function mountDocs(
       // controllers and super admins land on every status (2026-10-26
       // report 10) — the approved-only default is for readers; a view,
       // a task scope or Favourites keep their own answer
-      void adminReady.then(() => {
-        if (dead) return;
+      whenStanding(() => {
         if (bootView === null && !favMode && taskFilter === null && statusInternal !== "" && onlyApproved && (meIsController || meIsSuper)) {
           onlyApproved = false;
           paintChips();

@@ -865,6 +865,17 @@ steps:
 3. [Reader] Reopen the document.
 expected: the owner's card quotes the comment with an Open link; the flag shows on the register row and in the owner's Document tasks; Mark reviewed offers to close the open flags and the chip clears; the reader sees no open flag
 
+### UAT-DOC-091 — Controller affordances paint at once on a repeat visit
+persona: controller
+modules: docs/docsScreen.ts docs/accessGates.ts docs/views.ts
+preconditions: a controller who has opened Documents at least once since this build; a reader likewise
+steps:
+1. [Controller] Close and reopen the app; open Documents; watch the header and the top ⋯ menu as the register paints.
+2. [Controller] Hover the status line's timing readout; read the "controllers group" entry.
+3. [Reader] Open Documents; open the top ⋯ menu.
+4. [Super admin] Settings → Documents → Access control: relink or clear the controllers group; a controller reopens Documents.
+expected: on the repeat visit the controller's affordances (Tag proposals…, Save for the site, the template library row, every-status default) are present as the register paints, not seconds later; the readout lists "controllers group" as one call after the shared config read, with no separate "documents config row" read; the reader never sees a controller affordance, on a first or a repeat visit; after a relink the next open re-checks live and a person removed from the group loses the affordances on that open
+
 ### UAT-DOC-085 — Supersede with a successor, seen by everyone
 persona: team
 modules: docs/lifecycleCmds.ts docs/viewer.ts docs/linksIndex.ts

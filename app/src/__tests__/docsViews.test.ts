@@ -150,10 +150,26 @@ describe("DocUiPrefs (Vault V1, ben_docuijson)", () => {
       collapsed: { "set-1": ["Brisbane", "Brisbane Packaging"] },
       navHidden: true,
       navWidth: 340,
+      standing: null,
     };
     expect(parseDocUiPrefs(serializeDocUiPrefs(ui))).toEqual(ui);
     // an out-of-range width is the default (issue 17)
     expect(parseDocUiPrefs(serializeDocUiPrefs({ ...ui, navWidth: 90 })).navWidth).toBe(0);
+  });
+  it("round-trips the remembered standing, pool unknown included (2026-11-01)", async () => {
+    const { parseDocUiPrefs, serializeDocUiPrefs, emptyDocUiPrefs } = await import("../docs/views");
+    const base = emptyDocUiPrefs();
+    for (const standing of [
+      { controller: true, pool: true, at: "2026-11-01T02:00:00.000Z" },
+      { controller: false, pool: false, at: "2026-11-01T02:00:00.000Z" },
+      { controller: true, pool: null, at: "2026-11-01T02:00:00.000Z" },
+    ]) {
+      expect(parseDocUiPrefs(serializeDocUiPrefs({ ...base, standing })).standing).toEqual(standing);
+    }
+    // the compact wire shape stays small and a row without it reads as never recorded
+    expect(JSON.parse(serializeDocUiPrefs({ ...base, standing: { controller: true, pool: null, at: "x" } }))).toEqual({ st: { c: 1, at: "x" } });
+    expect(parseDocUiPrefs('{"libs":["a"]}').standing).toBeNull();
+    expect(parseDocUiPrefs('{"st":"junk"}').standing).toBeNull();
   });
   it("tolerates garbage, blanks, and unknown shapes", async () => {
     const { parseDocUiPrefs, emptyDocUiPrefs } = await import("../docs/views");

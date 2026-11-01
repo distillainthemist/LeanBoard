@@ -77,7 +77,10 @@ const toB64 = (s: string) =>
 async function graph(
   method: string,
   path: string,
-  body?: unknown
+  body?: unknown,
+  /** Extra request headers, "Name: value" each (the connector carries
+   *  up to five) — ConsistencyLevel for the advanced-query reads. */
+  headers: string[] = []
 ): Promise<unknown> {
   const uri = `https://graph.microsoft.com/v1.0${path}`;
   // The connector declares Body as `format: binary`. The SDK's executor
@@ -91,7 +94,12 @@ async function graph(
       uri,
       method,
       content as string | undefined,
-      body === undefined ? undefined : "application/json"
+      body === undefined ? undefined : "application/json",
+      headers[0],
+      headers[1],
+      headers[2],
+      headers[3],
+      headers[4]
     );
   let res = await attempt(body);
   if (
@@ -177,9 +185,94 @@ export async function isGroupOwner(groupId: string, viewerId: string): Promise<b
 }
 
 /** Direct membership check (not transitive — the access model's groups
- *  hold people, not nested groups). */
+ *  hold people, not nested groups). Lists the whole group and tests the
+ *  set — the road every gate took until the 2026-11-01 membership
+ *  probe; `isGroupMemberFast` is the one-call road. */
 export async function isGroupMember(groupId: string, entraId: string): Promise<boolean> {
   return (await idSet(groupId, "members")).has(entraId);
+}
+
+/** The outcome of one single-user membership call — what the probe
+ *  logs and what the fast gate decides on. */
+export interface MembershipAnswer {
+  /** true/false = Graph answered; null = the call was refused (the
+   *  message says how) and the caller must fall back. */
+  member: boolean | null;
+  ms: number;
+  /** A one-line note: the row count, or the refusal's status + text. */
+  note: string;
+}
+
+const clock = (): number =>
+  typeof performance !== "undefined" && typeof performance.now === "function"
+    ? performance.now()
+    : Date.now();
+
+const guidOk = (s: string): boolean =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+
+/**
+ * The FILTER road (Graph's documented one): `/members?$filter=id eq
+ * '{user}'` under `ConsistencyLevel: eventual` + `$count=true` (the
+ * advanced-query pair the members collection requires). One unpaged
+ * call whatever the group's size; the answer is the row count. A
+ * malformed id is refused locally — it would otherwise ride into the
+ * filter text.
+ */
+export async function memberByFilter(groupId: string, entraId: string): Promise<MembershipAnswer> {
+  if (!guidOk(groupId) || !guidOk(entraId)) return { member: null, ms: 0, note: "not a GUID" };
+  const t0 = clock();
+  try {
+    const data = (await graph(
+      "GET",
+      `/groups/${groupId}/members?$filter=${encodeURIComponent(`id eq '${entraId}'`)}&$count=true&$select=id`,
+      undefined,
+      ["ConsistencyLevel: eventual"]
+    )) as { value?: { id?: string }[] };
+    const rows = (data.value ?? []).filter((v) => (v.id ?? "").toLowerCase() === entraId.toLowerCase());
+    return { member: rows.length > 0, ms: clock() - t0, note: `${(data.value ?? []).length} row(s)` };
+  } catch (err) {
+    const status = err instanceof GraphError ? err.status : 0;
+    return { member: null, ms: clock() - t0, note: `refused (${status}): ${trimErr(err)}` };
+  }
+}
+
+/**
+ * The PATH road: `/groups/{id}/members/{user}` addresses one member
+ * directly; 200 = a member, Graph's not-found = not one. Undocumented
+ * for this collection, so the probe measures both shapes before any
+ * gate may trust it. A not-found that names the GROUP is a bad link,
+ * not a "no" — surfaced as a refusal.
+ */
+export async function memberByPath(groupId: string, entraId: string): Promise<MembershipAnswer> {
+  if (!guidOk(groupId) || !guidOk(entraId)) return { member: null, ms: 0, note: "not a GUID" };
+  const t0 = clock();
+  try {
+    const data = (await graph("GET", `/groups/${groupId}/members/${entraId}?$select=id`)) as { id?: string };
+    const hit = (data.id ?? "").toLowerCase() === entraId.toLowerCase();
+    return { member: hit, ms: clock() - t0, note: hit ? "200, id matches" : "200, no id in the body" };
+  } catch (err) {
+    const status = err instanceof GraphError ? err.status : 0;
+    const msg = trimErr(err).toLowerCase();
+    const notFound = status === 404 || msg.includes("does not exist") || msg.includes("resourcenotfound") || msg.includes("not found");
+    if (notFound && !msg.includes(groupId.toLowerCase())) {
+      return { member: false, ms: clock() - t0, note: `not found (${status}) — read as not a member` };
+    }
+    return { member: null, ms: clock() - t0, note: `refused (${status}): ${trimErr(err)}` };
+  }
+}
+
+const trimErr = (e: unknown): string => (e instanceof Error ? e.message : String(e)).slice(0, 200);
+
+/** The listing road, timed — the probe's baseline and truth. */
+export async function memberByListing(groupId: string, entraId: string): Promise<MembershipAnswer & { size: number }> {
+  const t0 = clock();
+  try {
+    const set = await idSet(groupId, "members");
+    return { member: set.has(entraId), ms: clock() - t0, note: `${set.size} member(s) listed`, size: set.size };
+  } catch (err) {
+    return { member: null, ms: clock() - t0, note: `refused: ${trimErr(err)}`, size: 0 };
+  }
 }
 
 // ---- membership operations (all tolerate already/absent states) ----

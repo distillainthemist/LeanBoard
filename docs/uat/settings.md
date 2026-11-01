@@ -85,6 +85,15 @@ steps:
 3. Type part of a name in the search box.
 expected: the tab opens with the first 50 people and the count reads "n of n people · 1–50 of n" where n is the WHOLE roster (a roster of several thousand is counted in full, not the first 500); a pager under the list reads "Page 1 of m · 1–50 of n" with ‹ Previous greyed; Next › shows 51–100 and scrolls the list head into view; a filter that fits one page shows no pager; every filter and the search start again from page 1; job titles fill in for the rows on screen only (the search matches name and email everywhere, job title on rows that have been shown)
 
+### UAT-SET-009 — Access diagnostics time the membership roads
+persona: user
+modules: docs/accessProbe.ts store/accessGroup.ts
+preconditions: the hosted app; a Document controllers group linked (the Owners & approvers group optional)
+steps:
+1. Settings → Access diagnostics → Run diagnostics; wait for "Done.".
+2. Read the "Membership roads" block.
+expected: the block shows the documents config row's read time, then per linked group five timed lines — the listing (today's road, with the member count), the filter road for you and for a non-member, the path road for you and for a non-member — and a VERDICT line naming which one-call road agreed with the listing on both answers, with its time against the listing's; a non-member always reads "not a member"; nothing is written and no group is changed
+
 ### UAT-SET-007 — Import a site's team from the directory
 persona: superadmin
 modules: people/importTeam.ts store/directoryWalk.ts shared/schema/teamImport.ts

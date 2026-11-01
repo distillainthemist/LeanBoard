@@ -288,10 +288,26 @@ export interface DocUiPrefs {
   /** The panel's width in px, dragged by its edge (issue 17); 0 = the
    *  default width. */
   navWidth: number;
+  /** The last visit's answer to "who is this person to the document
+   *  groups" (2026-11-01): the next open paints controller affordances
+   *  from it at once while the live check confirms in the background.
+   *  Presentation state — SharePoint stays the hard gate; null = never
+   *  recorded. */
+  standing: DocStanding | null;
+}
+
+export interface DocStanding {
+  /** In the Document Controllers group. */
+  controller: boolean;
+  /** In the owners & approvers pool; null = unknown (no group linked or
+   *  the lookup failed). */
+  pool: boolean | null;
+  /** When it was recorded (ISO). */
+  at: string;
 }
 
 export function emptyDocUiPrefs(): DocUiPrefs {
-  return { libraries: [], viewMode: "", density: "", collapsed: {}, navHidden: false, navWidth: 0 };
+  return { libraries: [], viewMode: "", density: "", collapsed: {}, navHidden: false, navWidth: 0, standing: null };
 }
 
 export function parseDocUiPrefs(raw: string | null | undefined): DocUiPrefs {
@@ -308,6 +324,14 @@ export function parseDocUiPrefs(raw: string | null | undefined): DocUiPrefs {
     out.navHidden = r.nav === 1 || r.nav === true;
     const w = Number(r.navw ?? 0);
     out.navWidth = Number.isFinite(w) && w >= 220 && w <= 640 ? Math.round(w) : 0;
+    if (r.st && typeof r.st === "object" && !Array.isArray(r.st)) {
+      const st = r.st as Record<string, unknown>;
+      out.standing = {
+        controller: st.c === 1 || st.c === true,
+        pool: st.p === 1 || st.p === true ? true : st.p === 0 || st.p === false ? false : null,
+        at: asStr(st.at),
+      };
+    }
     if (r.collapsed && typeof r.collapsed === "object" && !Array.isArray(r.collapsed)) {
       for (const [k, v] of Object.entries(r.collapsed as Record<string, unknown>)) {
         const keys = asStrings(v);
@@ -328,6 +352,13 @@ export function serializeDocUiPrefs(ui: DocUiPrefs): string {
   if (Object.keys(ui.collapsed).length > 0) o.collapsed = ui.collapsed;
   if (ui.navHidden) o.nav = 1;
   if (ui.navWidth > 0) o.navw = ui.navWidth;
+  if (ui.standing !== null) {
+    o.st = {
+      c: ui.standing.controller ? 1 : 0,
+      ...(ui.standing.pool === null ? {} : { p: ui.standing.pool ? 1 : 0 }),
+      at: ui.standing.at,
+    };
+  }
   return JSON.stringify(o);
 }
 

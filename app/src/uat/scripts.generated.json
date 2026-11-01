@@ -2204,6 +2204,27 @@
        "changed": "2026-10-27"
       },
       {
+       "id": "UAT-DOC-091",
+       "title": "Controller affordances paint at once on a repeat visit",
+       "journey": "Journey 13 — End to end, several people",
+       "persona": "controller",
+       "modules": [
+        "docs/docsScreen.ts",
+        "docs/accessGates.ts",
+        "docs/views.ts"
+       ],
+       "preconditions": "a controller who has opened Documents at least once since this build; a reader likewise",
+       "steps": [
+        "[Controller] Close and reopen the app; open Documents; watch the header and the top ⋯ menu as the register paints.",
+        "[Controller] Hover the status line's timing readout; read the \"controllers group\" entry.",
+        "[Reader] Open Documents; open the top ⋯ menu.",
+        "[Super admin] Settings → Documents → Access control: relink or clear the controllers group; a controller reopens Documents."
+       ],
+       "expected": "on the repeat visit the controller's affordances (Tag proposals…, Save for the site, the template library row, every-status default) are present as the register paints, not seconds later; the readout lists \"controllers group\" as one call after the shared config read, with no separate \"documents config row\" read; the reader never sees a controller affordance, on a first or a repeat visit; after a relink the next open re-checks live and a person removed from the group loses the affordances on that open",
+       "hash": "ad4a61fa",
+       "changed": "2026-11-01"
+      },
+      {
        "id": "UAT-DOC-085",
        "title": "Supersede with a successor, seen by everyone",
        "journey": "Journey 13 — End to end, several people",
@@ -3039,6 +3060,24 @@
        ],
        "expected": "the tab opens with the first 50 people and the count reads \"n of n people · 1–50 of n\" where n is the WHOLE roster (a roster of several thousand is counted in full, not the first 500); a pager under the list reads \"Page 1 of m · 1–50 of n\" with ‹ Previous greyed; Next › shows 51–100 and scrolls the list head into view; a filter that fits one page shows no pager; every filter and the search start again from page 1; job titles fill in for the rows on screen only (the search matches name and email everywhere, job title on rows that have been shown)",
        "hash": "6745a95a",
+       "changed": "2026-11-01"
+      },
+      {
+       "id": "UAT-SET-009",
+       "title": "Access diagnostics time the membership roads",
+       "journey": "Journey 5 — Bulk-adding a site's people",
+       "persona": "user",
+       "modules": [
+        "docs/accessProbe.ts",
+        "store/accessGroup.ts"
+       ],
+       "preconditions": "the hosted app; a Document controllers group linked (the Owners & approvers group optional)",
+       "steps": [
+        "Settings → Access diagnostics → Run diagnostics; wait for \"Done.\".",
+        "Read the \"Membership roads\" block."
+       ],
+       "expected": "the block shows the documents config row's read time, then per linked group five timed lines — the listing (today's road, with the member count), the filter road for you and for a non-member, the path road for you and for a non-member — and a VERDICT line naming which one-call road agreed with the listing on both answers, with its time against the listing's; a non-member always reads \"not a member\"; nothing is written and no group is changed",
+       "hash": "15f2ad37",
        "changed": "2026-11-01"
       },
       {

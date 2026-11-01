@@ -17,13 +17,17 @@
 // status-only: names and outcomes, never tokens or URLs.
 
 import {
+  MembershipAnswer,
   accessGroup,
   isGroupMember,
   isGroupOwner,
+  memberByFilter,
+  memberByListing,
+  memberByPath,
 } from "../store/accessGroup";
 import { currentViewer } from "../runtime";
 import { viewerPerson } from "../store/people";
-import { appDocsConfig } from "./docsStore";
+import { appDocsConfig, docsConfig } from "./docsStore";
 // the ledger transport lives with the request flow it carries (5G2);
 // the probe exercises the REAL one, not a copy
 import { AccessRequest, readLedger, writeLedger } from "./accessRequests";
@@ -95,6 +99,67 @@ export async function runAccessProbe(log: (line: string) => void): Promise<void>
       log(`INFO — owners & approvers pool: ${inPool ? "member" : "not a member"}.`);
     } catch (e) {
       log(`FAIL — could not read the owners & approvers group: ${trim(e)}`);
+    }
+  }
+
+  // ---- membership roads (2026-11-01) ------------------------------------
+  // Ben: "it can take a while for document controller functions to
+  // become visible". The gates list a whole Entra group through the
+  // connector and test the set; Graph can answer for ONE user in one
+  // unpaged call. Measured here, read-only, against the linked groups:
+  // the listing (truth + baseline), the documented filter road, the
+  // path road — each with the viewer AND a known non-member, so both
+  // answer shapes are seen before any gate may trust a road.
+  log("— Membership roads (one call per user vs listing the group) —");
+  {
+    const clock = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
+    const ms = (n: number) => (n < 950 ? `${Math.round(n)} ms` : `${(n / 1000).toFixed(1)} s`);
+    const t0 = clock();
+    try {
+      await appDocsConfig();
+      log(`INFO — documents config row (fresh read): ${ms(clock() - t0)}.`);
+    } catch (e) {
+      log(`FAIL — documents config row: ${trim(e)}`);
+    }
+    const t1 = clock();
+    try {
+      await docsConfig();
+      log(`INFO — documents config (session cache, shared with the register): ${ms(clock() - t1)}.`);
+    } catch (e) {
+      log(`FAIL — documents config: ${trim(e)}`);
+    }
+    const NOBODY = "00000000-0000-4000-8000-00000000c0de";
+    const say = (label: string, a: MembershipAnswer) =>
+      log(`${a.member === null ? "FAIL" : "OK"} — ${label}: ${a.member === null ? "no answer" : a.member ? "member" : "not a member"} in ${ms(a.ms)} (${a.note}).`);
+    let cfgGroups: { label: string; id: string }[] = [];
+    try {
+      const cfg = await appDocsConfig();
+      cfgGroups = [
+        { label: "Document controllers", id: cfg.controllersGroupId },
+        { label: "Owners & approvers", id: cfg.ownersGroupId },
+      ].filter((g) => g.id !== "");
+    } catch {
+      cfgGroups = [];
+    }
+    if (cfgGroups.length === 0) log("SKIP — no document groups linked.");
+    for (const g of cfgGroups) {
+      log(`· ${g.label}`);
+      const truth = await memberByListing(g.id, viewer.objectId);
+      say("listing (today's road)", truth);
+      const filterMe = await memberByFilter(g.id, viewer.objectId);
+      say("filter road, you", filterMe);
+      const filterNobody = await memberByFilter(g.id, NOBODY);
+      say("filter road, a non-member", filterNobody);
+      const pathMe = await memberByPath(g.id, viewer.objectId);
+      say("path road, you", pathMe);
+      const pathNobody = await memberByPath(g.id, NOBODY);
+      say("path road, a non-member", pathNobody);
+      const agrees = (me: MembershipAnswer, nobody: MembershipAnswer) =>
+        truth.member !== null && me.member === truth.member && nobody.member === false;
+      const verdicts: string[] = [];
+      if (agrees(filterMe, filterNobody)) verdicts.push(`filter road agrees (${ms(filterMe.ms)} vs ${ms(truth.ms)} listing)`);
+      if (agrees(pathMe, pathNobody)) verdicts.push(`path road agrees (${ms(pathMe.ms)} vs ${ms(truth.ms)} listing)`);
+      log(verdicts.length > 0 ? `VERDICT — ${verdicts.join("; ")}.` : "VERDICT — no one-call road agreed with the listing; the gates keep listing.");
     }
   }
 

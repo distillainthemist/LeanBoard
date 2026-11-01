@@ -11,7 +11,14 @@
 
 import { searchEntra } from "../store/people";
 import { GroupMember, groupMembers, isGroupMember } from "../store/accessGroup";
-import { appDocsConfig } from "./docsStore";
+import { docsConfig } from "./docsStore";
+import { markTiming, now } from "./timing";
+
+/** The documents config, from the SAME session-cached read the
+ *  register opens on (2026-11-01: the gates used to read the row afresh
+ *  — a Dataverse round trip before the Graph one, serialised, on every
+ *  open). Settings saves invalidate that cache, so a relink lands. */
+const gateConfig = async () => (await docsConfig()).app;
 
 export interface PoolState {
   /** An owners & approvers group is linked in Settings → Access control. */
@@ -41,11 +48,15 @@ export function invalidateAccessGates(): void {
  *  session — the pickers' source and the add-target gate's evidence. */
 export function poolState(): Promise<PoolState> {
   poolCache ??= (async (): Promise<PoolState> => {
-    const cfg = await appDocsConfig();
+    const cfg = await gateConfig();
     if (cfg.ownersGroupId === "") return { configured: false, members: null };
+    const t0 = now();
     try {
-      return { configured: true, members: await groupMembers(cfg.ownersGroupId) };
+      const members = await groupMembers(cfg.ownersGroupId);
+      markTiming("app", t0, `owners & approvers group, ${members.length} members`);
+      return { configured: true, members };
     } catch {
+      markTiming("app", t0, "owners & approvers group", true);
       return { configured: true, members: null };
     }
   })();
@@ -148,7 +159,7 @@ let controllersCache: Promise<GroupMember[]> | null = null;
  *  the reviewer picker lists them up front. */
 export function controllerMembers(): Promise<GroupMember[]> {
   controllersCache ??= (async () => {
-    const cfg = await appDocsConfig();
+    const cfg = await gateConfig();
     if (cfg.controllersGroupId === "") return [];
     return groupMembers(cfg.controllersGroupId);
   })();
@@ -163,11 +174,18 @@ export function viewerIsController(entraId: string): Promise<boolean> {
   let hit = controllerCache.get(entraId);
   if (!hit) {
     hit = (async () => {
-      const cfg = await appDocsConfig();
+      const cfg = await gateConfig();
       if (cfg.controllersGroupId === "") return false;
-      const yes = await isGroupMember(cfg.controllersGroupId, entraId);
-      controllerLookupErr = false;
-      return yes;
+      const t0 = now();
+      try {
+        const yes = await isGroupMember(cfg.controllersGroupId, entraId);
+        markTiming("app", t0, "controllers group");
+        controllerLookupErr = false;
+        return yes;
+      } catch (e) {
+        markTiming("app", t0, "controllers group", true);
+        throw e;
+      }
     })().catch(() => {
       controllerLookupErr = true;
       return false;
