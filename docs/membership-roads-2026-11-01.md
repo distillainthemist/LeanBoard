@@ -75,10 +75,40 @@ non-member GUID — and compares with the listing's answer.
   (`controllerLookupFailed`) keeps the remembered yes, which is not an
   elevation. SharePoint remains the hard gate. UAT-DOC-091.
 
-## Pending the probe
+## Measured (Ben's run on dev, 2026-11-01 18:33, both groups 2 members)
 
-Once Ben's diagnostics run names a road that agreed on both answers,
-`isGroupMember` (the gates' call) switches to it with the listing as the
-fallback on a refusal. Until then the gates list, as before — but from
-the shared config read and behind a remembered answer, which already
-takes the repeat visit to "paint now, confirm later".
+| Call | Controllers | Owners & approvers |
+|---|---|---|
+| documents config row, fresh Dataverse read | 74 ms | — |
+| documents config, shared session cache | 0 ms | — |
+| listing (today's road) | 118 ms | 109 ms |
+| filter road, the viewer | 218 ms | 407 ms |
+| filter road, a non-member | 142 ms (0 rows) | 161 ms (0 rows) |
+| path road, the viewer | 173 ms (200) | 124 ms (200) |
+| path road, a non-member | 404 naming the GROUP id | 404 naming the GROUP id |
+
+Both VERDICT lines: "filter road agrees".
+
+## Decision: the gates keep listing
+
+1. **The listing is already one call.** Under one page (999 members) it
+   is a single connector round trip, and it measured faster than the
+   filter road on both groups. The one-call road only wins once a group
+   pages, which no document group here does.
+2. **The filter road can lag a grant.** It runs under
+   `ConsistencyLevel: eventual`, an index Graph says "might not be
+   up-to-date with recent changes". A person made a controller in
+   Settings and opening Documents a moment later must not land as a
+   reader. The listing reads the live directory.
+3. **The path road is unsafe.** Its not-found for a non-member names the
+   GROUP id, word for word what a broken group link returns, so a "no"
+   and a bad link are indistinguishable. Rejected.
+
+So the connector calls were never the seconds Ben saw. What was: the
+fresh config read before the Graph call, both serialised, and the
+register's first live load waiting behind them — all now gone (shared
+config read; remembered standing paints at once and the first load no
+longer waits). The timing readout now names "controllers group" and
+"owners & approvers group" so a slow open can be read rather than
+guessed. `memberByFilter` stays as the road to switch to if a group ever
+pages; `memberByPath` stays for the probe's record.

@@ -186,8 +186,13 @@ export async function isGroupOwner(groupId: string, viewerId: string): Promise<b
 
 /** Direct membership check (not transitive — the access model's groups
  *  hold people, not nested groups). Lists the whole group and tests the
- *  set — the road every gate took until the 2026-11-01 membership
- *  probe; `isGroupMemberFast` is the one-call road. */
+ *  set. KEPT after the 2026-11-01 membership probe: with groups under
+ *  one page (999) the listing IS one call and measured FASTER than the
+ *  filter road (118 ms vs 218–407 ms), and it reads the live directory
+ *  where the filter road's `ConsistencyLevel: eventual` index may lag a
+ *  grant made moments earlier — a fresh controller must not open
+ *  Documents as a reader. `memberByFilter` is the road to switch to if
+ *  a group ever pages. */
 export async function isGroupMember(groupId: string, entraId: string): Promise<boolean> {
   return (await idSet(groupId, "members")).has(entraId);
 }
@@ -239,10 +244,12 @@ export async function memberByFilter(groupId: string, entraId: string): Promise<
 
 /**
  * The PATH road: `/groups/{id}/members/{user}` addresses one member
- * directly; 200 = a member, Graph's not-found = not one. Undocumented
- * for this collection, so the probe measures both shapes before any
- * gate may trust it. A not-found that names the GROUP is a bad link,
- * not a "no" — surfaced as a refusal.
+ * directly; 200 = a member. MEASURED 2026-11-01 (dev, both groups): the
+ * not-found for a NON-MEMBER names the GROUP id ("Resource '<group>'
+ * does not exist or one of its queried reference-property objects are
+ * not present"), the same text a bad group link would give — so a "no"
+ * cannot be told from a broken link, and no gate may trust this road.
+ * Kept for the probe's record only.
  */
 export async function memberByPath(groupId: string, entraId: string): Promise<MembershipAnswer> {
   if (!guidOk(groupId) || !guidOk(entraId)) return { member: null, ms: 0, note: "not a GUID" };
