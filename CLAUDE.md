@@ -482,6 +482,10 @@ Version lives in the tag alone — nothing is stamped into files.
   initiative is one scoped rule; the Documents open paints controller
   standing from the last visit and the gates share the register's
   config read; the membership probe kept the listing) is app-only.
+  v0.88.1 (2026-11-02: the FIRST release whose stamp is clean —
+  `tools/build-stamp.mjs` ignores the generated UAT file, so the
+  release gate can at last record a build as current; ingestion grid
+  ticks keep the scroll) is app-only.
   Prod imports the managed solution FIRST. LESSON
   (2026-10-13, production's first sync): a sync must
   never run from a walk it cannot trust (budget-cut OR any failed

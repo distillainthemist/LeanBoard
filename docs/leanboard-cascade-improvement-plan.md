@@ -1455,6 +1455,23 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-11-02 — released as v0.88.1** (app-only): the first release
+  that can announce itself. Ben: "I never see the prompt that I am
+  using a new version." The build's first step (`uat-compile`) rewrote
+  the tracked `scripts.generated.json`, so `git describe --dirty` stamped
+  every later-day build and EVERY CI release build `-dirty` (the v0.88.0
+  package reads `v0.88.0-dirty`; production ran
+  `v0.87.0-2-g818d497-dirty`), and a dirty build never records itself as
+  current — the gate never fired. `app/tools/build-stamp.mjs` now
+  computes the stamp (dirty only for tracked SOURCE changes, the
+  generated file excluded); uat-compile dates its output by content;
+  `npm run push` (`tools/push-gate.mjs`) refuses uncommitted source, a
+  dirty stamp, or a dist that is not HEAD's. Also: ingestion grid ticks
+  (group row, file, select-all) sync the other boxes in place instead
+  of repainting, which had sent the person back to the top (Ellen
+  Black's report); every other repaint restores the scroll offsets.
+  UAT: DOC-090 step 3. `docs/release-gate-2026-10-31.md` "Found
+  2026-11-02".
 - **2026-11-01 — released as v0.88.0** (app-only): three production
   fixes. (1) `allWhere` follows the SDK's skip token (`READ_PAGE_SIZE`
   5000, `READ_ROWS_CAP` 50 000): the SDK returns 500 rows a page and the
