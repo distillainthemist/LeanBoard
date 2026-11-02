@@ -36,6 +36,30 @@ latest version of the application and prevent use of the application?"
    Answers "which build was that report from?" and "who has not reopened
    since the push?".
 
+## Found 2026-11-02: no build had ever promoted itself
+
+Ben: "I never see the prompt that I am using a new version and need to
+refresh." The gate's code was right; its INPUT never was. The build's
+first step, `tools/uat-compile.mjs`, rewrites the tracked
+`app/src/uat/scripts.generated.json` with the HEAD date and the tag
+list, so `git describe --dirty` — run next by vite — saw a modified
+tracked file and stamped the bundle `-dirty`: every build on a day after
+that file's last commit, and every release build in CI (the new tag is
+not in the committed copy). The v0.88.0 release package reads
+`v0.88.0-dirty`; production ran `v0.87.0-2-g818d497-dirty`. A dirty
+build never records itself as current (`shouldRecord`, by design) and
+"Make this build current" is disabled on one, so the policy never moved
+and no client was ever stale against it.
+
+Fixed: `app/tools/build-stamp.mjs` computes the stamp (git describe,
+`-dirty` only when a tracked SOURCE file differs — the generated UAT
+file excluded); uat-compile dates its output by content (the newest
+case change), not by HEAD; `npm run push` (`tools/push-gate.mjs`)
+refuses uncommitted source, a dirty stamp, or a dist that is not HEAD's.
+The first CLEAN release after this (v0.88.1 or later) is the first build
+that can record itself; clients still on `v0.88.0-dirty` then read as
+stale and see the banner, and the gate when they reopen.
+
 Not done, on purpose: a Reload button on the gate. A raw reload inside
 the player loses the host handshake (`getContext` never answers — the
 view-as banner learned this), so the only road is close and reopen.

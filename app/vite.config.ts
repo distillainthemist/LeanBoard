@@ -1,4 +1,5 @@
-import { execSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { buildStamp } from "./tools/build-stamp.mjs";
 import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { defineConfig, type Plugin } from "vite";
@@ -7,14 +8,11 @@ import { defineConfig, type Plugin } from "vite";
 // tag (git describe), CI tag checkouts and dev trees get tag-or-SHA,
 // and a gitless build still compiles. Issue reports carry this, so
 // "which version were you on?" never has to be asked.
+// the stamp the release gate compares (tools/build-stamp.mjs: git describe,
+// dirty only for tracked SOURCE changes — the build's own generated UAT
+// file is excluded, or every build would stamp itself dirty)
 function appVersion(): string {
-  try {
-    return execSync("git describe --tags --always --dirty", {
-      encoding: "utf8",
-    }).trim();
-  } catch {
-    return "dev";
-  }
+  return buildStamp(fileURLToPath(new URL(".", import.meta.url)));
 }
 
 // Lets tile-defaults.html write its result straight to tools/tile-defaults.json

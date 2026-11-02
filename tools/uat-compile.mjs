@@ -60,6 +60,15 @@ if (errors.length > 0) {
   console.error("uat-compile: FAILED\n  " + errors.join("\n  "));
   process.exit(1);
 }
+// the generation date is CONTENT-derived (the newest case change), not the
+// HEAD date — a HEAD-dated file changed on every commit day, which dirtied
+// the tree on every later build (see app/tools/build-stamp.mjs)
+const newest = Object.values(out.components)
+  .flatMap((c) => c.journeys.flatMap((j) => j.cases.map((k) => k.changed)))
+  .filter((d) => typeof d === "string" && d !== "")
+  .sort()
+  .pop();
+out.generatedAt = newest ?? headDate;
 writeFileSync(outFile, JSON.stringify(out, null, 1) + "\n");
 const n = Object.values(out.components).reduce((a, c) => a + c.journeys.reduce((b, j) => b + j.cases.length, 0), 0);
 console.log(`uat-compile: OK — ${n} cases across ${Object.keys(out.components).length} components, ${releases.length} releases`);

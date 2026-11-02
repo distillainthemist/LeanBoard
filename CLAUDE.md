@@ -82,10 +82,19 @@ the hosted dev app. Rules learned the hard way:
   release gate promotes only a CLEAN newer build (`shouldRecord`), so a
   bundle stamped `-dirty` reaches the environment silently: it never
   records itself as current and nobody on the previous build is told to
-  reopen (2026-11-02: production ran `v0.87.0-2-g818d497-dirty` and no
-  banner ever showed). `tools/push-gate.mjs` refuses a dirty tree, a
-  dirty stamp in dist, or a dist that is not HEAD's build. Build AFTER
-  the commit in every chain; the same rule for a production push.
+  reopen. `tools/push-gate.mjs` refuses uncommitted source, a dirty
+  stamp in dist, or a dist that is not HEAD's build. Build AFTER the
+  commit in every chain; the same rule for a production push.
+- **The stamp is `tools/build-stamp.mjs`, not git's `--dirty`**
+  (2026-11-02). The build's first step rewrites the tracked
+  `src/uat/scripts.generated.json`, so git's `--dirty` flagged every
+  build on a later day and EVERY release build in CI (the new tag is not
+  in the committed copy): the v0.88.0 release package reads
+  `v0.88.0-dirty`, production ran `v0.87.0-2-g818d497-dirty`, and the
+  gate never promoted a build or showed a banner. The stamp now ignores
+  that one generated file (uat-compile also dates it by content, not by
+  HEAD). Check a release's stamp before trusting the gate:
+  `gh release download vX -p 'LeanBoardApp_vX.zip'`, unzip, grep.
 
 - `git push` does NOT deploy anything. Never tell Ben a change is testable
   until `pac code push` has actually run and its output says

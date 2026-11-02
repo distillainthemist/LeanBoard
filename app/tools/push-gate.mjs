@@ -12,6 +12,7 @@
 import { execSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { GENERATED_UAT, buildStamp } from "./build-stamp.mjs";
 
 const app = new URL("..", import.meta.url).pathname;
 const fail = (msg) => {
@@ -19,23 +20,30 @@ const fail = (msg) => {
   process.exit(1);
 };
 
-const status = execSync("git status --porcelain", { cwd: app, encoding: "utf8" }).trim();
+// the generated UAT file is the build's own output — it may differ from
+// HEAD (the stamp ignores it too); anything else must be committed
+const status = execSync(`git status --porcelain -- . ":(exclude)${GENERATED_UAT}"`, { cwd: app, encoding: "utf8" })
+  .split("\n")
+  .filter((l) => l.trim() !== "" && !l.startsWith("??"))
+  .join("\n");
 if (status !== "") fail(`the working tree has uncommitted changes — commit first, then build, then push:\n${status}`);
 
 const assets = join(app, "dist", "assets");
 let files;
 try {
-  files = readdirSync(assets).filter((f) => /^index-.*\.js$/.test(f));
+  // the stamp lands in whichever chunks read __APP_VERSION__ (the gate,
+  // the store, the issue report) — scan every chunk
+  files = readdirSync(assets).filter((f) => /\.js$/.test(f));
 } catch {
   fail("no dist/assets — run `npm run build` first");
 }
-if (files.length === 0) fail("no index bundle in dist/assets — run `npm run build` first");
+if (files.length === 0) fail("no bundles in dist/assets — run `npm run build` first");
 const stamps = new Set();
 for (const f of files) {
   const src = readFileSync(join(assets, f), "utf8");
   for (const m of src.matchAll(/v\d+\.\d+\.\d+(?:-\d+-g[0-9a-f]+)?(?:-dirty)?/g)) stamps.add(m[0]);
 }
-const head = execSync("git describe --tags --always --dirty", { cwd: app, encoding: "utf8" }).trim();
+const head = buildStamp(app);
 const dirty = [...stamps].filter((s) => s.endsWith("-dirty"));
 if (dirty.length > 0) fail(`dist was built from a dirty tree (${dirty.join(", ")}) — rebuild now that the tree is clean`);
 if (!stamps.has(head)) fail(`dist is stamped ${[...stamps].join(", ") || "(no stamp)"} but HEAD is ${head} — rebuild before pushing`);
