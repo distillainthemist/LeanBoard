@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "node ../tools/uat-compile.mjs && tsc && vite build",
+    "push": "node tools/push-gate.mjs && pac code push",
     "uat": "node ../tools/uat-compile.mjs",
     "preview": "vite preview",
     "test": "vitest run",

@@ -72,11 +72,20 @@ is the sanctioned door.
 ## Deploying to the dev environment for testing
 
 ```bash
-cd app && pac code push
+cd app && npm run push
 ```
 
-This is the ONLY way changes reach the hosted dev app. Rules learned the
-hard way:
+(`push-gate.mjs` then `pac code push`.) This is the ONLY way changes reach
+the hosted dev app. Rules learned the hard way:
+
+- **Commit, then build, then push — never push a dirty bundle.** The
+  release gate promotes only a CLEAN newer build (`shouldRecord`), so a
+  bundle stamped `-dirty` reaches the environment silently: it never
+  records itself as current and nobody on the previous build is told to
+  reopen (2026-11-02: production ran `v0.87.0-2-g818d497-dirty` and no
+  banner ever showed). `tools/push-gate.mjs` refuses a dirty tree, a
+  dirty stamp in dist, or a dist that is not HEAD's build. Build AFTER
+  the commit in every chain; the same rule for a production push.
 
 - `git push` does NOT deploy anything. Never tell Ben a change is testable
   until `pac code push` has actually run and its output says
