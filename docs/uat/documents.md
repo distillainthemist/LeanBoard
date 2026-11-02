@@ -678,9 +678,9 @@ preconditions: an open task; in SharePoint, a folder tree dropped into its folde
 steps:
 1. Refresh the task; read the status line and the grid.
 2. Rename a nested file with Name on ingestion; Save; check the file in SharePoint.
-3. Set every required detail (use the group checkboxes); Run.
+3. Scroll down to a sub-folder's group row; tick its checkbox; tick one more file by its own box; then Set every required detail for the selection; Run.
 4. End task.
-expected: every file at every depth is listed — the status line reads "n files in 3 sub-folders · …"; the grid groups them under Task folder, Archive › 2019, Policies, Policies › 2024 with the path under each nested name; the renamed file keeps its place in its sub-folder (it does not move to the task root); the run copies every file into the destination library's ROOT with no sub-folder created, the sources are recycled and the emptied sub-folders stay; End task counts 0 files and removes the folder with its empty sub-folders
+expected: every file at every depth is listed — the status line reads "n files in 3 sub-folders · …"; the grid groups them under Task folder, Archive › 2019, Policies, Policies › 2024 with the path under each nested name; the renamed file keeps its place in its sub-folder (it does not move to the task root); ticking the group box ticks every file in the group and the list STAYS where it was scrolled (no jump to the top — Ellen Black's 2026-11-02 report), the count reads "n selected", and the header's select-all box follows the ticks; the run copies every file into the destination library's ROOT with no sub-folder created, the sources are recycled and the emptied sub-folders stay; End task counts 0 files and removes the folder with its empty sub-folders
 
 ## Journey 10 — Health and the term store
 

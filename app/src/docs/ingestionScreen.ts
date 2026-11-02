@@ -1039,9 +1039,26 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
     // between rows) — the normal layout uses FIXED tracks, the fitted one
     // shares the pane's width equally
     const template = () => (fit ? `minmax(200px, 1.6fr) minmax(0, 1.2fr) minmax(0, 0.9fr) ${gridFields.map(() => "minmax(0, 1fr)").join(" ")}` : `320px 260px 170px ${gridFields.map(() => "190px").join(" ")}`);
+    /** Every selection checkbox the grid painted (header, rows, group
+     *  rows) with the ids it stands for — a tick anywhere updates the
+     *  others IN PLACE. Repainting the grid for a tick emptied the
+     *  scroller and sent the person back to the top (Ellen Black,
+     *  2026-11-02: "my view gets reset to the top of the task list"). */
+    let selBoxes: { box: HTMLInputElement; ids: () => string[] }[] = [];
+    const syncBoxes = () => {
+      for (const { box, ids } of selBoxes) {
+        const list = ids();
+        box.checked = list.length > 0 && list.every((id) => selected.has(id));
+      }
+      paintSel();
+    };
     const paintGrid = () => {
       computeView();
+      // a repaint keeps the person's place: the scroller is emptied and
+      // refilled synchronously, so its offsets can be put straight back
+      const { scrollTop, scrollLeft } = gridHost;
       clear(gridHost);
+      selBoxes = [];
       const head = el("div", "app-ing-gridrow app-ing-gridhead");
       head.style.gridTemplateColumns = template();
       const docHead = el("div", "app-ing-cell app-ing-cell-doc", "");
@@ -1055,9 +1072,9 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
           if (all.checked) selected.add(r.uniqueId);
           else selected.delete(r.uniqueId);
         }
-        paintSel();
-        paintGrid();
+        syncBoxes();
       });
+      selBoxes.push({ box: all, ids: () => shown.map((r) => r.uniqueId) });
       docHead.append(all, el("span", undefined, "Document"));
       head.appendChild(docHead);
       for (const f of gridCols) {
@@ -1100,8 +1117,9 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
         box.addEventListener("change", () => {
           if (box.checked) selected.add(row.uniqueId);
           else selected.delete(row.uniqueId);
-          paintSel();
+          syncBoxes();
         });
+        selBoxes.push({ box, ids: () => [row.uniqueId] });
         const nameWrap = el("div", "app-ing-namewrap");
         nameWrap.appendChild(nameCell(row));
         const sub = row.values.__folder ?? "";
@@ -1145,9 +1163,9 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
             if (gbox.checked) selected.add(r.uniqueId);
             else selected.delete(r.uniqueId);
           }
-          paintSel();
-          paintGrid();
+          syncBoxes();
         });
+        selBoxes.push({ box: gbox, ids: () => g.items.map((r) => r.uniqueId) });
         inner.appendChild(gbox);
         inner.appendChild(el("span", "app-ing-group-label", g.label));
         inner.appendChild(el("span", "app-ing-group-count", `${g.items.length} file${g.items.length === 1 ? "" : "s"}`));
@@ -1157,6 +1175,8 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
         gridHost.appendChild(gr);
         for (const row of g.items) paintRow(row);
       }
+      gridHost.scrollTop = scrollTop;
+      gridHost.scrollLeft = scrollLeft;
     };
     const reload = async (): Promise<void> => {
       status.textContent = "Reading the folder…";
