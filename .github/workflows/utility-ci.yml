@@ -1,0 +1,43 @@
+name: Utility CI
+
+# Type-check and build the second code app (utility/, LeanBoard Utilities)
+# and run the native-dialog gate over its source. Node 22 is the pac code
+# toolchain floor.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "utility/**"
+      - "app/tools/build-stamp.mjs"
+      - "app/tools/native-dialog-gate.mjs"
+      - ".github/workflows/utility-ci.yml"
+  pull_request:
+    paths:
+      - "utility/**"
+      - "app/tools/build-stamp.mjs"
+      - "app/tools/native-dialog-gate.mjs"
+      - ".github/workflows/utility-ci.yml"
+
+jobs:
+  utility:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: utility
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # the build stamp is git describe
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: utility/package-lock.json
+      - run: npm ci
+      - name: Type-check
+        run: npx tsc --noEmit
+      - name: Native-dialog gate
+        working-directory: app
+        run: node tools/native-dialog-gate.mjs
+      - name: Build
+        run: npm run build

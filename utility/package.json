@@ -1,0 +1,22 @@
+{
+  "name": "utility",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "push": "node tools/push-gate.mjs && pac code push --solutionName LeanToolKitData",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "~6.0.2",
+    "vite": "^8.1.1",
+    "vitest": "^4.1.10"
+  },
+  "dependencies": {
+    "@microsoft/power-apps": "^1.2.7"
+  }
+}

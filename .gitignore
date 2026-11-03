@@ -3,6 +3,7 @@ node_modules/
 
 # code-app build + solution exports
 app/dist/
+utility/dist/
 data/dist/
 
 # leftover from pcf-scripts, which wrote a stray literal ~ dir on some setups

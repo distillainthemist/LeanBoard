@@ -1,0 +1,38 @@
+/* Minimal probe styling, on LeanBoard's toolkit variable names so the
+   tool screens can adopt shared/tokens.ts later without renaming. */
+:root {
+  --ltk-bg: #ffffff;
+  --ltk-fg: #1f2328;
+  --ltk-muted: #656d76;
+  --ltk-hairline: #d0d7de;
+  --ltk-accent: #0f6cbd;
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  color: var(--ltk-fg);
+  background: var(--ltk-bg);
+}
+body { margin: 0; background: var(--ltk-bg); }
+.u-page { max-width: 880px; margin: 0 auto; padding: 24px 16px; }
+.u-title { font-size: 22px; margin: 0 0 4px; }
+.u-muted { color: var(--ltk-muted); margin: 0 0 16px; font-size: 13px; }
+.u-bar { display: flex; gap: 8px; margin: 16px 0; flex-wrap: wrap; }
+.u-log {
+  border: 1px solid var(--ltk-hairline);
+  border-radius: 6px;
+  padding: 12px;
+  min-height: 200px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font: 12px/1.5 ui-monospace, Menlo, Consolas, monospace;
+}
+.app-btn {
+  font: inherit;
+  font-size: 14px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--ltk-hairline);
+  background: var(--ltk-bg);
+  color: var(--ltk-fg);
+  cursor: pointer;
+}
+.app-btn:disabled { opacity: 0.5; cursor: default; }
+.app-btn-primary { background: var(--ltk-accent); border-color: var(--ltk-accent); color: #fff; }

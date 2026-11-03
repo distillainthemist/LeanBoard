@@ -28,6 +28,14 @@ running in the Power Apps player) with three areas sharing one shell:
   system (register, lifecycle, approvals, links, tags, audit) for
   controlled standards.
 
+A second code app, **LeanBoard Utilities** (`utility/`, 2026-11-03),
+holds task-specific tools in the same LeanToolKitData solution; its
+first tool, **Cadence Current State**, reads the user's own calendar and
+exports a reviewed, confidentiality-masked summary
+([cadence-current-state-plan-2026-11.md](cadence-current-state-plan-2026-11.md);
+Phase 0 = a calendar probe). It uses Office 365 Outlook and Office 365
+Users only, stores nothing, and is shared with one security group.
+
 Plus cross-cutting features: Teams/Outlook notifications, an in-app
 issue/idea reporting system with triage, **UAT in the app** (test
 scripts shipped with the build, runs started from Settings, a UAT tab
@@ -76,6 +84,8 @@ app/            the code app (vanilla TypeScript, Vite, no framework)
                      actiondlg, charter, walk, band, prompts, agenda,
                      embed, actionboard — served by the `pdca-harness`
                      launch config
+utility/        the second code app, LeanBoard Utilities (own power.config.json,
+                Vite build, push gate; pushed with --solutionName LeanToolKitData)
 shared/         UI kit + tokens shared with the (retired) PCF controls
 controls/       retired PCF controls — kept for shared model code
 data/           declarative Dataverse schema + admin scripting tools
@@ -1114,6 +1124,12 @@ conditional access all apply. The important roads:
 | Office 365 Outlook (`shared_office365`) | `Office365OutlookService` | e-mail alternative for notifications (SendEmailV2) |
 | Office 365 Groups (`shared_office365groups`) | `Office365GroupsService` | Graph passthrough (`HttpRequestV2`) for Entra group membership: pool checks, controller checks, member/owner add/remove |
 | Office 365 Users (`shared_office365users`) | `Office365UsersService` | people search for pickers, profiles, and the direct-manager lookup behind confidential actions (app-wide, not docs-only) |
+
+The utility app (`utility/`) carries its own copies of the Outlook and
+Office 365 Users services and reads the calendar through the Outlook
+connector's Graph passthrough (`HttpRequest`, `/me/calendar/...`), with
+the typed calendar-view action as the fallback if DLP blocks the HTTP
+action.
 
 Teams/Outlook are **docs-only by the import gate** and load by dynamic
 import at the moment of sending — the board bundle never carries them.

@@ -10,7 +10,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 const ROOT = resolve(process.cwd(), "..");
-const DIRS = ["app/src", "controls", "shared"];
+const DIRS = ["app/src", "utility/src", "controls", "shared"];
 const SKIP = new Set(["node_modules", "generated", "__tests__", "out", "dist"]);
 const NATIVE = /(^|[^A-Za-z0-9_.$])(?:window\.)?(prompt|confirm|alert)\s*\(/;
 
