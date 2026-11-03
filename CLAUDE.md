@@ -37,6 +37,12 @@ node tools/chunk-report.mjs
 If the change touched `shared/` or `controls/`, ALSO run `npm run typecheck`
 at the **repo root** — the app-only tsc once missed a red CI for two releases.
 
+The second app, **LeanBoard Utilities** (`utility/`), has its own gates —
+from `utility/`: `npx tsc --noEmit`, `npx vitest run`, `npm run build`
+(and the native-dialog gate above scans `utility/src`). Deploy it with
+`npm run push` in `utility/` (its own push gate). A change to
+`shared/export/xlsx.ts` touches BOTH apps.
+
 **UAT scripts (docs/uat/*.md, uat-proposal-2026-10.md):** a behaviour
 change under a component's source updates or adds its UAT case IN THE
 SAME COMMIT (the case's `modules:` line names the files it covers).
@@ -486,6 +492,11 @@ Version lives in the tag alone — nothing is stamped into files.
   `tools/build-stamp.mjs` ignores the generated UAT file, so the
   release gate can at last record a build as current; ingestion grid
   ticks keep the scroll) is app-only.
+  v0.89.0 (2026-11-03: LeanBoard Utilities — the SECOND code app,
+  `utility/`, first tool Cadence Current State; the .xlsx writer moved
+  to `shared/export/xlsx.ts`) is SOLUTION-CARRYING: the managed solution
+  carries the new app — prod imports it, then shares LeanBoard
+  Utilities with its Entra security group. No schema change.
   Prod imports the managed solution FIRST. LESSON
   (2026-10-13, production's first sync): a sync must
   never run from a walk it cannot trust (budget-cut OR any failed

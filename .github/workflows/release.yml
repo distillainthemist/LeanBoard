@@ -41,6 +41,14 @@ jobs:
           npm ci
           npm run build
 
+      # the second code app (LeanBoard Utilities, utility/) — it rides in the
+      # managed solution like LeanBoard; this package is its pac fallback
+      - name: Build utility app
+        working-directory: utility
+        run: |
+          npm ci
+          npm run build
+
       - name: Stage app package
         shell: bash
         run: |
@@ -58,6 +66,17 @@ jobs:
           '
           cp docs/deploy-to-new-org.md ship/app/INSTALL.md
           (cd ship/app && zip -rq "../../dist/LeanBoardApp_${TAG}.zip" .)
+          mkdir -p ship/utility
+          cp -r utility/dist ship/utility/dist
+          node -e '
+            const fs = require("fs");
+            const cfg = JSON.parse(fs.readFileSync("utility/power.config.json", "utf8"));
+            delete cfg.appId;
+            cfg.environmentId = "";
+            fs.writeFileSync("ship/utility/power.config.json", JSON.stringify(cfg, null, 2));
+          '
+          cp docs/deploy-to-new-org.md ship/utility/INSTALL.md
+          (cd ship/utility && zip -rq "../../dist/LeanBoardUtilitiesApp_${TAG}.zip" .)
 
       - name: Check pipeline secrets
         id: secrets
