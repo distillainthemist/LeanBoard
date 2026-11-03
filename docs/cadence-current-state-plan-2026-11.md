@@ -115,3 +115,40 @@ the same for `shared_office365users` in `utility/` (it regenerates
   that person. The export will carry blanks where Entra has none.
 - **Not yet measured: `@odata.nextLink` paging** — the probe week held 2
   events. Phase 3 measures it on a busier range before relying on it.
+
+## Phases 1–4 — built (2026-11-03)
+
+- **Shell**: `utility/src/main.ts` is the tools hub (one tile today; each
+  tool loads by dynamic import). The probe stays behind the hub's footer
+  link (`#/probe`).
+- **Model** (`src/cadence/model.ts`, pure, 16 tests in
+  `src/__tests__/cadence.test.ts`): cancelled and declined dropped and
+  counted; personal / private / confidential flagged; wall-clock times
+  in the requested zone; organizer listed once as `organizer`; roles,
+  responses, internal by the signed-in person's domain (and its
+  sub-domains); Teams / Zoom join blocks stripped, full length;
+  recurrence in words; series grouping (most common subject wins over a
+  renamed exception); the 12-month period rule.
+- **Scan** (`src/cadence/read.ts`): calendarView pages of 100 following
+  `@odata.nextLink` (retried relative once if the absolute link is
+  refused), series masters and directory lookups four in flight (at most
+  500 people), Cancel between calls, the typed V3 action as the fallback
+  with a warning on the review.
+- **Review** (`src/cadence/screen.ts`): presets and dates, summary
+  (meetings, series · one-offs, ticked, hours a week, confidential),
+  filters and search, series rows that tick and flag as one with Show
+  all for single occurrences, the export bar.
+- **Export** (`src/cadence/exportDoc.ts`): ONE place masks — a
+  confidential meeting keeps start, end, duration, all-day and
+  recurrence, subject "Confidential", everything else blank; a series
+  with any masked occurrence is masked as a whole. JSON (about · series
+  · meetings with nested attendees) and Excel (About, Series, Meetings,
+  Attendees; real date-time cells — `{ datetime }` in
+  `shared/export/xlsx.ts`, ten-decimal serials so 09:30 reads 09:30).
+- **UAT**: `docs/uat/cadence.md` (8 cases, persona `user`), component
+  `cadence` in `app/src/uat/components.json`; `tools/uat-delta.mjs` now
+  reads `utility/src` too.
+
+Hosted checks still Ben's: paging on a busy 12-month calendar, the
+download inside the player, Excel opening the file, and the app listed
+in LeanToolKitData.

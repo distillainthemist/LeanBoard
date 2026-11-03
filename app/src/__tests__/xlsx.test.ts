@@ -148,7 +148,7 @@ describe("workbook round trip", () => {
     expect(xml).toContain(`sqref="A3:A10"><formula1>1</formula1>`);
     const styles = new TextDecoder().decode(parts.get("xl/styles.xml"));
     expect(styles).toContain(`<numFmt numFmtId="164"`);
-    expect(styles).toContain(`<cellXfs count="10">`);
+    expect(styles).toContain(`<cellXfs count="12">`);
     const sheets = await readXlsx(bytes, nodeInflate);
     expect(sheets[0].rows[2][0]).toBe("46304");
     expect(isoToExcelSerial("2026-10-09")).toBe(46304);
@@ -235,8 +235,8 @@ describe("sheet protection (lockedCols)", () => {
     expect(xml).toContain(`<col min="4" max="4" width="16" customWidth="1" style="8"/>`);
     expect(xml).toContain(`<col min="2" max="2" width="16" customWidth="1"/>`);
     const styles = new TextDecoder().decode(parts.get("xl/styles.xml"));
-    expect(styles).toContain(`<cellXfs count="10">`);
-    expect((styles.match(/<protection locked="0"\/>/g) ?? []).length).toBe(5);
+    expect(styles).toContain(`<cellXfs count="12">`);
+    expect((styles.match(/<protection locked="0"\/>/g) ?? []).length).toBe(6);
     // an unprotected sheet is untouched
     const plainParts = await readZip(writeXlsx([{ name: "S", rows: [["a"]] }]), nodeInflate);
     const plain = new TextDecoder().decode(plainParts.get("xl/worksheets/sheet1.xml"));
@@ -255,5 +255,18 @@ describe("link cells", () => {
     expect(xml).toContain(`<c r="C1" s="9" t="str"><f>HYPERLINK("https://x.test/q","say &quot;&quot;hi&quot;&quot;")</f><v>say &quot;hi&quot;</v></c>`);
     const back = await readXlsx(bytes, nodeInflate);
     expect(back[0].rows[0]).toEqual(["Open ↗", "", 'say "hi"']);
+  });
+});
+
+describe("date-time cells (2026-11-03, shared with the utility app)", () => {
+  it("writes a fractional serial in the yyyy-mm-dd hh:mm style", async () => {
+    const { isoDateTimeToExcelSerial } = await import("../docs/xlsx");
+    expect(isoDateTimeToExcelSerial("2026-11-03T12:00")).toBe(isoToExcelSerial("2026-11-03") + 0.5);
+    expect(isoDateTimeToExcelSerial("2026-11-03")).toBe(isoToExcelSerial("2026-11-03"));
+    const bytes = writeXlsx([{ name: "S", rows: [[{ datetime: "2026-11-03T09:30" }]] }]);
+    const parts = await readZip(bytes, async (d) => new Uint8Array((await zlib()).inflateRawSync(d)));
+    const sheet = new TextDecoder().decode(parts.get("xl/worksheets/sheet1.xml"));
+    expect(sheet).toContain(`<c r="A1" s="10"><v>${isoDateTimeToExcelSerial("2026-11-03T09:30")}</v></c>`);
+    expect(Math.round((isoDateTimeToExcelSerial("2026-11-03T09:30") % 1) * 1440)).toBe(570);
   });
 });

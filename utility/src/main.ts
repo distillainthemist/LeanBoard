@@ -1,75 +1,68 @@
 // LeanBoard Utilities — the second code app (docs/cadence-current-state-plan-2026-11.md).
-// Phase 0 is a probe only: it measures the calendar roads through the
-// Office 365 Outlook and Office 365 Users connectors in the hosted player
-// before any feature code rides them. The tool itself comes in Phase 3.
+// A hub of task-specific tools behind a hash router. Each tool is loaded
+// by dynamic import so the hub paints at once and a tool's code arrives
+// only when it is opened.
 
 import "./style.css";
-import { runCalendarProbe } from "./probe";
+import { el, clear } from "./dom";
 
 const root = document.getElementById("app")!;
 
-function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string): HTMLElementTagNameMap[K] {
-  const e = document.createElement(tag);
-  if (cls) e.className = cls;
-  if (text !== undefined) e.textContent = text;
-  return e;
+interface Tool {
+  route: string;
+  title: string;
+  blurb: string;
+  mount: (host: HTMLElement, back: () => void) => Promise<void>;
 }
 
-const page = el("main", "u-page");
-page.append(
-  el("h1", "u-title", "LeanBoard Utilities"),
-  el("p", "u-muted", `Calendar probe · build ${__APP_VERSION__}`),
-  el(
-    "p",
-    "",
-    "This reads one week of your own calendar through the Office 365 Outlook connector and reports which fields and options " +
-      "the connector returns. It stores nothing. The log shows counts, field names and status codes only — never subjects, " +
-      "bodies, names or addresses — so it is safe to copy into a chat."
-  )
-);
+const TOOLS: Tool[] = [
+  {
+    route: "cadence",
+    title: "Cadence Current State",
+    blurb: "Scan your Outlook calendar for a period, review every meeting, and export a summary of your meeting cadence for analysis.",
+    mount: async (host, back) => (await import("./cadence/screen")).mountCadence(host, back),
+  },
+];
 
-const bar = el("div", "u-bar");
-const run = el("button", "app-btn app-btn-primary", "Run calendar probe");
-const copy = el("button", "app-btn", "Copy log");
-copy.disabled = true;
-bar.append(run, copy);
-const log = el("pre", "u-log");
-page.append(bar, log);
-root.append(page);
-
-const lines: string[] = [];
-const write = (line: string): void => {
-  lines.push(line);
-  log.textContent = lines.join("\n");
+const goHome = (): void => {
+  location.hash = "#/";
 };
 
-run.addEventListener("click", async () => {
-  run.disabled = true;
-  copy.disabled = true;
-  lines.length = 0;
-  write(`Build ${__APP_VERSION__} · started ${new Date().toISOString()}`);
-  try {
-    await runCalendarProbe(write);
-  } catch (e) {
-    write(`FAIL — the probe threw: ${String(e).slice(0, 300)}`);
+function paintHub(): void {
+  clear(root);
+  const page = el("main", "u-page");
+  page.append(el("h1", "u-title", "LeanBoard Utilities"), el("p", "u-muted", "Tools for specific tasks."));
+  const grid = el("div", "u-tiles");
+  for (const t of TOOLS) {
+    const b = el("button", "u-tile");
+    b.append(el("strong", "", t.title), el("span", "u-muted", t.blurb));
+    b.addEventListener("click", () => (location.hash = `#/${t.route}`));
+    grid.append(b);
   }
-  write("— done —");
-  run.disabled = false;
-  copy.disabled = false;
-});
+  page.append(grid);
+  const foot = el("p", "u-foot u-muted", `Build ${__APP_VERSION__} · `);
+  const probe = el("button", "app-link", "Calendar probe");
+  probe.addEventListener("click", () => (location.hash = "#/probe"));
+  foot.append(probe);
+  page.append(foot);
+  root.append(page);
+}
 
-copy.addEventListener("click", async () => {
-  try {
-    await navigator.clipboard.writeText(lines.join("\n"));
-    copy.textContent = "Copied";
-  } catch {
-    // the player may refuse clipboard access: select the text instead
-    const range = document.createRange();
-    range.selectNodeContents(log);
-    const sel = window.getSelection();
-    sel?.removeAllRanges();
-    sel?.addRange(range);
-    copy.textContent = "Selected — press Ctrl/Cmd+C";
+async function route(): Promise<void> {
+  const r = location.hash.replace(/^#\/?/, "");
+  const tool = TOOLS.find((t) => t.route === r);
+  if (tool) {
+    clear(root);
+    await tool.mount(root, goHome);
+    return;
   }
-  setTimeout(() => (copy.textContent = "Copy log"), 2500);
-});
+  if (r === "probe") {
+    clear(root);
+    (await import("./probeScreen")).mountProbe(root, goHome);
+    return;
+  }
+  paintHub();
+}
+
+window.addEventListener("hashchange", () => void route());
+void route();

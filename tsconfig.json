@@ -17,5 +17,5 @@
     "strictPropertyInitialization": false,
     "typeRoots": ["node_modules/@types"]
   },
-  "exclude": ["node_modules", "app", "tools", "data"]
+  "exclude": ["node_modules", "app", "utility", "tools", "data"]
 }

@@ -120,5 +120,17 @@
     "modules": [
       "issues/"
     ]
+  },
+  {
+    "key": "cadence",
+    "label": "Cadence Current State",
+    "issueArea": "other",
+    "personas": [
+      "user"
+    ],
+    "modules": [
+      "utility/src/cadence/",
+      "shared/export/xlsx.ts"
+    ]
   }
 ]

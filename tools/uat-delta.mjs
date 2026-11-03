@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const git = (cmd) => execSync(cmd, { cwd: root, encoding: "utf8" }).trim();
 const tag = process.argv[2] ?? git("git describe --tags --abbrev=0 --match 'v*'");
-const changed = git(`git diff --name-only ${tag}..HEAD -- app/src shared controls`).split("\n").filter((f) => f !== "");
+const changed = git(`git diff --name-only ${tag}..HEAD -- app/src utility/src shared controls`).split("\n").filter((f) => f !== "");
 const scripts = JSON.parse(readFileSync(join(root, "app", "src", "uat", "scripts.generated.json"), "utf8"));
 const hits = [];
 for (const [key, comp] of Object.entries(scripts.components)) {

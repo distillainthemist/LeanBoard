@@ -1,0 +1,456 @@
+// Cadence Current State — the pure model (docs/cadence-current-state-plan-2026-11.md).
+// Graph calendar events in, normalised meetings out: what is dropped
+// (cancelled, declined), what is confidential by default (sensitivity
+// personal / private / confidential), how bodies are cleaned, how
+// occurrences group into series and how a recurrence reads. No SDK, no
+// DOM — every rule here is covered by src/__tests__/model.test.ts.
+
+// ---- Graph shapes (the subset the scan selects) ---------------------------
+
+export interface GraphAddress {
+  name?: string;
+  address?: string;
+}
+
+export interface GraphAttendee {
+  type?: string; // required | optional | resource
+  status?: { response?: string };
+  emailAddress?: GraphAddress;
+}
+
+export interface GraphEvent {
+  id?: string;
+  subject?: string;
+  start?: { dateTime?: string; timeZone?: string };
+  end?: { dateTime?: string; timeZone?: string };
+  isAllDay?: boolean;
+  type?: string; // singleInstance | occurrence | exception | seriesMaster
+  seriesMasterId?: string | null;
+  sensitivity?: string; // normal | personal | private | confidential
+  showAs?: string;
+  isCancelled?: boolean;
+  responseStatus?: { response?: string };
+  organizer?: { emailAddress?: GraphAddress };
+  attendees?: GraphAttendee[];
+  location?: { displayName?: string };
+  isOnlineMeeting?: boolean;
+  onlineMeetingProvider?: string;
+  body?: { contentType?: string; content?: string };
+  categories?: string[];
+  importance?: string;
+  webLink?: string;
+}
+
+export interface GraphRecurrence {
+  pattern?: {
+    type?: string; // daily | weekly | absoluteMonthly | relativeMonthly | absoluteYearly | relativeYearly
+    interval?: number;
+    daysOfWeek?: string[];
+    dayOfMonth?: number;
+    month?: number;
+    index?: string; // first | second | third | fourth | last
+  };
+  range?: {
+    type?: string; // endDate | noEnd | numbered
+    startDate?: string;
+    endDate?: string;
+    numberOfOccurrences?: number;
+  };
+}
+
+export interface PersonInfo {
+  jobTitle?: string;
+  department?: string;
+}
+
+// ---- the normalised meeting --------------------------------------------------
+
+export type AttendeeRole = "organizer" | "required" | "optional" | "resource";
+
+export interface Attendee {
+  name: string;
+  email: string;
+  role: AttendeeRole;
+  /** accepted | tentativelyAccepted | declined | notResponded | none | organizer | "" */
+  response: string;
+  internal: boolean;
+  jobTitle: string;
+  department: string;
+}
+
+export interface Meeting {
+  /** The Graph id — the screen's key; never exported. */
+  key: string;
+  /** The series master's Graph id, "" for a one-off. */
+  seriesKey: string;
+  kind: "one-off" | "recurring";
+  subject: string;
+  /** Local wall-clock times in the scan's time zone: yyyy-mm-ddThh:mm. */
+  start: string;
+  end: string;
+  date: string;
+  weekday: string;
+  durationMinutes: number;
+  isAllDay: boolean;
+  showAs: string;
+  myResponse: string;
+  sensitivity: string;
+  /** Sensitivity says confidential (the review's default flag). */
+  confidentialByDefault: boolean;
+  location: string;
+  onlineProvider: string;
+  organizer: { name: string; email: string };
+  attendees: Attendee[];
+  body: string;
+  categories: string[];
+  importance: string;
+  webLink: string;
+}
+
+export type ExcludeReason = "cancelled" | "declined";
+
+export const CONFIDENTIAL_SENSITIVITIES = new Set(["personal", "private", "confidential"]);
+
+export function isConfidentialSensitivity(s: string | undefined): boolean {
+  return CONFIDENTIAL_SENSITIVITIES.has((s ?? "").toLowerCase());
+}
+
+/** Why a meeting never reaches the list (Ben's decision 6), or null. */
+export function excludeReason(ev: GraphEvent): ExcludeReason | null {
+  if (ev.isCancelled === true) return "cancelled";
+  if ((ev.responseStatus?.response ?? "").toLowerCase() === "declined") return "declined";
+  return null;
+}
+
+// ---- times -------------------------------------------------------------------
+
+/** Graph's "2026-11-03T09:00:00.0000000" (already in the requested zone)
+ *  → "2026-11-03T09:00". */
+export function wallClock(dateTime: string | undefined): string {
+  const m = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/.exec(dateTime ?? "");
+  return m ? `${m[1]}T${m[2]}` : "";
+}
+
+const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+function wallMs(wall: string): number {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(wall);
+  if (!m) return Number.NaN;
+  return Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]));
+}
+
+export function weekdayOf(wall: string): string {
+  const ms = wallMs(wall.length === 10 ? `${wall}T00:00` : wall);
+  return Number.isNaN(ms) ? "" : WEEKDAYS[new Date(ms).getUTCDay()];
+}
+
+/** Minutes between two wall-clock times (a DST change inside one meeting
+ *  is not corrected — rare enough to ignore). */
+export function minutesBetween(start: string, end: string): number {
+  const a = wallMs(start);
+  const b = wallMs(end);
+  if (Number.isNaN(a) || Number.isNaN(b) || b < a) return 0;
+  return Math.round((b - a) / 60000);
+}
+
+// ---- bodies ------------------------------------------------------------------
+
+/** A minimal HTML → text for the typed fallback (Graph's text body needs none). */
+export function htmlToText(html: string): string {
+  return html
+    .replace(/<(script|style)[\s\S]*?<\/\1>/gi, "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|li|tr|h[1-6])>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, "&");
+}
+
+/** Lines that open a Teams / Zoom / video-join block: everything from the
+ *  first one to the end of the body is join boilerplate. */
+const JOIN_BLOCK_START = [
+  /^_{10,}\s*$/,
+  /^Microsoft Teams( meeting| Need help\?)?\s*$/i,
+  /^Microsoft Teams Need help\?/i,
+  /^Join (the meeting now|on your computer|Zoom Meeting|with a video conferencing device)/i,
+  /^Join Microsoft Teams Meeting/i,
+];
+
+/** Single lines that are join details wherever they sit. */
+const JOIN_LINE = [
+  /teams\.microsoft\.com\/l\/meetup-join/i,
+  /zoom\.us\/j\//i,
+  /^Meeting ID:/i,
+  /^Passcode:/i,
+  /^Dial[- ]in by phone/i,
+  /^Join by phone/i,
+  /^One tap mobile/i,
+  /^Dial by your location/i,
+  /^Find your local number/i,
+  /^Phone conference ID:/i,
+  /^For organizers: Meeting options/i,
+  /^Learn [Mm]ore\s*\|/,
+];
+
+/** Ben's decision 5: text, join boilerplate stripped, full length. */
+export function cleanBody(raw: string, isHtml = false): string {
+  const text = (isHtml ? htmlToText(raw) : raw).replace(/\r\n?/g, "\n");
+  const lines = text.split("\n").map((l) => l.replace(/\s+$/, ""));
+  const cut = lines.findIndex((l) => JOIN_BLOCK_START.some((re) => re.test(l.trim())));
+  const kept = (cut >= 0 ? lines.slice(0, cut) : lines).filter((l) => !JOIN_LINE.some((re) => re.test(l.trim())));
+  return kept
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+// ---- people ------------------------------------------------------------------
+
+export function domainOf(email: string): string {
+  const at = email.lastIndexOf("@");
+  return at >= 0 ? email.slice(at + 1).toLowerCase() : "";
+}
+
+export function isInternal(email: string, internalDomains: string[]): boolean {
+  const d = domainOf(email);
+  return d !== "" && internalDomains.some((x) => d === x || d.endsWith(`.${x}`));
+}
+
+const ROLE_OF: Record<string, AttendeeRole> = { required: "required", optional: "optional", resource: "resource" };
+
+function attendeesOf(ev: GraphEvent, internalDomains: string[], people: Map<string, PersonInfo>): Attendee[] {
+  const orgEmail = (ev.organizer?.emailAddress?.address ?? "").toLowerCase();
+  const out: Attendee[] = [];
+  const seen = new Set<string>();
+  const push = (a: Omit<Attendee, "internal" | "jobTitle" | "department">): void => {
+    const key = a.email || a.name;
+    if (key === "" || seen.has(key)) return;
+    seen.add(key);
+    const p = people.get(a.email) ?? {};
+    out.push({ ...a, internal: isInternal(a.email, internalDomains), jobTitle: p.jobTitle ?? "", department: p.department ?? "" });
+  };
+  if (orgEmail !== "" || ev.organizer?.emailAddress?.name) {
+    push({ name: ev.organizer?.emailAddress?.name ?? "", email: orgEmail, role: "organizer", response: "organizer" });
+  }
+  for (const a of ev.attendees ?? []) {
+    const email = (a.emailAddress?.address ?? "").toLowerCase();
+    if (email !== "" && email === orgEmail) continue; // the organizer is listed once, as organizer
+    push({
+      name: a.emailAddress?.name ?? "",
+      email,
+      role: ROLE_OF[(a.type ?? "").toLowerCase()] ?? "required",
+      response: a.status?.response ?? "",
+    });
+  }
+  return out;
+}
+
+/** The distinct internal people worth a directory lookup (no rooms). */
+export function lookupTargets(events: GraphEvent[], internalDomains: string[]): string[] {
+  const out = new Set<string>();
+  for (const ev of events) {
+    const org = (ev.organizer?.emailAddress?.address ?? "").toLowerCase();
+    if (isInternal(org, internalDomains)) out.add(org);
+    for (const a of ev.attendees ?? []) {
+      const e = (a.emailAddress?.address ?? "").toLowerCase();
+      if ((a.type ?? "").toLowerCase() !== "resource" && isInternal(e, internalDomains)) out.add(e);
+    }
+  }
+  return [...out].sort();
+}
+
+// ---- normalise ------------------------------------------------------------------
+
+export interface NormaliseContext {
+  internalDomains: string[];
+  people?: Map<string, PersonInfo>;
+}
+
+export function normalise(ev: GraphEvent, ctx: NormaliseContext): Meeting {
+  const start = wallClock(ev.start?.dateTime);
+  const end = wallClock(ev.end?.dateTime);
+  const seriesKey = ev.seriesMasterId ?? "";
+  const isHtml = (ev.body?.contentType ?? "").toLowerCase() === "html";
+  return {
+    key: ev.id ?? `${start}|${ev.subject ?? ""}`,
+    seriesKey,
+    kind: seriesKey !== "" || ev.type === "occurrence" || ev.type === "exception" ? "recurring" : "one-off",
+    subject: (ev.subject ?? "").trim(),
+    start,
+    end,
+    date: start.slice(0, 10),
+    weekday: weekdayOf(start),
+    durationMinutes: minutesBetween(start, end),
+    isAllDay: ev.isAllDay === true,
+    showAs: ev.showAs ?? "",
+    myResponse: ev.responseStatus?.response ?? "",
+    sensitivity: (ev.sensitivity ?? "normal").toLowerCase(),
+    confidentialByDefault: isConfidentialSensitivity(ev.sensitivity),
+    location: (ev.location?.displayName ?? "").trim(),
+    onlineProvider: ev.isOnlineMeeting === false ? "" : ev.onlineMeetingProvider && ev.onlineMeetingProvider !== "unknown" ? ev.onlineMeetingProvider : "",
+    organizer: { name: ev.organizer?.emailAddress?.name ?? "", email: (ev.organizer?.emailAddress?.address ?? "").toLowerCase() },
+    attendees: attendeesOf(ev, ctx.internalDomains, ctx.people ?? new Map()),
+    body: cleanBody(ev.body?.content ?? "", isHtml),
+    categories: ev.categories ?? [],
+    importance: ev.importance ?? "",
+    webLink: ev.webLink ?? "",
+  };
+}
+
+export interface Normalised {
+  meetings: Meeting[];
+  excluded: Record<ExcludeReason, number>;
+}
+
+/** Every event in, the listable meetings (sorted by start) and the
+ *  dropped counts out. Series masters never come from a calendar view,
+ *  but one that slips in is skipped. */
+export function normaliseAll(events: GraphEvent[], ctx: NormaliseContext): Normalised {
+  const excluded: Record<ExcludeReason, number> = { cancelled: 0, declined: 0 };
+  const meetings: Meeting[] = [];
+  const seen = new Set<string>();
+  for (const ev of events) {
+    if (ev.type === "seriesMaster") continue;
+    const why = excludeReason(ev);
+    if (why) {
+      excluded[why]++;
+      continue;
+    }
+    const m = normalise(ev, ctx);
+    if (seen.has(m.key)) continue;
+    seen.add(m.key);
+    meetings.push(m);
+  }
+  meetings.sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : a.subject.localeCompare(b.subject)));
+  return { meetings, excluded };
+}
+
+// ---- recurrence -------------------------------------------------------------------
+
+const DAY_SHORT: Record<string, string> = {
+  sunday: "Sun", monday: "Mon", tuesday: "Tue", wednesday: "Wed", thursday: "Thu", friday: "Fri", saturday: "Sat",
+};
+const DAY_ORDER = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+function days(list: string[] | undefined): string {
+  const ds = (list ?? []).map((d) => d.toLowerCase()).filter((d) => d in DAY_SHORT);
+  ds.sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b));
+  return ds.map((d) => DAY_SHORT[d]).join(", ");
+}
+
+/** "Weekly on Tue, Thu until 2026-12-18", "Every 2 weeks on Mon", … */
+export function recurrenceText(rec: GraphRecurrence | undefined): string {
+  const p = rec?.pattern;
+  if (!p?.type) return "";
+  const n = typeof p.interval === "number" && p.interval > 1 ? p.interval : 1;
+  const every = (one: string, many: string): string => (n === 1 ? one : `Every ${n} ${many}`);
+  let text: string;
+  switch (p.type) {
+    case "daily":
+      text = every("Daily", "days");
+      break;
+    case "weekly": {
+      const d = days(p.daysOfWeek);
+      text = `${every("Weekly", "weeks")}${d ? ` on ${d}` : ""}`;
+      break;
+    }
+    case "absoluteMonthly":
+      text = `${every("Monthly", "months")} on day ${p.dayOfMonth ?? "?"}`;
+      break;
+    case "relativeMonthly":
+      text = `${every("Monthly", "months")} on the ${p.index ?? "first"} ${days(p.daysOfWeek) || "day"}`;
+      break;
+    case "absoluteYearly":
+      text = `${every("Yearly", "years")} on ${p.dayOfMonth ?? "?"} ${MONTHS[(p.month ?? 1) - 1] ?? ""}`.trim();
+      break;
+    case "relativeYearly":
+      text = `${every("Yearly", "years")} on the ${p.index ?? "first"} ${days(p.daysOfWeek) || "day"} of ${MONTHS[(p.month ?? 1) - 1] ?? ""}`.trim();
+      break;
+    default:
+      text = p.type;
+  }
+  const r = rec?.range;
+  if (r?.type === "endDate" && r.endDate) text += ` until ${r.endDate}`;
+  else if (r?.type === "numbered" && r.numberOfOccurrences) text += `, ${r.numberOfOccurrences} times`;
+  return text;
+}
+
+// ---- grouping -------------------------------------------------------------------------
+
+export interface MeetingGroup {
+  /** The series key, or the meeting key for a one-off. */
+  key: string;
+  kind: "series" | "one-off";
+  subject: string;
+  recurrence: string;
+  meetings: Meeting[];
+}
+
+/** Series first (most occurrences first), then one-offs by start. */
+export function groupMeetings(meetings: Meeting[], masters: Map<string, GraphRecurrence>): MeetingGroup[] {
+  const series = new Map<string, Meeting[]>();
+  const oneOffs: MeetingGroup[] = [];
+  for (const m of meetings) {
+    if (m.seriesKey === "") {
+      oneOffs.push({ key: m.key, kind: "one-off", subject: m.subject, recurrence: "", meetings: [m] });
+      continue;
+    }
+    const list = series.get(m.seriesKey) ?? [];
+    list.push(m);
+    series.set(m.seriesKey, list);
+  }
+  const groups: MeetingGroup[] = [...series.entries()].map(([key, list]) => ({
+    key,
+    kind: "series",
+    // the most common subject (an exception can be renamed)
+    subject: mostCommon(list.map((m) => m.subject)),
+    recurrence: recurrenceText(masters.get(key)) || "Recurring",
+    meetings: list,
+  }));
+  groups.sort((a, b) => b.meetings.length - a.meetings.length || a.subject.localeCompare(b.subject));
+  return [...groups, ...oneOffs];
+}
+
+function mostCommon(xs: string[]): string {
+  const n = new Map<string, number>();
+  for (const x of xs) n.set(x, (n.get(x) ?? 0) + 1);
+  let best = "";
+  let bestN = -1;
+  for (const [x, c] of n) if (c > bestN) [best, bestN] = [x, c];
+  return best;
+}
+
+// ---- period --------------------------------------------------------------------------
+
+export const MAX_PERIOD_DAYS = 366;
+
+/** yyyy-mm-dd ± whole months, clamped to the month's last day. */
+export function addMonths(iso: string, months: number): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const target = new Date(Date.UTC(y, m - 1 + months, 1));
+  const last = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
+  target.setUTCDate(Math.min(d, last));
+  return target.toISOString().slice(0, 10);
+}
+
+/** Days from `from` to `to`, both included. */
+export function periodDays(from: string, to: string): number {
+  const a = Date.parse(`${from}T00:00:00Z`);
+  const b = Date.parse(`${to}T00:00:00Z`);
+  if (Number.isNaN(a) || Number.isNaN(b)) return Number.NaN;
+  return Math.round((b - a) / 86400000) + 1;
+}
+
+/** null when the period is valid, else what is wrong with it (decision 2). */
+export function periodProblem(from: string, to: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) return "Choose both dates.";
+  const n = periodDays(from, to);
+  if (!(n >= 1)) return "The end date is before the start date.";
+  if (n > MAX_PERIOD_DAYS) return "The period can be at most 12 months.";
+  return null;
+}

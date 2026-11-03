@@ -85,7 +85,15 @@ app/            the code app (vanilla TypeScript, Vite, no framework)
                      embed, actionboard — served by the `pdca-harness`
                      launch config
 utility/        the second code app, LeanBoard Utilities (own power.config.json,
-                Vite build, push gate; pushed with --solutionName LeanToolKitData)
+                Vite build, push gate; pushed with --solutionName LeanToolKitData):
+                src/main.ts = the tools hub (hash router, dynamic import per tool);
+                src/cadence/ = Cadence Current State — model.ts (pure: drop,
+                flag, clean bodies, recurrence, series), read.ts (the scan),
+                exportDoc.ts (pure: masking + JSON / Excel), screen.ts;
+                harness/cadence.html = the review screen on a stub scan
+shared/export/xlsx.ts  the dependency-free .xlsx writer/reader (moved from
+                app/src/docs/ 2026-11-03; docs/xlsx.ts re-exports it), shared
+                by the ingestion sheet and the utility app's Excel export
 shared/         UI kit + tokens shared with the (retired) PCF controls
 controls/       retired PCF controls — kept for shared model code
 data/           declarative Dataverse schema + admin scripting tools
