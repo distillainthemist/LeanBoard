@@ -87,3 +87,31 @@ If `pac code push` refuses the copied connection references, run
 `pac code add-data-source -a shared_office365 -c <connection id>` and
 the same for `shared_office365users` in `utility/` (it regenerates
 `src/generated/` and `.power/`), commit, build, push.
+
+## Phase 0 — results (Ben's run on dev, 2026-11-03, build v0.88.1-1-gdc7da78)
+
+- **The Graph passthrough is the road.** `HttpRequest` on
+  `https://graph.microsoft.com/v1.0/me/calendar/calendarView` answered
+  (first call 4.6 s cold, later calls ~0.3–0.7 s) with every field the
+  tool needs: attendees with type and response, event type
+  (`occurrence`, `singleInstance`), `seriesMasterId`, sensitivity,
+  showAs, my response, cancelled, all-day, `onlineMeetingProvider`
+  (`teamsForBusiness`), organizer, location, body.
+- **`/me/calendarView` is refused** (400, "Allowed values: me,users …
+  messages, mailFolders, events, calendar, calendars, outlook, …"). Always
+  go through `/me/calendar/…`.
+- **Send ONE combined Prefer header**:
+  `Prefer: outlook.timezone="<zone>", outlook.body-content-type="text"`.
+  As two custom headers only the last was honoured (times came back in
+  UTC); combined, both were (times in `Australia/Brisbane`, bodies as
+  text). The browser's IANA zone name is accepted.
+- **Series master read works**: `/me/events/{seriesMasterId}?$select=type,recurrence`
+  gives `seriesMaster` with pattern type, interval, daysOfWeek and range.
+- **The typed fallback works**: `CalendarGetTables` (3 calendars, the
+  default named "Calendar") and `GetEventsCalendarViewV3` (attendees only
+  as semicolon strings, no per-attendee response, no event type).
+- **Office 365 Users** found the internal attendee, but job title and
+  department were empty — the directory profile is not populated for
+  that person. The export will carry blanks where Entra has none.
+- **Not yet measured: `@odata.nextLink` paging** — the probe week held 2
+  events. Phase 3 measures it on a busier range before relying on it.
