@@ -7,11 +7,11 @@
 // anything by itself.
 
 import type { ExportDoc } from "./exportDoc";
-import { isInternal } from "./model";
+import { addMonths, isInternal, periodProblem } from "./model";
 
 /** Launch parameters (the player lower-cases nothing, so they are read
  *  case-blind). */
-export const TASK_PARAMS = { tool: "utool", months: "umonths", sendTo: "usendto", note: "unote" } as const;
+export const TASK_PARAMS = { tool: "utool", months: "umonths", from: "ufrom", to: "uto", sendTo: "usendto", note: "unote" } as const;
 export const TASK_TOOL = "cadence";
 export const NOTE_MAX = 300;
 /** Rows of the series table in the email body (the files carry everything). */
@@ -20,6 +20,9 @@ export const SUMMARY_SERIES_ROWS = 15;
 export interface CadenceTask {
   /** Relative period: -3 = the last 3 months to today; 2 = today to 2 months on. */
   months: number;
+  /** Fixed dates (yyyy-mm-dd) instead of the relative period, when both are set. */
+  from?: string;
+  to?: string;
   sendTo: string;
   note: string;
 }
@@ -41,18 +44,38 @@ export function recipientProblem(email: string, internalDomains: string[], viewe
 }
 
 export function taskProblem(t: CadenceTask, internalDomains: string[]): string | null {
-  if (!Number.isInteger(t.months) || t.months === 0 || Math.abs(t.months) > 12) return "The period must be 1 to 12 months.";
+  if (isFixed(t)) {
+    const p = periodProblem(t.from!, t.to!);
+    if (p) return p;
+  } else if (!Number.isInteger(t.months) || t.months === 0 || Math.abs(t.months) > 12) return "The period must be 1 to 12 months.";
   if (t.note.length > NOTE_MAX) return `The note is longer than ${NOTE_MAX} characters.`;
   return recipientProblem(t.sendTo, internalDomains);
 }
 
+export function isFixed(t: CadenceTask): boolean {
+  return (t.from ?? "") !== "" && (t.to ?? "") !== "";
+}
+
+/** The period a task scans: its fixed dates, or the relative months
+ *  counted from `today` (the day the link is opened). */
+export function taskPeriod(t: CadenceTask, today: string): { from: string; to: string } {
+  if (isFixed(t)) return { from: t.from!, to: t.to! };
+  return t.months < 0 ? { from: addMonths(today, t.months), to: today } : { from: today, to: addMonths(today, t.months) };
+}
+
+/** "the last 3 months" / "2026-10-01 to 2026-10-31". */
+export function taskPeriodText(t: CadenceTask): string {
+  return isFixed(t) ? `${t.from} to ${t.to}` : relativePeriodText(t.months);
+}
+
 /** The launch parameters for a task. */
 export function taskQuery(t: CadenceTask): Record<string, string> {
-  const q: Record<string, string> = {
-    [TASK_PARAMS.tool]: TASK_TOOL,
-    [TASK_PARAMS.months]: String(t.months),
-    [TASK_PARAMS.sendTo]: t.sendTo.trim().toLowerCase(),
-  };
+  const q: Record<string, string> = { [TASK_PARAMS.tool]: TASK_TOOL };
+  if (isFixed(t)) {
+    q[TASK_PARAMS.from] = t.from!;
+    q[TASK_PARAMS.to] = t.to!;
+  } else q[TASK_PARAMS.months] = String(t.months);
+  q[TASK_PARAMS.sendTo] = t.sendTo.trim().toLowerCase();
   if (t.note.trim() !== "") q[TASK_PARAMS.note] = t.note.trim();
   return q;
 }
@@ -89,6 +112,13 @@ export function parseTask(hostParams: Record<string, string>, search: string): C
   if (param(TASK_PARAMS.tool).toLowerCase() !== TASK_TOOL) return null;
   const months = Number(param(TASK_PARAMS.months) || "-1");
   const t: CadenceTask = { months, sendTo: param(TASK_PARAMS.sendTo).toLowerCase(), note: param(TASK_PARAMS.note).slice(0, NOTE_MAX) };
+  const from = param(TASK_PARAMS.from);
+  const to = param(TASK_PARAMS.to);
+  if (from !== "" || to !== "") {
+    t.from = from;
+    t.to = to;
+    if (!isFixed(t)) return null; // one date without the other does not hold together
+  }
   return taskProblem(t, []) === null ? t : null;
 }
 

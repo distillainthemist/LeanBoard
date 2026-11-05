@@ -98,5 +98,7 @@ steps:
 1. On the Cadence start screen, under Task link, pick Last 3 months, enter the colleague's address and a note, press Create link, then Copy link.
 2. Close the player, paste the link into a browser and open it.
 3. Review the meetings, untick one, then press Send to <colleague> and Send.
-expected: step 1 shows an apps.powerapps.com/play link; step 2 opens LeanBoard Utilities straight into Cadence and starts the scan without a press, for the last 3 months ending today; the review shows the task banner with the recipient and the note; nothing is sent until step 3; the email arrives with the note in its body and the unticked meeting absent from the files; returning to the hub and opening Cadence again later is an ordinary visit with no banner
+4. Make a second link with Period "Fixed dates…", From the 1st and To the last day of last month; open it fresh.
+5. Make a link with fixed dates more than 12 months apart, or To before From.
+expected: step 1 shows an apps.powerapps.com/play link; step 4's link carries ufrom and uto and scans exactly those dates (the review's date line names them), whatever day it is opened; step 5 is refused under the fields with the same wording as the start screen and no link is made; step 2 opens LeanBoard Utilities straight into Cadence and starts the scan without a press, for the last 3 months ending today; the review shows the task banner with the recipient and the note; nothing is sent until step 3; the email arrives with the note in its body and the unticked meeting absent from the files; returning to the hub and opening Cadence again later is an ordinary visit with no banner
 

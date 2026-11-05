@@ -171,7 +171,9 @@ in LeanToolKitData.
    Ben: a chat cannot carry a file without storing it in OneDrive.
 3. **Task links.** The start screen's Task link card builds a player URL
    with launch parameters `utool=cadence`, `umonths` (−12…12, relative to
-   the day it is opened), `usendto`, `unote`. `main.ts` reads them from
+   the day it is opened) OR fixed `ufrom` + `uto` (yyyy-mm-dd, both or
+   neither; they win over `umonths`; the screen's 12-month rule applies),
+   `usendto`, `unote`. `main.ts` reads them from
    the host's queryParams (or the page query on mobile) at boot, opens
    Cadence, which scans at once and shows a task banner; the review's
    primary button is "Send to <person>". Sending is still an explicit

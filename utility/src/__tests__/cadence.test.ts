@@ -18,7 +18,7 @@ import {
 } from "../cadence/model";
 import { buildExport, exportJson, exportSheets, CONFIDENTIAL_SUBJECT, type ExportInput } from "../cadence/exportDoc";
 import { readXlsx, writeXlsx } from "../../../shared/export/xlsx";
-import { parseTask, recipientProblem, relativePeriodText, taskLink, taskProblem, summaryHtml, toBase64 } from "../cadence/share";
+import { parseTask, recipientProblem, relativePeriodText, taskLink, taskPeriod, taskPeriodText, taskProblem, summaryHtml, toBase64 } from "../cadence/share";
 
 const DOMAINS = ["pecheydistilling.com"];
 
@@ -279,6 +279,24 @@ describe("task link", () => {
     expect(parseTask({ UTOOL: "Cadence", UMONTHS: "1", USENDTO: "bob@pecheydistilling.com" }, "")).toEqual({ months: 1, sendTo: "bob@pecheydistilling.com", note: "" });
     expect(parseTask({}, "?utool=cadence&umonths=-12&usendto=bob%40pecheydistilling.com")?.months).toBe(-12);
     expect(taskLink(task, null, "http://localhost:5181/index.html#/x")).toBe("http://localhost:5181/index.html?utool=cadence&umonths=-3&usendto=ann%40pecheydistilling.com&unote=Q4+cadence");
+  });
+
+  it("carries fixed dates instead of the relative period when both are set", () => {
+    const fixed = { months: -1, from: "2026-10-01", to: "2026-10-31", sendTo: "ann@pecheydistilling.com", note: "" };
+    const url = taskLink(fixed, host);
+    const q = Object.fromEntries(new URL(url).searchParams);
+    expect(q).toMatchObject({ ufrom: "2026-10-01", uto: "2026-10-31" });
+    expect(q.umonths).toBeUndefined();
+    const back = parseTask(q, "")!;
+    expect(taskPeriod(back, "2026-11-05")).toEqual({ from: "2026-10-01", to: "2026-10-31" });
+    expect(taskPeriodText(back)).toBe("2026-10-01 to 2026-10-31");
+    expect(taskPeriod({ months: -3, sendTo: "a@b.com", note: "" }, "2026-11-05")).toEqual({ from: "2026-08-05", to: "2026-11-05" });
+    expect(taskPeriod({ months: 2, sendTo: "a@b.com", note: "" }, "2026-11-05")).toEqual({ from: "2026-11-05", to: "2027-01-05" });
+    // the screen's rules: one date alone, inverted, or over 12 months is refused
+    expect(parseTask({ utool: "cadence", ufrom: "2026-10-01", usendto: "a@b.com" }, "")).toBeNull();
+    expect(parseTask({ utool: "cadence", ufrom: "2026-10-31", uto: "2026-10-01", usendto: "a@b.com" }, "")).toBeNull();
+    expect(parseTask({ utool: "cadence", ufrom: "2025-01-01", uto: "2026-10-01", usendto: "a@b.com" }, "")).toBeNull();
+    expect(taskProblem({ ...fixed, to: "2026-09-01" }, DOMAINS)).toMatch(/before/);
   });
 
   it("refuses a link that does not hold together", () => {

@@ -11,7 +11,8 @@ import { scanCalendar, ScanCancelled } from "./read";
 import { download } from "../download";
 import {
   recipientProblem,
-  relativePeriodText,
+  taskPeriod,
+  taskPeriodText,
   resultSubject,
   taskLink,
   taskProblem,
@@ -98,11 +99,7 @@ export function mountCadence(host: HTMLElement, back: () => void, hooks: Cadence
 
   let from = addMonths(todayIso(), -1);
   let to = todayIso();
-  if (task) {
-    const t = todayIso();
-    from = task.months < 0 ? addMonths(t, task.months) : t;
-    to = task.months < 0 ? t : addMonths(t, task.months);
-  }
+  if (task) ({ from, to } = taskPeriod(task, todayIso()));
   let state: Reviewed | null = null;
 
   // ---- 1. period ----------------------------------------------------------
@@ -185,7 +182,9 @@ export function mountCadence(host: HTMLElement, back: () => void, hooks: Cadence
   }
 
   // ---- task link ----------------------------------------------------------
-  let linkMonths = -1;
+  let linkMonths = -1; // 0 = fixed dates
+  let linkFrom = addMonths(todayIso(), -1);
+  let linkTo2 = todayIso();
   let linkTo = "";
   let linkNote = "";
   function taskLinkCard(): HTMLElement {
@@ -195,7 +194,7 @@ export function mountCadence(host: HTMLElement, back: () => void, hooks: Cadence
       el(
         "p",
         "u-muted",
-        "Make a link to hand to someone. It opens this tool, scans their calendar for the period you pick (counted from the day they open it), " +
+        "Make a link to hand to someone. It opens this tool, scans their calendar for the period you pick (a relative period counts from the day they open it; fixed dates stay as set), " +
           "and once they have reviewed the meetings, offers to send the result to the person you name: by email, with the JSON and Excel files attached."
       )
     );
@@ -207,6 +206,16 @@ export function mountCadence(host: HTMLElement, back: () => void, hooks: Cadence
       o.selected = v === linkMonths;
       sel.append(o);
     }
+    const fixedOpt = el("option", "", "Fixed dates…") as HTMLOptionElement;
+    fixedOpt.value = "0";
+    fixedOpt.selected = linkMonths === 0;
+    sel.append(fixedOpt);
+    const fromIn = el("input", "u-input") as HTMLInputElement;
+    fromIn.type = "date";
+    fromIn.value = linkFrom;
+    const toDate = el("input", "u-input") as HTMLInputElement;
+    toDate.type = "date";
+    toDate.value = linkTo2;
     const toIn = el("input", "u-input") as HTMLInputElement;
     toIn.type = "email";
     toIn.placeholder = "name@company.com";
@@ -221,7 +230,14 @@ export function mountCadence(host: HTMLElement, back: () => void, hooks: Cadence
       l.append(el("span", "u-muted", text), input);
       return l;
     };
-    fields.append(lab("Period", sel), lab("Send the result to", toIn));
+    const fromLab = lab("From", fromIn);
+    const toLab = lab("To", toDate);
+    const showDates = (): void => {
+      fromLab.hidden = toLab.hidden = sel.value !== "0";
+    };
+    sel.addEventListener("change", showDates);
+    showDates();
+    fields.append(lab("Period", sel), fromLab, toLab, lab("Send the result to", toIn));
     const noteLab = lab("Note shown to them and in the message", noteIn);
     noteLab.classList.add("u-field-wide");
     fields.append(noteLab);
@@ -230,10 +246,13 @@ export function mountCadence(host: HTMLElement, back: () => void, hooks: Cadence
     const out = el("div", "u-linkout");
     make.addEventListener("click", async () => {
       linkMonths = Number(sel.value);
+      linkFrom = fromIn.value;
+      linkTo2 = toDate.value;
       linkTo = toIn.value.trim();
       linkNote = noteIn.value;
       await ready;
-      const t: CadenceTask = { months: linkMonths, sendTo: linkTo, note: linkNote };
+      const t: CadenceTask =
+        linkMonths === 0 ? { months: -1, from: linkFrom, to: linkTo2, sendTo: linkTo, note: linkNote } : { months: linkMonths, sendTo: linkTo, note: linkNote };
       const p = taskProblem(t, internalDomains);
       problem.textContent = p ?? "";
       clear(out);
@@ -252,7 +271,7 @@ export function mountCadence(host: HTMLElement, back: () => void, hooks: Cadence
           () => (said.textContent = "The host refused the clipboard — copy it from the box.")
         ) ?? (said.textContent = "Copy it from the box.");
       });
-      out.append(box, copy, said, el("p", "u-muted", `Whoever opens it scans ${relativePeriodText(linkMonths)} of their own calendar. Nothing is sent until they press Send.`));
+      out.append(box, copy, said, el("p", "u-muted", `Whoever opens it scans their own calendar for ${taskPeriodText(t)}. Nothing is sent until they press Send.`));
     });
     card.append(fields, problem, make, out);
     return card;
