@@ -497,6 +497,14 @@ Version lives in the tag alone — nothing is stamped into files.
   to `shared/export/xlsx.ts`) is SOLUTION-CARRYING: the managed solution
   carries the new app — prod imports it, then shares LeanBoard
   Utilities with its Entra security group. No schema change.
+  v0.90.0 (2026-11-05: Cadence tweaks — no Office 365 Users (the
+  Utilities app asks for the Outlook connection only), the result EMAILED
+  with the JSON and Excel attached (`SendEmailV2`; Teams considered and
+  dropped), task links `utool`/`umonths` or `ufrom`+`uto`/`usendto`/`unote`
+  that open straight into a scan and offer Send after the review; the
+  review's summary tiles and the task banner heading removed) is
+  SOLUTION-CARRYING for the Utilities app only: prod imports the managed
+  solution; the LeanBoard app is unchanged. No schema change.
   Prod imports the managed solution FIRST. LESSON
   (2026-10-13, production's first sync): a sync must
   never run from a walk it cannot trust (budget-cut OR any failed
