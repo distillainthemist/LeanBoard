@@ -100,3 +100,4 @@ body { margin: 0; background: var(--ltk-bg); }
 .u-task p { margin: 4px 0 0; }
 .u-sharepanel:empty { display: none; }
 .u-sharepanel .u-field input { min-width: min(320px, 100%); }
+[hidden] { display: none !important; }
