@@ -15,12 +15,47 @@ interface Tool {
   mount: (host: HTMLElement, back: () => void) => Promise<void>;
 }
 
+// A task link (cadence/share.ts) opens the app with launch parameters.
+// The player's fragment never reaches the app, so they arrive as the
+// host's queryParams (or, on mobile, in the page URL). Read once at boot;
+// kept for a 20 s grace window so a second mount still sees it, then
+// spent so returning to the tool later is an ordinary visit.
+type Task = import("./cadence/share").CadenceTask;
+let pendingTask: Task | null = null;
+let pendingTaskAt = 0;
+const takeTask = (): Task | null => {
+  if (pendingTask && Date.now() - pendingTaskAt < 20000) {
+    const t = pendingTask;
+    pendingTask = null;
+    return t;
+  }
+  pendingTask = null;
+  return null;
+};
+
+async function readLaunch(): Promise<string | null> {
+  const { parseTask } = await import("./cadence/share");
+  let params: Record<string, string> = {};
+  try {
+    const { getContext } = await import("@microsoft/power-apps/app");
+    const ctx = await Promise.race([getContext(), new Promise<never>((_, r) => setTimeout(() => r(new Error("timeout")), 2500))]);
+    params = ctx.app?.queryParams ?? {};
+  } catch {
+    /* dev server: the page query only */
+  }
+  const t = parseTask(params, location.search);
+  if (!t) return null;
+  pendingTask = t;
+  pendingTaskAt = Date.now();
+  return "cadence";
+}
+
 const TOOLS: Tool[] = [
   {
     route: "cadence",
     title: "Cadence Current State",
     blurb: "Scan your Outlook calendar for a period, review every meeting, and export a summary of your meeting cadence for analysis.",
-    mount: async (host, back) => (await import("./cadence/screen")).mountCadence(host, back),
+    mount: async (host, back) => (await import("./cadence/screen")).mountCadence(host, back, { task: takeTask() }),
   },
 ];
 
@@ -65,4 +100,11 @@ async function route(): Promise<void> {
 }
 
 window.addEventListener("hashchange", () => void route());
+// paint at once; a task link then re-routes into its tool
 void route();
+void (async () => {
+  const target = await readLaunch();
+  if (!target) return;
+  if (location.hash !== `#/${target}`) location.hash = `#/${target}`; // hashchange routes
+  else void route();
+})();

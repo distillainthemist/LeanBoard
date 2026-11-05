@@ -2,6 +2,7 @@
 // with a made-up calendar, no connector. Serve with `npx vite` from
 // utility/ and open /harness/cadence.html.
 import "../src/style.css";
+import { parseTask } from "../src/cadence/share";
 import { mountCadence } from "../src/cadence/screen";
 import type { GraphEvent } from "../src/cadence/model";
 
@@ -24,6 +25,13 @@ events.push({ id: "gone", subject: "Cancelled sync", isCancelled: true, start: {
 
 mountCadence(document.getElementById("app")!, () => location.reload(), {
   viewer: { name: "Harness Person", upn: "me@example.com" },
+  // ?utool=cadence&umonths=-3&usendto=boss@example.com plays a task link
+  task: parseTask({}, location.search),
+  mail: async (to, subject, html, files) => {
+    (window as unknown as { sent: unknown[] }).sent = [...((window as unknown as { sent?: unknown[] }).sent ?? []), { to, subject, html, files: files.map((f) => `${f.name} ${f.content.length}`) }];
+    await new Promise((r) => setTimeout(r, 300));
+    return "";
+  },
   scan: async (o) => {
     o.progress("Reading your calendar… 30 meetings so far");
     await new Promise((r) => setTimeout(r, 300));
@@ -33,7 +41,6 @@ mountCadence(document.getElementById("app")!, () => location.reload(), {
         ["OPS", { pattern: { type: "weekly", interval: 1, daysOfWeek: ["tuesday"] }, range: { type: "noEnd" } }],
         ["TIER", { pattern: { type: "weekly", interval: 1, daysOfWeek: ["monday", "tuesday", "wednesday", "thursday", "friday"] }, range: { type: "noEnd" } }],
       ]),
-      people: new Map([["bob@example.com", { jobTitle: "Shift lead", department: "Operations" }]]),
       road: "graph",
       warnings: [],
     };

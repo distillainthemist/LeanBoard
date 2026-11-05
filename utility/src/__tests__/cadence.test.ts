@@ -6,7 +6,6 @@ import {
   groupMeetings,
   htmlToText,
   isInternal,
-  lookupTargets,
   minutesBetween,
   normalise,
   normaliseAll,
@@ -19,6 +18,7 @@ import {
 } from "../cadence/model";
 import { buildExport, exportJson, exportSheets, CONFIDENTIAL_SUBJECT, type ExportInput } from "../cadence/exportDoc";
 import { readXlsx, writeXlsx } from "../../../shared/export/xlsx";
+import { parseTask, recipientProblem, relativePeriodText, taskLink, taskProblem, summaryHtml, toBase64 } from "../cadence/share";
 
 const DOMAINS = ["pecheydistilling.com"];
 
@@ -83,18 +83,15 @@ describe("normalise", () => {
     expect(weekdayOf("2026-11-08")).toBe("Sunday");
   });
 
-  it("lists the organizer once, as organizer, with roles, responses, internal flags and directory details", () => {
-    const people = new Map([["bob@pecheydistilling.com", { jobTitle: "Ops Manager", department: "Operations" }]]);
-    const m = normalise(ev(), { internalDomains: DOMAINS, people });
+  it("lists the organizer once, as organizer, with roles, responses and internal flags — no directory lookup", () => {
+    const m = normalise(ev(), { internalDomains: DOMAINS });
     expect(m.attendees.map((a) => [a.email, a.role, a.response, a.internal])).toEqual([
       ["ann@pecheydistilling.com", "organizer", "organizer", true],
       ["bob@pecheydistilling.com", "required", "accepted", true],
       ["cat@supplier.example", "optional", "tentativelyAccepted", false],
       ["room1@pecheydistilling.com", "resource", "accepted", true],
     ]);
-    expect(m.attendees[1].jobTitle).toBe("Ops Manager");
-    expect(m.attendees[1].department).toBe("Operations");
-    expect(m.attendees[2].jobTitle).toBe("");
+    expect(Object.keys(m.attendees[1]).sort()).toEqual(["email", "internal", "name", "response", "role"]);
   });
 
   it("marks an occurrence recurring and keeps its series key", () => {
@@ -103,8 +100,7 @@ describe("normalise", () => {
     expect(m.seriesKey).toBe("S");
   });
 
-  it("looks up internal people only, never rooms", () => {
-    expect(lookupTargets([ev()], DOMAINS)).toEqual(["ann@pecheydistilling.com", "bob@pecheydistilling.com"]);
+  it("reads internal by the domain and its sub-domains", () => {
     expect(isInternal("x@sub.pecheydistilling.com", DOMAINS)).toBe(true);
     expect(isInternal("x@notpecheydistilling.com", DOMAINS)).toBe(false);
   });
@@ -252,5 +248,63 @@ describe("export", () => {
     expect(flat).not.toContain("secret detail");
     const attendees = back.find((s) => s.name === "Attendees")!;
     expect(attendees.rows.length).toBe(1 + 4 + 4); // header + two exported series occurrences × 4; the masked one has none
+  });
+
+  it("writes the email summary built from the export: figures, series by hours, masking as the file", () => {
+    const html = summaryHtml(buildExport(input()), { note: "For the <ops> review" });
+    expect(html).toContain("from Ben");
+    expect(html).toContain("2026-11-01 to 2026-11-30");
+    expect(html).toContain("3 meetings exported: 1 recurring series and 1 one-off, 2.5 h in all");
+    expect(html).toContain("1 confidential");
+    expect(html).toContain("<td>Weekly ops review</td><td>Weekly on Tue</td><td>2</td><td>1.5</td>");
+    expect(html).toContain("For the &lt;ops&gt; review");
+    expect(html).not.toContain("HR matter");
+    expect(html).not.toContain("secret detail");
+    const masked = summaryHtml(buildExport(input({ confidential: new Set(["s2"]) })));
+    expect(masked).toContain(`<td>${CONFIDENTIAL_SUBJECT}</td>`);
+    expect(masked).not.toContain("Weekly ops review");
+  });
+});
+
+describe("task link", () => {
+  const host = { appId: "app-1", environmentId: "env-1", tenantId: "ten-1" };
+  const task = { months: -3, sendTo: "Ann@PecheyDistilling.com", note: "Q4 cadence" };
+
+  it("builds a player link that parses back to the same task", () => {
+    const url = taskLink(task, host);
+    expect(url.startsWith("https://apps.powerapps.com/play/e/env-1/app/app-1?tenantId=ten-1&")).toBe(true);
+    const q = Object.fromEntries(new URL(url).searchParams);
+    expect(parseTask(q, "")).toEqual({ months: -3, sendTo: "ann@pecheydistilling.com", note: "Q4 cadence" });
+    // case-blind host keys; the page query as the mobile road
+    expect(parseTask({ UTOOL: "Cadence", UMONTHS: "1", USENDTO: "bob@pecheydistilling.com" }, "")).toEqual({ months: 1, sendTo: "bob@pecheydistilling.com", note: "" });
+    expect(parseTask({}, "?utool=cadence&umonths=-12&usendto=bob%40pecheydistilling.com")?.months).toBe(-12);
+    expect(taskLink(task, null, "http://localhost:5181/index.html#/x")).toBe("http://localhost:5181/index.html?utool=cadence&umonths=-3&usendto=ann%40pecheydistilling.com&unote=Q4+cadence");
+  });
+
+  it("refuses a link that does not hold together", () => {
+    expect(parseTask({}, "")).toBeNull();
+    expect(parseTask({ utool: "other", usendto: "a@b.com" }, "")).toBeNull();
+    expect(parseTask({ utool: "cadence", umonths: "13", usendto: "a@b.com" }, "")).toBeNull();
+    expect(parseTask({ utool: "cadence", umonths: "0", usendto: "a@b.com" }, "")).toBeNull();
+    expect(parseTask({ utool: "cadence", usendto: "not-an-email" }, "")).toBeNull();
+    expect(parseTask({ utool: "cadence", usendto: "a@b.com" }, "")?.months).toBe(-1); // default: last month
+  });
+
+  it("sends only to people inside the organisation, and never to yourself", () => {
+    expect(recipientProblem("bob@pecheydistilling.com", DOMAINS, "ben@pecheydistilling.com")).toBeNull();
+    expect(recipientProblem("bob@ops.pecheydistilling.com", DOMAINS)).toBeNull();
+    expect(recipientProblem("cat@supplier.example", DOMAINS)).toMatch(/Only people in/);
+    expect(recipientProblem("Ben@PecheyDistilling.com", DOMAINS, "ben@pecheydistilling.com")).toMatch(/That is you/);
+    expect(recipientProblem("", DOMAINS)).toMatch(/Enter/);
+    expect(taskProblem({ months: -1, sendTo: "bob@pecheydistilling.com", note: "x".repeat(301) }, DOMAINS)).toMatch(/note/);
+    expect(relativePeriodText(-1)).toBe("the last month");
+    expect(relativePeriodText(3)).toBe("the next 3 months");
+  });
+
+  it("encodes attachment bytes as base64, across chunk boundaries", () => {
+    const big = new Uint8Array(70000).map((_, i) => i % 251);
+    const back = Uint8Array.from(atob(toBase64(big)), (c) => c.charCodeAt(0));
+    expect(back).toEqual(big);
+    expect(toBase64(new TextEncoder().encode("{}"))).toBe("e30=");
   });
 });

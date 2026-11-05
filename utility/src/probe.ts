@@ -11,7 +11,6 @@
 //   4. Does @odata.nextLink paging work through the passthrough?
 //   5. Does a series master read give the recurrence pattern?
 //   6. The fallback: what the typed V3 calendar-view action returns.
-//   7. Office 365 Users: job title / department for an internal attendee.
 //
 // Output is STATUS ONLY — counts, field names, enum values, status codes
 // and timings. Never subjects, bodies, names, addresses or ids, so the log
@@ -19,7 +18,6 @@
 
 import { getContext } from "@microsoft/power-apps/app";
 import { Office365OutlookService } from "./generated/services/Office365OutlookService";
-import { Office365UsersService } from "./generated/services/Office365UsersService";
 
 type Log = (line: string) => void;
 
@@ -155,11 +153,10 @@ export async function runCalendarProbe(log: Log): Promise<void> {
     view = await graphGet(`/v1.0${viewPath}`, [tzHeader, textHeader]);
     log(`  relative URI, two Prefer headers: ${view.ok ? "OK" : "FAIL"} (${view.ms} ms)${view.ok ? "" : ` — ${view.why}`}`);
   }
-  let internal: string[] = [];
   if (view.ok) {
     const events = arr(view.body?.value).map(obj);
     log(`  @odata.nextLink present: ${typeof view.body?.["@odata.nextLink"] === "string" ? "yes" : "no"}`);
-    internal = describeEvents(log, events, viewerDomain);
+    describeEvents(log, events, viewerDomain);
     const zones = new Set(events.map((e) => str(obj(e.start).timeZone)));
     const textBodies = events.every((e) => str(obj(e.body).contentType).toLowerCase() !== "html");
     log(`  time zone header honoured: ${events.length === 0 ? "n/a (no events)" : zones.has(tz) && zones.size === 1 ? "yes" : "no"}`);
@@ -240,31 +237,6 @@ export async function runCalendarProbe(log: Log): Promise<void> {
     }
   } catch (e) {
     log(`  threw: ${String(e).slice(0, 300)}`);
-  }
-
-  // ---- 5. people lookup ----------------------------------------------------
-  log("");
-  log("— 5. Office 365 Users: job title and department —");
-  if (internal.length === 0) log("  no internal attendee in the last 7 days — not measurable");
-  else {
-    let found = 0;
-    let title = 0;
-    let dept = 0;
-    const tried = internal.slice(0, 3);
-    const t0 = performance.now();
-    for (const a of tried) {
-      try {
-        const r = (await Office365UsersService.UserProfile_V2(a, "jobTitle,department")) as OpResult;
-        if (r?.success === false) continue;
-        found++;
-        const d = obj(r?.data);
-        if (str(d.jobTitle)) title++;
-        if (str(d.department)) dept++;
-      } catch {
-        /* counted as not found */
-      }
-    }
-    log(`  looked up ${tried.length} · found ${found} · with job title ${title} · with department ${dept} (${Math.round(performance.now() - t0)} ms)`);
   }
 
   // ---- 6. size estimate ------------------------------------------------------

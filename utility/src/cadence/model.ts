@@ -58,11 +58,6 @@ export interface GraphRecurrence {
   };
 }
 
-export interface PersonInfo {
-  jobTitle?: string;
-  department?: string;
-}
-
 // ---- the normalised meeting --------------------------------------------------
 
 export type AttendeeRole = "organizer" | "required" | "optional" | "resource";
@@ -74,8 +69,6 @@ export interface Attendee {
   /** accepted | tentativelyAccepted | declined | notResponded | none | organizer | "" */
   response: string;
   internal: boolean;
-  jobTitle: string;
-  department: string;
 }
 
 export interface Meeting {
@@ -222,16 +215,15 @@ export function isInternal(email: string, internalDomains: string[]): boolean {
 
 const ROLE_OF: Record<string, AttendeeRole> = { required: "required", optional: "optional", resource: "resource" };
 
-function attendeesOf(ev: GraphEvent, internalDomains: string[], people: Map<string, PersonInfo>): Attendee[] {
+function attendeesOf(ev: GraphEvent, internalDomains: string[]): Attendee[] {
   const orgEmail = (ev.organizer?.emailAddress?.address ?? "").toLowerCase();
   const out: Attendee[] = [];
   const seen = new Set<string>();
-  const push = (a: Omit<Attendee, "internal" | "jobTitle" | "department">): void => {
+  const push = (a: Omit<Attendee, "internal">): void => {
     const key = a.email || a.name;
     if (key === "" || seen.has(key)) return;
     seen.add(key);
-    const p = people.get(a.email) ?? {};
-    out.push({ ...a, internal: isInternal(a.email, internalDomains), jobTitle: p.jobTitle ?? "", department: p.department ?? "" });
+    out.push({ ...a, internal: isInternal(a.email, internalDomains) });
   };
   if (orgEmail !== "" || ev.organizer?.emailAddress?.name) {
     push({ name: ev.organizer?.emailAddress?.name ?? "", email: orgEmail, role: "organizer", response: "organizer" });
@@ -249,25 +241,10 @@ function attendeesOf(ev: GraphEvent, internalDomains: string[], people: Map<stri
   return out;
 }
 
-/** The distinct internal people worth a directory lookup (no rooms). */
-export function lookupTargets(events: GraphEvent[], internalDomains: string[]): string[] {
-  const out = new Set<string>();
-  for (const ev of events) {
-    const org = (ev.organizer?.emailAddress?.address ?? "").toLowerCase();
-    if (isInternal(org, internalDomains)) out.add(org);
-    for (const a of ev.attendees ?? []) {
-      const e = (a.emailAddress?.address ?? "").toLowerCase();
-      if ((a.type ?? "").toLowerCase() !== "resource" && isInternal(e, internalDomains)) out.add(e);
-    }
-  }
-  return [...out].sort();
-}
-
 // ---- normalise ------------------------------------------------------------------
 
 export interface NormaliseContext {
   internalDomains: string[];
-  people?: Map<string, PersonInfo>;
 }
 
 export function normalise(ev: GraphEvent, ctx: NormaliseContext): Meeting {
@@ -293,7 +270,7 @@ export function normalise(ev: GraphEvent, ctx: NormaliseContext): Meeting {
     location: (ev.location?.displayName ?? "").trim(),
     onlineProvider: ev.isOnlineMeeting === false ? "" : ev.onlineMeetingProvider && ev.onlineMeetingProvider !== "unknown" ? ev.onlineMeetingProvider : "",
     organizer: { name: ev.organizer?.emailAddress?.name ?? "", email: (ev.organizer?.emailAddress?.address ?? "").toLowerCase() },
-    attendees: attendeesOf(ev, ctx.internalDomains, ctx.people ?? new Map()),
+    attendees: attendeesOf(ev, ctx.internalDomains),
     body: cleanBody(ev.body?.content ?? "", isHtml),
     categories: ev.categories ?? [],
     importance: ev.importance ?? "",

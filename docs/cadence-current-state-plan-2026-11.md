@@ -21,8 +21,9 @@ phases.
 2. **Period**: the user picks from and to; default the last month; at
    most 12 months, either direction.
 3. **Attendee roles**: meeting role (organizer, required, optional,
-   resource) and response; job title and department from Office 365
-   Users; internal or external by tenant domain.
+   resource) and response; internal or external by tenant domain.
+   (Job title and department from Office 365 Users were dropped on
+   2026-11-05 — see "Tweaks" below.)
 4. **Confidential**: sensitivity personal, private and confidential are
    all masked. A masked meeting keeps start, end, duration and
    recurrence; subject reads "Confidential"; everything else is blank.
@@ -37,7 +38,8 @@ phases.
    dictionary); Excel is an option with the same content as sheets.
 
 Nothing is stored server-side. The app's connectors are Office 365
-Outlook and Office 365 Users only — no Dataverse table, no SharePoint.
+Outlook only (Office 365 Users until 2026-11-05) — no Dataverse table,
+no SharePoint, no Teams.
 
 ## Phases
 
@@ -152,3 +154,32 @@ the same for `shared_office365users` in `utility/` (it regenerates
 Hosted checks still Ben's: paging on a busy 12-month calendar, the
 download inside the player, Excel opening the file, and the app listed
 in LeanToolKitData.
+
+## Tweaks (Ben, 2026-11-05)
+
+1. **No role lookups.** The Office 365 Users connector is gone: no job
+   title or department; attendee role and response still come from the
+   calendar. The app now asks for ONE connection, Office 365 Outlook.
+2. **Send the result.** "Send to a colleague…" on the review emails the
+   JSON and Excel files as attachments (`SendEmailV2` through the same
+   Outlook connector, `src/cadence/deliver.ts`), with a summary in the
+   body — period, counts, the recurring series by hours — built from
+   the export document so masking is the files' own
+   (`src/cadence/share.ts`). Sent from the person's mailbox, so Sent
+   Items keeps the record. Recipients must be in the organisation's
+   domain and cannot be the sender. Teams was considered and dropped by
+   Ben: a chat cannot carry a file without storing it in OneDrive.
+3. **Task links.** The start screen's Task link card builds a player URL
+   with launch parameters `utool=cadence`, `umonths` (−12…12, relative to
+   the day it is opened), `usendto`, `unote`. `main.ts` reads them from
+   the host's queryParams (or the page query on mobile) at boot, opens
+   Cadence, which scans at once and shows a task banner; the review's
+   primary button is "Send to <person>". Sending is still an explicit
+   press after the review — the link never sends anything itself. The
+   task is spent after its first mount (20 s grace for a second mount).
+
+UAT: `docs/uat/cadence.md` UAT-CAD-009 (send) and UAT-CAD-010 (task
+link). Hosted checks: attachments arrive and open (base64 through the
+connector), the link's parameters reach the app in the player and on
+mobile.
+

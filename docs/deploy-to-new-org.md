@@ -181,15 +181,14 @@ code app for task-specific tools (first tool: Cadence Current State —
 a person scans their own Outlook calendar, reviews the meetings and
 exports a masked summary as JSON or Excel;
 [cadence-current-state-plan-2026-11.md](cadence-current-state-plan-2026-11.md)).
-It uses the **Office 365 Outlook** and **Office 365 Users** connections
-only, reads no Dataverse table and stores nothing.
+It uses the **Office 365 Outlook** connection only (since 2026-11-05:
+the calendar read and "Send an email (V2)" for sending the result), reads no Dataverse table and stores nothing.
 
 1. Import the managed solution as above — the app comes with it.
 2. **Share LeanBoard Utilities with one Entra security group** (Ben's
    decision: not the whole tenant). It needs no security role of its
    own.
-3. On first open each user allows the Outlook and Office 365 Users
-   connections.
+3. On first open each user allows the Outlook connection.
 4. DLP: the tool reads the calendar through the Outlook connector's
    "Send an HTTP request" action. A policy that blocks that action
    leaves the tool on its fallback (the typed calendar-view action —

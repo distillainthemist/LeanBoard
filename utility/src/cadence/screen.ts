@@ -9,6 +9,20 @@ import { addMonths, groupMeetings, normaliseAll, periodProblem, type Meeting, ty
 import { buildExport, exportJson, exportSheets } from "./exportDoc";
 import { scanCalendar, ScanCancelled } from "./read";
 import { download } from "../download";
+import {
+  recipientProblem,
+  relativePeriodText,
+  resultSubject,
+  taskLink,
+  taskProblem,
+  summaryHtml,
+  toBase64,
+  EMAIL_FILE_LINE,
+  NOTE_MAX,
+  type CadenceTask,
+  type PlayerHost,
+} from "./share";
+import type { MailFile } from "./deliver";
 import { el, clear } from "../dom";
 
 interface Reviewed {
@@ -46,16 +60,25 @@ const plural = (n: number, one: string, many = `${one}s`): string => `${n} ${n =
 export interface CadenceHooks {
   scan?: typeof scanCalendar;
   viewer?: { name: string; upn: string };
+  /** Carriage stubs for the harness: "" = sent, else the reason. */
+  mail?: (email: string, subject: string, html: string, files: MailFile[]) => Promise<string>;
+  /** A task from a task link: scan at once, offer "Send to …" on the review. */
+  task?: CadenceTask | null;
 }
 
 export function mountCadence(host: HTMLElement, back: () => void, hooks: CadenceHooks = {}): void {
   const scan = hooks.scan ?? scanCalendar;
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   let viewerName = "";
+  let viewerEmail = "";
+  let playerHost: PlayerHost | null = null;
   let internalDomains: string[] = [];
+  const task = hooks.task ?? null;
+  const mail = hooks.mail ?? (async (...a: [string, string, string, MailFile[]]) => (await import("./deliver")).sendByEmail(...a));
   const ready = (async () => {
     if (hooks.viewer) {
       viewerName = hooks.viewer.name;
+      viewerEmail = hooks.viewer.upn.toLowerCase();
       internalDomains = [hooks.viewer.upn.split("@")[1]];
       return true;
     }
@@ -63,6 +86,8 @@ export function mountCadence(host: HTMLElement, back: () => void, hooks: Cadence
       const ctx = await Promise.race([getContext(), new Promise<never>((_, r) => setTimeout(() => r(new Error("timeout")), 2500))]);
       const upn = ctx.user?.userPrincipalName ?? "";
       viewerName = ctx.user?.fullName ?? upn;
+      viewerEmail = upn.toLowerCase();
+      playerHost = { appId: ctx.app?.appId ?? "", environmentId: ctx.app?.environmentId ?? "", tenantId: ctx.user?.tenantId ?? "" };
       const domain = upn.includes("@") ? upn.split("@")[1].toLowerCase() : "";
       internalDomains = domain ? [domain] : [];
       return true;
@@ -73,6 +98,11 @@ export function mountCadence(host: HTMLElement, back: () => void, hooks: Cadence
 
   let from = addMonths(todayIso(), -1);
   let to = todayIso();
+  if (task) {
+    const t = todayIso();
+    from = task.months < 0 ? addMonths(t, task.months) : t;
+    to = task.months < 0 ? t : addMonths(t, task.months);
+  }
   let state: Reviewed | null = null;
 
   // ---- 1. period ----------------------------------------------------------
@@ -89,7 +119,7 @@ export function mountCadence(host: HTMLElement, back: () => void, hooks: Cadence
         "p",
         "",
         "Reads the meetings in your own Outlook calendar for the period you choose, so you can review them and export a summary " +
-          "for analysis. Nothing is stored by the app: the export file you download is the only copy."
+          "for analysis. Nothing is stored by the app: the files you download, or email to a colleague, are the only copies."
       ),
       el(
         "p",
@@ -149,9 +179,83 @@ export function mountCadence(host: HTMLElement, back: () => void, hooks: Cadence
     toIn.addEventListener("change", check);
     scan.addEventListener("click", () => void runScan());
     card.append(el("h2", "u-h2", "Period"), presets, fields, problem, el("p", "u-muted", `Times are shown in ${timeZone}. At most 12 months.`), scan);
-    page.append(card);
+    page.append(card, taskLinkCard());
     host.append(page);
     check();
+  }
+
+  // ---- task link ----------------------------------------------------------
+  let linkMonths = -1;
+  let linkTo = "";
+  let linkNote = "";
+  function taskLinkCard(): HTMLElement {
+    const card = el("section", "u-card");
+    card.append(
+      el("h2", "u-h2", "Task link"),
+      el(
+        "p",
+        "u-muted",
+        "Make a link to hand to someone. It opens this tool, scans their calendar for the period you pick (counted from the day they open it), " +
+          "and once they have reviewed the meetings, offers to send the result to the person you name: by email, with the JSON and Excel files attached."
+      )
+    );
+    const fields = el("div", "u-fields");
+    const sel = el("select", "u-input") as HTMLSelectElement;
+    for (const [v, label] of [[-1, "Last month"], [-3, "Last 3 months"], [-6, "Last 6 months"], [-12, "Last 12 months"], [1, "Next month"], [3, "Next 3 months"]] as const) {
+      const o = el("option", "", label) as HTMLOptionElement;
+      o.value = String(v);
+      o.selected = v === linkMonths;
+      sel.append(o);
+    }
+    const toIn = el("input", "u-input") as HTMLInputElement;
+    toIn.type = "email";
+    toIn.placeholder = "name@company.com";
+    toIn.value = linkTo;
+    const noteIn = el("textarea", "u-input u-note") as HTMLTextAreaElement;
+    noteIn.maxLength = NOTE_MAX;
+    noteIn.rows = 2;
+    noteIn.placeholder = "Optional: what the scan is for";
+    noteIn.value = linkNote;
+    const lab = (text: string, input: HTMLElement): HTMLElement => {
+      const l = el("label", "u-field");
+      l.append(el("span", "u-muted", text), input);
+      return l;
+    };
+    fields.append(lab("Period", sel), lab("Send the result to", toIn));
+    const noteLab = lab("Note shown to them and in the message", noteIn);
+    noteLab.classList.add("u-field-wide");
+    fields.append(noteLab);
+    const problem = el("p", "u-problem");
+    const make = el("button", "app-btn app-btn-primary", "Create link");
+    const out = el("div", "u-linkout");
+    make.addEventListener("click", async () => {
+      linkMonths = Number(sel.value);
+      linkTo = toIn.value.trim();
+      linkNote = noteIn.value;
+      await ready;
+      const t: CadenceTask = { months: linkMonths, sendTo: linkTo, note: linkNote };
+      const p = taskProblem(t, internalDomains);
+      problem.textContent = p ?? "";
+      clear(out);
+      if (p) return;
+      const url = taskLink(t, playerHost, window.location.href);
+      const box = el("input", "u-input u-linkbox") as HTMLInputElement;
+      box.readOnly = true;
+      box.value = url;
+      box.addEventListener("focus", () => box.select());
+      const copy = el("button", "app-btn", "Copy link");
+      const said = el("span", "u-muted");
+      copy.addEventListener("click", () => {
+        box.select();
+        navigator.clipboard?.writeText(url).then(
+          () => (said.textContent = "Copied."),
+          () => (said.textContent = "The host refused the clipboard — copy it from the box.")
+        ) ?? (said.textContent = "Copy it from the box.");
+      });
+      out.append(box, copy, said, el("p", "u-muted", `Whoever opens it scans ${relativePeriodText(linkMonths)} of their own calendar. Nothing is sent until they press Send.`));
+    });
+    card.append(fields, problem, make, out);
+    return card;
   }
 
   // ---- 2. scan --------------------------------------------------------------
@@ -187,7 +291,7 @@ export function mountCadence(host: HTMLElement, back: () => void, hooks: Cadence
         progress: (t) => (status.textContent = t),
         cancelled: () => cancelled,
       });
-      const { meetings, excluded } = normaliseAll(r.events, { internalDomains, people: r.people });
+      const { meetings, excluded } = normaliseAll(r.events, { internalDomains });
       const groups = groupMeetings(meetings, r.masters);
       state = {
         groups,
@@ -241,6 +345,13 @@ export function mountCadence(host: HTMLElement, back: () => void, hooks: Cadence
     page.append(head, el("h1", "u-title", "Cadence Current State"));
     page.append(el("p", "u-muted", `${fmtDate(s.period.from)} to ${fmtDate(s.period.to)} · ${timeZone}`));
     for (const w of s.warnings) page.append(el("p", "u-warn", w));
+    if (task) {
+      const b = el("div", "u-task");
+      b.append(el("strong", "", `Task: review, then send the result to ${task.sendTo}`));
+      if (task.note.trim() !== "") b.append(el("p", "", task.note.trim()));
+      b.append(el("p", "u-muted", "Untick anything that should not be counted and flag anything confidential, then press Send at the bottom."));
+      page.append(b);
+    }
 
     const all = s.groups.flatMap((g) => g.meetings);
     const inc = all.filter((m) => s.included.has(m.key));
@@ -319,9 +430,75 @@ export function mountCadence(host: HTMLElement, back: () => void, hooks: Cadence
     json.disabled = xlsx.disabled = inc.length === 0;
     json.addEventListener("click", () => doExport("json"));
     xlsx.addEventListener("click", () => doExport("xlsx"));
-    bar.append(el("span", "u-muted", `${plural(inc.length, "meeting")} will be exported`), json, xlsx);
+    const sendBtn = el("button", task ? "app-btn app-btn-primary" : "app-btn", task ? `Send to ${task.sendTo}` : "Send to a colleague…");
+    sendBtn.disabled = inc.length === 0;
+    if (task) json.className = "app-btn";
+    bar.append(el("span", "u-muted", `${plural(inc.length, "meeting")} will be exported`), json, xlsx, sendBtn);
     page.append(bar);
+    const panel = el("div", "u-sharepanel");
+    page.append(panel);
+    sendBtn.addEventListener("click", () => paintShare(panel, task?.sendTo ?? ""));
     host.append(page);
+  }
+
+  // ---- send to a colleague --------------------------------------------------
+  let lastSentTo = "";
+  function paintShare(panel: HTMLElement, preset: string): void {
+    clear(panel);
+    const card = el("section", "u-card");
+    card.append(
+      el("h2", "u-h2", "Send the result"),
+      el(
+        "p",
+        "u-muted",
+        "Emails the JSON and Excel files from your mailbox (a copy stays in your Sent Items), with a summary: the period, the counts and the " +
+          "recurring series by hours. Confidential meetings appear as Confidential, as in the files."
+      )
+    );
+    const toIn = el("input", "u-input") as HTMLInputElement;
+    toIn.type = "email";
+    toIn.placeholder = "name@company.com";
+    toIn.value = preset || lastSentTo;
+    toIn.readOnly = task !== null;
+    const problem = el("p", "u-problem");
+    const go = el("button", "app-btn app-btn-primary", "Send");
+    const cancel = el("button", "app-btn", "Close");
+    cancel.addEventListener("click", () => clear(panel));
+    go.addEventListener("click", async () => {
+      const email = toIn.value.trim().toLowerCase();
+      const p = recipientProblem(email, internalDomains, viewerEmail);
+      problem.textContent = p ?? "";
+      if (p) return;
+      go.disabled = cancel.disabled = true;
+      go.textContent = "Sending…";
+      const doc = currentDoc();
+      const name = fileBase();
+      const files: MailFile[] = [
+        { name: `${name}.json`, content: toBase64(new TextEncoder().encode(exportJson(doc))) },
+        { name: `${name}.xlsx`, content: toBase64(writeXlsx(exportSheets(doc))) },
+      ];
+      const subject = resultSubject(doc);
+      const mailWhy = await mail(email, subject, summaryHtml(doc, { note: task?.note, fileLine: EMAIL_FILE_LINE }), files);
+      go.disabled = cancel.disabled = false;
+      go.textContent = "Send";
+      if (mailWhy !== "") {
+        problem.textContent = `The email was not sent: ${mailWhy}`;
+        return;
+      }
+      lastSentTo = email;
+      clear(card);
+      card.append(el("h2", "u-h2", "Sent"), el("p", "", `Emailed to ${email} with the JSON and Excel files. A copy is in your Sent Items.`));
+      const close = el("button", "app-btn", "Close");
+      close.addEventListener("click", () => clear(panel));
+      card.append(close);
+    });
+    const l = el("label", "u-field");
+    l.append(el("span", "u-muted", "To"), toIn);
+    const bar = el("div", "u-bar");
+    bar.append(go, cancel);
+    card.append(l, problem, bar);
+    panel.append(card);
+    panel.scrollIntoView?.({ block: "nearest" });
   }
 
   function groupRow(g: MeetingGroup, s: Reviewed): HTMLElement {
@@ -406,10 +583,9 @@ export function mountCadence(host: HTMLElement, back: () => void, hooks: Cadence
     return line;
   }
 
-  function doExport(kind: "json" | "xlsx"): void {
-    const s = state;
-    if (!s) return;
-    const doc = buildExport({
+  function currentDoc(): ReturnType<typeof buildExport> {
+    const s = state!;
+    return buildExport({
       groups: s.groups,
       included: s.included,
       confidential: s.confidential,
@@ -422,10 +598,21 @@ export function mountCadence(host: HTMLElement, back: () => void, hooks: Cadence
       appVersion: __APP_VERSION__,
       road: s.road,
     });
-    const name = `cadence-current-state-${s.period.from}-to-${s.period.to}`;
+  }
+
+  function fileBase(): string {
+    return `cadence-current-state-${state!.period.from}-to-${state!.period.to}`;
+  }
+
+  function doExport(kind: "json" | "xlsx"): void {
+    const s = state;
+    if (!s) return;
+    const doc = currentDoc();
+    const name = fileBase();
     if (kind === "json") download(new TextEncoder().encode(exportJson(doc)), `${name}.json`, "application/json");
     else download(writeXlsx(exportSheets(doc)), `${name}.xlsx`, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
   }
 
-  paintStart();
+  if (task) void runScan();
+  else paintStart();
 }

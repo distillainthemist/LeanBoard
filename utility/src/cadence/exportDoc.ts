@@ -34,8 +34,6 @@ export interface ExportAttendee {
   role: string;
   response: string;
   internal: boolean;
-  jobTitle: string;
-  department: string;
 }
 
 export interface ExportMeeting {
@@ -124,7 +122,6 @@ export const FIELD_DICTIONARY: Record<string, string> = {
   "attendees[].role": "organizer, required, optional or resource (a room or equipment).",
   "attendees[].response": "accepted, tentativelyAccepted, declined, notResponded, none, organizer.",
   "attendees[].internal": "true when the address is in one of about.internalDomains.",
-  "attendees[].jobTitle": "From the directory (Office 365 Users) for internal people; blank where the directory has none.",
   body: "The meeting text as plain text, Teams/Zoom join details removed, full length (the Excel copy is cut at 32,000 characters).",
 };
 
@@ -325,9 +322,9 @@ export function exportSheets(doc: ExportDoc): SheetSpec[] {
   ];
 
   const attendeeRows: CellValue[][] = [
-    ["meetingId", "seriesId", "name", "email", "role", "response", "internal", "jobTitle", "department"],
+    ["meetingId", "seriesId", "name", "email", "role", "response", "internal"],
     ...doc.meetings.flatMap((m) =>
-      m.attendees.map((p): CellValue[] => [m.meetingId, m.seriesId ?? "", p.name, p.email, p.role, p.response, p.internal ? "yes" : "no", p.jobTitle, p.department])
+      m.attendees.map((p): CellValue[] => [m.meetingId, m.seriesId ?? "", p.name, p.email, p.role, p.response, p.internal ? "yes" : "no"])
     ),
   ];
 
@@ -335,6 +332,6 @@ export function exportSheets(doc: ExportDoc): SheetSpec[] {
     { name: "About", rows: aboutRows, colWidths: [24, 110], boldRows: [0, rulesHead, fieldHead] },
     { name: "Series", rows: seriesRows, boldRows: [0], freezeRows: 1, colWidths: [9, 12, 40, 40, 12, 12, 12, 17, 17, 24, 30, 12] },
     { name: "Meetings", rows: meetingRows, boldRows: [0], freezeRows: 1, colWidths: [10, 9, 10, 12, 40, 17, 17, 11, 10, 9, 36, 10, 14, 12, 28, 16, 24, 30, 10, 10, 10, 16, 10, 80] },
-    { name: "Attendees", rows: attendeeRows, boldRows: [0], freezeRows: 1, colWidths: [10, 9, 28, 34, 11, 18, 9, 28, 24] },
+    { name: "Attendees", rows: attendeeRows, boldRows: [0], freezeRows: 1, colWidths: [10, 9, 28, 34, 11, 18, 9] },
   ];
 }

@@ -4,21 +4,18 @@
 //    /me/calendarView is refused by the connector;
 //  · ONE combined Prefer header, or the time zone is ignored;
 //  · series masters by /me/events/{id} for the recurrence pattern;
-//  · Office 365 Users for job title / department, a few in flight;
 //  · the typed GetEventsCalendarViewV3 action when the passthrough is
 //    refused (a DLP policy can block HTTP actions) — less detail.
 // Nothing is stored: the result lives in the screen until it is left.
 
 import { Office365OutlookService } from "../generated/services/Office365OutlookService";
-import { Office365UsersService } from "../generated/services/Office365UsersService";
 import type { GraphCalendarEventClientReceive } from "../generated/models/Office365OutlookModel";
-import { lookupTargets, type GraphEvent, type GraphRecurrence, type PersonInfo } from "./model";
+import type { GraphEvent, GraphRecurrence } from "./model";
 
 const GRAPH = "https://graph.microsoft.com/v1.0";
 const PAGE = 100;
 const MAX_PAGES = 400; // 40,000 events — far past a year of anyone's calendar
 const IN_FLIGHT = 4;
-const MAX_PEOPLE = 500;
 
 const SELECT = [
   "id", "subject", "start", "end", "isAllDay", "type", "seriesMasterId", "sensitivity", "showAs", "isCancelled",
@@ -45,7 +42,6 @@ export interface ScanOptions {
 export interface ScanResult {
   events: GraphEvent[];
   masters: Map<string, GraphRecurrence>;
-  people: Map<string, PersonInfo>;
   road: "graph" | "typed";
   warnings: string[];
 }
@@ -220,29 +216,5 @@ export async function scanCalendar(o: ScanOptions): Promise<ScanResult> {
     if (failed > 0) warnings.push(`${failed} recurring series could not be read; they show as "Recurring" without a pattern.`);
   }
 
-  // directory: job title and department for internal people
-  const people = new Map<string, PersonInfo>();
-  const targets = lookupTargets(events, o.internalDomains);
-  if (targets.length > MAX_PEOPLE) warnings.push(`Job titles were looked up for the first ${MAX_PEOPLE} of ${targets.length} internal people.`);
-  const list = targets.slice(0, MAX_PEOPLE);
-  let looked = 0;
-  await pool(
-    list,
-    IN_FLIGHT,
-    async (email) => {
-      try {
-        const r = (await Office365UsersService.UserProfile_V2(email, "jobTitle,department")) as OpResult;
-        if (r?.success !== false) {
-          const d = (r?.data ?? {}) as { jobTitle?: string; department?: string };
-          people.set(email, { jobTitle: d.jobTitle ?? "", department: d.department ?? "" });
-        }
-      } catch {
-        /* left blank */
-      }
-      o.progress(`Looking up job titles… ${++looked} of ${list.length}`);
-    },
-    o.cancelled
-  );
-
-  return { events, masters, people, road, warnings };
+  return { events, masters, road, warnings };
 }

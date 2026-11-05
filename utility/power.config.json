@@ -9,14 +9,6 @@
   "localAppUrl": "http://localhost:3000",
   "logoPath": "Default",
   "connectionReferences": {
-    "f5b90a89-996d-404d-ab48-55d98a05be7c": {
-      "id": "/providers/Microsoft.PowerApps/apis/shared_office365users",
-      "displayName": "Office 365 Users",
-      "dataSources": [
-        "office365users"
-      ],
-      "dataSets": {}
-    },
     "30b27643-ebc5-45f4-953d-61a274806174": {
       "id": "/providers/Microsoft.PowerApps/apis/shared_office365",
       "displayName": "Office 365 Outlook",

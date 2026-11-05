@@ -33,8 +33,10 @@ holds task-specific tools in the same LeanToolKitData solution; its
 first tool, **Cadence Current State**, reads the user's own calendar and
 exports a reviewed, confidentiality-masked summary
 ([cadence-current-state-plan-2026-11.md](cadence-current-state-plan-2026-11.md);
-Phase 0 = a calendar probe). It uses Office 365 Outlook and Office 365
-Users only, stores nothing, and is shared with one security group.
+Phase 0 = a calendar probe). It uses the Office 365 Outlook connection
+only (the calendar read and, since 2026-11-05, emailing the result with
+the files attached — a task link can name the recipient), stores
+nothing, and is shared with one security group.
 
 Plus cross-cutting features: Teams/Outlook notifications, an in-app
 issue/idea reporting system with triage, **UAT in the app** (test
@@ -1133,8 +1135,9 @@ conditional access all apply. The important roads:
 | Office 365 Groups (`shared_office365groups`) | `Office365GroupsService` | Graph passthrough (`HttpRequestV2`) for Entra group membership: pool checks, controller checks, member/owner add/remove |
 | Office 365 Users (`shared_office365users`) | `Office365UsersService` | people search for pickers, profiles, and the direct-manager lookup behind confidential actions (app-wide, not docs-only) |
 
-The utility app (`utility/`) carries its own copies of the Outlook and
-Office 365 Users services and reads the calendar through the Outlook
+The utility app (`utility/`) carries its own copy of the Outlook
+service only (no directory lookups since 2026-11-05; the result is
+sent with `SendEmailV2` and attachments) and reads the calendar through the Outlook
 connector's Graph passthrough (`HttpRequest`, `/me/calendar/...`), with
 the typed calendar-view action as the fallback if DLP blocks the HTTP
 action.
