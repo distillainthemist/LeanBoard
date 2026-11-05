@@ -3167,9 +3167,9 @@
         "Open LeanBoard Utilities from Power Apps; allow the Office 365 Outlook connection (the only one it asks for).",
         "Open Cadence Current State; leave the period at its default; press Scan my calendar."
        ],
-       "expected": "the period defaults to the last month ending today; the scan shows a spinner with a running count and a Cancel button; the review lists the month's meetings with recurring series first, then one-offs by date; the summary shows meetings found, series and one-offs, ticked, hours a week and confidential counts; times read in the tester's own time zone, which the start screen names",
-       "hash": "1adeab04",
-       "changed": "2026-11-03"
+       "expected": "the period defaults to the last month ending today; the scan shows a spinner with a running count and a Cancel button; the review lists the month's meetings with recurring series first, then one-offs by date; the summary shows meetings found, series and one-offs, hours a week and confidential counts (the ticked count is on the export bar); times read in the tester's own time zone, which the start screen names",
+       "hash": "b51f6002",
+       "changed": "2026-11-05"
       },
       {
        "id": "UAT-CAD-002",

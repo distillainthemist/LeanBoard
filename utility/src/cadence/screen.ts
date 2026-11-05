@@ -386,7 +386,6 @@ export function mountCadence(host: HTMLElement, back: () => void, hooks: Cadence
     };
     stat(String(all.length), "meetings found");
     stat(`${seriesN} · ${oneOffN}`, "series · one-offs");
-    stat(String(inc.length), "ticked to export");
     stat(fmtHours(minutes / weeks), "a week, ticked");
     stat(String(inc.filter((m) => s.confidential.has(m.key)).length), "confidential");
     page.append(summary);
