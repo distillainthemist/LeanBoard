@@ -11,7 +11,7 @@ preconditions: the tester has never opened LeanBoard Utilities; their calendar h
 steps:
 1. Open LeanBoard Utilities from Power Apps; allow the Office 365 Outlook connection (the only one it asks for).
 2. Open Cadence Current State; leave the period at its default; press Scan my calendar.
-expected: the period defaults to the last month ending today; the scan shows a spinner with a running count and a Cancel button; the review lists the month's meetings with recurring series first, then one-offs by date; the summary shows meetings found, series and one-offs, hours a week and confidential counts (the ticked count is on the export bar); times read in the tester's own time zone, which the start screen names
+expected: the period defaults to the last month ending today; the scan shows a spinner with a running count and a Cancel button; the review lists the month's meetings with recurring series first, then one-offs by date; there is no row of summary tiles (the export bar reads the ticked count); times read in the tester's own time zone, which the start screen names
 
 ### UAT-CAD-002 — The period runs up to 12 months, back or forward
 persona: user

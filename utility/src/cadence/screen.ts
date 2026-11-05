@@ -374,21 +374,6 @@ export function mountCadence(host: HTMLElement, back: () => void, hooks: Cadence
 
     const all = s.groups.flatMap((g) => g.meetings);
     const inc = all.filter((m) => s.included.has(m.key));
-    const minutes = inc.reduce((a, m) => a + m.durationMinutes, 0);
-    const weeks = Math.max(1, (localMidnight(s.period.to, 1).getTime() - localMidnight(s.period.from).getTime()) / (7 * 86400000));
-    const seriesN = s.groups.filter((g) => g.kind === "series").length;
-    const oneOffN = s.groups.length - seriesN;
-    const summary = el("div", "u-summary");
-    const stat = (n: string, label: string): void => {
-      const b = el("div", "u-stat");
-      b.append(el("strong", "", n), el("span", "u-muted", label));
-      summary.append(b);
-    };
-    stat(String(all.length), "meetings found");
-    stat(`${seriesN} · ${oneOffN}`, "series · one-offs");
-    stat(fmtHours(minutes / weeks), "a week, ticked");
-    stat(String(inc.filter((m) => s.confidential.has(m.key)).length), "confidential");
-    page.append(summary);
     const dropped = s.excluded.cancelled + s.excluded.declined;
     if (dropped > 0) page.append(el("p", "u-muted", `Left out: ${plural(s.excluded.cancelled, "cancelled meeting")} and ${plural(s.excluded.declined, "declined meeting")}.`));
 

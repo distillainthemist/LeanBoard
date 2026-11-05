@@ -62,9 +62,6 @@ body { margin: 0; background: var(--ltk-bg); }
 .u-warn { background: var(--u-warn); border-radius: 6px; padding: 8px 12px; font-size: 13px; }
 .u-spinner { width: 24px; height: 24px; border: 3px solid var(--ltk-hairline); border-top-color: var(--ltk-accent); border-radius: 50%; animation: u-spin 0.9s linear infinite; }
 @keyframes u-spin { to { transform: rotate(360deg); } }
-.u-summary { display: flex; gap: 12px; flex-wrap: wrap; margin: 12px 0; }
-.u-stat { display: flex; flex-direction: column; padding: 8px 12px; border: 1px solid var(--ltk-hairline); border-radius: 8px; min-width: 110px; }
-.u-stat strong { font-size: 18px; }
 .u-chips { display: flex; gap: 6px; flex-wrap: wrap; }
 .u-chip { font-size: 13px; padding: 3px 10px; border-radius: 999px; }
 .u-chip.is-on { background: var(--u-on); border-color: var(--ltk-accent); }
@@ -87,7 +84,6 @@ body { margin: 0; background: var(--ltk-bg); }
   .u-line { flex-wrap: wrap; row-gap: 6px; }
   .u-main { flex: 1 1 calc(100% - 42px); }
   .u-conf { margin-left: 30px; }
-  .u-stat { min-width: 0; flex: 1 1 40%; }
 }
 
 /* task link and Teams share (2026-11-05) */
