@@ -366,7 +366,6 @@ export function mountCadence(host: HTMLElement, back: () => void, hooks: Cadence
     for (const w of s.warnings) page.append(el("p", "u-warn", w));
     if (task) {
       const b = el("div", "u-task");
-      b.append(el("strong", "", `Task: review, then send the result to ${task.sendTo}`));
       if (task.note.trim() !== "") b.append(el("p", "", task.note.trim()));
       b.append(el("p", "u-muted", "Untick anything that should not be counted and flag anything confidential, then press Send at the bottom."));
       page.append(b);

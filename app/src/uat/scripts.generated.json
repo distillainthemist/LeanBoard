@@ -3347,8 +3347,8 @@
         "Make a second link with Period \"Fixed dates…\", From the 1st and To the last day of last month; open it fresh.",
         "Make a link with fixed dates more than 12 months apart, or To before From."
        ],
-       "expected": "step 1 shows an apps.powerapps.com/play link; step 4's link carries ufrom and uto and scans exactly those dates (the review's date line names them), whatever day it is opened; step 5 is refused under the fields with the same wording as the start screen and no link is made; step 2 opens LeanBoard Utilities straight into Cadence and starts the scan without a press, for the last 3 months ending today; the review shows the task banner with the recipient and the note; nothing is sent until step 3; the email arrives with the note in its body and the unticked meeting absent from the files; returning to the hub and opening Cadence again later is an ordinary visit with no banner",
-       "hash": "050365fb",
+       "expected": "step 1 shows an apps.powerapps.com/play link; step 4's link carries ufrom and uto and scans exactly those dates (the review's date line names them), whatever day it is opened; step 5 is refused under the fields with the same wording as the start screen and no link is made; step 2 opens LeanBoard Utilities straight into Cadence and starts the scan without a press, for the last 3 months ending today; the review shows the task banner with the note (no \"Task: … send to\" heading; the recipient is named on the Send button); nothing is sent until step 3; the email arrives with the note in its body and the unticked meeting absent from the files; returning to the hub and opening Cadence again later is an ordinary visit with no banner",
+       "hash": "3bb2bcb4",
        "changed": "2026-11-05"
       }
      ]
