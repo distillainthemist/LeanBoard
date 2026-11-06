@@ -568,7 +568,10 @@ export function priorityDialog(o: PriorityDialogOpts): Promise<PriorityDialogRes
       planned.appendChild(opt);
     }
 
-    // primary initiative (initiatives arrive with P5)
+    // primary initiative — read-only here; a NEW priority has no
+    // Initiatives tab yet, so the row is left out until the priority
+    // exists (Ben, 2026-11-06: "None yet" read as a demand on Add)
+    const isNew = (p.rowId ?? "") === "";
     const primary = el("div", "app-cp-muted", o.primaryInitiativeLabel !== "" ? `★ ${o.primaryInitiativeLabel}` : "None yet — star one on the priority's Initiatives tab.");
 
     // cascade to — children and peers, clearly separated (Ben, 2026-08-19)
@@ -591,7 +594,7 @@ export function priorityDialog(o: PriorityDialogOpts): Promise<PriorityDialogRes
       field("Owner", ownerRow),
       field("Start period", period),
       field("Planned end", planned, "Optional. Still open past it, the priority asks for a review — it never closes on its own."),
-      field("Primary initiative", primary),
+      ...(isNew ? [] : [field("Primary initiative", primary)]),
       field("Cascade to", cascadeBox, "Child orgs and peers. Each receives it as a request to accept."),
       confirm,
       field("Notes", notes)
