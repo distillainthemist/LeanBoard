@@ -650,9 +650,8 @@ export function pullFromAbove(ctx: LifecycleCtx, org: OrgRef, opts: { onNew?: ()
     opts.onNew ? "Add priority" : `Pull a priority to ${orgName(org)}`,
     customise
       ? `Active priorities set above ${orgName(org)}. Adopt one as-is, or adopt and customise its wording for this org — either way it stays linked to its parent.`
-      : `Active priorities set above ${orgName(org)}. Cascades to this level are adopted as-is (the site's customisation setting).`,
-    true
-  );
+      : `Active priorities set above ${orgName(org)}. Cascades to this level are adopted as-is (the site's customisation setting).`
+  ); // the narrow box, like New priority — the dialog keeps one size whichever face shows (Ben, 2026-11-06)
   if (opts.onNew) {
     const onNew = opts.onNew;
     m.body.appendChild(
