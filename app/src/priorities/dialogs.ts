@@ -499,9 +499,12 @@ export interface PriorityDialogOpts {
 
 /** The Pull / New toggle at the head of Add priority (both faces). */
 export function addModeToggle(mode: "pull" | "new", onChange: (m: "pull" | "new") => void): HTMLElement {
-  const row = el("div", "app-cp-addmode");
+  // one joined segmented control, the Documents tab's List | Tiles shape
+  // (accent fill on the chosen side), not two separate chips (Ben,
+  // 2026-11-06)
+  const row = el("div", "app-docs-seg app-cp-addmode");
   const mk = (label: string, m: "pull" | "new") => {
-    const b = el("button", "app-cp-reason" + (mode === m ? " app-cp-reason-on" : ""), label) as HTMLButtonElement;
+    const b = el("button", "app-docs-segbtn" + (mode === m ? " app-docs-segbtn-on" : ""), label) as HTMLButtonElement;
     b.type = "button";
     b.setAttribute("aria-pressed", mode === m ? "true" : "false");
     b.addEventListener("click", () => {
