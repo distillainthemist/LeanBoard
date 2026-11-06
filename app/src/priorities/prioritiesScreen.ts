@@ -743,7 +743,7 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       if (canManage() && ctx.canCustomise(state.org)) {
         const add = el("button", "app-btn app-btn-primary app-cp-tvbtn", "＋ Priority") as HTMLButtonElement;
         add.type = "button";
-        add.addEventListener("click", () => openAddMenu(add));
+        add.addEventListener("click", () => openAddMenu());
         bar.appendChild(add);
       } else if (canManage()) {
         const note = el("span", "app-cp-floor-note", "Adopts priorities from above");
@@ -871,7 +871,7 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       if (canManage() && ctx.canCustomise(state.org)) {
         const add = el("button", "app-btn app-btn-primary", "＋ Priority") as HTMLButtonElement;
         add.type = "button";
-        add.addEventListener("click", () => openAddMenu(add));
+        add.addEventListener("click", () => openAddMenu());
         acts.appendChild(add);
       } else if (canManage() && orgLevel(state.org) !== "company") {
         // below the customisation floor a pull adopts as-is only
@@ -1611,38 +1611,15 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
 
     const actor = () => ({ whoId: viewer.whoId, who: me?.who ?? who?.name ?? "" });
 
-    /** ＋ Priority (issue round 2026-11-06): a new priority, or a pull
-     *  of one set above (adopted as-is or customised). The company has
-     *  nothing above it — the button goes straight to a new one. */
-    const openAddMenu = (anchor: HTMLElement) => {
+    /** ＋ Priority (Ben, 2026-11-06): ONE dialog with a Pull from above /
+     *  New priority toggle — pull by default below the company; the
+     *  company has nothing above it and goes straight to a new one. */
+    const openAddMenu = () => {
       if (orgLevel(state.org) === "company") {
         void addPriority();
         return;
       }
-      document.querySelectorAll(".app-cp-menu").forEach((m) => m.remove());
-      const menu = el("div", "app-cp-menu");
-      const item = (label: string, run: () => void) => {
-        const b = el("button", "app-cp-menu-item", label) as HTMLButtonElement;
-        b.type = "button";
-        b.addEventListener("click", () => {
-          menu.remove();
-          run();
-        });
-        menu.appendChild(b);
-      };
-      item("New priority…", () => void addPriority());
-      item("Pull from above…", () => pullFromAbove(ctx, state.org));
-      const r = anchor.getBoundingClientRect();
-      menu.style.top = `${r.bottom + 4}px`;
-      menu.style.left = `${Math.min(r.left, window.innerWidth - 240)}px`;
-      document.body.appendChild(menu);
-      const off = (e: PointerEvent) => {
-        if (!menu.contains(e.target as Node)) {
-          menu.remove();
-          document.removeEventListener("pointerdown", off, true);
-        }
-      };
-      setTimeout(() => document.addEventListener("pointerdown", off, true), 0);
+      pullFromAbove(ctx, state.org, { onNew: () => void addPriority(true) });
     };
     const pullButton = (cls: string): HTMLButtonElement => {
       const b = el("button", cls, "＋ Pull from above") as HTMLButtonElement;
@@ -1652,7 +1629,7 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       return b;
     };
 
-    const addPriority = async () => {
+    const addPriority = async (withToggle = false) => {
       const draft = newPriority(state.org, state.period !== "" ? state.period : currentPeriod);
       // the org's owner by default; the person adding it when none is set
       const defaultOwner = ownerFor(state.org) ?? (me ? { whoId: me.whoId, who: me.who } : null);
@@ -1674,6 +1651,7 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
         alreadyCascaded: [],
         primaryInitiativeLabel: "",
         ownerPicker: ownerPickerFor(state.org),
+        onPull: withToggle ? () => openAddMenu() : undefined,
       });
       if (!r) return;
       r.priority.rowId = await savePriority(r.priority, data);

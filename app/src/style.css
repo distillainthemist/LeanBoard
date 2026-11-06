@@ -3579,6 +3579,8 @@ textarea.app-cp-statement { font-size: 14px; font-weight: 500; }
   color: #26241f;
 }
 .app-cp-reason-on { background: #26241f; color: #fff; border-color: #26241f; }
+/* Add priority's Pull from above / New priority toggle (2026-11-06) */
+.app-cp-addmode { display: flex; gap: 8px; margin-bottom: 12px; }
 .app-cp-review { display: flex; flex-direction: column; gap: 8px; max-height: 65vh; overflow: auto; }
 .app-cp-review-row { display: flex; flex-direction: column; gap: 10px; border: 1px solid #ece8e0; border-radius: 8px; padding: 12px 14px; }
 .app-cp-review-main { min-width: 0; }

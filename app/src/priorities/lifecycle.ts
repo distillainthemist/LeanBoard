@@ -21,7 +21,7 @@ import {
   newPriority,
   relinkParent,
 } from "../store/priorities";
-import { modal, field, OrgTree, childOrgs, priorityDialog, cascadeTargetList, CascadeTarget } from "./dialogs";
+import { addModeToggle, modal, field, OrgTree, childOrgs, priorityDialog, cascadeTargetList, CascadeTarget } from "./dialogs";
 import { rememberBoardOrigin } from "../improvement/boardOrigin";
 import { promptConfirm } from "../prompts";
 import {
@@ -641,18 +641,27 @@ async function recordAccepted(ctx: LifecycleCtx, org: OrgRef, p: Priority, a: Pr
  * receiving org's own decision is recorded and the sender sees it in its
  * Cascade tab and history.
  */
-export function pullFromAbove(ctx: LifecycleCtx, org: OrgRef): void {
+export function pullFromAbove(ctx: LifecycleCtx, org: OrgRef, opts: { onNew?: () => void } = {}): void {
   const data = ctx.data();
   const cands = pullCandidates(org, data.priorities, data.assignments);
   const customise = ctx.canCustomise(org);
   const m = modal(
     ctx.host,
-    `Pull a priority to ${orgName(org)}`,
+    opts.onNew ? "Add priority" : `Pull a priority to ${orgName(org)}`,
     customise
-      ? "Active priorities set above this org. Adopt one as-is, or customise its wording for this org — either way it stays linked to its parent."
-      : "Active priorities set above this org. Cascades to this level are adopted as-is (the site's customisation setting).",
+      ? `Active priorities set above ${orgName(org)}. Adopt one as-is, or adopt and customise its wording for this org — either way it stays linked to its parent.`
+      : `Active priorities set above ${orgName(org)}. Cascades to this level are adopted as-is (the site's customisation setting).`,
     true
   );
+  if (opts.onNew) {
+    const onNew = opts.onNew;
+    m.body.appendChild(
+      addModeToggle("pull", () => {
+        m.close();
+        onNew();
+      })
+    );
+  }
   let chosen: Priority | null = null;
   const search = el("input", "app-input") as HTMLInputElement;
   search.type = "search";
@@ -660,8 +669,9 @@ export function pullFromAbove(ctx: LifecycleCtx, org: OrgRef): void {
   search.setAttribute("aria-label", "Search priorities");
   const list = el("div", "app-cp-cascade");
   m.body.append(search, list);
-  const adopt = btn("Adopt as-is", customise ? "app-btn" : "app-btn app-btn-primary");
-  const custom = btn("Customise…", "app-btn app-btn-primary");
+  // Adopt as-is is the primary (Ben, 2026-11-06)
+  const adopt = btn("Adopt as-is", "app-btn app-btn-primary");
+  const custom = btn("Adopt & customise…", "app-btn");
   const draw = () => {
     clear(list);
     const q = search.value.trim().toLowerCase();
@@ -706,9 +716,9 @@ export function pullFromAbove(ctx: LifecycleCtx, org: OrgRef): void {
     const p = chosen;
     if (!p) return;
     m.close();
-    void customiseInto(ctx, org, p, null, `Pull & customise — from ${orgName(p.org)}`);
+    void customiseInto(ctx, org, p, null, `Adopt & customise — from ${orgName(p.org)}`);
   });
-  if (customise) m.footer.append(cancel, adopt, custom);
+  if (customise) m.footer.append(cancel, custom, adopt);
   else m.footer.append(cancel, adopt);
 }
 

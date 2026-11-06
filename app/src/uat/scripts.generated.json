@@ -2989,13 +2989,14 @@
        ],
        "preconditions": "a department you own under a site with three active site priorities; one already adopted by the department; the site's customisation floor allows the department to customise",
        "steps": [
-        "On the department, press ＋ Priority; read the menu; choose Pull from above…; read the list.",
+        "On the department, press ＋ Priority; read the dialog's head and its list; switch the toggle to New priority and back.",
         "Pick a site priority; press Adopt as-is; read the department's matrix and the priority's Cascade tab and History.",
-        "＋ Priority → Pull from above… again; pick another; press Customise…; change the wording; save.",
+        "＋ Priority again; pick another; press Adopt & customise…; change the wording; save.",
+        "On the company, press ＋ Priority.",
         "Set the site's customisation floor so the department adopts as-is; open the department again."
        ],
-       "expected": "step 1 the menu offers New priority… and Pull from above…; the list shows the site's and the company's active priorities nearest first, never a peer department's, and not the one already adopted; step 2 the priority shows on the department's matrix (adopted), the site priority's Cascade tab lists \"↓ <department> ✓\" and History reads \"<department> pulled it and adopted it as-is\"; step 3 the department has its own priority with the new wording, its Cascade tab reads \"↑ <site> (customised from)\" and the parent lists the department as customised; step 4 the toolbar shows \"Adopts priorities from above\" with a \"＋ Pull from above\" button whose dialog offers Adopt as-is only",
-       "hash": "e5add644",
+       "expected": "step 1 one Add priority dialog opens on Pull from above (a Pull from above / New priority toggle at its head; New priority shows the usual form with the same toggle, and Pull brings the list back); Adopt as-is is the primary button; the list shows the site's and the company's active priorities nearest first, never a peer department's, and not the one already adopted; step 2 the priority shows on the department's matrix (adopted), the site priority's Cascade tab lists \"↓ <department> ✓\" and History reads \"<department> pulled it and adopted it as-is\"; step 3 the department has its own priority with the new wording, its Cascade tab reads \"↑ <site> (customised from)\" and the parent lists the department as customised; step 4 the toolbar shows \"Adopts priorities from above\" with a \"＋ Pull from above\" button whose dialog offers Adopt as-is only; step 5 the company's ＋ Priority opens the new-priority form directly with no toggle",
+       "hash": "f58b2019",
        "changed": "2026-11-06"
       },
       {
