@@ -64,6 +64,9 @@ export interface SchedulerConfig {
   checkIns?: DaySession[];
   /** What the day's own (first) session is called, "" = nothing. */
   timeLabel?: string;
+  /** Fortnightly only: the interval in weeks, 2–12 (issue round
+   *  2026-11-06, #1 — "every 4 weeks"). Absent = 2, a plain fortnight. */
+  intervalWeeks?: number;
 }
 
 /** A further session on a day: when, and what it is called. */
@@ -153,6 +156,24 @@ export function parseCategory(raw: string | null | undefined): Category {
     "annually", "quarterly", "monthly", "fortnightly", "weekly", "daily", "shiftly",
   ];
   return (all as string[]).includes(t) ? (t as Category) : "daily";
+}
+
+/** A fortnightly cadence's interval in weeks: a whole number 2–12,
+ *  anything else (absent, blank, out of range) = 2. */
+export function parseIntervalWeeks(raw: unknown): number {
+  const n = typeof raw === "number" ? raw : Number(String(raw ?? "").trim());
+  if (!Number.isFinite(n) || String(raw ?? "").trim() === "") return 2;
+  return Math.max(2, Math.min(12, Math.round(n)));
+}
+
+/** A cadence's name for people: "Fortnightly", "Every 4 weeks", "Weekly". */
+export function cadenceLabel(category: string, intervalWeeks?: unknown): string {
+  if (category === "fortnightly") {
+    const n = parseIntervalWeeks(intervalWeeks);
+    return n === 2 ? "Fortnightly" : `Every ${n} weeks`;
+  }
+  if (category === "shiftly") return "Shiftly";
+  return category === "" ? "" : category.charAt(0).toUpperCase() + category.slice(1);
 }
 
 /** "Mon,Tue" / "1,2" / JSON array → sorted unique day indices (0=Sun). */
@@ -609,11 +630,13 @@ function recurrenceDates(cfg: SchedulerConfig, from: Date, to: Date): Date[] {
   }
 
   if (cfg.category === "fortnightly") {
-    // weeks with the same parity as the base date's week
+    // every Nth week counted from the base date's week (N = 2: the same
+    // parity — a plain fortnight)
+    const every = parseIntervalWeeks(cfg.intervalWeeks);
     for (let d = new Date(from.getTime()); d <= to; d = new Date(d.getTime() + DAY_MS)) {
       if (!cfg.daysOfWeek.includes(d.getDay())) continue;
       const weeks = Math.floor(daysBetween(base, d) / 7);
-      if (mod(weeks, 2) === 0) out.push(new Date(d.getTime()));
+      if (mod(weeks, every) === 0) out.push(new Date(d.getTime()));
     }
     return out;
   }
@@ -840,6 +863,7 @@ export function cadenceFromConfig(
     weekTimes: parseWeekTimes(Array.isArray(config.weekTimes) ? JSON.stringify(config.weekTimes) : s("weekTimes")),
     checkIns: parseCheckIns(Array.isArray(config.checkIns) ? JSON.stringify(config.checkIns) : s("checkIns")),
     timeLabel: s("timeLabel").trim(),
+    intervalWeeks: parseIntervalWeeks(config.intervalWeeks),
   };
 }
 

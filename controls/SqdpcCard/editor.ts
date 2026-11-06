@@ -58,6 +58,7 @@ export class SqdpcEditor {
   private dimensions: string[] = DEFAULT_DIMENSIONS.slice();
   private subtitles: string[] = [];
   private codes: StatusCode[] = DEFAULT_CODES.slice();
+  private legendEl: HTMLElement | null = null;
   private readonly snapshots: SnapshotScheduler;
   private resizeObserver: ResizeObserver | null = null;
 
@@ -204,6 +205,11 @@ export class SqdpcEditor {
     // (design review Phase 3.4)
     const counts = this.monthCounts();
     const legend = el("div", "ltk-sq-legend");
+    // a rating's definition, when written, sits under its entry — always
+    // shown, so the board reads what each colour means (issue round
+    // 2026-11-06, #4: the HSE cross)
+    const defined = this.codes.some((c) => (c.definition ?? "") !== "");
+    if (defined) legend.classList.add("ltk-sq-legend-defs");
     for (const code of this.codes) {
       const item = el("span", "ltk-sq-legend-item");
       const swatch = el("span", "ltk-sq-swatch");
@@ -211,7 +217,12 @@ export class SqdpcEditor {
       item.appendChild(swatch);
       const label = code.icon !== "" ? `${code.icon} ${code.label}` : code.label;
       item.appendChild(el("span", undefined, `${label} · ${counts.byCode[code.code] ?? 0}`));
-      legend.appendChild(item);
+      if (defined) {
+        const entry = el("span", "ltk-sq-legend-entry");
+        entry.appendChild(item);
+        if ((code.definition ?? "") !== "") entry.appendChild(el("span", "ltk-sq-legend-def", code.definition));
+        legend.appendChild(entry);
+      } else legend.appendChild(item);
     }
     if (counts.unrated > 0) {
       const none = el("span", "ltk-sq-legend-item ltk-sq-legend-none");
@@ -231,6 +242,7 @@ export class SqdpcEditor {
       );
     }
     body.appendChild(legend);
+    this.legendEl = legend;
 
     this.applyTileSize();
   }
@@ -302,7 +314,8 @@ export class SqdpcEditor {
     const tile0 = this.root.closest(".ltk-tile") !== null; // a tile hides the title bar
     const chromeH =
       (this.cardTitle.trim() !== "" && !tile0 ? 36 : 6) + // titlebar
-      42 + // legend
+      // the legend: one line, or its real height once definitions wrap
+      Math.max(42, (this.legendEl?.offsetHeight ?? 0) + 16) +
       (hasCaption ? 26 : 0) + // subtitle band + margin
       18; // body padding + gaps
     const availH = h - chromeH;

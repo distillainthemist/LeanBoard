@@ -55,6 +55,17 @@ describe("SQDPC settings reach the card", () => {
     expect(parseStatusCodes(cfgStr(config, "statusCodes"))).toEqual(DEFAULT_CODES);
   });
 
+  it("a status code's definition is kept, and a blank one dropped", () => {
+    const codes = parseStatusCodes(
+      JSON.stringify([
+        { code: "ok", label: "OK", definition: "  No incident  " },
+        { code: "lti", label: "LTI", definition: "   " },
+      ])
+    );
+    expect(codes[0].definition).toBe("No incident");
+    expect("definition" in codes[1]).toBe(false);
+  });
+
   it("subtitles are applied per dimension", () => {
     expect(parseSubtitles(cfgRaw(config, "subtitles"), ["S", "Q", "D"])).toEqual([
       "Safety",

@@ -110,4 +110,8 @@ export const SQDPC_CSS = `
   border-radius: 3px;
 }
 .ltk-sq-legend-hint { margin-left: auto; }
+/* definitions under each entry (issue round 2026-11-06, #4) */
+.ltk-sq-legend-defs { align-items: flex-start; }
+.ltk-sq-legend-entry { display: inline-flex; flex-direction: column; gap: 2px; max-width: 280px; }
+.ltk-sq-legend-def { font-size: 12px; line-height: 1.35; color: var(--ltk-fg); padding-left: 16px; }
 `;

@@ -18,7 +18,9 @@ import { parsePrompts, Prompts, renderTitleBar } from "../../shared/ui/chrome";
 import { OrgSite } from "../../shared/schema/meeting";
 import { Person } from "../../shared/schema/people";
 import {
+  CADENCE_CHOICES,
   CADENCES,
+  cadenceChoice,
   csvItems,
   csvJoin,
   emptyDraft,
@@ -27,9 +29,11 @@ import {
   isAnchored,
   isRostered,
   isSingleDay,
+  NWEEKS,
   WEEKDAYS,
   WizardDraft,
 } from "./types";
+import { cadenceLabel, parseIntervalWeeks } from "../../shared/schema/recurrence";
 import { WIZARD_CSS } from "./styles";
 
 export interface MeetingWizardCallbacks {
@@ -826,12 +830,33 @@ export class MeetingWizardView {
     body.appendChild(
       this.row(
         "Cadence",
-        this.selectInput(d.category, CADENCES, (v) => {
-          d.category = v;
+        this.selectInput(cadenceChoice(d.category, d.intervalWeeks), CADENCE_CHOICES, (v) => {
+          if (v === NWEEKS) {
+            d.category = "fortnightly";
+            if (d.intervalWeeks <= 2) d.intervalWeeks = 4;
+          } else {
+            d.category = v;
+            d.intervalWeeks = 2;
+          }
           this.render(); // weekday / roster visibility follows
         })
       )
     );
+    if (cadenceChoice(d.category, d.intervalWeeks) === NWEEKS) {
+      const n = this.textInput(
+        String(d.intervalWeeks),
+        (v) => {
+          // 2 is a fortnight: the picker turns back to Fortnightly on the next paint
+          d.intervalWeeks = parseIntervalWeeks(v);
+        },
+        "4",
+        "number"
+      );
+      n.min = "2";
+      n.max = "12";
+      n.step = "1";
+      body.appendChild(this.row("Every … weeks", n, "2 to 12 — the meeting runs on its day every this many weeks, counted from the first occurrence."));
+    }
     // rostered cadences pick one of the site's configured rosters here
     if (isRostered(d.category)) this.renderRosterPick(body);
     if (hasWeekdays(d.category)) {
@@ -875,7 +900,9 @@ export class MeetingWizardView {
           "First occurrence",
           this.textInput(d.baseStartDate, (v) => (d.baseStartDate = v), "", "date"),
           d.category === "fortnightly"
-            ? "Anchors which alternating week — occurrences fall in the same week as this date, every second week."
+            ? d.intervalWeeks > 2
+              ? `Anchors the count — occurrences fall in the same week as this date, then every ${d.intervalWeeks} weeks.`
+              : "Anchors which alternating week — occurrences fall in the same week as this date, every second week."
             : "The recurrence projects forward from this date — e.g. its 2nd Tuesday repeats every " +
                 (d.category === "monthly" ? "month." : d.category === "quarterly" ? "quarter." : "year.")
         )
@@ -1370,7 +1397,7 @@ export class MeetingWizardView {
     );
     if (d.alsoOrgs.length > 0) add("Also shown in", d.alsoOrgs.map((o) => [o.site, o.department, o.area].filter((v) => v !== "").join(" / ")).join(" · "));
     if (d.processNodeId !== "") add("Process", processPathLabel(this.processTree, d.processNodeId, d.org.site) || d.processNodeId);
-    add("Cadence", CADENCES.find((c) => c.value === d.category)?.label ?? d.category);
+    add("Cadence", d.category === "fortnightly" ? cadenceLabel(d.category, d.intervalWeeks) : (CADENCES.find((c) => c.value === d.category)?.label ?? d.category));
     if (hasWeekdays(d.category)) {
       add(
         isSingleDay(d.category) ? "Day" : "Days",

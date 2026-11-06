@@ -31,6 +31,9 @@ export interface StatusCode {
   label: string;
   color: string;
   icon: string;
+  /** What the rating means ("Red — a recordable injury"), shown under its
+   *  legend entry; absent = none (issue round 2026-11-06, #4). */
+  definition?: string;
 }
 
 export const DEFAULT_CODES: StatusCode[] = [
@@ -97,7 +100,7 @@ export function parseDimensions(raw: string | null | undefined): string[] {
 
 /**
  * Parse the statusCodes input: a JSON array of up to four
- * {code?, label, color?, icon?} entries (or a CSV of labels). Colours are
+ * {code?, label, color?, icon?, definition?} entries (or a CSV of labels). Colours are
  * validated; anything unparseable falls back to the palette slot.
  */
 export function parseStatusCodes(raw: string | null | undefined): StatusCode[] {
@@ -139,11 +142,13 @@ export function parseStatusCodes(raw: string | null | undefined): StatusCode[] {
       typeof o.color === "string" && parseColor(o.color) !== null
         ? o.color
         : CODE_FALLBACK_COLOURS[out.length];
+    const definition = typeof o.definition === "string" ? o.definition.trim() : "";
     out.push({
       code,
       label: label !== "" ? label : code,
       color: colour,
       icon: typeof o.icon === "string" ? o.icon : "",
+      ...(definition !== "" ? { definition } : {}),
     });
   }
   return out.length > 0 ? out : DEFAULT_CODES.slice();
