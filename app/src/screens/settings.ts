@@ -21,7 +21,7 @@ import { clear, el } from "../../../shared/ui/dom";
 import { draggableRow } from "../../../shared/ui/dragList";
 import { statusChip } from "../../../shared/ui/format";
 import { boardHash, boardUrl } from "../links";
-import { bootFail } from "../loading";
+import { bootFail, showLoading } from "../loading";
 import { setLeaveGuard } from "../navGuard";
 import { confirmRemoval, promptConfirm, promptText, promptUnsaved } from "../prompts";
 import { currentViewer, detectHost } from "../runtime";
@@ -259,8 +259,7 @@ export function mountSettings(parent: HTMLElement, initialTab = ""): () => void 
     discardBtn.addEventListener("click", () => {
       void (async () => {
         resetDirty();
-        clear(body);
-        await tabByKey(current).render();
+        await mountTab(current);
       })();
     });
 
@@ -275,16 +274,16 @@ export function mountSettings(parent: HTMLElement, initialTab = ""): () => void 
     };
 
     const isAdmin = me.role === "superadmin" || me.role === "siteadmin";
-    const tabs: { key: string; label: string; render: () => Promise<void> }[] = [
-      { key: "profile", label: "My profile", render: () => renderProfile(body, me, ctx) },
+    const tabs: { key: string; label: string; render: (pane: HTMLElement, ctx: DirtyCtx) => Promise<void> }[] = [
+      { key: "profile", label: "My profile", render: (pane, ctx) => renderProfile(pane, me, ctx) },
     ];
     // Rituals comes second, ahead of the admin tabs: it is the one everybody
     // uses (the tab scopes itself by role — site admins see their site's,
     // users see the rituals they own)
-    tabs.push({ key: "boards", label: "Rituals", render: () => renderBoardsAdmin(body, me) });
+    tabs.push({ key: "boards", label: "Rituals", render: (pane) => renderBoardsAdmin(pane, me) });
     if (isAdmin) {
-      tabs.push({ key: "users", label: "Users", render: () => renderUsers(body, me) });
-      tabs.push({ key: "org", label: "Organisation", render: () => renderOrg(body, me, ctx) });
+      tabs.push({ key: "users", label: "Users", render: (pane) => renderUsers(pane, me) });
+      tabs.push({ key: "org", label: "Organisation", render: (pane, ctx) => renderOrg(pane, me, ctx) });
       // the process model (term-store-proposal §6), after Organisation (Ben,
       // 2026-10-12): super admins edit it; a site admin sees their site's
       // type and sets the site's local names (the tab hides below when the
@@ -292,24 +291,24 @@ export function mountSettings(parent: HTMLElement, initialTab = ""): () => void 
       tabs.push({
         key: "processes",
         label: "Process",
-        render: async () => {
+        render: async (pane) => {
           const { renderProcessesSettings } = await import("../processes/settingsTab");
-          await renderProcessesSettings(body, { me });
+          await renderProcessesSettings(pane, { me });
         },
       });
       tabs.push({
         key: "cadence",
         label: "Site cadence",
-        render: () => renderSiteCadence(body, me, ctx),
+        render: (pane, ctx) => renderSiteCadence(pane, me, ctx),
       });
       tabs.push({
         key: "health",
         label: "Health checks",
         // maturity health checks (health-checks-proposal-2026-10.md):
         // criteria per module, the site's switches, recent checks
-        render: async () => {
+        render: async (pane, ctx) => {
           const { renderHealthSettings } = await import("../health/settingsTab");
-          await renderHealthSettings(body, me, ctx);
+          await renderHealthSettings(pane, me, ctx);
         },
       });
     }
@@ -319,43 +318,43 @@ export function mountSettings(parent: HTMLElement, initialTab = ""): () => void 
       tabs.push({
         key: "priorities",
         label: "Priorities",
-        render: async () => {
+        render: async (pane, ctx) => {
           const { renderPrioritiesSettings } = await import("../priorities/settingsTab");
-          await renderPrioritiesSettings(body, me, ctx);
+          await renderPrioritiesSettings(pane, me, ctx);
         },
       });
       tabs.push({
         key: "improvement",
         label: "Improvement",
         // initiative templates (design review 11a) — lazy, like Priorities
-        render: async () => {
+        render: async (pane) => {
           const { renderImprovementSettings } = await import("../improvement/templateWizard");
-          await renderImprovementSettings(body, true);
+          await renderImprovementSettings(pane, true);
         },
       });
       tabs.push({
         key: "valuedrivers",
         label: "Value drivers",
         // the site's driver tree (P9b) — lazy like Improvement
-        render: async () => {
+        render: async (pane) => {
           const { renderValueDriversSettings } = await import("../improvement/vdt/settingsTab");
-          await renderValueDriversSettings(body);
+          await renderValueDriversSettings(pane);
         },
       });
       tabs.push({
         key: "access",
         label: "Access control",
-        render: () => renderAccessControl(body, me),
+        render: (pane) => renderAccessControl(pane, me),
       });
-      tabs.push({ key: "brand", label: "Branding", render: () => renderBranding(body, ctx) });
+      tabs.push({ key: "brand", label: "Branding", render: (pane, ctx) => renderBranding(pane, ctx) });
       tabs.push({
         key: "documents",
         label: "Documents",
         // dynamic import ONLY — the import gate fails the build if a
         // static chain from here ever reaches the SharePoint service
-        render: async () => {
+        render: async (pane, ctx) => {
           const { renderDocsSettings } = await import("../docs/settingsTab");
-          await renderDocsSettings(body, ctx);
+          await renderDocsSettings(pane, ctx);
         },
       });
       tabs.push({
@@ -363,9 +362,9 @@ export function mountSettings(parent: HTMLElement, initialTab = ""): () => void 
         label: "UAT",
         // UAT runs (uat-proposal-2026-10.md): pick components and people,
         // watch progress, close, export — super admins
-        render: async () => {
+        render: async (pane) => {
           const { renderUatSettings } = await import("../uat/settingsTab");
-          await renderUatSettings(body);
+          await renderUatSettings(pane);
         },
       });
       tabs.push({
@@ -373,19 +372,51 @@ export function mountSettings(parent: HTMLElement, initialTab = ""): () => void 
         label: "Issues",
         // the ⚐ Report triage desk (issues plan I2) — superadmin only,
         // by Ben's 2026-08-12 call
-        render: async () => {
+        render: async (pane) => {
           const { renderIssuesAdmin } = await import("../issues/adminTab");
-          await renderIssuesAdmin(body);
+          await renderIssuesAdmin(pane);
         },
       });
     }
     if (!isAdmin) {
-      tabs.push({ key: "request", label: "Request admin", render: () => renderRequest(body, me) });
+      tabs.push({ key: "request", label: "Request admin", render: (pane) => renderRequest(pane, me) });
     }
     const tabByKey = (key: string) => tabs.find((t) => t.key === key) ?? tabs[0];
 
     // deep-link support (#/settings/boards lands on the Rituals tab)
     let current = tabs.some((t) => t.key === initialTab) ? initialTab : tabs[0].key;
+    // Each tab renders into its OWN pane, under a spinner, and a mount is
+    // numbered: a tab left while its data was still loading used to
+    // finish later and land its sections on top of the tab now showing
+    // (Ben, 2026-11-06). A superseded render now writes into a detached
+    // pane and its dirty / save registrations are ignored.
+    let mountGen = 0;
+    const ctxFor = (gen: number): DirtyCtx => ({
+      ...ctx,
+      markDirty: () => {
+        if (gen === mountGen) ctx.markDirty();
+      },
+      markClean: () => {
+        if (gen === mountGen) ctx.markClean();
+      },
+      registerSave: (fn) => {
+        if (gen === mountGen) ctx.registerSave(fn);
+      },
+    });
+    const mountTab = async (key: string) => {
+      const gen = ++mountGen;
+      sectionStrip.reset(); // the old tab's lifted tools go with its body
+      clear(body);
+      const pane = el("div", "app-settings-pane");
+      const stop = showLoading(body, false, true);
+      body.appendChild(pane);
+      try {
+        await tabByKey(key).render(pane, ctxFor(gen));
+      } finally {
+        if (gen === mountGen) stop();
+      }
+      if (gen === mountGen) sectionStrip.refresh();
+    };
     const switchTo = async (key: string) => {
       if (key === current) return;
       if (dirty) {
@@ -396,10 +427,7 @@ export function mountSettings(parent: HTMLElement, initialTab = ""): () => void 
       resetDirty();
       current = key;
       renderTabs();
-      sectionStrip.reset(); // the old tab's lifted tools go with its body
-      clear(body);
-      await tabByKey(key).render();
-      sectionStrip.refresh();
+      await mountTab(key);
     };
     const renderTabs = () => {
       // inline "" lets the phone media rule show it; none hides it there too
@@ -415,8 +443,7 @@ export function mountSettings(parent: HTMLElement, initialTab = ""): () => void 
       paintSaveBar();
     };
     renderTabs();
-    await tabByKey(current).render();
-    sectionStrip.refresh();
+    await mountTab(current);
 
     // leaving the whole Settings screen (header links, any route change)
     // goes through the same save/discard prompt as a tab switch

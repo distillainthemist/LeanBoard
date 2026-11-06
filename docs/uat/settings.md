@@ -105,3 +105,26 @@ steps:
 4. Untick one person, change another's department, tick the other-site person; press "Add n".
 5. Run the import again for the same site.
 expected: step 1 the chip reads the site owner with "site owner", a searched person can be added and removed; step 2 the line counts people, managers and levels; step 3 the counts add up to the total, people under a department owner carry that department (an area owner's team carries the area too), the directory label fills gaps blind to case, disabled / guest / no-mailbox / office-elsewhere accounts are unticked with a red or amber chip and hidden until the toggle, the other-site person is unticked with an "on <site>" chip; step 4 the ticked people appear on Users as users of the site with the chosen departments, the moved person now shows the new site, the result names the access group's members added; step 5 everyone just added reads "already here" and the button is disabled with 0 to add
+
+## Journey 6 — A slow connection
+
+### UAT-SET-010 — The host is slow to answer at boot
+persona: user
+modules: runtime.ts screens/hub.ts loading.ts
+preconditions: the hosted app on a slow connection (throttle the browser's network to "Slow 3G" in its developer tools, or open the app over a poor mobile link)
+steps:
+1. Open the app; watch the loading spinner.
+2. With the network throttled hard enough that the host never answers (offline for the first 20 seconds), open the app again; read the message.
+3. Restore the connection; close and reopen the app.
+expected: step 1 the spinner stays while the app asks the host again (three tries, each wait longer than the last, about 17 seconds in all) and My day opens with the real data — never the "Demo mode" note or demo rituals and people; step 2 a note reads that Power Apps did not answer after three tries and to close and reopen the app or refresh the browser, with no reload button; step 3 the app opens normally
+
+### UAT-SET-011 — Switching Settings tabs while one is still loading
+persona: superadmin
+modules: screens/settings.ts loading.ts
+preconditions: a roster and organisation big enough that Users and Organisation take a moment to load (or the network throttled)
+steps:
+1. Settings → Users; before it has painted, click Organisation; then Branding.
+2. Wait for Branding to paint; scroll the whole page.
+3. Back on Organisation, change a name, then switch to Users before saving; answer the unsaved-changes prompt.
+expected: each tab shows a spinner until its own sections arrive; step 2 the page holds Branding's sections only — nothing from Users or Organisation lands on it, and the section strip's pills name Branding's sections; step 3 the unsaved-changes prompt belongs to the tab you were on, and Users opens clean after Discard
+
