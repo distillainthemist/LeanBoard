@@ -353,6 +353,28 @@ model section) — the canvas/PCF sections there are historical.
   removed, `linked` / `unlinked` events on both rows. Clearing a lookup
   on update sends `null` (undefined is stripped and the old reference
   stays).
+- **Who manages an org, and pulling from above** (2026-11-06,
+  [issues-plan-2026-11-06.md](issues-plan-2026-11-06.md)).
+  `canManageOrg` is the one rule: a super admin; a site admin in their
+  site; an owner of the org or of any org above it (Settings →
+  Organisation) — **or a direct report of such an owner** (the viewer's
+  directory manager, `managerOf` on Office 365 Users; a failed lookup
+  leaves owner-only rights). **Initiatives link only to priorities at an
+  org the person manages, or adopted at one** (`canLinkInitiative`):
+  the overlay's Add initiative, the initiative form's picker and the
+  two link writers (`createInitiative`, Edit details) ask it through
+  `store/linkRule.ts`; links already on an initiative stay
+  (`refusedNewLinks` refuses only new ones). Upward linking ended — a
+  priority from above is **pulled** first: ＋ Priority → Pull from
+  above (`pullFromAbove`, `pullCandidates`: active priorities strictly
+  above, never peers) adopts it as-is or customises it (the same
+  assignment shapes as Accept / Accept & customise, recorded by the
+  receiving org; below the site's customisation floor, adopt only). An
+  adopted priority's overlay gives the adopting org's managers
+  **Customise** (its own linked row — renamed by Edit, unlinked from the
+  Cascade tab) and **Drop** (the assignment declined with a reason the
+  sender sees). Events `pulled` / `dropped`. Confidential-initiative
+  visibility still follows ownership only (`ownedOrgKeys`).
 - **A priority's owner** (2026-10-02): a new priority defaults to the
   org's owner from organisation settings (an area takes its
   department's; the first listed), the person adding it only when none
@@ -1134,7 +1156,7 @@ conditional access all apply. The important roads:
 | Microsoft Teams (`shared_teams`) | `MicrosoftTeamsService` | notifications: CreateChat + adaptive card (plain-message fallback); sender = the acting user (self-chats refused by the connector) |
 | Office 365 Outlook (`shared_office365`) | `Office365OutlookService` | e-mail alternative for notifications (SendEmailV2) |
 | Office 365 Groups (`shared_office365groups`) | `Office365GroupsService` | Graph passthrough (`HttpRequestV2`) for Entra group membership: pool checks, controller checks, member/owner add/remove |
-| Office 365 Users (`shared_office365users`) | `Office365UsersService` | people search for pickers, profiles, and the direct-manager lookup behind confidential actions (app-wide, not docs-only) |
+| Office 365 Users (`shared_office365users`) | `Office365UsersService` | people search for pickers, profiles, and the direct-manager lookup behind confidential actions and org management (an owner's direct reports manage the org, 2026-11-06) (app-wide, not docs-only) |
 
 The utility app (`utility/`) carries its own copy of the Outlook
 service only (no directory lookups since 2026-11-05; the result is

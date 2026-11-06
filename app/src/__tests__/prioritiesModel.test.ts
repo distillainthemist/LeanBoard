@@ -477,3 +477,66 @@ describe("pickerSections (the link picker's own-org-first, searchable shape)", (
     expect(r.above).toEqual([]);
   });
 });
+
+// issue round 2026-11-06 (#2): direct reports, the link rule, pulling
+describe("direct reports, the link rule and pulling (2026-11-06)", () => {
+  const owners = {
+    [orgKey(co)]: [{ whoId: "ceo", who: "CEO" }],
+    [orgKey(site)]: [{ whoId: "gm", who: "GM" }],
+    [orgKey(dept)]: [{ whoId: "dm", who: "Dept mgr" }],
+  };
+  const user = (whoId: string, managerId = "") => ({ whoId, role: "user" as const, site: "", managerId });
+
+  it("a direct report of an org's owner manages it, and what lies beneath", async () => {
+    expect(canManageOrg(user("ea", "gm"), site, owners)).toBe(true);
+    expect(canManageOrg(user("ea", "gm"), area, owners)).toBe(true);
+    expect(canManageOrg(user("ea", "gm"), co, owners)).toBe(false);
+    // a report once removed (manager is the GM, not the CEO) has no say at the company
+    expect(canManageOrg(user("mark", "dm"), co, owners)).toBe(false);
+    expect(canManageOrg(user("mark", "dm"), dept, owners)).toBe(true);
+    // no manager known = owner-only
+    expect(canManageOrg(user("ea"), site, owners)).toBe(false);
+    // an empty owner id never matches an empty manager
+    expect(canManageOrg(user("x", ""), dept, { [orgKey(dept)]: [{ whoId: "", who: "" }] })).toBe(false);
+  });
+
+  it("initiatives link only to priorities at an org the person manages, or adopted at one", async () => {
+    const m = await import("../priorities/model");
+    const coP = pr("CoP", co);
+    const deptP = pr("DeptP", dept);
+    const viewer = user("dm");
+    expect(m.canLinkInitiative(viewer, deptP, owners, [])).toBe(true);
+    expect(m.canLinkInitiative(viewer, coP, owners, [])).toBe(false);
+    // adopted as-is at the department: linkable there
+    expect(m.canLinkInitiative(viewer, coP, owners, [asg("a1", "CoP", dept, "accepted")])).toBe(true);
+    // still pending, or customised into a child row: the parent is not linkable
+    expect(m.canLinkInitiative(viewer, coP, owners, [asg("a1", "CoP", dept, "proposed")])).toBe(false);
+    expect(m.canLinkInitiative(viewer, coP, owners, [asg("a1", "CoP", dept, "accepted", "Child")])).toBe(false);
+  });
+
+  it("an edit keeps the links it had and refuses only the new ones", async () => {
+    const m = await import("../priorities/model");
+    const may = (id: string) => id === "ok";
+    expect(m.refusedNewLinks(["up"], ["up", "ok"], may)).toEqual([]);
+    expect(m.refusedNewLinks([], ["up", "ok"], may)).toEqual(["up"]);
+    expect(m.refusedNewLinks(["up"], [], may)).toEqual([]);
+  });
+
+  it("pull candidates: active priorities above, nearest first, not peers, not already here", async () => {
+    const m = await import("../priorities/model");
+    const otherDept = orgRef("Pechey", "Bendigo", "Warehouse");
+    const all = [
+      pr("CoP", co),
+      pr("SiteP", site),
+      pr("SiteDone", site, { status: "completed" }),
+      pr("Peer", otherDept),
+      pr("Own", dept),
+      pr("Adopted", site),
+      pr("Customised", site),
+      pr("Kid", dept, { parentId: "Customised" }),
+      pr("Dropped", co),
+    ];
+    const assignments = [asg("a1", "Adopted", dept, "accepted"), asg("a2", "Dropped", dept, "rejected")];
+    expect(m.pullCandidates(dept, all, assignments).map((p) => p.id)).toEqual(["SiteP", "CoP", "Dropped"]);
+  });
+});

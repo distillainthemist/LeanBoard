@@ -33,6 +33,7 @@ import {
   orgPath,
   parentCandidates,
   priorityLiveIn,
+  pullCandidates,
   orgKey,
   orgName,
   orgParent,
@@ -60,6 +61,10 @@ export interface LifecycleCtx {
   palette: Record<string, string>;
   actor: () => { whoId: string; who: string };
   canManage: (org: OrgRef) => boolean;
+  /** May the viewer hang an initiative under this priority? The one rule
+   *  (`canLinkInitiative`, issue round 2026-11-06): a priority at an org
+   *  they manage, or adopted at one. */
+  canLink: (p: Priority) => boolean;
   /** Site setting: may this org "Accept & customise" (vs adopt as-is)? */
   canCustomise: (org: OrgRef) => boolean;
   ownerNameFor: (org: OrgRef) => string;
@@ -555,51 +560,182 @@ export function renderReviewList(ctx: LifecycleCtx, org: OrgRef, list: HTMLEleme
   };
 
   const acceptCustomised = async (a: PriorityAssignment, p: Priority) => {
-    const data = ctx.data();
-    const draft = newPriority(org, p.period);
-    draft.statement = p.statement;
-    draft.pillarId = p.pillarId;
-    draft.parentId = p.id;
-    // the receiving org's owner by default, else whoever accepts
-    const owner = ctx.ownerFor(org) ?? ctx.actor();
-    draft.ownerId = owner.whoId;
-    draft.ownerName = owner.who;
-    draft.order = data.priorities.filter((x) => orgKey(x.org) === orgKey(org) && x.pillarId === p.pillarId).length + 1;
-    const r = await priorityDialog({
-      host: ctx.host,
-      title: `Accept & customise — from ${orgName(p.org)}`,
-      priority: draft,
-      pillars: data.pillars,
-      periods: ctx.periodsOnOffer(),
-      roster: ctx.roster,
-      cascadeTargets: childOrgs(ctx.tree, org).map((o) => ({ org: o, ownerName: ctx.ownerNameFor(o), kind: "child" as const })),
-      alreadyCascaded: [],
-      primaryInitiativeLabel: "",
-      ownerPicker: ctx.ownerPickerFor(org),
-    });
-    if (!r) return;
-    r.priority.rowId = await savePriority(r.priority, data);
-    data.priorities.push(r.priority);
-    await appendEvent(r.priority, "created", { statement: r.priority.statement, customisedFrom: p.id }, ctx.actor());
-    await decideAssignment(a, "accepted", "", ctx.actor(), r.priority.id, data);
-    await appendEvent(p, "customised", { org: orgName(org), child: r.priority.id, statement: r.priority.statement }, ctx.actor());
-    for (const o of r.cascadeTo) {
-      await saveAssignment(
-        { id: "", priorityId: r.priority.id, org: o, status: "proposed", reason: "", decidedById: "", decidedByName: "", decidedAt: "", childPriorityId: "" },
-        data
-      );
-    }
-    if (r.cascadeTo.length > 0) await appendEvent(r.priority, "cascaded", { to: r.cascadeTo.map(orgName) }, ctx.actor());
-    await ctx.changed();
-    paint();
+    if (await customiseInto(ctx, org, p, a, `Accept & customise — from ${orgName(p.org)}`)) paint();
   };
 
   paint();
 }
 
+// ---- customise / pull / drop (issue round 2026-11-06, #2) -------------------------
+
+/** The org's own customised child of `p`: the priority dialog prefilled
+ *  from it, then the assignment (p × org) recorded as accepted with the
+ *  child — the existing one when there is one, a new one otherwise (a
+ *  pull, or customising a priority adopted as-is). True when saved. */
+export async function customiseInto(
+  ctx: LifecycleCtx,
+  org: OrgRef,
+  p: Priority,
+  a: PriorityAssignment | null,
+  title: string
+): Promise<boolean> {
+  const data = ctx.data();
+  const draft = newPriority(org, p.period);
+  draft.statement = p.statement;
+  draft.pillarId = p.pillarId;
+  draft.parentId = p.id;
+  // the receiving org's owner by default, else whoever accepts
+  const owner = ctx.ownerFor(org) ?? ctx.actor();
+  draft.ownerId = owner.whoId;
+  draft.ownerName = owner.who;
+  draft.order = data.priorities.filter((x) => orgKey(x.org) === orgKey(org) && x.pillarId === p.pillarId).length + 1;
+  const r = await priorityDialog({
+    host: ctx.host,
+    title,
+    priority: draft,
+    pillars: data.pillars,
+    periods: ctx.periodsOnOffer(),
+    roster: ctx.roster,
+    cascadeTargets: childOrgs(ctx.tree, org).map((o) => ({ org: o, ownerName: ctx.ownerNameFor(o), kind: "child" as const })),
+    alreadyCascaded: [],
+    primaryInitiativeLabel: "",
+    ownerPicker: ctx.ownerPickerFor(org),
+  });
+  if (!r) return false;
+  r.priority.rowId = await savePriority(r.priority, data);
+  data.priorities.push(r.priority);
+  await appendEvent(r.priority, "created", { statement: r.priority.statement, customisedFrom: p.id }, ctx.actor());
+  await recordAccepted(ctx, org, p, a, r.priority.id);
+  await appendEvent(p, "customised", { org: orgName(org), child: r.priority.id, statement: r.priority.statement }, ctx.actor());
+  for (const o of r.cascadeTo) {
+    await saveAssignment(
+      { id: "", priorityId: r.priority.id, org: o, status: "proposed", reason: "", decidedById: "", decidedByName: "", decidedAt: "", childPriorityId: "" },
+      data
+    );
+  }
+  if (r.cascadeTo.length > 0) await appendEvent(r.priority, "cascaded", { to: r.cascadeTo.map(orgName) }, ctx.actor());
+  await ctx.changed();
+  return true;
+}
+
+/** p × org recorded as accepted (child "" = adopted as-is): the given or
+ *  existing assignment is decided, else a new one is written. */
+async function recordAccepted(ctx: LifecycleCtx, org: OrgRef, p: Priority, a: PriorityAssignment | null, childId: string): Promise<void> {
+  const data = ctx.data();
+  const row = a ?? data.assignments.find((x) => x.priorityId === p.id && orgKey(x.org) === orgKey(org)) ?? null;
+  if (row) {
+    await decideAssignment(row, "accepted", "", ctx.actor(), childId, data);
+    return;
+  }
+  const by = ctx.actor();
+  await saveAssignment(
+    { id: "", priorityId: p.id, org: { ...org }, status: "accepted", reason: "", decidedById: by.whoId, decidedByName: by.who, decidedAt: new Date().toISOString(), childPriorityId: childId },
+    data
+  );
+}
+
+/**
+ * ＋ Priority → Pull from above: an active priority at an org above this
+ * one (never a peer), adopted as-is or customised. Below the site's
+ * customisation floor the pull adopts as-is only. Nothing is sent: the
+ * receiving org's own decision is recorded and the sender sees it in its
+ * Cascade tab and history.
+ */
+export function pullFromAbove(ctx: LifecycleCtx, org: OrgRef): void {
+  const data = ctx.data();
+  const cands = pullCandidates(org, data.priorities, data.assignments);
+  const customise = ctx.canCustomise(org);
+  const m = modal(
+    ctx.host,
+    `Pull a priority to ${orgName(org)}`,
+    customise
+      ? "Active priorities set above this org. Adopt one as-is, or customise its wording for this org — either way it stays linked to its parent."
+      : "Active priorities set above this org. Cascades to this level are adopted as-is (the site's customisation setting).",
+    true
+  );
+  let chosen: Priority | null = null;
+  const search = el("input", "app-input") as HTMLInputElement;
+  search.type = "search";
+  search.placeholder = `Search ${cands.length} ${cands.length === 1 ? "priority" : "priorities"}…`;
+  search.setAttribute("aria-label", "Search priorities");
+  const list = el("div", "app-cp-cascade");
+  m.body.append(search, list);
+  const adopt = btn("Adopt as-is", customise ? "app-btn" : "app-btn app-btn-primary");
+  const custom = btn("Customise…", "app-btn app-btn-primary");
+  const draw = () => {
+    clear(list);
+    const q = search.value.trim().toLowerCase();
+    const shown = cands.filter((p) => q === "" || p.statement.toLowerCase().includes(q) || orgName(p.org).toLowerCase().includes(q));
+    if (shown.length === 0) {
+      list.appendChild(el("div", "app-cp-muted", cands.length === 0 ? "Nothing to pull — every active priority above is already here, or none is set." : "Nothing matches."));
+    }
+    let lastOrg = "";
+    for (const p of shown) {
+      if (orgKey(p.org) !== lastOrg) {
+        lastOrg = orgKey(p.org);
+        list.appendChild(el("div", "app-cp-menu-h", `${orgName(p.org)}${orgLevel(p.org) === "company" ? " (company)" : ""}`));
+      }
+      const pillar = data.pillars.find((x) => x.id === p.pillarId);
+      const b = btn(`${p.statement.slice(0, 110)}${pillar ? ` · ${pillar.name}` : ""}`, "app-cp-reason app-cp-parentopt" + (chosen?.id === p.id ? " app-cp-reason-on" : ""));
+      b.title = p.statement;
+      b.addEventListener("click", () => {
+        chosen = p;
+        draw();
+      });
+      list.appendChild(b);
+    }
+    adopt.disabled = chosen === null;
+    custom.disabled = chosen === null;
+  };
+  search.addEventListener("input", draw);
+  draw();
+  setTimeout(() => search.focus(), 0);
+  const cancel = btn("Cancel", "app-link");
+  cancel.addEventListener("click", () => m.close());
+  adopt.addEventListener("click", () => {
+    const p = chosen;
+    if (!p) return;
+    m.close();
+    void (async () => {
+      await recordAccepted(ctx, org, p, null, "");
+      await appendEvent(p, "pulled", { org: orgName(org) }, ctx.actor());
+      await ctx.changed();
+    })();
+  });
+  custom.addEventListener("click", () => {
+    const p = chosen;
+    if (!p) return;
+    m.close();
+    void customiseInto(ctx, org, p, null, `Pull & customise — from ${orgName(p.org)}`);
+  });
+  if (customise) m.footer.append(cancel, adopt, custom);
+  else m.footer.append(cancel, adopt);
+}
+
+/** Drop a priority this org adopted as-is: the assignment turns
+ *  declined with the reason, which the sender sees on its view. */
+async function dropAdopted(ctx: LifecycleCtx, org: OrgRef, p: Priority): Promise<boolean> {
+  const data = ctx.data();
+  const a = data.assignments.find((x) => x.priorityId === p.id && orgKey(x.org) === orgKey(org) && x.status === "accepted" && x.childPriorityId === "");
+  if (!a) return false;
+  const reason = await reasonDialog(
+    ctx.host,
+    `Drop from ${orgName(org)}`,
+    `“${p.statement.slice(0, 80)}” leaves ${orgName(org)}'s view. Tell ${orgName(p.org)} why — they'll see this on their view.`,
+    "e.g. covered by our own priority"
+  );
+  if (reason === null) return false;
+  await decideAssignment(a, "rejected", reason, ctx.actor(), "", data);
+  await appendEvent(p, "dropped", { org: orgName(org), reason }, ctx.actor());
+  await ctx.changed();
+  return true;
+}
+
 // ---- detail overlay (§6) -------------------------------------------------------------
 
-export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: Priority) => void): () => void {
+/** `adoptedAt`: the org whose matrix showed this priority as ADOPTED
+ *  as-is (the parent's row) — its managers get Customise and Drop. */
+export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: Priority) => void, adoptedAt: OrgRef | null = null): () => void {
   const scrim = el("div", "app-cp-scrim");
   const box = el("div", "app-cp-overlay");
   scrim.appendChild(box);
@@ -649,8 +785,13 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
     head.appendChild(headText);
     const headBtns = el("div", "app-cp-ov-headbtns");
     const add = btn("Add initiative", "app-btn app-btn-primary");
-    add.title = "Create an initiative linked to this priority";
-    add.disabled = live.status !== "active";
+    // the one link rule (issue round 2026-11-06): only under a priority
+    // at an org the viewer manages, or adopted at one
+    const mayLink = ctx.canLink(live);
+    add.title = mayLink
+      ? "Create an initiative linked to this priority"
+      : `Initiatives link to priorities at an org you manage — pull this priority to your org first (＋ Priority → Pull from above)`;
+    add.disabled = live.status !== "active" || !mayLink;
     add.addEventListener("click", () => {
       // hand the priority to the Improvement tab's create flow (design 1.3:
       // pre-filled and locked to the source priority)
@@ -663,6 +804,54 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
       window.location.hash = "#/improvement";
     });
     headBtns.appendChild(add);
+    // adopted as-is at the viewed org: its managers may customise it into
+    // their own linked row (renameable, unlinkable) or drop it
+    const adoptOrg = adoptedAt && !sameOrg(adoptedAt, live.org) && ctx.canManage(adoptedAt) && live.status === "active" ? adoptedAt : null;
+    /** The adopting org's two items — on their own ⋮, or appended to the
+     *  owner's menu when the viewer manages the priority's org too. */
+    const adoptItems = (item: (label: string, run: () => void) => void) => {
+      if (!adoptOrg) return;
+      if (ctx.canCustomise(adoptOrg)) {
+        item(`Customise for ${orgName(adoptOrg)}…`, () => {
+          void customiseInto(ctx, adoptOrg, live, null, `Customise for ${orgName(adoptOrg)} — from ${orgName(live.org)}`).then((ok) => {
+            if (ok) close();
+          });
+        });
+      }
+      item(`Drop from ${orgName(adoptOrg)}…`, () => {
+        void dropAdopted(ctx, adoptOrg, live).then((ok) => {
+          if (ok) close();
+        });
+      });
+    };
+    if (adoptOrg && !(can && live.status === "active")) {
+      const more = btn("⋮", "app-btn app-cp-ov-morebtn");
+      more.title = `Adopted by ${orgName(adoptOrg)} · Customise · Drop`;
+      more.addEventListener("click", () => {
+        const menu = el("div", "app-cp-menu");
+        const item = (label: string, run: () => void) => {
+          const b = btn(label, "app-cp-menu-item");
+          b.addEventListener("click", () => {
+            menu.remove();
+            run();
+          });
+          menu.appendChild(b);
+        };
+        adoptItems(item);
+        const r = more.getBoundingClientRect();
+        menu.style.top = `${r.bottom + 4}px`;
+        menu.style.left = `${Math.min(r.left, window.innerWidth - 240)}px`;
+        document.body.appendChild(menu);
+        const off = (e: PointerEvent) => {
+          if (!menu.contains(e.target as Node)) {
+            menu.remove();
+            document.removeEventListener("pointerdown", off, true);
+          }
+        };
+        setTimeout(() => document.addEventListener("pointerdown", off, true), 0);
+      });
+      headBtns.appendChild(more);
+    }
     if (can && live.status !== "active") {
       const reopen = btn("Reopen", "app-btn");
       reopen.title = "Set back to active";
@@ -720,6 +909,7 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
             await ctx.changed();
           })();
         });
+        adoptItems(item);
         const r = more.getBoundingClientRect();
         menu.style.top = `${r.bottom + 4}px`;
         menu.style.left = `${Math.min(r.left, window.innerWidth - 240)}px`;
@@ -1189,6 +1379,10 @@ function eventWords(e: PriorityEvent): string {
       return `reopened (was ${str("from")})`;
     case "reordered":
       return `moved to position ${String(d.to ?? "")}`;
+    case "pulled":
+      return `${str("org")} pulled it and adopted it as-is`;
+    case "dropped":
+      return `${str("org")} dropped it — “${str("reason")}”`;
     default:
       return "";
   }
