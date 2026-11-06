@@ -37,6 +37,7 @@ import {
   siteCompanies,
 } from "../store/config";
 import { listPeople, managerOf, searchEntra, upsertPerson } from "../store/people";
+import { effectivePerson } from "../viewAs";
 import type { RosterPerson } from "../store/mappers";
 import {
   appendEvent,
@@ -281,7 +282,9 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
     if (dead) return;
     const companyList = [...new Set(Object.values(siteCo).filter((c) => c !== ""))];
     const tree = buildTree(rawTree, siteCo, companyList);
-    const me = roster.find((p) => p.whoId === (who?.objectId ?? "")) ?? null;
+    // honour View as (a super admin previewing as a site admin or user)
+    const stored = roster.find((p) => p.whoId === (who?.objectId ?? "")) ?? null;
+    const me = stored ? effectivePerson(stored) : null;
     const viewer: Viewer = {
       whoId: who?.objectId ?? "",
       role: me?.role === "superadmin" || me?.role === "siteadmin" ? me.role : "user",

@@ -2483,8 +2483,8 @@
         "As C, open the same site; open the same priority.",
         "As C, open the department C's manager B owns (if any) or note that C has no ＋ Priority anywhere above."
        ],
-       "expected": "step 1 B sees ＋ Priority and the priority's ⋮ (Cascade, Edit, Complete…) and Add initiative enabled; step 2 C sees no ＋ Priority, no ⋮, and Add initiative disabled with a tooltip saying to pull the priority to their org first; a directory lookup that fails leaves B with owner-only rights (nothing extra), never an error",
-       "hash": "471bd911",
+       "expected": "a super admin can stand in for C with Settings → Users → View as: user — the role drops, but orgs the admin OWNS stay theirs (own a department only to try a pull); step 1 B sees ＋ Priority and the priority's ⋮ (Cascade, Edit, Complete…) and Add initiative enabled; step 2 C sees no ＋ Priority, no ⋮, and Add initiative disabled with a tooltip saying to pull the priority to their org first; a directory lookup that fails leaves B with owner-only rights (nothing extra), never an error",
+       "hash": "ba4f7a9f",
        "changed": "2026-11-06"
       },
       {
