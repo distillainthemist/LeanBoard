@@ -1455,6 +1455,36 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-11-06 — released as v0.91.0** (app-only, no schema change):
+  the 2026-11-06 issue round (`docs/issues-plan-2026-11-06.md`), built in
+  the LeanToolKitPCF Claude project and merged as PR #1. Priorities
+  permissions — `canManageOrg` grants an org to its owner and the owner's
+  directory direct reports (one Office 365 Users manager lookup;
+  owner-only on failure) and guards priority edits, cascade acceptance,
+  vision, health check and the new-initiative rule; initiatives link
+  only to priorities at an org the person manages (existing upward
+  links kept). Pull priorities — below company level "+ Priority" opens
+  ONE Add priority dialog with a Pull from above | New priority
+  segmented toggle (Pull by default; active priorities at orgs above,
+  not sideways; Adopt as-is primary, Adopt & customise beside it;
+  adopt-only below a site's customisation floor; company level goes
+  straight to the form); adopted priorities get Customise and Drop,
+  drop reason shown to the sender. View as honoured by Priorities,
+  Improvement, the initiative form and the link rule (owned orgs still
+  follow ownership). Focused-view title and tab strip capped to 1600 px
+  with the card. SQDPC — a Definition per status code; the legend
+  becomes a left rail once any definition exists (stacks under about
+  560 px; PNG and SVG exports match). Cadence "Every N weeks" (2–12) by
+  generalising the fortnightly parity in `shared/schema/recurrence.ts`.
+  Boot asks the host up to three times (~17 s, spinner held), no demo
+  data inside the player, a "Power Apps did not answer" card. Settings
+  tabs cancel the previous tab's load. Weekly bucket math by calendar
+  fields (`addDays`) after two tests went red on NZ daylight time. UAT:
+  PRI-003–005, IMP-002, RIT-010, RIT-011, SET-010, SET-011. Release
+  workflow fetches tags before the build (cloud clones had none, so the
+  compiled UAT release list was once empty). 994 app tests. Open:
+  confidential initiatives are visible by org ownership only — direct
+  reports do not see them.
 - **2026-11-05 — released as v0.90.0** (SOLUTION-CARRYING for the
   Utilities app only, no schema change): Cadence tweaks
   (`docs/cadence-current-state-plan-2026-11.md` "Tweaks") — the Office
