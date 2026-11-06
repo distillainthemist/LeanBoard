@@ -491,6 +491,26 @@ export interface PriorityDialogOpts {
   primaryInitiativeLabel: string; // "" = none yet
   /** The owner picker's suggested people and directory road. */
   ownerPicker?: OwnerPickerExtras;
+  /** Add priority below the company (Ben, 2026-11-06): the dialog opens
+   *  with a Pull from above / New priority toggle; choosing Pull closes
+   *  this form (resolving null) and hands over. */
+  onPull?: () => void;
+}
+
+/** The Pull / New toggle at the head of Add priority (both faces). */
+export function addModeToggle(mode: "pull" | "new", onChange: (m: "pull" | "new") => void): HTMLElement {
+  const row = el("div", "app-cp-addmode");
+  const mk = (label: string, m: "pull" | "new") => {
+    const b = el("button", "app-cp-reason" + (mode === m ? " app-cp-reason-on" : ""), label) as HTMLButtonElement;
+    b.type = "button";
+    b.setAttribute("aria-pressed", mode === m ? "true" : "false");
+    b.addEventListener("click", () => {
+      if (mode !== m) onChange(m);
+    });
+    return b;
+  };
+  row.append(mk("Pull from above", "pull"), mk("New priority", "new"));
+  return row;
 }
 
 export interface PriorityDialogResult {
@@ -501,6 +521,16 @@ export interface PriorityDialogResult {
 export function priorityDialog(o: PriorityDialogOpts): Promise<PriorityDialogResult | null> {
   return new Promise((resolve) => {
     const m = modal(o.host, o.title, undefined, false);
+    if (o.onPull) {
+      const onPull = o.onPull;
+      m.body.appendChild(
+        addModeToggle("new", () => {
+          m.close();
+          resolve(null);
+          onPull();
+        })
+      );
+    }
     const p = o.priority;
 
     const statement = el("textarea", "app-input app-cp-statement") as HTMLTextAreaElement;
