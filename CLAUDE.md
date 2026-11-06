@@ -513,6 +513,15 @@ Version lives in the tag alone — nothing is stamped into files.
   review's summary tiles and the task banner heading removed) is
   SOLUTION-CARRYING for the Utilities app only: prod imports the managed
   solution; the LeanBoard app is unchanged. No schema change.
+  v0.91.0 (2026-11-06: the 2026-11-06 issue round —
+  `docs/issues-plan-2026-11-06.md`; managing an org = its owner or the
+  owner's direct reports, initiatives link only to priorities at an org the
+  person manages, Pull from above with adopt / customise / drop, the Add
+  priority dialog's Pull | New toggle; the walk's title and tabs capped
+  with the card; HSE rating definitions with the legend as a left rail; a
+  ritual every N weeks; boot asks the host three times and never shows
+  demo data in the player; Settings tabs render into their own pane;
+  bucket date arithmetic by calendar fields) is app-only. No schema change.
   Prod imports the managed solution FIRST. LESSON
   (2026-10-13, production's first sync): a sync must
   never run from a walk it cannot trust (budget-cut OR any failed
