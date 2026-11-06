@@ -5,11 +5,20 @@ its decision date and enough context to pick it up cold. The phase plans
 (`leanboard-phase5-plan.md`, `leanboard-standard-documents-plan.md`)
 stay the design detail; this is the queue.
 
-## Current state (2026-11-06, after v0.90.0)
+## Current state (2026-11-06, after v0.91.0)
 
-Released through v0.90.0 (ledger: `leanboard-cascade-improvement-plan.md`;
+Released through v0.91.0 (ledger: `leanboard-cascade-improvement-plan.md`;
 release paragraphs: `../CLAUDE.md`). Production took v0.88.1 and the
-v0.89.0/v0.90.0 managed solution. Recent decisions of record:
+v0.89.0/v0.90.0 managed solution; v0.91.0 is app-only. Recent decisions
+of record:
+
+- **The 2026-11-06 issue round** (`issues-plan-2026-11-06.md`): managing
+  an org is its owner or the owner's direct reports; initiatives link only
+  to priorities at an org the person manages — upward linking ended, pull
+  first (existing links kept); a pull is adopted as-is or customised, an
+  adopted priority can be customised or dropped. Open question put to
+  Ben: whether direct reports should also see confidential initiatives
+  (today ownership only).
 
 - **The release gate first fired at v0.88.1** (2026-11-02): until then
   every build stamped itself `-dirty` through the generated UAT file and
