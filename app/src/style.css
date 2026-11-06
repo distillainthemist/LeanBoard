@@ -893,6 +893,8 @@ input[type="color"].app-cat-swatch {
    that already lived inside a section (an access card) loses its box
    and keeps a divider, so there is never a box in a box. */
 .app-settings-card .app-settings-body { background: #faf9f7; gap: 12px; padding: 12px 16px 16px; }
+/* a tab's own pane (one per mount, 2026-11-06): the same column as the body */
+.app-settings-pane { display: flex; flex-direction: column; gap: inherit; min-width: 0; }
 .app-settings-sectioncard {
   display: flex; flex-direction: column; gap: 10px;
   background: #fff; border: 1px solid #eceae5; border-radius: 8px; padding: 12px 16px 14px;

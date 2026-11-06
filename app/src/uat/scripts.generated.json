@@ -3230,6 +3230,50 @@
        "changed": "2026-10-31"
       }
      ]
+    },
+    {
+     "title": "Journey 6 — A slow connection",
+     "cases": [
+      {
+       "id": "UAT-SET-010",
+       "title": "The host is slow to answer at boot",
+       "journey": "Journey 6 — A slow connection",
+       "persona": "user",
+       "modules": [
+        "runtime.ts",
+        "screens/hub.ts",
+        "loading.ts"
+       ],
+       "preconditions": "the hosted app on a slow connection (throttle the browser's network to \"Slow 3G\" in its developer tools, or open the app over a poor mobile link)",
+       "steps": [
+        "Open the app; watch the loading spinner.",
+        "With the network throttled hard enough that the host never answers (offline for the first 20 seconds), open the app again; read the message.",
+        "Restore the connection; close and reopen the app."
+       ],
+       "expected": "step 1 the spinner stays while the app asks the host again (three tries, each wait longer than the last, about 17 seconds in all) and My day opens with the real data — never the \"Demo mode\" note or demo rituals and people; step 2 a note reads that Power Apps did not answer after three tries and to close and reopen the app or refresh the browser, with no reload button; step 3 the app opens normally",
+       "hash": "b8aec97a",
+       "changed": "2026-11-06"
+      },
+      {
+       "id": "UAT-SET-011",
+       "title": "Switching Settings tabs while one is still loading",
+       "journey": "Journey 6 — A slow connection",
+       "persona": "superadmin",
+       "modules": [
+        "screens/settings.ts",
+        "loading.ts"
+       ],
+       "preconditions": "a roster and organisation big enough that Users and Organisation take a moment to load (or the network throttled)",
+       "steps": [
+        "Settings → Users; before it has painted, click Organisation; then Branding.",
+        "Wait for Branding to paint; scroll the whole page.",
+        "Back on Organisation, change a name, then switch to Users before saving; answer the unsaved-changes prompt."
+       ],
+       "expected": "each tab shows a spinner until its own sections arrive; step 2 the page holds Branding's sections only — nothing from Users or Organisation lands on it, and the section strip's pills name Branding's sections; step 3 the unsaved-changes prompt belongs to the tab you were on, and Users opens clean after Discard",
+       "hash": "14a6bdf3",
+       "changed": "2026-11-06"
+      }
+     ]
     }
    ]
   },
