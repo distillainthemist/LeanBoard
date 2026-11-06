@@ -18,13 +18,13 @@ expected: "This site" cascades through the site's own tree and dims the drivers 
 
 ### UAT-IMP-002 — Linking a priority from the new-initiative form
 persona: lead
-modules: improvement/initiativeForm.ts improvement/improvementTab.ts priorities/model.ts
-preconditions: a site with priorities at the company, the site and one department; the Improvement tab scoped to that department
+modules: improvement/initiativeForm.ts improvement/improvementTab.ts priorities/model.ts store/linkRule.ts
+preconditions: a site with priorities at the company, the site and one department; the Improvement tab scoped to that department; the tester owns the department only (not the site or company), and the department has adopted one company priority as-is
 steps:
 1. Improvement → New initiative → pick a template; read the Organisation group's site, department and area.
 2. Priorities & people → "＋ Link a priority"; read the list; type part of a company priority's statement; clear it; press "n more from above ›".
 3. Change the department in the form to one with no priorities of its own; open the picker again.
-expected: step 1 the form opens on the tab's scope, department included; step 2 the picker opens with the search box focused and lists only the department's open priorities under its name, with one line "n more from above ›"; typing narrows both the department's and the parents' priorities case-blind and shows the parents' groups; the line expands the company and site groups in chain order; step 3 a department without its own priorities shows "No open priorities at <department>" and the parents' groups straight away; Edit details on an existing initiative uses the same picker
+expected: step 1 the form opens on the tab's scope, department included; step 2 the picker opens with the search box focused and lists only the department's open priorities under its name, with one line "n more from above ›"; typing narrows both the department's and the parents' priorities case-blind and shows the parents' groups; the line expands the company and site groups in chain order and lists ONLY the company priority the department adopted — priorities set above that the department has not pulled are not offered (pull them first, Priorities → ＋ Priority → Pull from above); step 3 a department without its own priorities shows "No open priorities at <department>" and the parents' groups straight away (or "None you can link — pull a priority to this org…" when there are none to offer); Edit details on an existing initiative uses the same picker, and an initiative that already carries a link to a priority from above keeps it and saves
 
 ### UAT-IMP-003 — Who may edit an initiative
 persona: siteadmin

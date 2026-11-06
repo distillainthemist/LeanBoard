@@ -876,6 +876,7 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
           processes: { tree: processTree, siteRoots },
           canPromote: canPromoteDrivers(),
           loadPriorities: (company) => loadCascade(company).then((data) => data.priorities),
+          linkRule: () => import("../store/linkRule").then((m) => m.linkRuleForViewer()),
         });
         const foot = el("div", "app-modal-footer");
         const back = btn("‹ Back", "app-link");

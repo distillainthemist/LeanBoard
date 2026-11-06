@@ -115,6 +115,7 @@ export function openEditDetails(o: EditDetailsOpts): void {
       processes: { tree: buildProcessTree(processNodes), siteRoots },
       canPromote,
       loadPriorities: (company) => loadCascade(company).then((data) => data.priorities),
+      linkRule: () => import("../store/linkRule").then((m) => m.linkRuleForViewer()),
       // linking an own metric migrates its card's private points into the driver
       onMetricLinked: async (m) => {
         if (i.boardId === "" || !m.driverId) return;
@@ -164,6 +165,10 @@ export function openEditDetails(o: EditDetailsOpts): void {
         };
         save.disabled = true;
         const endorsementWentOff = i.endorsement && !next.endorsement;
+        // the link rule's backstop runs before the row is touched
+        const linksBefore = i.priorities.map((l) => l.priorityId);
+        const { assertNewLinksAllowed } = await import("../store/linkRule");
+        await assertNewLinksAllowed(linksBefore, next.priorities.map((l) => l.priorityId));
         Object.assign(i, next);
         await saveInitiative(i);
         // endorsement switched off: what was waiting for an endorser closes

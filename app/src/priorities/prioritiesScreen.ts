@@ -36,7 +36,7 @@ import {
   saveOrgVision,
   siteCompanies,
 } from "../store/config";
-import { listPeople, searchEntra, upsertPerson } from "../store/people";
+import { listPeople, managerOf, searchEntra, upsertPerson } from "../store/people";
 import type { RosterPerson } from "../store/mappers";
 import {
   appendEvent,
@@ -62,13 +62,14 @@ import { mountWalk } from "./walk";
 import { initialsFor } from "../../../shared/schema/people";
 import { prioritiesViewUrl, takePendingPrioritiesView } from "../links";
 import { decodePrioritiesView, encodePrioritiesView } from "./viewLink";
-import { cascadeDialog, cascadeReview, closeDialog, closePriority, LifecycleCtx, openPriorityOverlay, reopenPriority, sendCascade } from "./lifecycle";
+import { cascadeDialog, cascadeReview, closeDialog, closePriority, LifecycleCtx, openPriorityOverlay, pullFromAbove, reopenPriority, sendCascade } from "./lifecycle";
 import { Initiative, adminScopeFor, initiativesByPriority, ragInputsFor } from "../improvement/initiativeModel";
 import { REOPEN_PRIORITY_KEY } from "../improvement/boardOrigin";
 import { PDCA_TOKENS } from "../improvement/templateModel";
 import { buildMetricState, loadMetricLasts } from "../improvement/metricValues";
 import {
   canCustomiseAt,
+  canLinkInitiative,
   canManageOrg,
   densityFor,
   descendantPriorities,
@@ -264,6 +265,9 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       loadPriorityPrefs(who?.objectId ?? ""),
       memo("siteCascade", allSitePrioritySettings),
     ]);
+    // the viewer's directory manager: a direct report of an org's owner
+    // manages that org (issue round 2026-11-06); a failed lookup = ""
+    const managerId = who?.objectId ? await managerOf(who.objectId).catch(() => "") : "";
     // initiatives + their actions + metric values (P6b/c): the tallies'
     // live inputs. A failure leaves the tallies grey, never blocks the matrix.
     // eslint-disable-next-line prefer-const
@@ -282,6 +286,7 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       whoId: who?.objectId ?? "",
       role: me?.role === "superadmin" || me?.role === "siteadmin" ? me.role : "user",
       site: me?.site ?? "",
+      managerId,
     };
     const settings = parsePrioritySettings(settingsRaw);
     const palette = paletteMap(palettes.states);
@@ -449,6 +454,7 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       palette,
       actor: actorRef,
       canManage: (o) => canManageOrg(viewer, o, owners),
+      canLink: (p) => canLinkInitiative(viewer, p, owners, data.assignments),
       canCustomise: (o) => canCustomiseAt(o, parseSiteCascadeSettings(siteCascade[o.site] ?? "").customiseLevel),
       ownerNameFor,
       ownerFor,
@@ -522,7 +528,9 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       open: (p) => openOverlay(p),
     };
     const openOverlay = (p: Priority) => {
-      openPriorityOverlay(ctx, p, (live) => void editPriority(live));
+      // shown ADOPTED at the viewed org: its managers get Customise / Drop
+      const adopted = !sameOrg(p.org, state.org) && prioritiesForOrg(state.org, data.priorities, data.assignments).adopted.some((x) => x.id === p.id);
+      openPriorityOverlay(ctx, p, (live) => void editPriority(live), adopted ? state.org : null);
     };
 
     // ---- the render -------------------------------------------------------
@@ -732,12 +740,13 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       if (canManage() && ctx.canCustomise(state.org)) {
         const add = el("button", "app-btn app-btn-primary app-cp-tvbtn", "＋ Priority") as HTMLButtonElement;
         add.type = "button";
-        add.addEventListener("click", () => void addPriority());
+        add.addEventListener("click", () => openAddMenu(add));
         bar.appendChild(add);
       } else if (canManage()) {
         const note = el("span", "app-cp-floor-note", "Adopts priorities from above");
         note.title = "This site's cascade setting keeps priorities at a higher level — this org accepts what cascades down rather than writing its own (Settings → Organisation → the site's Cascade customisation).";
         bar.appendChild(note);
+        bar.appendChild(pullButton("app-btn app-cp-tvbtn"));
       }
       // the health check (decision 9): per SUB-PILLAR at this org, one at a
       // time — a picker of the org's sub-pillars with their last score
@@ -859,8 +868,11 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       if (canManage() && ctx.canCustomise(state.org)) {
         const add = el("button", "app-btn app-btn-primary", "＋ Priority") as HTMLButtonElement;
         add.type = "button";
-        add.addEventListener("click", () => void addPriority());
+        add.addEventListener("click", () => openAddMenu(add));
         acts.appendChild(add);
+      } else if (canManage() && orgLevel(state.org) !== "company") {
+        // below the customisation floor a pull adopts as-is only
+        acts.appendChild(pullButton("app-btn"));
       }
       const more = el("button", "app-btn app-cp-more", "⋮") as HTMLButtonElement;
       more.type = "button";
@@ -1595,6 +1607,47 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
     };
 
     const actor = () => ({ whoId: viewer.whoId, who: me?.who ?? who?.name ?? "" });
+
+    /** ＋ Priority (issue round 2026-11-06): a new priority, or a pull
+     *  of one set above (adopted as-is or customised). The company has
+     *  nothing above it — the button goes straight to a new one. */
+    const openAddMenu = (anchor: HTMLElement) => {
+      if (orgLevel(state.org) === "company") {
+        void addPriority();
+        return;
+      }
+      document.querySelectorAll(".app-cp-menu").forEach((m) => m.remove());
+      const menu = el("div", "app-cp-menu");
+      const item = (label: string, run: () => void) => {
+        const b = el("button", "app-cp-menu-item", label) as HTMLButtonElement;
+        b.type = "button";
+        b.addEventListener("click", () => {
+          menu.remove();
+          run();
+        });
+        menu.appendChild(b);
+      };
+      item("New priority…", () => void addPriority());
+      item("Pull from above…", () => pullFromAbove(ctx, state.org));
+      const r = anchor.getBoundingClientRect();
+      menu.style.top = `${r.bottom + 4}px`;
+      menu.style.left = `${Math.min(r.left, window.innerWidth - 240)}px`;
+      document.body.appendChild(menu);
+      const off = (e: PointerEvent) => {
+        if (!menu.contains(e.target as Node)) {
+          menu.remove();
+          document.removeEventListener("pointerdown", off, true);
+        }
+      };
+      setTimeout(() => document.addEventListener("pointerdown", off, true), 0);
+    };
+    const pullButton = (cls: string): HTMLButtonElement => {
+      const b = el("button", cls, "＋ Pull from above") as HTMLButtonElement;
+      b.type = "button";
+      b.title = "Adopt a priority set above this org";
+      b.addEventListener("click", () => pullFromAbove(ctx, state.org));
+      return b;
+    };
 
     const addPriority = async () => {
       const draft = newPriority(state.org, state.period !== "" ? state.period : currentPeriod);

@@ -87,6 +87,9 @@ export async function unlinkPriorityEverywhere(priorityId: string): Promise<numb
   return n;
 }
 
+/** NB the link rule (store/linkRule.ts) is checked by the two writers
+ *  that set links — createInitiative below and Edit details — before
+ *  anything is written; a plain save never adds a link. */
 export async function saveInitiative(i: Initiative): Promise<string> {
   // tracked: a screen mounting next waits for it (store/inflight.ts)
   return track(
@@ -190,6 +193,9 @@ export async function createInitiative(
   >,
   actor: { whoId: string; who: string }
 ): Promise<Initiative> {
+  // the link rule BEFORE anything is written — the board included
+  const { assertNewLinksAllowed } = await import("./linkRule");
+  await assertNewLinksAllowed([], header.priorities.map((l) => l.priorityId));
   const created = nowIso();
   const i: Initiative = {
     ...header,

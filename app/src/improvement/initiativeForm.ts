@@ -85,6 +85,9 @@ export interface InitiativeFormOpts {
   canPromote: boolean;
   /** The company's priorities, for the picker (loadCascade behind it). */
   loadPriorities: (company: string) => Promise<PriorityLite[]>;
+  /** The link rule for the viewer (store/linkRule.ts): the picker offers
+   *  only what it allows. Absent = the picker is not narrowed. */
+  linkRule?: () => Promise<(p: PriorityLite) => boolean>;
   /** Edit only: linking an own metric migrates its card's series. */
   onMetricLinked?: (m: TemplateMetric) => Promise<void>;
 }
@@ -275,10 +278,15 @@ export function renderInitiativeForm(o: InitiativeFormOpts): InitiativeFormHandl
   priAdd.addEventListener("click", () => {
     void (async () => {
       const company = o.siteCo[siteSel.value] ?? "";
-      const all = await o.loadPriorities(company).catch(() => [] as PriorityLite[]);
-      // the initiative's org or above only (Ben, 2026-08-29)
+      const [all, may] = await Promise.all([
+        o.loadPriorities(company).catch(() => [] as PriorityLite[]),
+        o.linkRule ? o.linkRule().catch(() => () => false) : Promise.resolve(() => true),
+      ]);
+      // the initiative's org or above (Ben, 2026-08-29) AND the link rule:
+      // a priority at an org the person manages, or adopted at one — a
+      // priority from further up is pulled to the org first (2026-11-06)
       const at = orgRef(company, siteSel.value, deptSel.value, areaSel.value);
-      const open = all.filter((p) => p.status === "active" && !links.some((l) => l.priorityId === p.id) && (sameOrg(p.org, at) || isDescendant(at, p.org)));
+      const open = all.filter((p) => p.status === "active" && !links.some((l) => l.priorityId === p.id) && (sameOrg(p.org, at) || isDescendant(at, p.org)) && may(p));
       document.querySelectorAll(".app-im-primenu").forEach((m) => m.remove());
       const menu = el("div", "app-cp-menu app-im-primenu");
       // searchable, and the initiative's own org first (Ben, 2026-10-31):
@@ -321,7 +329,7 @@ export function renderInitiativeForm(o: InitiativeFormOpts): InitiativeFormHandl
           items.appendChild(more);
         } else if (openAbove) {
           for (const g of above) addGroup(g);
-          if (aboveCount === 0 && here.length === 0 && q.trim() === "") items.appendChild(el("div", "app-cp-menu-h", "None above either"));
+          if (aboveCount === 0 && here.length === 0 && q.trim() === "") items.appendChild(el("div", "app-cp-menu-h", "None you can link — pull a priority to this org on Priorities (＋ Priority → Pull from above)"));
         }
       };
       search.addEventListener("input", draw);

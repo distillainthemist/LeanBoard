@@ -253,7 +253,9 @@ export type PriorityEventKind =
   | "linked"
   | "unlinked"
   | "reopened"
-  | "reordered";
+  | "reordered"
+  | "pulled"
+  | "dropped";
 
 export interface PriorityEvent {
   /** Row GUID ("" when new). */
@@ -671,6 +673,10 @@ export interface Viewer {
   whoId: string;
   role: "user" | "siteadmin" | "superadmin";
   site: string;
+  /** The viewer's manager in the directory ("" = none / unknown): a
+   *  direct report of an org's owner manages that org too (issue round
+   *  2026-11-06, #2). A failed lookup leaves it "" — owner-only rights. */
+  managerId?: string;
 }
 
 /** The org node whose owners govern `org`: itself for site/department,
@@ -680,21 +686,71 @@ export function governingOrg(org: OrgRef): OrgRef {
 }
 
 /**
- * Can this viewer create/edit priorities, accept cascades and set the
- * vision for `org`? Superadmins: yes. Siteadmins: anything in their site.
- * Otherwise: an owner of the governing node, OR of any node above it
- * (a site owner governs its departments).
+ * Can this viewer create/edit priorities, accept cascades, set the
+ * vision and hang initiatives under priorities for `org`? Superadmins:
+ * yes. Siteadmins: anything in their site. Otherwise: an owner of the
+ * governing node or of any node above it (a site owner governs its
+ * departments) — or a DIRECT REPORT of such an owner (Ben, 2026-11-06:
+ * "the owner of an organisation level, and their direct reports").
  */
 export function canManageOrg(viewer: Viewer, org: OrgRef, owners: OrgOwnersMap): boolean {
   if (viewer.role === "superadmin") return true;
   if (viewer.role === "siteadmin" && org.site !== "" && org.site === viewer.site) return true;
+  const manager = viewer.managerId ?? "";
   let node: OrgRef | null = governingOrg(org);
   while (node) {
     const list = owners[orgKey(node)] ?? [];
-    if (list.some((o) => o.whoId === viewer.whoId)) return true;
+    if (list.some((o) => o.whoId !== "" && (o.whoId === viewer.whoId || o.whoId === manager))) return true;
     node = orgParent(node);
   }
   return false;
+}
+
+/**
+ * May this viewer link an initiative to priority `p`? Only to a priority
+ * at an org they manage, or one ADOPTED as-is at an org they manage (the
+ * parent's row shown there). Upward linking ended 2026-11-06 — a priority
+ * from above is pulled to the org first (issue round 2026-11-06, #2).
+ * The ONE rule: the overlay's Add initiative, the form's picker and the
+ * store's write all ask it.
+ */
+export function canLinkInitiative(
+  viewer: Viewer,
+  p: { id: string; org: OrgRef },
+  owners: OrgOwnersMap,
+  assignments: PriorityAssignment[]
+): boolean {
+  if (canManageOrg(viewer, p.org, owners)) return true;
+  return assignments.some(
+    (a) => a.priorityId === p.id && a.status === "accepted" && a.childPriorityId === "" && canManageOrg(viewer, a.org, owners)
+  );
+}
+
+/** The links an edit ADDS that the rule refuses — links already on the
+ *  initiative stay whatever the rule says (Ben, 2026-11-06: keep the
+ *  existing upward links, block new ones). */
+export function refusedNewLinks(before: string[], after: string[], may: (priorityId: string) => boolean): string[] {
+  const had = new Set(before);
+  return [...new Set(after)].filter((id) => !had.has(id) && !may(id));
+}
+
+/**
+ * What an org may PULL from above (issue round 2026-11-06, #2): active
+ * priorities at an org strictly above it (not peers), not already its
+ * own child row or an accepted / pending assignment here. Ordered by
+ * nearest org first.
+ */
+export function pullCandidates(org: OrgRef, all: Priority[], assignments: PriorityAssignment[]): Priority[] {
+  const key = orgKey(org);
+  const have = new Set<string>();
+  for (const p of all) if (orgKey(p.org) === key && p.parentId !== "") have.add(p.parentId);
+  for (const a of assignments) {
+    if (orgKey(a.org) === key && (a.status === "accepted" || a.status === "proposed" || a.status === "onhold" || a.status === "completed")) have.add(a.priorityId);
+  }
+  const depth = (o: OrgRef) => LEVEL_DEPTH[orgLevel(o)];
+  return all
+    .filter((p) => p.status === "active" && isDescendant(org, p.org) && !have.has(p.id))
+    .sort((a, b) => depth(b.org) - depth(a.org) || a.order - b.order || a.statement.localeCompare(b.statement));
 }
 
 export function canEditPillars(viewer: Viewer): boolean {
