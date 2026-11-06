@@ -18,6 +18,7 @@ import { dayLabel } from "../linkTitle";
 import { listPeople, viewerPerson } from "../store/people";
 import type { RosterPerson } from "../store/mappers";
 import { improvementSettingsJson, orgJson, orgOwnersMap, prioritySettingsJson, siteCompanies } from "../store/config";
+import { effectivePerson } from "../viewAs";
 import { loadCascade } from "../store/priorities";
 import { listTemplates } from "../store/templates";
 import { appendInitiativeEvent, createInitiative, listInitiatives, saveInitiative } from "../store/initiatives";
@@ -98,7 +99,8 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
     // the viewer's own row read DIRECTLY when the roster list lacks it
     // (2026-11-01: production's roster had passed the SDK's first page
     // and a super admin's row was missing — every edit door closed)
-    const me = roster.find((p) => p.whoId === (who?.objectId ?? "")) ?? (who?.objectId ? await viewerPerson(who.objectId).catch(() => null) : null);
+    const stored = roster.find((p) => p.whoId === (who?.objectId ?? "")) ?? (who?.objectId ? await viewerPerson(who.objectId).catch(() => null) : null);
+    const me = stored ? effectivePerson(stored) : null; // honour View as
     if (dead) return;
     const imp = parseImprovementSettings(impRaw);
     const priorityStatement = new Map((cascade?.priorities ?? []).map((p) => [p.id, p.statement]));

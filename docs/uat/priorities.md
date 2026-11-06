@@ -33,7 +33,7 @@ steps:
 1. As B, open Priorities on the site; read the toolbar; open a site priority's ⋮.
 2. As C, open the same site; open the same priority.
 3. As C, open the department C's manager B owns (if any) or note that C has no ＋ Priority anywhere above.
-expected: step 1 B sees ＋ Priority and the priority's ⋮ (Cascade, Edit, Complete…) and Add initiative enabled; step 2 C sees no ＋ Priority, no ⋮, and Add initiative disabled with a tooltip saying to pull the priority to their org first; a directory lookup that fails leaves B with owner-only rights (nothing extra), never an error
+expected: a super admin can stand in for C with Settings → Users → View as: user — the role drops, but orgs the admin OWNS stay theirs (own a department only to try a pull); step 1 B sees ＋ Priority and the priority's ⋮ (Cascade, Edit, Complete…) and Add initiative enabled; step 2 C sees no ＋ Priority, no ⋮, and Add initiative disabled with a tooltip saying to pull the priority to their org first; a directory lookup that fails leaves B with owner-only rights (nothing extra), never an error
 
 ### UAT-PRI-004 — Pull a priority from above, as-is or customised
 persona: orgowner

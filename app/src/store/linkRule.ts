@@ -7,6 +7,7 @@
 
 import { currentViewer } from "../runtime";
 import { managerOf, viewerPerson } from "./people";
+import { effectivePerson } from "../viewAs";
 import { orgOwnersMap } from "./config";
 import { loadCascade } from "./priorities";
 import { canLinkInitiative, OrgRef, refusedNewLinks, Viewer } from "../priorities/model";
@@ -16,10 +17,11 @@ export type LinkRule = (p: { id: string; org: OrgRef }) => boolean;
 /** The viewer as the priorities rules see them, manager included. */
 export async function viewerForRules(): Promise<Viewer> {
   const whoId = currentViewer()?.objectId ?? "";
-  const [me, managerId] = await Promise.all([
+  const [stored, managerId] = await Promise.all([
     whoId !== "" ? viewerPerson(whoId).catch(() => null) : Promise.resolve(null),
     whoId !== "" ? managerOf(whoId).catch(() => "") : Promise.resolve(""),
   ]);
+  const me = stored ? effectivePerson(stored) : null; // honour View as
   return {
     whoId,
     role: me?.role === "superadmin" || me?.role === "siteadmin" ? me.role : "user",
