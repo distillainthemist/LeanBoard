@@ -97,10 +97,10 @@ persona: owner
 modules: controls/SqdpcCard/editor.ts controls/SqdpcCard/types.ts controls/SqdpcCard/styles.ts controls/CardSettings/registry.ts
 preconditions: a board with an SQDPC card whose dimensions include "+" (the safety cross) and three status codes
 steps:
-1. Open the card's settings; in Status codes, write a Definition for two of the codes (e.g. "A recordable injury"); save.
+1. Open the card's settings; read the Dimensions help; in Status codes, write a sentence-long Definition for two of the codes (e.g. "A recordable injury or lost-time event") in the full-width line under each row; save.
 2. Open the board and the focused card; read the legend.
 3. Clear both definitions; save; read the legend again.
-expected: each defined rating shows its definition under its legend entry (label · count above, definition below), always visible, the undefined rating shows its entry alone, and the cross shrinks to fit rather than being cut off; with no definitions the legend is the single line it was before
+expected: step 1 the Dimensions help names S, Q, D, P, C and + as the shapes that draw, and the Definition line is wide enough to read the whole sentence; step 2 the legend is a rail down the LEFT of the letters — each rating's swatch, label and count on one line with its definition under it, the undefined rating alone, the tap hint at the foot — and the cross keeps its height (narrower, not shorter); step 3 with no definitions the legend is the single line under the letters it was before
 
 ### UAT-RIT-011 — A ritual every N weeks
 persona: owner

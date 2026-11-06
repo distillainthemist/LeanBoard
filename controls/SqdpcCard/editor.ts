@@ -43,6 +43,11 @@ export interface SqdpcEditorCallbacks {
   onSnapshot?: (svgMarkup: string) => void;
 }
 
+/** The legend rail's width when definitions are shown (matches the CSS). */
+const RAIL_W = 200;
+/** Below this card width the rail would crush the letters: the legend stacks under them instead. */
+const RAIL_MIN_W = 560;
+
 export class SqdpcEditor {
   private readonly root: HTMLElement;
   private env: SqdpcEnvelope;
@@ -59,6 +64,7 @@ export class SqdpcEditor {
   private subtitles: string[] = [];
   private codes: StatusCode[] = DEFAULT_CODES.slice();
   private legendEl: HTMLElement | null = null;
+  private bodyEl: HTMLElement | null = null;
   private readonly snapshots: SnapshotScheduler;
   private resizeObserver: ResizeObserver | null = null;
 
@@ -192,6 +198,12 @@ export class SqdpcEditor {
 
     const body = el("div", "ltk-sq-body");
     this.root.appendChild(body);
+    // with definitions written the legend becomes a rail down the LEFT of
+    // the letters — swatch and label on one line, the definition under it —
+    // so the sentences never steal height from the cross (Ben, 2026-11-06)
+    const defined = this.codes.some((c) => (c.definition ?? "") !== "");
+    if (defined) body.classList.add("ltk-sq-body-rail"); // applyTileSize stacks it again in a narrow box
+    this.bodyEl = body;
 
     // one letter panel per configured dimension (month is input-driven, no nav)
     const panels = el("div", "ltk-sq-panels");
@@ -208,7 +220,6 @@ export class SqdpcEditor {
     // a rating's definition, when written, sits under its entry — always
     // shown, so the board reads what each colour means (issue round
     // 2026-11-06, #4: the HSE cross)
-    const defined = this.codes.some((c) => (c.definition ?? "") !== "");
     if (defined) legend.classList.add("ltk-sq-legend-defs");
     for (const code of this.codes) {
       const item = el("span", "ltk-sq-legend-item");
@@ -241,7 +252,8 @@ export class SqdpcEditor {
         )
       );
     }
-    body.appendChild(legend);
+    if (defined) body.insertBefore(legend, panels);
+    else body.appendChild(legend);
     this.legendEl = legend;
 
     this.applyTileSize();
@@ -310,12 +322,17 @@ export class SqdpcEditor {
     const maxRows = Math.max(...rowsArr, 1);
     const hasCaption = this.subtitles.some((s) => s !== "");
 
-    const availW = w - 24; // body horizontal padding
+    // the legend rail (definitions written) takes width from the letters,
+    // not height; the one-line legend takes height
+    const defined = this.legendEl?.classList.contains("ltk-sq-legend-defs") === true;
+    const rail = defined && w >= RAIL_MIN_W; // a narrow box (a small tile) stacks the legend under the letters again
+    this.bodyEl?.classList.toggle("ltk-sq-body-rail", rail);
+    const availW = w - 24 - (rail ? RAIL_W + 16 : 0); // body horizontal padding (+ rail and its gap)
     const tile0 = this.root.closest(".ltk-tile") !== null; // a tile hides the title bar
     const chromeH =
       (this.cardTitle.trim() !== "" && !tile0 ? 36 : 6) + // titlebar
-      // the legend: one line, or its real height once definitions wrap
-      Math.max(42, (this.legendEl?.offsetHeight ?? 0) + 16) +
+      // the legend: nothing beside a rail, one line, or its real height once definitions stack
+      (rail ? 0 : Math.max(42, (this.legendEl?.offsetHeight ?? 0) + 16)) +
       (hasCaption ? 26 : 0) + // subtitle band + margin
       18; // body padding + gaps
     const availH = h - chromeH;

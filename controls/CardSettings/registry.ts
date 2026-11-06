@@ -33,8 +33,9 @@ export type FieldKind =
 export interface ObjectField {
   key: string;
   label: string;
-  /** paletteColor = a select over the site state palette (stores the KEY). */
-  kind: "text" | "color" | "paletteColor";
+  /** paletteColor = a select over the site state palette (stores the KEY);
+   *  longtext = a full-width line under the row (a sentence, not a word). */
+  kind: "text" | "color" | "paletteColor" | "longtext";
   placeholder?: string;
 }
 
@@ -547,7 +548,7 @@ export const CARDS: CardSpec[] = [
         key: "dimensions",
         label: "Dimensions",
         kind: "csvChips",
-        help: "One letter per panel; letters with a template draw as that letter.",
+        help: "One letter per panel. S, Q, D, P and C draw as their letter and + draws the safety cross; any other letter is a plain block with its subtitle as caption.",
         placeholder: "S, Q, D, P, C",
       },
       {
@@ -568,7 +569,7 @@ export const CARDS: CardSpec[] = [
           { key: "label", label: "Label", kind: "text", placeholder: "Good" },
           { key: "color", label: "Colour", kind: "paletteColor" },
           { key: "icon", label: "Icon", kind: "text", placeholder: "✓" },
-          { key: "definition", label: "Definition", kind: "text", placeholder: "e.g. A recordable injury" },
+          { key: "definition", label: "Definition", kind: "longtext", placeholder: "Definition — what this rating means, e.g. A recordable injury" },
         ],
       },
     ],

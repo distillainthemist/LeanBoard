@@ -214,7 +214,10 @@ export const CARDSETTINGS_CSS = `
 
 /* ---- small tables (objectList / kvList) ---- */
 .ltk-cs-table { display: flex; flex-direction: column; gap: 4px; }
-.ltk-cs-tr { display: flex; gap: 6px; align-items: center; }
+.ltk-cs-tr { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+/* a longtext column: its own full-width line under the row's cells */
+.ltk-cs-td-long { flex: 1 0 100%; margin-bottom: 4px; }
+.ltk-cs-cell-long { resize: vertical; line-height: 1.35; font: inherit; font-size: 12px; }
 .ltk-cs-th .ltk-cs-td {
   font-size: 10px;
   font-weight: 700;

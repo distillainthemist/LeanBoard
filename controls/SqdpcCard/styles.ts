@@ -110,8 +110,27 @@ export const SQDPC_CSS = `
   border-radius: 3px;
 }
 .ltk-sq-legend-hint { margin-left: auto; }
-/* definitions under each entry (issue round 2026-11-06, #4) */
+/* definitions written: the legend is a rail down the left of the letters
+   (issue round 2026-11-06, #4; rail per Ben the same day) — swatch and
+   label on one line, the definition under it, the tap hint at the foot */
+.ltk-sq-body-rail { flex-direction: row; align-items: stretch; gap: 16px; }
+.ltk-sq-body-rail .ltk-sq-panels { flex: 1 1 auto; min-width: 0; }
+.ltk-sq-body-rail .ltk-sq-legend-defs {
+  flex: 0 0 200px;
+  width: 200px;
+  flex-direction: column;
+  align-items: stretch;
+  flex-wrap: nowrap;
+  gap: 10px;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 4px;
+  border-right: 1px solid var(--ltk-hairline);
+}
+/* stacked (a narrow box): the entries sit side by side under the letters */
 .ltk-sq-legend-defs { align-items: flex-start; }
-.ltk-sq-legend-entry { display: inline-flex; flex-direction: column; gap: 2px; max-width: 280px; }
+.ltk-sq-legend-entry { display: flex; flex-direction: column; gap: 2px; max-width: 280px; }
+.ltk-sq-body-rail .ltk-sq-legend-entry { max-width: none; }
 .ltk-sq-legend-def { font-size: 12px; line-height: 1.35; color: var(--ltk-fg); padding-left: 16px; }
+.ltk-sq-body-rail .ltk-sq-legend-hint { margin-left: 0; margin-top: auto; padding-top: 6px; font-size: 11.5px; }
 `;

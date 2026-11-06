@@ -479,13 +479,17 @@ function objectListEditor(spec: FieldSpec, get: Get, set: Set, host: FieldHost):
   const sync = () => {
     while (table.firstChild) table.removeChild(table.firstChild);
     const head = el("div", "ltk-cs-tr ltk-cs-th");
-    for (const f of fields) head.appendChild(el("span", "ltk-cs-td", f.label));
+    // a longtext column has no header cell: it sits on its own line under
+    // the row, labelled by its placeholder (SQDPC definitions, 2026-11-06)
+    const short = fields.filter((f) => f.kind !== "longtext");
+    const long = fields.filter((f) => f.kind === "longtext");
+    for (const f of short) head.appendChild(el("span", "ltk-cs-td", f.label));
     head.appendChild(el("span", "ltk-cs-td ltk-cs-td-x", ""));
     table.appendChild(head);
 
     rows.forEach((row, i) => {
       const tr = el("div", "ltk-cs-tr");
-      for (const f of fields) {
+      for (const f of short) {
         const td = el("span", "ltk-cs-td");
         if (f.kind === "color") {
           td.appendChild(
@@ -528,6 +532,21 @@ function objectListEditor(spec: FieldSpec, get: Get, set: Set, host: FieldHost):
         xtd.appendChild(x);
       }
       tr.appendChild(xtd);
+      for (const f of long) {
+        const td = el("span", "ltk-cs-td ltk-cs-td-long");
+        const ta = el("textarea", "ltk-input ltk-cs-cell ltk-cs-cell-long") as HTMLTextAreaElement;
+        ta.rows = 2;
+        ta.value = row[f.key] ?? "";
+        ta.placeholder = f.placeholder ?? f.label;
+        ta.setAttribute("aria-label", f.label);
+        ta.disabled = host.readOnly;
+        ta.addEventListener("input", () => {
+          row[f.key] = ta.value;
+          push();
+        });
+        td.appendChild(ta);
+        tr.appendChild(td);
+      }
       table.appendChild(tr);
     });
 
