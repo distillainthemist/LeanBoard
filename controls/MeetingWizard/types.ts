@@ -12,6 +12,7 @@ import {
   MeetingPerson,
   parseMeetingInfo,
 } from "../../shared/schema/meeting";
+import { parseIntervalWeeks } from "../../shared/schema/recurrence";
 
 export const CADENCES = [
   { value: "annually", label: "Annually" },
@@ -22,6 +23,21 @@ export const CADENCES = [
   { value: "daily", label: "Daily" },
   { value: "shiftly", label: "Shiftly (day + night)" },
 ];
+
+/** The wizard's cadence picker: the categories, with "Every … weeks"
+ *  beside Fortnightly — stored as fortnightly + intervalWeeks (issue
+ *  round 2026-11-06, #1). */
+export const NWEEKS = "nweeks";
+export const CADENCE_CHOICES = [
+  ...CADENCES.slice(0, 4),
+  { value: NWEEKS, label: "Every … weeks" },
+  ...CADENCES.slice(4),
+];
+
+/** The picker's value for a draft: "nweeks" for fortnightly over 2 weeks. */
+export function cadenceChoice(category: string, intervalWeeks: number): string {
+  return category === "fortnightly" && parseIntervalWeeks(intervalWeeks) > 2 ? NWEEKS : category;
+}
 
 /** Cadences that use the crew roster machinery. */
 export function isRostered(category: string): boolean {
@@ -52,7 +68,7 @@ export function hasDayRows(category: string): boolean {
 
 /**
  * Cadences whose recurrence projects forward from an anchor date (the
- * scheduler's baseStartDate): fortnightly = same week parity as the anchor;
+ * scheduler's baseStartDate): fortnightly = every Nth week from the anchor's week;
  * monthly/quarterly/annually = the anchor's nth weekday (e.g. 2nd Tuesday).
  * Rostered cadences anchor via the roster's first day shift instead.
  */
@@ -84,6 +100,8 @@ export interface WizardDraft {
   crewList: string; // CSV, roster order
   rosterPattern: string; // e.g. 2D-2N-5O
   baseStartDate: string; // yyyy-mm-dd
+  /** Fortnightly only: every N weeks, 2–12 (2 = a plain fortnight). */
+  intervalWeeks: number;
   columns: string; // CSV of row-column labels
   /** Admin-managed classification (NOT the cadence). */
   meetingCategory: string;
@@ -127,6 +145,7 @@ export function emptyDraft(): WizardDraft {
     crewList: "",
     rosterPattern: "",
     baseStartDate: "",
+    intervalWeeks: 2,
     columns: "",
     meetingCategory: "",
     instancesAdjustable: false,
@@ -153,6 +172,7 @@ const MANAGED_CONFIG = [
   "crewList",
   "rosterPattern",
   "baseStartDate",
+  "intervalWeeks",
   "columns",
   "weekTopics",
   "dayTopics",
@@ -193,6 +213,7 @@ export function parseWizardDraft(raw: string | null | undefined): WizardDraft {
     draft.crewList = s(config.crewList);
     draft.rosterPattern = s(config.rosterPattern);
     draft.baseStartDate = s(config.baseStartDate);
+    draft.intervalWeeks = parseIntervalWeeks(config.intervalWeeks);
     draft.columns = s(config.columns);
     if (Array.isArray(config.weekTopics)) {
       draft.weekTopics = config.weekTopics.slice(0, 5).map((v) => s(v));
@@ -280,6 +301,11 @@ export function serializeWizardDraft(draft: WizardDraft): string {
     draft.baseStartDate !== ""
   ) {
     config.baseStartDate = draft.baseStartDate;
+  }
+  // every N weeks rides the fortnightly cadence; a plain fortnight
+  // writes nothing (older readers see what they always saw)
+  if (draft.category === "fortnightly" && parseIntervalWeeks(draft.intervalWeeks) !== 2) {
+    config.intervalWeeks = parseIntervalWeeks(draft.intervalWeeks);
   }
   if (draft.category === "weekly") {
     const topics = draft.weekTopics.map((t) => t.trim());

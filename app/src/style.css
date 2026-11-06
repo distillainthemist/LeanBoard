@@ -147,6 +147,13 @@ button.app-link:disabled { cursor: default; opacity: 0.5; }
   flex-wrap: wrap;
   /* rail width (48) + row gap (8) — aligned with the tabs and editor */
   padding: 0 56px;
+  /* capped and centred WITH the focused card (1600 + two rails and
+     gaps): on a window wider than the cap the card centres, and a
+     full-width header left the tabs hanging off its left edge
+     (issue round 2026-11-06, #3) */
+  width: 100%;
+  max-width: 1712px;
+  align-self: center;
 }
 .app-card-meeting { font-size: 19px; font-weight: 800; letter-spacing: 0.01em; }
 /* the initiative's stage on the walk's title line (2026-10-08) */
@@ -163,6 +170,10 @@ button.app-link:disabled { cursor: default; opacity: 0.5; }
   margin-bottom: -8px;
   position: relative;
   z-index: 2;
+  /* the card's cap, as the title row above */
+  width: 100%;
+  max-width: 1712px;
+  align-self: center;
 }
 .app-card-back {
   flex: 0 0 auto;

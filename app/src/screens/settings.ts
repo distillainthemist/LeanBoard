@@ -84,6 +84,7 @@ import { parseMeetingInfo, parseOrgTree } from "../../../shared/schema/meeting";
 import { effectiveTabs, HUB_TABS } from "../../../shared/schema/hubTabs";
 import {
   cadenceFromConfig,
+  cadenceLabel,
   crewStateOn,
   parseCategory,
   parseDaysOfWeek,
@@ -3658,7 +3659,7 @@ function cadenceSummary(blobRaw: string): string {
     const blob = JSON.parse(blobRaw) as Record<string, unknown>;
     const cfg = (blob.config ?? {}) as Record<string, unknown>;
     const cat = parseCategory(String(cfg.category ?? ""));
-    const catLabel = cat.charAt(0).toUpperCase() + cat.slice(1);
+    const catLabel = cadenceLabel(cat, cfg.intervalWeeks);
     const cad = cadenceFromConfig(cfg, new Date());
     // times that vary by day / week read "07:00 (varies)" — the rows carry the detail
     const time = String(cfg.timeOfDay ?? "").trim() + (timeVaries(cad) ? " (varies)" : "");

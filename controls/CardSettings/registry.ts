@@ -568,6 +568,7 @@ export const CARDS: CardSpec[] = [
           { key: "label", label: "Label", kind: "text", placeholder: "Good" },
           { key: "color", label: "Colour", kind: "paletteColor" },
           { key: "icon", label: "Icon", kind: "text", placeholder: "✓" },
+          { key: "definition", label: "Definition", kind: "text", placeholder: "e.g. A recordable injury" },
         ],
       },
     ],
@@ -980,11 +981,18 @@ export const CARDS: CardSpec[] = [
         placeholder: "2D-2N-5O",
       },
       {
+        key: "intervalWeeks",
+        label: "Every … weeks",
+        kind: "number",
+        help: "Fortnightly only: the interval in weeks, 2–12 (4 = every four weeks). Empty = 2.",
+        placeholder: "2",
+      },
+      {
         key: "baseStartDate",
         label: "Base start date",
         kind: "date",
         help:
-          "Recurrence anchor: the first crew's first day shift (rosters), or the relative-weekday anchor (monthly+).",
+          "Recurrence anchor: the first crew's first day shift (rosters), the week an every-N-weeks cadence counts from, or the relative-weekday anchor (monthly+).",
       },
       {
         key: "columns",

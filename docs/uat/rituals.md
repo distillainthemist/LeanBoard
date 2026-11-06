@@ -25,14 +25,14 @@ expected: at company scope the central pick shows both rituals (each matches thr
 
 ### UAT-RIT-003 — Tiles fill their slot at a readable size
 persona: owner
-modules: controls/BoardGrid/editor.ts controls/BoardGrid/types.ts shared/ui/tier.ts shared/ui/baseCss.ts cardHost.ts
+modules: controls/BoardGrid/editor.ts controls/BoardGrid/types.ts shared/ui/tier.ts shared/ui/baseCss.ts cardHost.ts style.css
 preconditions: a ritual board with several live tiles (an agenda, an action board, a status tile); a laptop (about 1366 px) and, if available, a wall screen
 steps:
 1. Open the board on the laptop with the details pane closed, then open the pane; read the tiles.
 2. Set the board to three or four columns with the pane open; read the tiles.
 3. Open a card from the board (the focused view) on the laptop and on the widest screen available.
 4. Back on the widest screen, read the hub (the tabs) and open the template wizard.
-expected: tiles fill their slot with no empty band beside or below the card and the text stays readable (never thumbnails) — a wide slot shows a wide card, a tall slot a tall one; a tile shows no scrollbar; when the slots become too narrow (three or more columns with the pane open) the board flips to the one-per-row list rather than shrinking further; the focused card is centred and no wider than about 1600 px on a big monitor and full width on the laptop — while the hub, the wizards and the card studio always fill the window's width; the action rows inside a narrow tile read as two lines
+expected: tiles fill their slot with no empty band beside or below the card and the text stays readable (never thumbnails) — a wide slot shows a wide card, a tall slot a tall one; a tile shows no scrollbar; when the slots become too narrow (three or more columns with the pane open) the board flips to the one-per-row list rather than shrinking further; the focused card is centred and no wider than about 1600 px on a big monitor and full width on the laptop — its title line and tabs centre with it, the tabs sitting on the card's title bar from its left edge (never hanging off to the left) — while the hub, the wizards and the card studio always fill the window's width; the action rows inside a narrow tile read as two lines
 
 ### UAT-RIT-004 — Tables fit their card
 persona: owner
@@ -91,3 +91,23 @@ steps:
 4. On the Gantt, click an action's name; change its description; save. Then drag a bar.
 5. Open the second card on the Gantt.
 expected: step 1 the switch is present on all three views and OFF, with the hidden count in brackets, and completed actions appear on none of them; step 2 on, completed actions show on the list, in Done and as grey bars; off again, the Done column stays as a drop target reading "n completed hidden", and clicking that line switches completed on; step 3 the card reads "All n actions are complete" with the switch and the Add button, not the empty-card prompt; step 4 the action's dialog opens from its name and the saved change shows; the bar still drags its dates; step 5 the Gantt shows a lane per kanban column in the kanban's order with a count, each folding to one summary bar on click, and the list view inside the Gantt groups the same way
+
+### UAT-RIT-010 — Rating definitions on the HSE cross
+persona: owner
+modules: controls/SqdpcCard/editor.ts controls/SqdpcCard/types.ts controls/SqdpcCard/styles.ts controls/CardSettings/registry.ts
+preconditions: a board with an SQDPC card whose dimensions include "+" (the safety cross) and three status codes
+steps:
+1. Open the card's settings; in Status codes, write a Definition for two of the codes (e.g. "A recordable injury"); save.
+2. Open the board and the focused card; read the legend.
+3. Clear both definitions; save; read the legend again.
+expected: each defined rating shows its definition under its legend entry (label · count above, definition below), always visible, the undefined rating shows its entry alone, and the cross shrinks to fit rather than being cut off; with no definitions the legend is the single line it was before
+
+### UAT-RIT-011 — A ritual every N weeks
+persona: owner
+modules: controls/MeetingWizard/editor.ts controls/MeetingWizard/types.ts shared/schema/recurrence.ts controls/CardSettings/registry.ts
+preconditions: rights to create a ritual at a site
+steps:
+1. Create a ritual: in Cadence pick "Every … weeks", enter 4, pick Tuesday and a first occurrence on a Tuesday; finish the wizard.
+2. Read the review step, then the Rituals list and the hub's calendar for the next three months.
+3. Edit the ritual in the wizard: set the weeks to 2; save; read the cadence again.
+expected: the review and the Rituals list read "Every 4 weeks"; the calendar shows the ritual on the first occurrence and then every fourth Tuesday after it (never the weeks between); setting 2 turns the cadence back to Fortnightly with every second Tuesday; existing fortnightly rituals are unchanged
