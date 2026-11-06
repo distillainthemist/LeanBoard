@@ -5,8 +5,13 @@
 
 export type BucketCadence = "shiftly" | "daily" | "weekly" | "monthly" | "annually";
 
-const DAY = 86_400_000;
 const pad = (n: number) => String(n).padStart(2, "0");
+/** `n` calendar days on from a local date — by calendar FIELDS, never
+ *  milliseconds: a day is not 86 400 000 ms across a daylight-saving
+ *  change, and ms arithmetic landed a bucket start a day early once
+ *  the machine's zone had DST (2026-11-06: two tests green in
+ *  Brisbane, red in Auckland). */
+const addDays = (d: Date, n: number): Date => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
 export const isoDate = (d: Date): string => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 export const parseDay = (s: string): Date => new Date(`${s.slice(0, 10)}T00:00:00`);
 
@@ -16,8 +21,8 @@ export function bucketSpan(date: string, cadence: BucketCadence): { from: string
   if (cadence === "shiftly" || cadence === "daily") return { from: isoDate(d), to: isoDate(d) };
   if (cadence === "weekly") {
     const day = (d.getDay() + 6) % 7; // Mon=0
-    const from = new Date(d.getTime() - day * DAY);
-    return { from: isoDate(from), to: isoDate(new Date(from.getTime() + 6 * DAY)) };
+    const from = addDays(d, -day);
+    return { from: isoDate(from), to: isoDate(addDays(from, 6)) };
   }
   if (cadence === "monthly") {
     return { from: isoDate(new Date(d.getFullYear(), d.getMonth(), 1)), to: isoDate(new Date(d.getFullYear(), d.getMonth() + 1, 0)) };
@@ -28,8 +33,8 @@ export function bucketSpan(date: string, cadence: BucketCadence): { from: string
 /** The anchor `n` buckets on from a date's bucket (negative = back). */
 export function addBuckets(anchor: string, cadence: BucketCadence, n: number): string {
   const d = parseDay(bucketSpan(anchor, cadence).from);
-  if (cadence === "shiftly" || cadence === "daily") return isoDate(new Date(d.getTime() + n * DAY));
-  if (cadence === "weekly") return isoDate(new Date(d.getTime() + n * 7 * DAY));
+  if (cadence === "shiftly" || cadence === "daily") return isoDate(addDays(d, n));
+  if (cadence === "weekly") return isoDate(addDays(d, n * 7));
   if (cadence === "monthly") return isoDate(new Date(d.getFullYear(), d.getMonth() + n, 1));
   return `${d.getFullYear() + n}-01-01`;
 }

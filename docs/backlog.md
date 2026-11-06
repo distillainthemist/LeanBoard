@@ -5,6 +5,37 @@ its decision date and enough context to pick it up cold. The phase plans
 (`leanboard-phase5-plan.md`, `leanboard-standard-documents-plan.md`)
 stay the design detail; this is the queue.
 
+## Current state (2026-11-06, after v0.90.0)
+
+Released through v0.90.0 (ledger: `leanboard-cascade-improvement-plan.md`;
+release paragraphs: `../CLAUDE.md`). Production took v0.88.1 and the
+v0.89.0/v0.90.0 managed solution. Recent decisions of record:
+
+- **The release gate first fired at v0.88.1** (2026-11-02): until then
+  every build stamped itself `-dirty` through the generated UAT file and
+  no build could record itself as current (`release-gate-2026-10-31.md`
+  "Found 2026-11-02"). Open: a dismissible PROMPT while the app is
+  running, beside the banner — offered to Ben, not asked for; today a
+  running client gets the banner only, so no edit is ever thrown away.
+- **Controller standing keeps the group listing** (2026-11-01,
+  `membership-roads-2026-11-01.md`): measured faster than the one-user
+  filter query and live rather than eventually consistent; the path
+  road rejected (its 404 names the group). The register paints the
+  remembered standing at once. Switch roads only if a group ever pages.
+- **Roster reads page** (`allWhere`, 2026-11-01) and **admin over an
+  initiative is one scoped rule** (site admins over their own site).
+- **Ingestion grid ticks sync in place** (Ellen Black, 2026-11-02);
+  every other repaint restores the scroll offsets.
+- **LeanBoard Utilities** (2026-11-03/05): Outlook-only connections; the
+  result emailed, Teams dropped (a chat cannot carry a file without
+  OneDrive); task links never send by themselves. Hosted checks still
+  Ben's: paging on a busy 12-month calendar, attachments arriving,
+  task-link parameters on mobile.
+- **Date arithmetic by calendar fields** (2026-11-06): the weekly bucket
+  walked by milliseconds and lost a day across a daylight-saving change
+  once the machine sat in a DST zone — two tests green in Brisbane, red
+  in Auckland. `addDays` in `shared/schema/buckets.ts` is the rule.
+
 ## Near-term (ordered — Ben, 2026-08-07)
 
 1. ~~**Document-control notifications.**~~ **BUILT 2026-08-08
@@ -309,11 +340,14 @@ BUILT 2026-10-12. The plan is complete; open: a generic `syncedSets`
 list only if a third app-master set appears; synonyms the app pushed
 are never removed by the sync (the manager does).
 
-## Document ingestion — open items (2026-10-09)
+## Document ingestion — open items (2026-10-09, released v0.69.0)
 
-Built on dev after v0.68.0, unreleased; the next release is
-SOLUTION-CARRYING (`ben_ltkingestiontask`). Ben's six-item pass is in
-the test script.
+Released as v0.69.0 (SOLUTION-CARRYING, `ben_ltkingestiontask`); since
+then: the spreadsheet round trip (v0.83.0), a task constrained to one
+site (v0.84.0), sub-folders walked with read-only paths and a flat
+landing (v0.86.0, `ingestion-subfolders-proposal-2026-11-01.md`), ticks
+that keep the scroll (v0.88.1). Ben's six-item pass is in the test
+script.
 
 - **Excel round-trip** (decision 1): phase two only if SharePoint's
   grid view and the app's grid fail users in practice.

@@ -352,6 +352,14 @@ Version lives in the tag alone — nothing is stamped into files.
   call at ~110 ms, faster than the filter query, so the gates kept it;
   the seconds were serialised reads and a first load waiting on them.
   Switch a road only on a measured win for both answers.
+- **A day is not 86 400 000 ms.** Date arithmetic walks by calendar
+  FIELDS (`new Date(y, m, d + n)` — `addDays` in
+  `shared/schema/buckets.ts`), never by adding milliseconds: across a
+  daylight-saving change the ms walk lands at 23:00 the day before and
+  a bucket start slips a day. Two tests were green in Brisbane (no DST)
+  and red once the Mac sat in Auckland (2026-11-06). Run a date test
+  under a DST zone (`TZ=Pacific/Auckland npx vitest run …`) before
+  trusting it.
 - **The SDK's `retrieveMultipleRecordsAsync` returns ONE page** — 500
   rows by default, with a `skipToken` for the next. `allWhere`
   (`store/dv.ts`) asks for 5000 a page and follows the token to the
@@ -533,6 +541,14 @@ Version lives in the tag alone — nothing is stamped into files.
 
 - docs/uat-proposal-2026-10.md + docs/uat/ — UAT runs in the app: the
   script format, the two tables, Settings → UAT, the testers' tab.
+- docs/release-gate-2026-10-31.md — the release gate and the 2026-11-02
+  finding (why no build had promoted itself; the stamp rules).
+- docs/membership-roads-2026-11-01.md — the controller-standing probe:
+  why the gates list the group, the remembered standing on open.
+- docs/cadence-current-state-plan-2026-11.md — the Utilities app and
+  its first tool, decisions, the Phase 0 calendar probe, the tweaks.
+- docs/backlog.md — decisions of record and the open queue; its head
+  carries the current state and the recent decisions.
 
 - docs/sharepoint-writes.md — the SP write cookbook (VULI vs connector
   patch, moderation, dates-in-locale vs ISO).

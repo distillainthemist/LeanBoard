@@ -8,7 +8,8 @@ the per-feature plans (linked throughout); when this page and a plan
 disagree, fix this page — it is meant to be current, the plans are
 meant to be history.
 
-Last reviewed: 2026-10-21 (after v0.75.1: health checks).
+Last reviewed: 2026-11-06 (after v0.90.0: the Utilities app, the release
+gate, the roster paging and admin-scope rules, the Documents standing).
 
 ---
 
@@ -1157,7 +1158,8 @@ Operating instructions of record: [../CLAUDE.md](../CLAUDE.md) (agent),
 [deployment-cookbook.md](deployment-cookbook.md) (operational recipes).
 
 - **Gates before any push**: `tsc --noEmit`, the import gate, the
-  native-dialog gate, vitest (886 tests at v0.75.1), `npm run build`
+  native-dialog gate, vitest (984 app tests and 22 Utilities tests at
+  v0.90.0), `npm run build`
   (which first compiles the UAT scripts — a bad script fails the
   build), chunk report — plus repo-root
   typecheck when `shared/`/`controls/` change. Check the test COUNT
@@ -1169,11 +1171,39 @@ Operating instructions of record: [../CLAUDE.md](../CLAUDE.md) (agent),
   the report's `index` line too: `main.ts` must import nothing heavy
   statically (`./runtime` carries the host SDK behind a dynamic
   import).
-- **Dev deploys**: `pac code push` from `app/` (authenticated as the
-  maker; the player caches bundles — close/reopen after every push).
-  `pac code add-data-source -a dataverse -t <logical name>` wires new
-  tables and regenerates services (use logical names, not entity-set
-  names).
+- **Dev deploys**: `npm run push` from `app/` (and from `utility/` for
+  the Utilities app): `tools/push-gate.mjs` then `pac code push`
+  (authenticated as the maker; the player caches bundles — close/reopen
+  after every push). The gate refuses uncommitted source, a `-dirty`
+  stamp in dist, or a dist that is not HEAD's build — commit, then
+  build, then push. `pac code add-data-source -a dataverse -t <logical
+  name>` wires new tables and regenerates services (use logical names,
+  not entity-set names).
+- **The build stamp and the release gate** (v0.85.0,
+  [release-gate-2026-10-31.md](release-gate-2026-10-31.md)):
+  `app/tools/build-stamp.mjs` stamps `__APP_VERSION__` with `git
+  describe` plus `-dirty` only when a tracked SOURCE file differs (the
+  build's own generated UAT file is excluded — git's `--dirty` had
+  flagged every later-day build and every CI release build, so until
+  v0.88.1 no build could promote itself). The APP_ROW's
+  `ben_releasepolicy` records the current and minimum builds; the first
+  clean boot of a newer build records it; a client open on an older
+  build gets a banner, one that opens on it is gated until it reopens;
+  a build below the minimum is gated once no leave guard holds; each
+  person's row records the build they last opened (`ben_lastbuild`).
+  Settings → Branding → Version holds the override and the minimum.
+  Never a reload button inside the player (the host handshake).
+- **Reads page** (v0.88.0): the SDK's `retrieveMultipleRecordsAsync`
+  returns 500 rows and a skip token; `allWhere` (`store/dv.ts`) asks
+  5000 a page and follows the token to the end (cap 50 000). Anything
+  meant to be "every row" goes through it; a direct `getAll({ top })` is
+  a deliberate bound. Screens resolve the VIEWER'S own roster row
+  directly (`viewerPerson`), never only by finding it in the list.
+- **Admin over an initiative** is one scoped rule
+  (`adminScopeFor(role, site)` / `adminOver(i, scope)` in
+  `improvement/initiativeModel.ts`): super admins everywhere, site
+  admins over their own site's initiatives, asked by every edit door,
+  the confidential view and the gates.
 - **Schema**: declarative in `data/schema.mjs`, applied by
   `data/deploy-schema.mjs` (idempotent Dataverse Web API; creates
   tables/columns/relationships inside the **LeanToolKitData** solution
@@ -1195,10 +1225,22 @@ Operating instructions of record: [../CLAUDE.md](../CLAUDE.md) (agent),
   live tables (the popup, the register, the overlay) stays a hosted
   check.
 - **Releases**: `./release.sh <x.y.z>` + `git push origin main --tags`.
-  The tag triggers GitHub Actions: build the app package, export the
-  managed LeanToolKitData solution from dev, attach both to a GitHub
-  Release. Version lives in the tag alone; the build stamps
-  `__APP_VERSION__` from `git describe` (issue reports carry it).
+  The tag triggers GitHub Actions: build both app packages, export the
+  managed LeanToolKitData solution from dev (it carries both apps),
+  attach them to a GitHub Release. Version lives in the tag alone; the
+  build stamp (above) rides in the bundle, and a release's stamp can be
+  checked by downloading its package and grepping. The newest managed
+  solution carries every earlier schema change, so a receiving org
+  imports one solution, then the packages.
+- **LeanBoard Utilities** (v0.89.0/v0.90.0,
+  [cadence-current-state-plan-2026-11.md](cadence-current-state-plan-2026-11.md)):
+  the second code app, `utility/`, in the same solution — a hub of
+  task-specific tools with its own gates and push gate. Cadence Current
+  State reads the signed-in person's own calendar through the Outlook
+  connector's Graph passthrough (`/me/calendar/calendarView`, one
+  combined `Prefer` header), masks confidential meetings in the export,
+  and emails the JSON and Excel through the same connector. Nothing is
+  stored server-side; the app asks for the Outlook connection only.
 - **Issues → one PDF** (2026-10-06): the triage desk ticks reports and
   exports a single PDF, a section per issue (id, kind, area, status,
   reporter, times, merges, following, description, captured context,
@@ -1283,7 +1325,15 @@ the app can never do what its user cannot.
    Document Controllers group ALONE — app site/super admins are not in
    the documents circle. The circle for a standard is: named owners /
    approvers, a Document Controllers member, or a granted revision
-   editor.
+   editor. The standing is read by listing the group through the
+   Groups connector (one call under a page, live — the 2026-11-01
+   membership probe, [membership-roads-2026-11-01.md](membership-roads-2026-11-01.md),
+   measured it faster than Graph's one-user filter query, whose
+   eventual index could lag a fresh grant); the last visit's answer is
+   remembered on the person's documents preferences so the register
+   paints controller affordances at once while the live check confirms
+   — a live no replaces a remembered yes, and SharePoint stays the hard
+   gate.
 
 **Data-loss prevention.** The app uses **five standard Microsoft
 connectors only** (SharePoint, Teams, Outlook, O365 Groups, O365
@@ -1357,6 +1407,12 @@ no ad-hoc credential handling.
 | The 2026-10-18 issue round — 38 findings, decisions, five tranches, the residual round | [issues-plan-2026-10-19.md](issues-plan-2026-10-19.md) |
 | UAT in the app — the proposal, decisions, format; the scripts | [uat-proposal-2026-10.md](uat-proposal-2026-10.md), [uat/](uat/) |
 | Health checks — the scope, the 13 decisions, what was built | [health-checks-proposal-2026-10.md](health-checks-proposal-2026-10.md) |
+| The release gate — flagging and gating clients on an old build; the 2026-11-02 stamp finding | [release-gate-2026-10-31.md](release-gate-2026-10-31.md) |
+| Controller standing — the membership-roads probe and the remembered standing | [membership-roads-2026-11-01.md](membership-roads-2026-11-01.md) |
+| LeanBoard Utilities and Cadence Current State — decisions, probe, phases, tweaks | [cadence-current-state-plan-2026-11.md](cadence-current-state-plan-2026-11.md) |
+| Ingestion of nested folders — the proposal and what was built | [ingestion-subfolders-proposal-2026-11-01.md](ingestion-subfolders-proposal-2026-11-01.md) |
+| Actions raised on an initiative board landing personal — the trace and the fixes | [action-link-review-2026-10-30.md](action-link-review-2026-10-30.md) |
+| Card responsiveness R0–R5 | [card-responsiveness-review-2026-10-30.md](card-responsiveness-review-2026-10-30.md) |
 | What shipped when — the running ledger | [leanboard-cascade-improvement-plan.md](leanboard-cascade-improvement-plan.md) |
 | Pilot feedback round 1 — plan, status, test script | [user-feedback-plan-2026-10.md](user-feedback-plan-2026-10.md), [user-feedback-test-script-2026-10.md](user-feedback-test-script-2026-10.md) |
 | Phone layouts — the review, tranches M1–M5, card follow-ups | [mobile-review-2026-10.md](mobile-review-2026-10.md) |

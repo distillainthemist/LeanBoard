@@ -14,6 +14,13 @@ Outlook through the standard Power Platform connectors. There is no
 backend of its own. Current release: see the
 [releases page](https://github.com/distillainthemist/LeanBoard/releases).
 
+A second, smaller code app ships in the same solution: **LeanBoard
+Utilities** (`utility/`), a hub of task-specific tools. Its first tool,
+Cadence Current State, scans the signed-in person's own Outlook calendar
+for a period, lets them review and mask meetings, and exports or emails
+the result as JSON and Excel for analysis. Plan and decisions:
+[docs/cadence-current-state-plan-2026-11.md](docs/cadence-current-state-plan-2026-11.md).
+
 The maintained technical overview is
 [docs/architecture.md](docs/architecture.md). This page is the tour.
 
@@ -160,13 +167,24 @@ these run in CI on every push.
 
 ## Deploy and release
 
-- **Dev**: `cd app && pac code push`.
+- **Dev**: `cd app && npm run push` (the push gate, then `pac code push`);
+  the Utilities app the same from `utility/`. Commit first: the gate
+  refuses uncommitted source or a bundle that is not HEAD's build, because
+  the bundle's stamp is what the release gate compares.
 - **Release**: `./release.sh x.y.z` then `git push origin main --tags`. The
-  tag runs the Release workflow, which attaches the code-app package and
-  the managed `LeanToolKitData` solution to a GitHub Release.
-- **Another environment**: import the managed solution, then the app
-  package; the SharePoint site steps and the per-release schema notes are
-  in [docs/deploy-to-new-org.md](docs/deploy-to-new-org.md).
+  tag runs the Release workflow, which attaches both code-app packages and
+  the managed `LeanToolKitData` solution (carrying both apps) to a GitHub
+  Release.
+- **The release gate**: every bundle carries its build stamp
+  (`app/tools/build-stamp.mjs`). The first clean boot of a newer build
+  records it as the current one; a client still open on an older build
+  sees a banner, and one that opens on an older build is gated until it
+  reopens. Settings → Branding → Version holds the override and the
+  minimum. Design: [docs/release-gate-2026-10-31.md](docs/release-gate-2026-10-31.md).
+- **Another environment**: import the newest managed solution (it carries
+  every earlier schema change), then the app package(s); the SharePoint
+  site steps and the per-release schema notes are in
+  [docs/deploy-to-new-org.md](docs/deploy-to-new-org.md).
 
 ## Documentation
 
@@ -177,6 +195,8 @@ these run in CI on every push.
 - [docs/uat-proposal-2026-10.md](docs/uat-proposal-2026-10.md) and [docs/uat](docs/uat) — UAT in the app and the scripts.
 - [docs/controls](docs/controls/README.md) — per-card reference and JSON contracts.
 - [docs/leanboard-cascade-improvement-plan.md](docs/leanboard-cascade-improvement-plan.md) — the running ledger of what shipped when.
+- [docs/backlog.md](docs/backlog.md) — the decisions of record and the open queue.
+- [docs/release-gate-2026-10-31.md](docs/release-gate-2026-10-31.md) — how clients on an old build are told and gated.
 
 ## History
 

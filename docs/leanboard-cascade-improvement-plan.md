@@ -1455,6 +1455,42 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-11-05 — released as v0.90.0** (SOLUTION-CARRYING for the
+  Utilities app only, no schema change): Cadence tweaks
+  (`docs/cadence-current-state-plan-2026-11.md` "Tweaks") — the Office
+  365 Users connector dropped (one connection, Outlook); the result
+  EMAILED with the JSON and Excel attached (`SendEmailV2`,
+  `utility/src/cadence/deliver.ts`, summary from the export document so
+  masking is the files' own; Teams considered and dropped — a chat
+  cannot carry a file without OneDrive); task links `utool=cadence` +
+  `umonths` or fixed `ufrom`+`uto`, `usendto`, `unote` that open straight
+  into a scan and offer "Send to <person>" after the review (the link
+  never sends by itself; spent after the first mount, 20 s grace);
+  hidden fields stay hidden; the review's summary tiles and the task
+  banner heading removed. UAT: CAD-009, CAD-010. Prod imports the
+  managed solution; the LeanBoard app is unchanged.
+- **2026-11-03 — released as v0.89.0** (SOLUTION-CARRYING, no schema
+  change): **LeanBoard Utilities**, the SECOND code app (`utility/`,
+  its own `power.config.json`, Vite build and push gate, pushed with
+  `--solutionName LeanToolKitData` so the release's managed export
+  carries both apps) and its first tool **Cadence Current State**
+  (`docs/cadence-current-state-plan-2026-11.md`, nine decisions): the
+  signed-in person's own Outlook calendar for a chosen period (≤ 12
+  months), read through the Outlook connector's Graph passthrough on
+  `/me/calendar/calendarView` (Phase 0 probe: ONE combined `Prefer`
+  header for zone + text bodies; `/me/calendarView` refused; typed
+  `GetEventsCalendarViewV3` as the fallback), grouped by series,
+  cancelled and declined dropped and counted, personal / private /
+  confidential MASKED in the export (subject "Confidential", times and
+  recurrence kept), bodies to text with join blocks stripped, JSON main
+  export + Excel (the .xlsx writer moved to `shared/export/xlsx.ts`,
+  real date-time cells; `docs/xlsx.ts` re-exports). Nothing stored
+  server-side. Release workflow ships `LeanBoardUtilities_<tag>.zip` as
+  the pac fallback; runbook section (solution, group share, DLP). UAT:
+  `docs/uat/cadence.md` (8 cases, persona user), component `cadence`;
+  `tools/uat-delta.mjs` reads `utility/src`. Prod imports the managed
+  solution, then shares LeanBoard Utilities with its Entra security
+  group.
 - **2026-11-02 — released as v0.88.1** (app-only): the first release
   that can announce itself. Ben: "I never see the prompt that I am
   using a new version." The build's first step (`uat-compile`) rewrote

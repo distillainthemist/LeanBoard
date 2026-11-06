@@ -227,7 +227,11 @@ pac code push
 ```
 
 The pushed app is identical; it just lives outside the solution until
-someone does the portal Add-existing step there.
+someone does the portal Add-existing step there. Push the RELEASE
+package, or a bundle built from a clean checkout of the tag (`npm run
+push` runs the push gate): a bundle built from an uncommitted tree is
+stamped `-dirty`, never records itself as the current build, and the
+release gate then tells nobody to reopen (2026-11-02).
 
 ## What each schema-carrying release added (import the managed solution first)
 
