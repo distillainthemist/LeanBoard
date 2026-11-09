@@ -1455,6 +1455,32 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-11-09 — released as v0.92.0** (SOLUTION-CARRYING for the
+  Utilities app only, no schema change): Cadence "notice given"
+  (`docs/cadence-current-state-plan-2026-11.md` "Tweaks (Ben,
+  2026-11-09)") — the scan selects Graph's `createdDateTime` and
+  `lastModifiedDateTime` (both roads) and reads `createdDateTime,start`
+  off series masters; `utility/src/cadence/model.ts` gains
+  `instantOf`/`toWall`/`hoursBefore` (Intl, offset re-checked once —
+  tests run under TZ=Pacific/Auckland) and `SHORT_NOTICE_HOURS = 24`;
+  `noticeHours` + `shortNotice` on every meeting (a one-off from its
+  invite's created time, a moved occurrence from its last change, an
+  ordinary occurrence null) and on every series (the master's creation
+  to its first meeting ever, `firstStart`; null without the master);
+  negative means added after it started. Review: grey/amber notice
+  badges with the times in the tooltip, "moved, n h notice" on moved
+  occurrences, a Short notice chip, a count line. Exports: `created`,
+  `lastModified`, `noticeHours`, `shortNotice` on meetings; `created`,
+  `firstStart`, `noticeHours`, `shortNotice` on series;
+  `counts.shortNoticeMeetings`/`shortNoticeSeries`; a rule line and
+  dictionary entries; the same Excel columns; confidential meetings
+  keep them (timing). Email summary adds "n on short notice (under
+  24 h)". Caveats: an organiser's own invite counts from the draft, a
+  forwarded invite from its arrival, `lastModifiedDateTime` also moves
+  on the person's own response. UAT: CAD-011 (CAD-009 body line
+  updated); 26 Utilities tests. Built in the terminal session
+  (c13d4dd). Prod imports the managed solution; the LeanBoard app is
+  unchanged.
 - **2026-11-06 — released as v0.91.0** (app-only, no schema change):
   the 2026-11-06 issue round (`docs/issues-plan-2026-11-06.md`), built in
   the LeanToolKitPCF Claude project and merged as PR #1. Priorities

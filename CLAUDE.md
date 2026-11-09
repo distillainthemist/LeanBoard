@@ -513,15 +513,16 @@ Version lives in the tag alone — nothing is stamped into files.
   review's summary tiles and the task banner heading removed) is
   SOLUTION-CARRYING for the Utilities app only: prod imports the managed
   solution; the LeanBoard app is unchanged. No schema change.
-  UNRELEASED (2026-11-09, Utilities only, no schema): notice given —
+  v0.92.0 (2026-11-09, Utilities only, no schema): notice given —
   the Cadence scan selects `createdDateTime`/`lastModifiedDateTime` and
   reads `createdDateTime,start` off series masters; `noticeHours` +
   `shortNotice` (under 24 h) on meetings (one-off: from the invite;
   moved occurrence: from the move; ordinary occurrence: null) and
   series (creation → first meeting ever); badges, a Short notice chip
   and a count line on the review; the fields in both exports and the
-  email summary (plan doc Tweaks 2026-11-09, UAT-CAD-011). Will be
-  SOLUTION-CARRYING for the Utilities app when cut.
+  email summary (plan doc Tweaks 2026-11-09, UAT-CAD-011). SOLUTION-
+  CARRYING for the Utilities app only: prod imports the managed
+  solution; the LeanBoard app is unchanged.
   v0.91.0 (2026-11-06: the 2026-11-06 issue round —
   `docs/issues-plan-2026-11-06.md`; managing an org = its owner or the
   owner's direct reports, initiatives link only to priorities at an org the

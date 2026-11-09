@@ -6,9 +6,9 @@ decisions: [../docs/cadence-current-state-plan-2026-11.md](../docs/cadence-curre
 
 Shipped: v0.89.0 (the hub, the scan, the review, JSON / Excel export) and
 v0.90.0 (Outlook-only connections, the result emailed with the files
-attached, task links that open straight into a scan). Unreleased: notice
+attached, task links that open straight into a scan) and v0.92.0 (notice
 given — created / last-modified times, hours of notice and a short-notice
-flag on every meeting and series (plan doc, Tweaks 2026-11-09). The
+flag on every meeting and series; plan doc, Tweaks 2026-11-09). The
 calendar probe stays behind the hub's footer link (`#/probe`).
 
 Build and push from this folder: `npm ci`, `npx tsc --noEmit`,

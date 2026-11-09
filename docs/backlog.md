@@ -5,7 +5,7 @@ its decision date and enough context to pick it up cold. The phase plans
 (`leanboard-phase5-plan.md`, `leanboard-standard-documents-plan.md`)
 stay the design detail; this is the queue.
 
-## Current state (2026-11-06, after v0.91.0)
+## Current state (2026-11-09, after v0.92.0)
 
 Released through v0.91.0 (ledger: `leanboard-cascade-improvement-plan.md`;
 release paragraphs: `../CLAUDE.md`). Production took v0.88.1 and the
@@ -40,7 +40,7 @@ of record:
   OneDrive); task links never send by themselves. Hosted checks still
   Ben's: paging on a busy 12-month calendar, attachments arriving,
   task-link parameters on mobile.
-- **Notice given in Cadence** (2026-11-09, unreleased): hours from the
+- **Notice given in Cadence** (2026-11-09, released as v0.92.0): hours from the
   invite (or a series' creation, or a move) to the start, flagged under
   24 h; a one-off the person organised counts from the draft, a
   forwarded invite from when it reached this calendar. Hosted checks
