@@ -2,6 +2,10 @@
  "generatedAt": "2026-11-06",
  "releases": [
   {
+   "tag": "v0.91.0",
+   "date": "2026-11-06"
+  },
+  {
    "tag": "v0.90.0",
    "date": "2026-11-05"
   },
@@ -3423,6 +3427,28 @@
        "expected": "the series row names the pattern (e.g. \"Weekly on Tue\"), the occurrence count and hours; after step 2 the series box is part-ticked and its chip reads \"Confidential (1 of n)\"; step 3 unticks and re-ticks every occurrence; the export bar's count follows each change",
        "hash": "a80fe992",
        "changed": "2026-11-03"
+      },
+      {
+       "id": "UAT-CAD-011",
+       "title": "Notice given shows on every row and short notice is flagged",
+       "journey": "Journey 2 — Review",
+       "persona": "user",
+       "modules": [
+        "utility/src/cadence/model.ts",
+        "utility/src/cadence/read.ts",
+        "utility/src/cadence/screen.ts",
+        "utility/src/cadence/exportDoc.ts"
+       ],
+       "preconditions": "in the period, a one-off invite received a week or more before it; a one-off invite sent the same day it was held; a weekly series created for its first meeting less than a day ahead (ask a colleague to create and send it for tomorrow); one occurrence of a series moved by its organizer",
+       "steps": [
+        "Scan; read the badge on each row (hover it for the times).",
+        "Press Show all on the moved series; read the moved occurrence's row.",
+        "Press the Short notice chip.",
+        "Export JSON and Excel; read a one-off, the series row and the moved occurrence in each."
+       ],
+       "expected": "step 1 — the week-ahead invite reads \"7 d notice\" (grey) and its tooltip \"Invite received <date time>\"; the same-day invite reads \"<n> h notice\" shaded amber; the series row reads \"<n> h notice\" amber with the tooltip naming when the series was created and its first meeting; above the list a line reads \"<n> meetings or series were issued with under 24 h notice …\"; step 2 — ordinary occurrences carry no badge; the moved one reads \"moved, <n> h notice\" (or \"<n> d notice\") with the tooltip \"Moved <date time>\"; step 3 — only rows flagged short notice stay (a series stays when it or any occurrence is flagged); step 4 — the JSON meeting has created, lastModified, noticeHours and shortNotice (noticeHours null for an ordinary occurrence); the series has created, firstStart (before the period when the series is older) and noticeHours; counts has shortNoticeMeetings and shortNoticeSeries; a confidential meeting keeps these fields; the Excel Meetings and Series sheets carry the same columns with created/firstStart as date-times in the tester's zone",
+       "hash": "f543aaa4",
+       "changed": "2026-11-06"
       }
      ]
     },
@@ -3484,9 +3510,9 @@
         "Enter your own address, press Send.",
         "Enter the colleague's address, press Send."
        ],
-       "expected": "step 1 reads \"Only people in <your domain> can receive the result.\" and step 2 \"That is you — export the files instead.\", nothing sent; step 3 reads Sent; the colleague receives one email from the tester, subject \"Cadence Current State: <from> to <to> (<tester>)\", whose body gives the period, the counts and the recurring series by hours, with cadence-current-state-<from>-to-<to>.json and .xlsx attached; both files open and match the downloads; the confidential meeting reads Confidential in the body and the files; a copy is in the tester's Sent Items",
-       "hash": "12344712",
-       "changed": "2026-11-03"
+       "expected": "step 1 reads \"Only people in <your domain> can receive the result.\" and step 2 \"That is you — export the files instead.\", nothing sent; step 3 reads Sent; the colleague receives one email from the tester, subject \"Cadence Current State: <from> to <to> (<tester>)\", whose body gives the period, the counts (including \"<n> on short notice (under 24 h)\") and the recurring series by hours, with cadence-current-state-<from>-to-<to>.json and .xlsx attached; both files open and match the downloads; the confidential meeting reads Confidential in the body and the files; a copy is in the tester's Sent Items",
+       "hash": "476430da",
+       "changed": "2026-11-06"
       },
       {
        "id": "UAT-CAD-010",

@@ -3,14 +3,15 @@
 //  · the Outlook connector's HttpRequest on /me/calendar/calendarView —
 //    /me/calendarView is refused by the connector;
 //  · ONE combined Prefer header, or the time zone is ignored;
-//  · series masters by /me/events/{id} for the recurrence pattern;
+//  · series masters by /me/events/{id} for the recurrence pattern, the
+//    created time and the first start (the series' notice);
 //  · the typed GetEventsCalendarViewV3 action when the passthrough is
 //    refused (a DLP policy can block HTTP actions) — less detail.
 // Nothing is stored: the result lives in the screen until it is left.
 
 import { Office365OutlookService } from "../generated/services/Office365OutlookService";
 import type { GraphCalendarEventClientReceive } from "../generated/models/Office365OutlookModel";
-import type { GraphEvent, GraphRecurrence } from "./model";
+import { toWall, type GraphEvent, type GraphSeriesMaster } from "./model";
 
 const GRAPH = "https://graph.microsoft.com/v1.0";
 const PAGE = 100;
@@ -20,7 +21,7 @@ const IN_FLIGHT = 4;
 const SELECT = [
   "id", "subject", "start", "end", "isAllDay", "type", "seriesMasterId", "sensitivity", "showAs", "isCancelled",
   "responseStatus", "organizer", "attendees", "location", "isOnlineMeeting", "onlineMeetingProvider", "body",
-  "categories", "importance", "webLink",
+  "categories", "importance", "webLink", "createdDateTime", "lastModifiedDateTime",
 ].join(",");
 
 export class ScanCancelled extends Error {
@@ -41,7 +42,7 @@ export interface ScanOptions {
 
 export interface ScanResult {
   events: GraphEvent[];
-  masters: Map<string, GraphRecurrence>;
+  masters: Map<string, GraphSeriesMaster>;
   road: "graph" | "typed";
   warnings: string[];
 }
@@ -120,15 +121,8 @@ async function readGraph(o: ScanOptions, prefer: string): Promise<GraphEvent[]> 
 /** The typed action's event in the Graph shape the model reads. */
 function fromTyped(e: GraphCalendarEventClientReceive, timeZone: string): GraphEvent {
   const wall = (iso: string | undefined): string => {
-    if (!iso) return "";
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return "";
-    const parts = Object.fromEntries(
-      new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
-        .formatToParts(d)
-        .map((p) => [p.type, p.value])
-    );
-    return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:00`;
+    const w = toWall(iso, timeZone);
+    return w === "" ? "" : `${w}:00`;
   };
   const split = (s: string | undefined, type: string) =>
     (s ?? "")
@@ -154,6 +148,8 @@ function fromTyped(e: GraphCalendarEventClientReceive, timeZone: string): GraphE
     categories: e.categories,
     importance: e.importance,
     webLink: e.webLink,
+    createdDateTime: e.createdDateTime,
+    lastModifiedDateTime: e.lastModifiedDateTime,
   };
 }
 
@@ -193,8 +189,8 @@ export async function scanCalendar(o: ScanOptions): Promise<ScanResult> {
     events = await readTyped(o);
   }
 
-  // series masters → recurrence pattern
-  const masters = new Map<string, GraphRecurrence>();
+  // series masters → recurrence pattern, created time and first start
+  const masters = new Map<string, GraphSeriesMaster>();
   if (road === "graph") {
     const ids = [...new Set(events.map((e) => e.seriesMasterId ?? "").filter((id) => id !== ""))];
     let done = 0;
@@ -204,8 +200,12 @@ export async function scanCalendar(o: ScanOptions): Promise<ScanResult> {
       IN_FLIGHT,
       async (id) => {
         try {
-          const b = await graphGet(`${GRAPH}/me/events/${encodeURIComponent(id)}?$select=recurrence`, prefer);
-          if (b.recurrence && typeof b.recurrence === "object") masters.set(id, b.recurrence as GraphRecurrence);
+          const b = await graphGet(`${GRAPH}/me/events/${encodeURIComponent(id)}?$select=recurrence,createdDateTime,start`, prefer);
+          const master: GraphSeriesMaster = {};
+          if (b.recurrence && typeof b.recurrence === "object") master.recurrence = b.recurrence as GraphSeriesMaster["recurrence"];
+          if (typeof b.createdDateTime === "string") master.createdDateTime = b.createdDateTime;
+          if (b.start && typeof b.start === "object") master.start = b.start as GraphSeriesMaster["start"];
+          if (Object.keys(master).length > 0) masters.set(id, master);
         } catch {
           failed++;
         }
@@ -213,7 +213,7 @@ export async function scanCalendar(o: ScanOptions): Promise<ScanResult> {
       },
       o.cancelled
     );
-    if (failed > 0) warnings.push(`${failed} recurring series could not be read; they show as "Recurring" without a pattern.`);
+    if (failed > 0) warnings.push(`${failed} recurring series could not be read; they show as "Recurring" without a pattern or notice.`);
   }
 
   return { events, masters, road, warnings };

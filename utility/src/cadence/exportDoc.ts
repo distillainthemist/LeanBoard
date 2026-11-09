@@ -62,6 +62,10 @@ export interface ExportMeeting {
   categories: string[];
   importance: string;
   body: string;
+  created: string;
+  lastModified: string;
+  noticeHours: number | null;
+  shortNotice: boolean;
 }
 
 export interface ExportSeries {
@@ -76,6 +80,10 @@ export interface ExportSeries {
   lastInPeriod: string;
   organizer: { name: string; email: string } | null;
   distinctAttendees: number | null;
+  created: string;
+  firstStart: string;
+  noticeHours: number | null;
+  shortNotice: boolean;
 }
 
 export interface ExportDoc {
@@ -98,6 +106,8 @@ export interface ExportDoc {
       series: number;
       oneOffs: number;
       hoursExported: number;
+      shortNoticeMeetings: number;
+      shortNoticeSeries: number;
     };
     fields: Record<string, string>;
   };
@@ -123,6 +133,13 @@ export const FIELD_DICTIONARY: Record<string, string> = {
   "attendees[].response": "accepted, tentativelyAccepted, declined, notResponded, none, organizer.",
   "attendees[].internal": "true when the address is in one of about.internalDomains.",
   body: "The meeting text as plain text, Teams/Zoom join details removed, full length (the Excel copy is cut at 32,000 characters).",
+  created: "When the invite reached the person's calendar (for a received invite, when it was sent), same zone and format as start; blank when the calendar gave none.",
+  lastModified: "When the meeting last changed in the person's calendar — a reschedule or update, but also the person's own response.",
+  noticeHours: "Hours of notice, one decimal: a one-off's start minus created; a moved occurrence's start minus lastModified; null for an ordinary occurrence of a series (see series[].noticeHours). Negative when the meeting was added after it started.",
+  shortNotice: "true when noticeHours is known and under 24.",
+  "series[].created": "When the series was created (its master's created time).",
+  "series[].firstStart": "The series' first meeting ever, which may be before the period.",
+  "series[].noticeHours": "Hours from the series' creation to its first meeting; null when the series master could not be read.",
 };
 
 const RULES = [
@@ -131,6 +148,7 @@ const RULES = [
   "Meetings with sensitivity personal, private or confidential were flagged confidential by default; the reviewer could change any flag.",
   "A confidential meeting keeps start, end, duration, all-day and recurrence; its subject reads Confidential and everything else is blank.",
   "Meetings the reviewer unticked are not in the file (counted in counts.untickedByReviewer).",
+  "Notice is read from the calendar's created and last-modified times: a one-off counts from its invite, a series from its creation to its first meeting, a moved occurrence from the move; under 24 hours is flagged short notice.",
   "Nothing was stored by the app; this file is the only copy.",
 ];
 
@@ -169,6 +187,10 @@ export function buildExport(input: ExportInput): ExportDoc {
       durationMinutes: m.durationMinutes,
       isAllDay: m.isAllDay,
       recurrence,
+      created: m.created,
+      lastModified: m.lastModified,
+      noticeHours: m.noticeHours,
+      shortNotice: m.shortNotice,
     };
     if (conf) {
       return {
@@ -235,6 +257,10 @@ export function buildExport(input: ExportInput): ExportDoc {
       lastInPeriod: last,
       organizer: conf || !org ? null : { ...org },
       distinctAttendees: conf ? null : distinct.size,
+      created: g.created,
+      firstStart: g.firstStart,
+      noticeHours: g.noticeHours,
+      shortNotice: g.shortNotice,
     });
   }
   series.sort((a, b) => Number(a.seriesId.slice(1)) - Number(b.seriesId.slice(1)));
@@ -263,6 +289,8 @@ export function buildExport(input: ExportInput): ExportDoc {
         series: series.length,
         oneOffs: meetings.filter((m) => m.seriesId === null).length,
         hoursExported: hours(meetings.reduce((a, m) => a + m.durationMinutes, 0)),
+        shortNoticeMeetings: meetings.filter((m) => m.shortNotice).length,
+        shortNoticeSeries: series.filter((x) => x.shortNotice).length,
       },
       fields: { ...FIELD_DICTIONARY },
     },
@@ -304,18 +332,20 @@ export function exportSheets(doc: ExportDoc): SheetSpec[] {
   const rulesHead = aboutRows.findIndex((r) => r[0] === "Rules");
 
   const seriesRows: CellValue[][] = [
-    ["seriesId", "confidential", "subject", "recurrence", "occurrencesInPeriod", "hoursInPeriod", "typicalDurationMinutes", "firstInPeriod", "lastInPeriod", "organizerName", "organizerEmail", "distinctAttendees"],
+    ["seriesId", "confidential", "subject", "recurrence", "occurrencesInPeriod", "hoursInPeriod", "typicalDurationMinutes", "firstInPeriod", "lastInPeriod", "organizerName", "organizerEmail", "distinctAttendees", "created", "firstStart", "noticeHours", "shortNotice"],
     ...doc.series.map((s): CellValue[] => [
       s.seriesId, s.confidential ? "yes" : "no", s.subject, s.recurrence, s.occurrencesInPeriod, s.hoursInPeriod, s.typicalDurationMinutes,
       dt(s.firstInPeriod), dt(s.lastInPeriod), s.organizer?.name ?? "", s.organizer?.email ?? "", s.distinctAttendees ?? "",
+      dt(s.created), dt(s.firstStart), s.noticeHours ?? "", s.shortNotice ? "yes" : "no",
     ]),
   ];
 
   const meetingRows: CellValue[][] = [
-    ["meetingId", "seriesId", "kind", "confidential", "subject", "start", "end", "weekday", "durationMinutes", "isAllDay", "recurrence", "showAs", "myResponse", "sensitivity", "location", "onlineProvider", "organizerName", "organizerEmail", "attendeeCount", "internalCount", "externalCount", "categories", "importance", "body"],
+    ["meetingId", "seriesId", "kind", "confidential", "subject", "start", "end", "weekday", "durationMinutes", "isAllDay", "recurrence", "created", "lastModified", "noticeHours", "shortNotice", "showAs", "myResponse", "sensitivity", "location", "onlineProvider", "organizerName", "organizerEmail", "attendeeCount", "internalCount", "externalCount", "categories", "importance", "body"],
     ...doc.meetings.map((m): CellValue[] => [
       m.meetingId, m.seriesId ?? "", m.kind, m.confidential ? "yes" : "no", m.subject, dt(m.start), dt(m.end), m.weekday, m.durationMinutes,
-      m.isAllDay ? "yes" : "no", m.recurrence, m.showAs, m.myResponse, m.sensitivity, m.location, m.onlineProvider,
+      m.isAllDay ? "yes" : "no", m.recurrence, dt(m.created), dt(m.lastModified), m.noticeHours ?? "", m.shortNotice ? "yes" : "no",
+      m.showAs, m.myResponse, m.sensitivity, m.location, m.onlineProvider,
       m.organizer?.name ?? "", m.organizer?.email ?? "", m.attendeeCount ?? "", m.internalCount ?? "", m.externalCount ?? "",
       m.categories.join(", "), m.importance, cap(m.body),
     ]),
@@ -330,8 +360,8 @@ export function exportSheets(doc: ExportDoc): SheetSpec[] {
 
   return [
     { name: "About", rows: aboutRows, colWidths: [24, 110], boldRows: [0, rulesHead, fieldHead] },
-    { name: "Series", rows: seriesRows, boldRows: [0], freezeRows: 1, colWidths: [9, 12, 40, 40, 12, 12, 12, 17, 17, 24, 30, 12] },
-    { name: "Meetings", rows: meetingRows, boldRows: [0], freezeRows: 1, colWidths: [10, 9, 10, 12, 40, 17, 17, 11, 10, 9, 36, 10, 14, 12, 28, 16, 24, 30, 10, 10, 10, 16, 10, 80] },
+    { name: "Series", rows: seriesRows, boldRows: [0], freezeRows: 1, colWidths: [9, 12, 40, 40, 12, 12, 12, 17, 17, 24, 30, 12, 17, 17, 11, 11] },
+    { name: "Meetings", rows: meetingRows, boldRows: [0], freezeRows: 1, colWidths: [10, 9, 10, 12, 40, 17, 17, 11, 10, 9, 36, 17, 17, 11, 11, 10, 14, 12, 28, 16, 24, 30, 10, 10, 10, 16, 10, 80] },
     { name: "Attendees", rows: attendeeRows, boldRows: [0], freezeRows: 1, colWidths: [10, 9, 28, 34, 11, 18, 9] },
   ];
 }

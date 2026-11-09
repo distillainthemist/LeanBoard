@@ -39,6 +39,19 @@ export interface GraphEvent {
   categories?: string[];
   importance?: string;
   webLink?: string;
+  /** UTC instants from Graph ("2026-10-27T22:00:00Z"): when the event reached
+   *  this calendar (an invite's created time is when it was sent) and when it
+   *  last changed (a reschedule — but also the person's own response). */
+  createdDateTime?: string;
+  lastModifiedDateTime?: string;
+}
+
+/** What the scan reads of a recurring series' master (/me/events/{id}):
+ *  the pattern, when the series was created and its first start. */
+export interface GraphSeriesMaster {
+  recurrence?: GraphRecurrence;
+  createdDateTime?: string;
+  start?: { dateTime?: string; timeZone?: string };
 }
 
 export interface GraphRecurrence {
@@ -98,6 +111,17 @@ export interface Meeting {
   categories: string[];
   importance: string;
   webLink: string;
+  /** When the invite reached the calendar and when it last changed, as
+   *  wall-clock times in the scan's zone ("" when Graph gave none). */
+  created: string;
+  lastModified: string;
+  /** Hours of notice (decision 2026-11-09): a one-off's start minus its
+   *  created time; a moved occurrence's start minus its last change; null
+   *  for an ordinary occurrence (the series row carries the series' notice)
+   *  and when a time is missing. Negative when it was added after it started. */
+  noticeHours: number | null;
+  /** noticeHours known and under SHORT_NOTICE_HOURS. */
+  shortNotice: boolean;
 }
 
 export type ExcludeReason = "cancelled" | "declined";
@@ -144,6 +168,81 @@ export function minutesBetween(start: string, end: string): number {
   const b = wallMs(end);
   if (Number.isNaN(a) || Number.isNaN(b) || b < a) return 0;
   return Math.round((b - a) / 60000);
+}
+
+// ---- instants and notice ---------------------------------------------------------
+
+/** Under this much notice a meeting is flagged "short notice". */
+export const SHORT_NOTICE_HOURS = 24;
+
+const PART_KEYS = ["year", "month", "day", "hour", "minute", "second"] as const;
+
+function zoneParts(ms: number, timeZone: string): Record<(typeof PART_KEYS)[number], number> | null {
+  try {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23",
+    }).formatToParts(new Date(ms));
+    const out = {} as Record<(typeof PART_KEYS)[number], number>;
+    for (const k of PART_KEYS) {
+      const v = Number(parts.find((p) => p.type === k)?.value);
+      if (!Number.isFinite(v)) return null;
+      out[k] = v;
+    }
+    return out;
+  } catch {
+    return null; // an unknown zone
+  }
+}
+
+/** The zone's offset from UTC at an instant, in ms (positive east). */
+function zoneOffsetMs(ms: number, timeZone: string): number {
+  const p = zoneParts(ms, timeZone);
+  if (!p) return 0;
+  return Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second) - Math.floor(ms / 1000) * 1000;
+}
+
+/** A UTC instant ("2026-10-27T22:00:00Z" or ms) as a wall-clock time in the
+ *  zone, "yyyy-mm-ddThh:mm"; "" when it does not parse. */
+export function toWall(instant: string | number | undefined, timeZone: string): string {
+  const ms = typeof instant === "number" ? instant : Date.parse(instant ?? "");
+  if (!Number.isFinite(ms)) return "";
+  const p = zoneParts(ms, timeZone);
+  if (!p) return new Date(ms).toISOString().slice(0, 16);
+  const two = (n: number): string => String(n).padStart(2, "0");
+  return `${p.year}-${two(p.month)}-${two(p.day)}T${two(p.hour)}:${two(p.minute)}`;
+}
+
+/** The instant (ms since the epoch) a wall-clock time in the zone names;
+ *  NaN when it does not parse. Resolved by the zone's offset at that
+ *  moment, re-checked once so a DST change the same night lands right. */
+export function instantOf(wall: string, timeZone: string): number {
+  const asUtc = wallMs(wall.length === 10 ? `${wall}T00:00` : wall);
+  if (Number.isNaN(asUtc)) return Number.NaN;
+  const first = asUtc - zoneOffsetMs(asUtc, timeZone);
+  const again = asUtc - zoneOffsetMs(first, timeZone);
+  return again;
+}
+
+/** Hours from a UTC instant to a wall-clock start in the zone, to one
+ *  decimal; null when either is missing. Negative when the instant is later. */
+export function hoursBefore(instant: string | undefined, startWall: string, timeZone: string): number | null {
+  const a = Date.parse(instant ?? "");
+  const b = instantOf(startWall, timeZone);
+  if (!Number.isFinite(a) || Number.isNaN(b)) return null;
+  return Math.round(((b - a) / 3600000) * 10) / 10;
+}
+
+export function isShortNotice(hours: number | null): boolean {
+  return hours !== null && hours < SHORT_NOTICE_HOURS;
+}
+
+/** "5 h notice", "3 d notice", "added after it started"; "" when unknown. */
+export function noticeText(hours: number | null): string {
+  if (hours === null) return "";
+  if (hours < 0) return "added after it started";
+  if (hours < 1) return "under 1 h notice";
+  if (hours < 48) return `${Math.round(hours)} h notice`;
+  return `${Math.round(hours / 24)} d notice`;
 }
 
 // ---- bodies ------------------------------------------------------------------
@@ -245,6 +344,8 @@ function attendeesOf(ev: GraphEvent, internalDomains: string[]): Attendee[] {
 
 export interface NormaliseContext {
   internalDomains: string[];
+  /** The scan's zone: start/end are wall-clock times in it. */
+  timeZone: string;
 }
 
 export function normalise(ev: GraphEvent, ctx: NormaliseContext): Meeting {
@@ -252,10 +353,14 @@ export function normalise(ev: GraphEvent, ctx: NormaliseContext): Meeting {
   const end = wallClock(ev.end?.dateTime);
   const seriesKey = ev.seriesMasterId ?? "";
   const isHtml = (ev.body?.contentType ?? "").toLowerCase() === "html";
+  const recurring = seriesKey !== "" || ev.type === "occurrence" || ev.type === "exception";
+  // an ordinary occurrence inherits its master's created time, so its own
+  // notice means nothing; a moved one counts from the move
+  const noticeHours = !recurring ? hoursBefore(ev.createdDateTime, start, ctx.timeZone) : ev.type === "exception" ? hoursBefore(ev.lastModifiedDateTime, start, ctx.timeZone) : null;
   return {
     key: ev.id ?? `${start}|${ev.subject ?? ""}`,
     seriesKey,
-    kind: seriesKey !== "" || ev.type === "occurrence" || ev.type === "exception" ? "recurring" : "one-off",
+    kind: recurring ? "recurring" : "one-off",
     subject: (ev.subject ?? "").trim(),
     start,
     end,
@@ -275,6 +380,10 @@ export function normalise(ev: GraphEvent, ctx: NormaliseContext): Meeting {
     categories: ev.categories ?? [],
     importance: ev.importance ?? "",
     webLink: ev.webLink ?? "",
+    created: toWall(ev.createdDateTime, ctx.timeZone),
+    lastModified: toWall(ev.lastModifiedDateTime, ctx.timeZone),
+    noticeHours,
+    shortNotice: isShortNotice(noticeHours),
   };
 }
 
@@ -366,29 +475,51 @@ export interface MeetingGroup {
   subject: string;
   recurrence: string;
   meetings: Meeting[];
+  /** When the invite (the series master, for a series) reached the calendar
+   *  and the first start it was issued for — wall clock, "" when unknown. */
+  created: string;
+  firstStart: string;
+  /** A series: created → its first meeting ever (from the master; null when
+   *  the master could not be read). A one-off: the meeting's own. */
+  noticeHours: number | null;
+  shortNotice: boolean;
 }
 
 /** Series first (most occurrences first), then one-offs by start. */
-export function groupMeetings(meetings: Meeting[], masters: Map<string, GraphRecurrence>): MeetingGroup[] {
+export function groupMeetings(meetings: Meeting[], masters: Map<string, GraphSeriesMaster>, ctx: NormaliseContext): MeetingGroup[] {
   const series = new Map<string, Meeting[]>();
   const oneOffs: MeetingGroup[] = [];
   for (const m of meetings) {
     if (m.seriesKey === "") {
-      oneOffs.push({ key: m.key, kind: "one-off", subject: m.subject, recurrence: "", meetings: [m] });
+      oneOffs.push({
+        key: m.key, kind: "one-off", subject: m.subject, recurrence: "", meetings: [m],
+        created: m.created, firstStart: m.start, noticeHours: m.noticeHours, shortNotice: m.shortNotice,
+      });
       continue;
     }
     const list = series.get(m.seriesKey) ?? [];
     list.push(m);
     series.set(m.seriesKey, list);
   }
-  const groups: MeetingGroup[] = [...series.entries()].map(([key, list]) => ({
-    key,
-    kind: "series",
-    // the most common subject (an exception can be renamed)
-    subject: mostCommon(list.map((m) => m.subject)),
-    recurrence: recurrenceText(masters.get(key)) || "Recurring",
-    meetings: list,
-  }));
+  const groups: MeetingGroup[] = [...series.entries()].map(([key, list]) => {
+    const master = masters.get(key);
+    // occurrences inherit the master's created time, so one stands in when the master was not read
+    const created = master?.createdDateTime ? toWall(master.createdDateTime, ctx.timeZone) : (list.find((m) => m.created !== "")?.created ?? "");
+    const firstStart = wallClock(master?.start?.dateTime);
+    const noticeHours = master?.createdDateTime && firstStart !== "" ? hoursBefore(master.createdDateTime, firstStart, ctx.timeZone) : null;
+    return {
+      key,
+      kind: "series" as const,
+      // the most common subject (an exception can be renamed)
+      subject: mostCommon(list.map((m) => m.subject)),
+      recurrence: recurrenceText(master?.recurrence) || "Recurring",
+      meetings: list,
+      created,
+      firstStart,
+      noticeHours,
+      shortNotice: isShortNotice(noticeHours),
+    };
+  });
   groups.sort((a, b) => b.meetings.length - a.meetings.length || a.subject.localeCompare(b.subject));
   return [...groups, ...oneOffs];
 }

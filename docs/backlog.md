@@ -40,6 +40,12 @@ of record:
   OneDrive); task links never send by themselves. Hosted checks still
   Ben's: paging on a busy 12-month calendar, attachments arriving,
   task-link parameters on mobile.
+- **Notice given in Cadence** (2026-11-09, unreleased): hours from the
+  invite (or a series' creation, or a move) to the start, flagged under
+  24 h; a one-off the person organised counts from the draft, a
+  forwarded invite from when it reached this calendar. Hosted checks
+  Ben's: badges on real received vs organised invites, an old series'
+  first start, a moved occurrence, the Excel date-time cells.
 - **Date arithmetic by calendar fields** (2026-11-06): the weekly bucket
   walked by milliseconds and lost a day across a daylight-saving change
   once the machine sat in a DST zone — two tests green in Brisbane, red

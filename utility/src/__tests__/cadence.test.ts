@@ -4,10 +4,15 @@ import {
   cleanBody,
   excludeReason,
   groupMeetings,
+  hoursBefore,
   htmlToText,
+  instantOf,
   isInternal,
+  isShortNotice,
   minutesBetween,
   normalise,
+  noticeText,
+  toWall,
   normaliseAll,
   periodProblem,
   recurrenceText,
@@ -15,12 +20,15 @@ import {
   weekdayOf,
   type GraphEvent,
   type GraphRecurrence,
+  type GraphSeriesMaster,
 } from "../cadence/model";
 import { buildExport, exportJson, exportSheets, CONFIDENTIAL_SUBJECT, type ExportInput } from "../cadence/exportDoc";
 import { readXlsx, writeXlsx } from "../../../shared/export/xlsx";
 import { parseTask, recipientProblem, relativePeriodText, taskLink, taskPeriod, taskPeriodText, taskProblem, summaryHtml, toBase64 } from "../cadence/share";
 
 const DOMAINS = ["pecheydistilling.com"];
+const ZONE = "Australia/Brisbane"; // UTC+10, no DST
+const CTX = { internalDomains: DOMAINS, timeZone: ZONE };
 
 function ev(over: Partial<GraphEvent> = {}): GraphEvent {
   return {
@@ -49,6 +57,8 @@ function ev(over: Partial<GraphEvent> = {}): GraphEvent {
     categories: ["Ops"],
     importance: "normal",
     webLink: "https://outlook.office365.com/x",
+    createdDateTime: "2026-10-27T22:00:00Z", // 2026-10-28T08:00 Brisbane: 145 h before the start
+    lastModifiedDateTime: "2026-10-27T22:05:00Z",
     ...over,
   };
 }
@@ -58,21 +68,21 @@ describe("dropping and flagging", () => {
     expect(excludeReason(ev({ isCancelled: true }))).toBe("cancelled");
     expect(excludeReason(ev({ responseStatus: { response: "declined" } }))).toBe("declined");
     expect(excludeReason(ev({ responseStatus: { response: "tentativelyAccepted" } }))).toBeNull();
-    const r = normaliseAll([ev({ id: "a" }), ev({ id: "b", isCancelled: true }), ev({ id: "c", responseStatus: { response: "declined" } }), ev({ id: "d", type: "seriesMaster" })], { internalDomains: DOMAINS });
+    const r = normaliseAll([ev({ id: "a" }), ev({ id: "b", isCancelled: true }), ev({ id: "c", responseStatus: { response: "declined" } }), ev({ id: "d", type: "seriesMaster" })], CTX);
     expect(r.meetings.map((m) => m.key)).toEqual(["a"]);
     expect(r.excluded).toEqual({ cancelled: 1, declined: 1 });
   });
 
   it("flags personal, private and confidential by default, not normal", () => {
-    for (const s of ["personal", "private", "confidential"]) expect(normalise(ev({ sensitivity: s }), { internalDomains: DOMAINS }).confidentialByDefault).toBe(true);
-    expect(normalise(ev({ sensitivity: "normal" }), { internalDomains: DOMAINS }).confidentialByDefault).toBe(false);
-    expect(normalise(ev({ sensitivity: undefined }), { internalDomains: DOMAINS }).confidentialByDefault).toBe(false);
+    for (const s of ["personal", "private", "confidential"]) expect(normalise(ev({ sensitivity: s }), CTX).confidentialByDefault).toBe(true);
+    expect(normalise(ev({ sensitivity: "normal" }), CTX).confidentialByDefault).toBe(false);
+    expect(normalise(ev({ sensitivity: undefined }), CTX).confidentialByDefault).toBe(false);
   });
 });
 
 describe("normalise", () => {
   it("reads times as wall clock, with weekday and duration", () => {
-    const m = normalise(ev(), { internalDomains: DOMAINS });
+    const m = normalise(ev(), CTX);
     expect(m.start).toBe("2026-11-03T09:00");
     expect(m.end).toBe("2026-11-03T10:30");
     expect(m.weekday).toBe("Tuesday");
@@ -84,7 +94,7 @@ describe("normalise", () => {
   });
 
   it("lists the organizer once, as organizer, with roles, responses and internal flags — no directory lookup", () => {
-    const m = normalise(ev(), { internalDomains: DOMAINS });
+    const m = normalise(ev(), CTX);
     expect(m.attendees.map((a) => [a.email, a.role, a.response, a.internal])).toEqual([
       ["ann@pecheydistilling.com", "organizer", "organizer", true],
       ["bob@pecheydistilling.com", "required", "accepted", true],
@@ -95,7 +105,7 @@ describe("normalise", () => {
   });
 
   it("marks an occurrence recurring and keeps its series key", () => {
-    const m = normalise(ev({ type: "occurrence", seriesMasterId: "S" }), { internalDomains: DOMAINS });
+    const m = normalise(ev({ type: "occurrence", seriesMasterId: "S" }), CTX);
     expect(m.kind).toBe("recurring");
     expect(m.seriesKey).toBe("S");
   });
@@ -103,6 +113,71 @@ describe("normalise", () => {
   it("reads internal by the domain and its sub-domains", () => {
     expect(isInternal("x@sub.pecheydistilling.com", DOMAINS)).toBe(true);
     expect(isInternal("x@notpecheydistilling.com", DOMAINS)).toBe(false);
+  });
+});
+
+describe("notice given", () => {
+  it("turns instants into the zone's wall clock and back, across a DST change", () => {
+    expect(toWall("2026-10-27T22:00:00Z", ZONE)).toBe("2026-10-28T08:00");
+    expect(toWall(undefined, ZONE)).toBe("");
+    expect(toWall("not a time", ZONE)).toBe("");
+    expect(instantOf("2026-10-28T08:00", ZONE)).toBe(Date.parse("2026-10-27T22:00:00Z"));
+    // Auckland: NZDT (+13) after 2026-09-27, NZST (+12) before
+    expect(instantOf("2026-11-03T09:00", "Pacific/Auckland")).toBe(Date.parse("2026-11-02T20:00:00Z"));
+    expect(instantOf("2026-09-01T09:00", "Pacific/Auckland")).toBe(Date.parse("2026-08-31T21:00:00Z"));
+    // the morning the clocks go forward: 03:00 NZDT is 14:00Z the day before
+    expect(instantOf("2026-09-27T03:00", "Pacific/Auckland")).toBe(Date.parse("2026-09-26T14:00:00Z"));
+    expect(toWall("2026-09-26T14:00:00Z", "Pacific/Auckland")).toBe("2026-09-27T03:00");
+    expect(Number.isNaN(instantOf("", ZONE))).toBe(true);
+    // an unknown zone falls back to UTC rather than throwing
+    expect(toWall("2026-10-27T22:00:00Z", "Mars/Olympus")).toBe("2026-10-27T22:00");
+    expect(instantOf("2026-10-27T22:00", "Mars/Olympus")).toBe(Date.parse("2026-10-27T22:00:00Z"));
+  });
+
+  it("counts hours of notice and flags under 24 h, negative when added afterwards", () => {
+    expect(hoursBefore("2026-10-27T22:00:00Z", "2026-11-03T09:00", ZONE)).toBe(145);
+    expect(hoursBefore("2026-11-03T05:30:00Z", "2026-11-03T09:00", ZONE)).toBe(-6.5);
+    expect(hoursBefore(undefined, "2026-11-03T09:00", ZONE)).toBeNull();
+    expect(hoursBefore("2026-11-03T05:30:00Z", "", ZONE)).toBeNull();
+    expect(isShortNotice(23.9)).toBe(true);
+    expect(isShortNotice(24)).toBe(false);
+    expect(isShortNotice(-1)).toBe(true);
+    expect(isShortNotice(null)).toBe(false);
+    expect(noticeText(null)).toBe("");
+    expect(noticeText(-2)).toBe("added after it started");
+    expect(noticeText(0.4)).toBe("under 1 h notice");
+    expect(noticeText(5.4)).toBe("5 h notice");
+    expect(noticeText(47)).toBe("47 h notice");
+    expect(noticeText(145)).toBe("6 d notice");
+  });
+
+  it("gives a one-off its invite's notice, an occurrence none, a moved occurrence the move's", () => {
+    const one = normalise(ev(), CTX);
+    expect(one).toMatchObject({ created: "2026-10-28T08:00", lastModified: "2026-10-28T08:05", noticeHours: 145, shortNotice: false });
+    const late = normalise(ev({ createdDateTime: "2026-11-01T23:30:00Z" }), CTX); // 09:30 the day before
+    expect(late).toMatchObject({ noticeHours: 23.5, shortNotice: true });
+    const occ = normalise(ev({ type: "occurrence", seriesMasterId: "S" }), CTX);
+    expect(occ).toMatchObject({ created: "2026-10-28T08:00", noticeHours: null, shortNotice: false });
+    const moved = normalise(ev({ type: "exception", seriesMasterId: "S", lastModifiedDateTime: "2026-11-01T21:00:00Z" }), CTX); // 07:00 the day before
+    expect(moved).toMatchObject({ noticeHours: 26, shortNotice: false });
+    const none = normalise(ev({ createdDateTime: undefined, lastModifiedDateTime: undefined }), CTX);
+    expect(none).toMatchObject({ created: "", lastModified: "", noticeHours: null, shortNotice: false });
+  });
+
+  it("reads a series' notice from its master: creation to the first meeting ever; null without the master", () => {
+    const evs = [
+      ev({ id: "s1", type: "occurrence", seriesMasterId: "S", start: { dateTime: "2026-11-03T09:00:00" }, end: { dateTime: "2026-11-03T09:30:00" } }),
+      ev({ id: "o1", start: { dateTime: "2026-11-04T09:00:00" }, end: { dateTime: "2026-11-04T09:30:00" }, createdDateTime: "2026-11-03T22:00:00Z" }),
+    ];
+    const { meetings } = normaliseAll(evs, CTX);
+    // created 2026-10-26T20:00Z = 06:00 on the 27th Brisbane, first meeting 09:00 that day: 3 h
+    const master: GraphSeriesMaster = { createdDateTime: "2026-10-26T20:00:00Z", start: { dateTime: "2026-10-27T09:00:00.0000000", timeZone: ZONE } };
+    const [series, oneOff] = groupMeetings(meetings, new Map([["S", master]]), CTX);
+    expect(series).toMatchObject({ kind: "series", created: "2026-10-27T06:00", firstStart: "2026-10-27T09:00", noticeHours: 3, shortNotice: true });
+    expect(oneOff).toMatchObject({ kind: "one-off", created: "2026-11-04T08:00", firstStart: "2026-11-04T09:00", noticeHours: 1, shortNotice: true });
+    const [bare] = groupMeetings(meetings, new Map(), CTX);
+    // the occurrence's inherited created time stands in, but no first start means no notice
+    expect(bare).toMatchObject({ created: "2026-10-28T08:00", firstStart: "", noticeHours: null, shortNotice: false });
   });
 });
 
@@ -158,15 +233,15 @@ describe("grouping and period", () => {
       ev({ id: "s2", type: "occurrence", seriesMasterId: "S", start: { dateTime: "2026-11-10T09:00:00" }, end: { dateTime: "2026-11-10T09:30:00" } }),
       ev({ id: "s3", type: "exception", seriesMasterId: "S", subject: "Ops review (moved)", start: { dateTime: "2026-11-17T09:00:00" }, end: { dateTime: "2026-11-17T09:30:00" } }),
     ];
-    const { meetings } = normaliseAll(evs, { internalDomains: DOMAINS });
-    const masters = new Map([["S", { pattern: { type: "weekly", interval: 1, daysOfWeek: ["tuesday"] } }]]);
-    const groups = groupMeetings(meetings, masters);
+    const { meetings } = normaliseAll(evs, CTX);
+    const masters = new Map<string, GraphSeriesMaster>([["S", { recurrence: { pattern: { type: "weekly", interval: 1, daysOfWeek: ["tuesday"] } } }]]);
+    const groups = groupMeetings(meetings, masters, CTX);
     expect(groups.map((g) => [g.kind, g.subject, g.meetings.length])).toEqual([
       ["series", "Weekly ops review", 3],
       ["one-off", "One-off", 1],
     ]);
     expect(groups[0].recurrence).toBe("Weekly on Tue");
-    expect(groupMeetings(meetings, new Map())[0].recurrence).toBe("Recurring");
+    expect(groupMeetings(meetings, new Map(), CTX)[0].recurrence).toBe("Recurring");
   });
 
   it("allows 1 day to 12 months, refuses the rest", () => {
@@ -188,8 +263,14 @@ describe("export", () => {
       ev({ id: "p1", subject: "HR matter", sensitivity: "private", start: { dateTime: "2026-11-04T14:00:00" }, end: { dateTime: "2026-11-04T15:00:00" }, body: { contentType: "text", content: "secret detail" } }),
       ev({ id: "x1", subject: "Unticked", start: { dateTime: "2026-11-05T14:00:00" }, end: { dateTime: "2026-11-05T15:00:00" } }),
     ];
-    const { meetings, excluded } = normaliseAll(evs, { internalDomains: DOMAINS });
-    const groups = groupMeetings(meetings, new Map([["S", { pattern: { type: "weekly", interval: 1, daysOfWeek: ["tuesday"] } }]]));
+    const { meetings, excluded } = normaliseAll(evs, CTX);
+    const groups = groupMeetings(
+      meetings,
+      new Map<string, GraphSeriesMaster>([
+        ["S", { recurrence: { pattern: { type: "weekly", interval: 1, daysOfWeek: ["tuesday"] } }, createdDateTime: "2026-10-26T20:00:00Z", start: { dateTime: "2026-10-27T09:00:00.0000000", timeZone: ZONE } }],
+      ]),
+      CTX
+    );
     return {
       groups,
       included: new Set(["s1", "s2", "p1"]),
@@ -211,6 +292,10 @@ describe("export", () => {
     expect(doc.meetings.map((m) => m.meetingId + ":" + m.subject)).toEqual(["M1:Weekly ops review", "M2:" + CONFIDENTIAL_SUBJECT, "M3:Weekly ops review"]);
     const p = doc.meetings[1];
     expect(p).toMatchObject({ confidential: true, start: "2026-11-04T14:00", end: "2026-11-04T15:00", durationMinutes: 60, body: "", location: "", organizer: null, attendees: [], attendeeCount: null, sensitivity: "" });
+    // notice is timing, so a masked meeting keeps it: created 2026-10-28T08:00 → start 14:00 on the 4th = 174 h
+    expect(p).toMatchObject({ created: "2026-10-28T08:00", lastModified: "2026-10-28T08:05", noticeHours: 174, shortNotice: false });
+    expect(doc.about.counts).toMatchObject({ shortNoticeMeetings: 0, shortNoticeSeries: 1 });
+    expect(doc.about.fields.noticeHours).toContain("Hours of notice");
     const text = exportJson(doc);
     expect(text).not.toContain("HR matter");
     expect(text).not.toContain("secret detail");
@@ -223,6 +308,9 @@ describe("export", () => {
     expect(doc.series).toEqual([
       expect.objectContaining({ seriesId: "S1", subject: "Weekly ops review", recurrence: "Weekly on Tue", occurrencesInPeriod: 2, hoursInPeriod: 1.5, typicalDurationMinutes: 45, firstInPeriod: "2026-11-03T09:00", lastInPeriod: "2026-11-10T09:00", distinctAttendees: 3 }),
     ]);
+    // the series' own notice: created 06:00 on 2026-10-27 Brisbane for a 09:00 first meeting
+    expect(doc.series[0]).toMatchObject({ created: "2026-10-27T06:00", firstStart: "2026-10-27T09:00", noticeHours: 3, shortNotice: true });
+    expect(doc.meetings[0]).toMatchObject({ noticeHours: null, shortNotice: false });
     expect(doc.meetings[0]).toMatchObject({ seriesId: "S1", kind: "recurring", attendeeCount: 3, internalCount: 2, externalCount: 1, recurrence: "Weekly on Tue" });
   });
 
@@ -242,6 +330,8 @@ describe("export", () => {
     const back = await readXlsx(writeXlsx(sheets), async (d) => new Uint8Array(zlib.inflateRawSync(d)));
     const meetings = back.find((s) => s.name === "Meetings")!;
     expect(meetings.rows[0].slice(0, 5)).toEqual(["meetingId", "seriesId", "kind", "confidential", "subject"]);
+    expect(meetings.rows[0]).toEqual(expect.arrayContaining(["created", "lastModified", "noticeHours", "shortNotice"]));
+    expect(back.find((s) => s.name === "Series")!.rows[0]).toEqual(expect.arrayContaining(["created", "firstStart", "noticeHours", "shortNotice"]));
     expect(meetings.rows.length).toBe(4);
     const flat = back.flatMap((s) => s.rows.flat()).join("|");
     expect(flat).not.toContain("HR matter");
@@ -256,6 +346,7 @@ describe("export", () => {
     expect(html).toContain("2026-11-01 to 2026-11-30");
     expect(html).toContain("3 meetings exported: 1 recurring series and 1 one-off, 2.5 h in all");
     expect(html).toContain("1 confidential");
+    expect(html).toContain("1 on short notice (under 24 h)");
     expect(html).toContain("<td>Weekly ops review</td><td>Weekly on Tue</td><td>2</td><td>1.5</td>");
     expect(html).toContain("For the &lt;ops&gt; review");
     expect(html).not.toContain("HR matter");

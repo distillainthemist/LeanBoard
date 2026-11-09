@@ -5,7 +5,7 @@
 
 import { getContext } from "@microsoft/power-apps/app";
 import { writeXlsx } from "../../../shared/export/xlsx";
-import { addMonths, groupMeetings, normaliseAll, periodProblem, type Meeting, type MeetingGroup, type ExcludeReason } from "./model";
+import { addMonths, groupMeetings, noticeText, normaliseAll, periodProblem, SHORT_NOTICE_HOURS, type Meeting, type MeetingGroup, type ExcludeReason } from "./model";
 import { buildExport, exportJson, exportSheets } from "./exportDoc";
 import { scanCalendar, ScanCancelled } from "./read";
 import { download } from "../download";
@@ -310,8 +310,9 @@ export function mountCadence(host: HTMLElement, back: () => void, hooks: Cadence
         progress: (t) => (status.textContent = t),
         cancelled: () => cancelled,
       });
-      const { meetings, excluded } = normaliseAll(r.events, { internalDomains });
-      const groups = groupMeetings(meetings, r.masters);
+      const ctx = { internalDomains, timeZone };
+      const { meetings, excluded } = normaliseAll(r.events, ctx);
+      const groups = groupMeetings(meetings, r.masters, ctx);
       state = {
         groups,
         excluded,
@@ -337,7 +338,7 @@ export function mountCadence(host: HTMLElement, back: () => void, hooks: Cadence
   }
 
   // ---- 3. review ------------------------------------------------------------
-  let filter: "all" | "series" | "one-off" | "confidential" | "external" = "all";
+  let filter: "all" | "series" | "one-off" | "confidential" | "external" | "short" = "all";
   let search = "";
 
   function visible(g: MeetingGroup, s: Reviewed): boolean {
@@ -345,6 +346,7 @@ export function mountCadence(host: HTMLElement, back: () => void, hooks: Cadence
     if (filter === "one-off" && g.kind !== "one-off") return false;
     if (filter === "confidential" && !g.meetings.some((m) => s.confidential.has(m.key))) return false;
     if (filter === "external" && !g.meetings.some((m) => m.attendees.some((a) => !a.internal && a.role !== "resource" && a.email !== ""))) return false;
+    if (filter === "short" && !g.shortNotice && !g.meetings.some((m) => m.shortNotice)) return false;
     if (search !== "") {
       const q = search.toLowerCase();
       if (!g.subject.toLowerCase().includes(q) && !g.meetings.some((m) => m.location.toLowerCase().includes(q) || m.organizer.name.toLowerCase().includes(q))) return false;
@@ -375,6 +377,12 @@ export function mountCadence(host: HTMLElement, back: () => void, hooks: Cadence
     const inc = all.filter((m) => s.included.has(m.key));
     const dropped = s.excluded.cancelled + s.excluded.declined;
     if (dropped > 0) page.append(el("p", "u-muted", `Left out: ${plural(s.excluded.cancelled, "cancelled meeting")} and ${plural(s.excluded.declined, "declined meeting")}.`));
+    const nShort = s.groups.filter((g) => g.shortNotice).length + all.filter((m) => m.shortNotice && m.seriesKey !== "").length;
+    if (nShort > 0) {
+      page.append(
+        el("p", "u-muted", `${plural(nShort, "meeting or series was", "meetings or series were")} issued with under ${SHORT_NOTICE_HOURS} h notice (a series counts from its creation to its first meeting; a moved occurrence from the move).`)
+      );
+    }
 
     // filters
     const tools = el("div", "u-bar");
@@ -402,6 +410,7 @@ export function mountCadence(host: HTMLElement, back: () => void, hooks: Cadence
     chip("one-off", "One-off");
     chip("confidential", "Confidential");
     chip("external", "With external people");
+    chip("short", "Short notice");
     tools.append(chips);
     const tickAll = el("button", "app-link", "Tick all shown");
     const tickNone = el("button", "app-link", "Untick all shown");
@@ -539,7 +548,10 @@ export function mountCadence(host: HTMLElement, back: () => void, hooks: Cadence
       for (const k of keys) on ? s.confidential.add(k) : s.confidential.delete(k);
       paintReview();
     });
-    line.append(box, main, conf);
+    line.append(box, main);
+    const badge = noticeBadge(g.noticeHours, g.shortNotice, g.kind === "series" ? `Series created ${g.created || "(unknown)"} for its first meeting ${g.firstStart || "(unknown)"}` : `Invite received ${g.created || "(unknown)"}`);
+    if (badge) line.append(badge);
+    line.append(conf);
     if (g.kind === "series") {
       const open = s.expanded.has(g.key);
       const exp = el("button", "app-link", open ? "Hide" : "Show all");
@@ -581,8 +593,21 @@ export function mountCadence(host: HTMLElement, back: () => void, hooks: Cadence
       isConf ? s.confidential.delete(m.key) : s.confidential.add(m.key);
       paintReview();
     });
-    line.append(box, text, conf);
+    line.append(box, text);
+    // only a moved occurrence carries its own notice (from the move)
+    const badge = noticeBadge(m.noticeHours, m.shortNotice, `Moved ${m.lastModified || "(unknown)"}`, "moved, ");
+    if (badge) line.append(badge);
+    line.append(conf);
     return line;
+  }
+
+  /** "3 d notice" / "Short notice: 5 h notice" with the times in the tooltip; null when unknown. */
+  function noticeBadge(hours: number | null, short: boolean, title: string, prefix = ""): HTMLElement | null {
+    const text = noticeText(hours);
+    if (text === "") return null;
+    const b = el("span", `u-badge${short ? " u-badge-short" : ""}`, `${prefix}${text}`);
+    b.title = title;
+    return b;
   }
 
   function currentDoc(): ReturnType<typeof buildExport> {

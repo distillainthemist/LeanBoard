@@ -97,3 +97,7 @@ body { margin: 0; background: var(--ltk-bg); }
 .u-sharepanel:empty { display: none; }
 .u-sharepanel .u-field input { min-width: min(320px, 100%); }
 [hidden] { display: none !important; }
+
+/* notice given (2026-11-09): a badge on a meeting or series row */
+.u-badge { font-size: 12px; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--ltk-hairline); color: var(--ltk-muted); white-space: nowrap; }
+.u-badge-short { background: var(--u-warn); border-color: #c98a1b; color: var(--ltk-fg); }

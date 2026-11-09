@@ -185,3 +185,43 @@ link). Hosted checks: attachments arrive and open (base64 through the
 connector), the link's parameters reach the app in the player and on
 mobile.
 
+## Tweaks (Ben, 2026-11-09)
+
+1. **Notice given.** Ben asked how much notice each meeting's invite
+   carried. The scan now selects Graph's `createdDateTime` and
+   `lastModifiedDateTime` (both roads expose them; the typed action
+   already returned them), and the series-master read adds
+   `createdDateTime,start`. The model (`model.ts`) turns them into
+   wall-clock times in the scan's zone and a `noticeHours` figure:
+   · a one-off counts from its created time (for a received invite, the
+     moment it was sent; for one the person organised, when the draft
+     was made — a floor, not an exact figure) to its start;
+   · an ordinary occurrence carries no notice of its own (occurrences
+     inherit the master's created time, so it would mean nothing);
+   · a series counts from the master's creation to its FIRST meeting
+     ever (`series[].firstStart`, often before the period); null when the
+     master could not be read (the typed road, or a failed master read);
+   · a moved occurrence (`type: exception`) counts from its last change
+     to its new start — honest but conservative: the person's own
+     response and body edits also move `lastModifiedDateTime`.
+   Negative notice means the event was added after it started. Under
+   24 h (`SHORT_NOTICE_HOURS`) is `shortNotice`. The maths go through
+   `instantOf` / `toWall` (Intl, offset re-checked once) so a DST change
+   the same night lands right; `fromTyped` now shares `toWall`.
+   Review: a grey "n d notice" badge on every row that has one (amber
+   when short, tooltip with the times), "moved, n h notice" on a moved
+   occurrence, a Short notice filter chip and a count line above the
+   list. Exports: `created`, `lastModified`, `noticeHours`, `shortNotice`
+   on meetings; `created`, `firstStart`, `noticeHours`, `shortNotice` on
+   series; `counts.shortNoticeMeetings` / `shortNoticeSeries`; a rule
+   line and dictionary entries; the same columns on the Excel sheets.
+   Notice is timing, so a confidential meeting keeps it. The email
+   summary adds "n on short notice (under 24 h)". A forwarded or
+   delegate-added invite shows when it reached THIS calendar, not when
+   the organiser first sent it.
+
+UAT: `docs/uat/cadence.md` UAT-CAD-011; UAT-CAD-009's body line updated.
+Hosted checks: badges on a real calendar (received vs organised invites,
+a moved occurrence), the series' first start on an old series, the Excel
+date-time cells.
+

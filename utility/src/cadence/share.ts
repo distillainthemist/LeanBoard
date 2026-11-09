@@ -142,6 +142,8 @@ export interface SummaryFigures {
   confidential: number;
   untickedByReviewer: number;
   dropped: number;
+  /** Exported meetings and series flagged short notice (under 24 h). */
+  shortNotice: number;
 }
 
 export function summaryFigures(doc: ExportDoc): SummaryFigures {
@@ -159,6 +161,7 @@ export function summaryFigures(doc: ExportDoc): SummaryFigures {
     confidential: c.confidential,
     untickedByReviewer: c.untickedByReviewer,
     dropped: c.droppedCancelled + c.droppedDeclined,
+    shortNotice: (c.shortNoticeMeetings ?? 0) + (c.shortNoticeSeries ?? 0),
   };
 }
 
@@ -189,6 +192,7 @@ export function summaryHtml(doc: ExportDoc, opts: { note?: string; fileLine?: st
     `<p>${n(f.meetings, "meeting")} exported: ${n(f.series, "recurring series", "recurring series")} and ${n(f.oneOffs, "one-off")}, ` +
       `${fmtH(f.hours)} h in all, about ${fmtH(f.hoursAWeek)} h a week. ` +
       `${f.confidential} confidential (timing only). ` +
+      `${f.shortNotice} on short notice (under 24 h). ` +
       `${f.untickedByReviewer} left out in review, ${f.dropped} cancelled or declined.</p>`
   );
   const top = [...doc.series].sort((x, y) => y.hoursInPeriod - x.hoursInPeriod).slice(0, SUMMARY_SERIES_ROWS);
