@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-06",
+ "generatedAt": "2026-11-11",
  "releases": [
   {
    "tag": "v0.92.0",
@@ -2025,6 +2025,30 @@
        "changed": "2026-10-19"
       },
       {
+       "id": "UAT-DOC-092",
+       "title": "A library dropped and exposed again keeps its columns",
+       "journey": "Journey 11 — Settings → Documents",
+       "persona": "superadmin",
+       "modules": [
+        "docs/settingsTab.ts",
+        "docs/model.ts",
+        "docs/docsStore.ts",
+        "docs/docsScreen.ts",
+        "docs/docsCards.ts",
+        "docs/docSolo.ts"
+       ],
+       "preconditions": "two exposed libraries, A and B, sharing mapped columns (labels, roles, a group); B also carrying one column of its own with a label and a place in the default view; documents in B with values in those columns",
+       "steps": [
+        "Settings → Documents → Libraries: untick B; Save. Read Document columns.",
+        "Tick B again and press Save at once, before its panel has finished \"Loading columns…\". Close and reopen the app; open Documents on B; open a document's details.",
+        "Settings → Documents → Libraries: untick B, tick it again, Save, without leaving the page between the two.",
+        "Open Settings → Documents on a site where a library was saved without its columns (the state step 2 used to leave)."
+       ],
+       "expected": "step 1 B's own column leaves the grid and is listed under \"Kept for later\" with its label, and the shared columns stay mapped; step 2 the register shows B's values in every default column, the details pane names every column by its label (no raw internal names) and B's own column is back in the grid with its label, role, group and default-view cell, off the kept list; step 3 B is still exposed after the save with its type, title and columns as they were; step 4 a note names the library, says its stored columns were out of step and that the list was refreshed, the Save bar is armed, and after Save and a reopen the register and the pane read correctly",
+       "hash": "fd9a0390",
+       "changed": "2026-11-11"
+      },
+      {
        "id": "UAT-DOC-075",
        "title": "Lifecycle mapping and review cadence",
        "journey": "Journey 11 — Settings → Documents",
@@ -2664,9 +2688,9 @@
         "Widen the card (close the pane, or the big screen); narrow it (the pane open, or a split).",
         "Links: as a tile, count the links shown and read \"+n more\"; focused on the wide screen, read the layout."
        ],
-       "expected": "the agenda tile clips without a scrollbar and, when narrow, puts who · minutes under each title in one row; the action board's kanban columns share the width with no sideways scrollbar, and a Gantt asked for in a card under about 760 px shows the list with \"The Gantt opens when the card is wider\"; the charter TILE shows the whole canvas scaled to fit (never cut at row five) and the focused charter's rows grow to fill a tall window; a two-row capture card's big text never wraps a word a line (it is capped by the column width); the status tile's state word and reason grow and shrink with the box and a long reason stops at three lines; the links tile shows exactly six LINKS (group headings do not count) and \"+3 more\"; on the wide screen the links lay out in columns; an embed card's commentary pane sits under the frame when the card is narrow",
-       "hash": "3d1f540e",
-       "changed": "2026-10-30"
+       "expected": "the agenda tile clips without a scrollbar and, when narrow, puts who · minutes under each title in one row; the action board's kanban columns share the width with no sideways scrollbar, every kanban card keeps its who · due line inside its own edge (the line wraps; nothing spills onto the column) and, as a tile, an action awaiting endorsement shows the ◐ mark alone, and a Gantt asked for in a card under about 760 px shows the list with \"The Gantt opens when the card is wider\"; the charter TILE shows the whole canvas scaled to fit (never cut at row five) and the focused charter's rows grow to fill a tall window; a two-row capture card's big text never wraps a word a line (it is capped by the column width); the status tile's state word and reason grow and shrink with the box and a long reason stops at three lines; the links tile shows exactly six LINKS (group headings do not count) and \"+3 more\"; on the wide screen the links lay out in columns; an embed card's commentary pane sits under the frame when the card is narrow",
+       "hash": "c23ae551",
+       "changed": "2026-11-11"
       },
       {
        "id": "UAT-RIT-007",
@@ -2731,15 +2755,15 @@
        ],
        "preconditions": "a board whose Action card has two or more completed actions and some open ones; a second Action card configured with custom kanban columns (grouped by issue, e.g. Safety · Quality · Delivery) with actions in at least two columns",
        "steps": [
-        "Open the first card. On the List view read the \"Show completed\" switch; switch to Kanban, then Gantt, reading it each time.",
+        "Open the first card. On the List view read the \"Show completed\" switch and find ＋ Add action; switch to Kanban, then Gantt, reading both each time.",
         "Switch it on, then off again; look at the Kanban's Done column while it is off.",
         "Mark every action complete, then look at the card.",
         "On the Gantt, click an action's name; change its description; save. Then drag a bar.",
         "Open the second card on the Gantt."
        ],
-       "expected": "step 1 the switch is present on all three views and OFF, with the hidden count in brackets, and completed actions appear on none of them; step 2 on, completed actions show on the list, in Done and as grey bars; off again, the Done column stays as a drop target reading \"n completed hidden\", and clicking that line switches completed on; step 3 the card reads \"All n actions are complete\" with the switch and the Add button, not the empty-card prompt; step 4 the action's dialog opens from its name and the saved change shows; the bar still drags its dates; step 5 the Gantt shows a lane per kanban column in the kanban's order with a count, each folding to one summary bar on click, and the list view inside the Gantt groups the same way",
-       "hash": "299d3ae2",
-       "changed": "2026-10-31"
+       "expected": "step 1 the switch is present on all three views and OFF, with the hidden count in brackets, and completed actions appear on none of them; ＋ Add action sits at the right-hand end of the same row on every view, in sight without scrolling however long the list, and nothing sits under the list any more; step 2 on, completed actions show on the list, in Done and as grey bars; off again, the Done column stays as a drop target reading \"n completed hidden\", and clicking that line switches completed on; step 3 the card reads \"All n actions are complete\" with the switch and ＋ Add action on the row above it, not the empty-card prompt; step 4 the action's dialog opens from its name and the saved change shows; the bar still drags its dates; step 5 the Gantt shows a lane per kanban column in the kanban's order with a count, each folding to one summary bar on click, and the list view inside the Gantt groups the same way",
+       "hash": "f0effa5d",
+       "changed": "2026-11-11"
       },
       {
        "id": "UAT-RIT-010",
