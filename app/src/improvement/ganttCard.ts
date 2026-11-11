@@ -49,7 +49,8 @@ export function mountGanttCard(opts: CardMount): () => void {
         !i.confidential &&
         [i.org, ...(i.alsoOrgs ?? [])].some((o) => (site === "" || o.site === site) && (department === "" || o.department === department))
     );
-    const weeks = Number(cfg(opts, "gxWeeks")) || 4;
+    const rawWeeks = cfg(opts, "gxWeeks");
+    const weeks = rawWeeks === "all" ? ("all" as const) : Number(rawWeeks) || 4;
     const today = todayIso();
     teardown = mountGantt({
       host: opts.host,

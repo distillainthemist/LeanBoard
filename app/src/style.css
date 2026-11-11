@@ -4121,6 +4121,26 @@ a.app-ib-folderbtn { text-decoration: none; white-space: nowrap; }
 .app-gx-sel { width: auto; min-width: 130px; }
 .app-gx-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: #57534a; cursor: pointer; white-space: nowrap; }
 .app-gx-more { min-width: 40px; padding: 0 10px; }
+/* ‹ range › (2026-11-12): seven presets, so the buttons run tight */
+.app-gx-rangegroup { display: inline-flex; align-items: center; gap: 4px; flex: none; }
+.app-gx-range .app-docs-segbtn { padding: 0 7px; }
+.app-gx-nav { min-width: 32px; padding: 0 6px; justify-content: center; font-size: 15px; line-height: 1; }
+.app-gx-now { padding: 0 10px; font-size: 12.5px; }
+/* in the actions card's tools row: right-aligned beside Add action, and
+   as tall as it */
+.ltk-ab-toolslot .app-gx-bar { flex: 1 1 auto; justify-content: flex-end; gap: 6px; }
+/* with the assignee filter the controls need a wider card to share the
+   row: under that they take the row below, as the control's own
+   narrow-card rule does (controls/ActionBoard/styles.ts) */
+@container (max-width: 1070px) {
+  .ltk-ab-toolslot:has(.app-gx-sel) { order: 1; flex-basis: 100%; }
+  .ltk-ab-toolslot:has(.app-gx-sel) + .ltk-ab-add { margin-left: auto; }
+}
+@media (pointer: fine) {
+  .ltk-ab-toolslot .app-gx-bar .app-btn,
+  .ltk-ab-toolslot .app-gx-bar .app-docs-segbtn { min-height: 36px; }
+  .ltk-ab-toolslot .app-gx-bar .app-gx-sel { min-height: 36px; min-width: 110px; }
+}
 .app-gx-stage { overflow-x: auto; border: 1px solid #e4dfd6; border-radius: 10px; background: #fff; }
 .app-gx-grid { display: flex; flex-direction: column; min-width: max-content; }
 .app-gx-row { display: flex; align-items: stretch; border-bottom: 1px solid #f1efec; min-height: 40px; }
@@ -4138,6 +4158,7 @@ a.app-ib-folderbtn { text-decoration: none; white-space: nowrap; }
 .app-gx-tl { position: relative; flex: none; }
 .app-gx-week { position: absolute; top: 4px; font-size: 11px; color: #6d675c; white-space: nowrap; border-left: 1px solid #ece8e0; padding-left: 4px; height: 100%; }
 .app-gx-weekend { position: absolute; top: 0; bottom: 0; background: #faf9f7; }
+.app-gx-monthline { position: absolute; top: 0; bottom: 0; width: 1px; background: #f1efec; }
 .app-gx-today { position: absolute; top: 0; bottom: 0; width: 2px; background: rgba(192, 57, 43, 0.55); z-index: 1; }
 .app-gx-band { position: absolute; top: 0; bottom: 0; overflow: hidden; }
 .app-gx-band-label { font-size: 10.5px; font-weight: 700; white-space: nowrap; padding: 2px 4px; display: inline-block; }

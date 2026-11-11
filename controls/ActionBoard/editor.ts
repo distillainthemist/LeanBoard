@@ -100,6 +100,10 @@ export interface ActionBoardCallbacks {
   onSnapshot?: (svgMarkup: string) => void;
 }
 
+/** Where the host's Gantt was left: its range (weeks, or "all") and the
+ *  day it is centred on (null = where it opens by itself). */
+export type GanttWindowState = { range: number | "all"; anchor: string | null };
+
 /** The host's Gantt: mount into `host`, return the teardown. */
 export type GanttRenderer = (
   host: HTMLElement,
@@ -115,6 +119,13 @@ export type GanttRenderer = (
     onEdit?: (a: LtkAction) => void;
     /** the kanban's columns when it groups by issue — the Gantt groups its rows the same way (Ben, 2026-10-31) */
     groups?: { key: string; label: string; items: LtkAction[] }[];
+    /** a slot in the card's tools row, left of Add action: the Gantt's
+     *  range controls go here, not on a row of their own (Ben, 2026-11-12) */
+    toolbar?: HTMLElement;
+    /** where this card's Gantt was left, and the way to say it moved —
+     *  the card repaints (and the Gantt remounts) after every edit */
+    window?: GanttWindowState | null;
+    onWindow?: (w: GanttWindowState) => void;
   }
 ) => () => void;
 
@@ -151,6 +162,7 @@ export class ActionBoardEditor {
    *  card draws its own. */
   private ganttRenderer: GanttRenderer | null = null;
   private ganttTeardown: (() => void) | null = null;
+  private ganttWindowState: GanttWindowState | null = null;
   private rescheduleReasons = false;
   /** The signed-in viewer — stamps verifications ("" = unknown). */
   private actor: { whoId: string; who: string } = { whoId: "", who: "" };
@@ -470,6 +482,13 @@ export class ActionBoardEditor {
     const tools = this.toolsRow();
     if (!this.narrow) tools.appendChild(views);
     tools.appendChild(this.completedToggle());
+    // the host's Gantt puts its range controls in this slot, so they
+    // share the row with Add action instead of sitting under it
+    const ganttSlot = view === "gantt" && this.ganttRenderer ? el("div", "ltk-ab-toolslot") : null;
+    if (ganttSlot) {
+      tools.classList.add("ltk-ab-tools-slot");
+      tools.appendChild(ganttSlot);
+    }
     if (!this.readOnly) tools.appendChild(this.addButton());
     body.appendChild(tools);
 
@@ -491,6 +510,11 @@ export class ActionBoardEditor {
           showCompleted: this.showCompleted,
           onEdit: this.readOnly ? undefined : (a) => this.editAction(a),
           groups,
+          toolbar: ganttSlot ?? undefined,
+          window: this.ganttWindowState,
+          onWindow: (w) => {
+            this.ganttWindowState = w;
+          },
         });
       } else {
         body.appendChild(this.renderGantt(visible));

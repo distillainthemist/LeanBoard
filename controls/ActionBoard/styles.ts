@@ -365,6 +365,17 @@ export const ACTIONBOARD_CSS = `
 /* in the tools row: last, at the right, as tall as its neighbours */
 .ltk-ab-tools .ltk-ab-add { margin-left: auto; align-self: center; min-height: 36px; padding: 6px 12px; }
 @media (pointer: coarse) { .ltk-ab-tools .ltk-ab-add { min-height: 44px; } }
+/* the Gantt's range controls, between Show completed and Add action
+   (Ben, 2026-11-12: Add action had pushed them onto a row of their own).
+   The slot takes what the row has left; on a card too narrow for one row
+   the controls drop under it and Add action keeps the top right. */
+.ltk-ab-tools-slot { container-type: inline-size; }
+.ltk-ab-toolslot { flex: 1 1 0; min-width: min-content; display: flex; justify-content: flex-end; align-items: center; }
+.ltk-ab-toolslot + .ltk-ab-add { margin-left: 0; }
+@container (max-width: 960px) {
+  .ltk-ab-toolslot { order: 1; flex-basis: 100%; }
+  .ltk-ab-toolslot + .ltk-ab-add { margin-left: auto; }
+}
 /* an untitled card pins its kebab over this corner */
 .ltk-ab-tools-kebab { padding-right: 44px; }
 .ltk-ab-verify { color: var(--ltk-muted); font-style: italic; }

@@ -111,3 +111,16 @@ steps:
 2. Read the review step, then the Rituals list and the hub's calendar for the next three months.
 3. Edit the ritual in the wizard: set the weeks to 2; save; read the cadence again.
 expected: the review and the Rituals list read "Every 4 weeks"; the calendar shows the ritual on the first occurrence and then every fourth Tuesday after it (never the weeks between); setting 2 turns the cadence back to Fortnightly with every second Tuesday; existing fortnightly rituals are unchanged
+
+### UAT-RIT-012 — The Gantt's window: longer ranges, moving along, one row with Add action
+persona: participant
+modules: controls/ActionBoard/editor.ts controls/ActionBoard/styles.ts improvement/gantt.ts improvement/ganttWindow.ts cardRegistry.ts controls/CardSettings/registry.ts
+preconditions: a board whose Action card is wide (a full-width card on a desktop) and holds open actions with start and due dates spread over several months, one of them due more than six months out
+steps:
+1. Open the card on the Gantt view. Read the row that holds List | Kanban | Gantt.
+2. Click 26w, then 52w; read the header and the dates under the chart.
+3. On 13w click › twice, then ‹ once; read the dates under the chart, then click Today.
+4. Click All.
+5. On 52w click › once, then click an action's name, change its description and save.
+6. Narrow the window until the card is about half its width.
+expected: step 1 the range buttons (‹ 2w 4w 8w 13w 26w 52w All ›) and the ⋮ sit on the same row as ＋ Add action, to its left, with no row of their own under it; step 2 each shows that many weeks around the meeting's week (today when the board has no meeting), the header names months with the year on the first and on each January, the whole window is in view without scrolling sideways, and the dates under the chart carry the year once the window leaves this one; step 3 each arrow moves the window six weeks (its tooltip says so), a Today button appears once the window has left today and brings it back; step 4 every dated action is in view at once from the earliest start to the latest due date with today inside, the chart fills the card's width, and the arrows are greyed; step 5 after the save the Gantt is still on 52w at the place it was moved to, not back on 4w; step 6 on a narrow card the range buttons drop to the row below, right-aligned, and ＋ Add action keeps the top right

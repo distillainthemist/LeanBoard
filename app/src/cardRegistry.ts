@@ -1460,6 +1460,11 @@ const REGISTRY: Record<string, CardMounter> = {
           showCompleted: g.showCompleted,
           onEdit: g.onEdit,
           groups: g.groups,
+          // the range controls sit in the card's tools row, and the card
+          // remembers where the window was left (2026-11-12)
+          toolbarHost: g.toolbar,
+          window: g.window,
+          onWindow: g.onWindow,
         });
       })().catch(() => {
         if (!dead) host.replaceChildren(el("div", "app-cp-muted", "The Gantt could not load."));

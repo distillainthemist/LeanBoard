@@ -33,7 +33,7 @@ ed.setPeople([{ whoId: "u1", who: "Ben O'Brien", initials: "BO" }, { whoId: "u2"
 ed.setOptions({ view: "kanban", groupBy: "status", verifyColumn: true });
 ed.setUserView(null, (v) => log.push(`view ${v}`));
 ed.setGanttRenderer((host, g) =>
-  mountGantt({ host, scopes: [{ key: "board", label: "" }], initiatives: [], actions: g.actions, palette: { issue: "#c0392b", atrisk: "#d9a441", good: "#1f7a3f" }, canEdit: false, actor: g.actor, onChanged: g.onChanged, centerIso: "2026-09-30", hideViewSwitch: true })
+  mountGantt({ host, scopes: [{ key: "board", label: "" }], initiatives: [], actions: g.actions, palette: { issue: "#c0392b", atrisk: "#d9a441", good: "#1f7a3f" }, canEdit: false, actor: g.actor, onChanged: g.onChanged, centerIso: "2026-09-30", hideViewSwitch: true, showCompleted: g.showCompleted, onEdit: g.onEdit, groups: g.groups, toolbarHost: g.toolbar, window: g.window, onWindow: g.onWindow })
 );
 ed.setActions(many);
 const bar = document.getElementById("bar")!;

@@ -4,7 +4,9 @@
 // count; collapsed shows one summary bar) and "board" (2026-09-30: the
 // actions card on ANY board — the actions it is given, flat, whether or
 // not they belong to an initiative). Toolbar: scope · assignee ·
-// Show completed toggle · window presets 2w/4w/8w/13w · ⋮ (export CSV).
+// Show completed toggle · ‹ window presets 2w … 52w · All › · ⋮ (export
+// CSV). The window's arithmetic lives in ganttWindow.ts (2026-11-12: the
+// longer windows, "All", and ‹ › to move along a long project).
 // No state filter: every bar and chip already says its state (Ben,
 // 2026-10-06).
 // Bar states carry a SHAPE as well as a colour (§2.2): on-track solid
@@ -26,6 +28,27 @@ import { mergeUserPrefs, userPrefsJson } from "../store/config";
 import { modal, field } from "../priorities/dialogs";
 import { Initiative } from "./initiativeModel";
 import { PDCA_TOKENS } from "./templateModel";
+import {
+  DAY_MS,
+  GANTT_PRESETS,
+  GanttRange,
+  addDaysIso as addDays,
+  dayNum,
+  ganttTicks,
+  ganttWindow,
+  isGanttRange,
+  isoOfDay,
+  pageStep,
+  spanOf,
+  weekdayOf,
+} from "./ganttWindow";
+
+/** Where a Gantt was left: its range, and the day it is centred on
+ *  (null = where it opens by itself). */
+export interface GanttWindowState {
+  range: GanttRange;
+  anchor: string | null;
+}
 
 export const RESCHEDULE_REASONS = [
   "Waiting on parts",
@@ -57,8 +80,16 @@ export interface GanttOpts {
   /** Window centre (yyyy-mm-dd); default today. The ritual card centres
    *  on the meeting's week. */
   centerIso?: string;
-  /** Initial window in weeks (2/4/8/13); default 4. */
-  windowWeeks?: number;
+  /** Initial window: weeks (2/4/8/13/26/52) or "all"; default 4. */
+  windowWeeks?: GanttRange;
+  /** The host's own toolbar row: the Gantt puts its controls here rather
+   *  than on a row of its own (the actions card, 2026-11-12). */
+  toolbarHost?: HTMLElement;
+  /** Where the host last saw this Gantt (it remounts on every card
+   *  repaint — without this each edit would snap back to four weeks
+   *  around today). */
+  window?: GanttWindowState | null;
+  onWindow?: (w: GanttWindowState) => void;
   /** The host already offers a List/Gantt switch — hide the internal one. */
   hideViewSwitch?: boolean;
   /** The host owns Show completed (the actions card's own switch,
@@ -71,27 +102,11 @@ export interface GanttOpts {
   groups?: { key: string; label: string; items: LtkAction[] }[];
 }
 
-const PRESETS: { weeks: number; label: string; dayW: number }[] = [
-  { weeks: 2, label: "2w", dayW: 44 },
-  { weeks: 4, label: "4w", dayW: 24 },
-  { weeks: 8, label: "8w", dayW: 13 },
-  { weeks: 13, label: "13w", dayW: 9 },
-];
-
-const DAY = 86400000;
-
-function parseDay(iso: string): number | null {
-  const t = Date.parse(`${iso}T00:00:00`);
-  return Number.isFinite(t) ? t : null;
-}
-function toIso(t: number): string {
-  const d = new Date(t);
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-}
-function addDays(iso: string, n: number): string {
-  const t = parseDay(iso);
-  return t === null ? iso : toIso(t + n * DAY);
+/** "Nov", or "Jan 2027" where the year turns (month-mode header). */
+function monthLabel(day: number, withYear: boolean): string {
+  const d = new Date(day * DAY_MS);
+  const m = d.toLocaleDateString(undefined, { month: "short", timeZone: "UTC" });
+  return withYear ? `${m} ${d.getUTCFullYear()}` : m;
 }
 
 type BarState = "ontrack" | "overdue" | "verify" | "hold" | "done";
@@ -138,13 +153,23 @@ async function loadCompletedPref(whoId: string): Promise<boolean> {
 export function mountGantt(opts: GanttOpts): () => void {
   const wrap = el("div", "app-gx");
   opts.host.appendChild(wrap);
-  const cleanups: (() => void)[] = [() => wrap.remove()];
+  const cleanups: (() => void)[] = [
+    () => wrap.remove(),
+    () => {
+      if (opts.toolbarHost) clear(opts.toolbarHost);
+    },
+  ];
 
   const today = todayIso();
   let scope = opts.scopes[0]?.key ?? "org";
   // Ben, 2026-08-25: every Gantt surface switches to a plain action list
   let view: "gantt" | "list" = "gantt";
-  let weeks = PRESETS.some((p) => p.weeks === opts.windowWeeks) ? (opts.windowWeeks as number) : 4;
+  const todayN = dayNum(today) as number;
+  // where the window opens by itself: the meeting's week, else today
+  const centre0 = dayNum(opts.centerIso ?? "") ?? todayN;
+  let range: GanttRange = isGanttRange(opts.window?.range) ? opts.window.range : isGanttRange(opts.windowWeeks) ? opts.windowWeeks : 4;
+  let anchor = dayNum(opts.window?.anchor ?? "") ?? centre0;
+  const tellWindow = () => opts.onWindow?.({ range, anchor: anchor === centre0 ? null : isoOfDay(anchor) });
   const controlled = opts.showCompleted !== undefined;
   let showCompleted = controlled ? opts.showCompleted === true : completedPref === true;
   if (!controlled && completedPref === null) {
@@ -181,6 +206,21 @@ export function mountGantt(opts: GanttOpts): () => void {
     if (!showCompleted && (a.status === "done" || a.status === "cancelled")) return false;
     if (assignee !== "" && !a.assignees.some((x) => x.whoId === assignee)) return false;
     return true;
+  };
+
+  /** First and last date among what the scope shows — "All" fits it. An
+   *  initiative's stage targets count: the bands are part of its plan. */
+  const scopeSpan = (): { min: number; max: number } | null => {
+    const rows =
+      scope === "initiative" && opts.initiative
+        ? byInitiative(opts.initiative)
+        : scope === "org"
+          ? opts.actions.filter((a) => initOf(a) !== null)
+          : opts.actions;
+    const dates: string[] = [];
+    for (const a of rows.filter(visibleAction)) dates.push(a.start, a.due);
+    if (scope === "initiative" && opts.initiative) dates.push(...Object.values(opts.initiative.stageTargets));
+    return spanOf(dates);
   };
 
   // ---- date writes ----------------------------------------------------------
@@ -285,19 +325,37 @@ export function mountGantt(opts: GanttOpts): () => void {
 
   // ---- rendering ------------------------------------------------------------
 
+  let paintedHostW = 0;
+  let fitted = false; // this paint's day width came from the plot's width
   const render = () => {
     clear(wrap);
-    const preset = PRESETS.find((p) => p.weeks === weeks) ?? PRESETS[1];
-    const days = weeks * 7;
-    const centre = parseDay(opts.centerIso ?? today) ?? (parseDay(today) as number);
-    const t0 = centre - Math.floor(days / 2) * DAY;
-    const startIso = toIso(t0);
-    const dayW = preset.dayW;
-    const width = days * dayW;
+    if (opts.toolbarHost) clear(opts.toolbarHost);
+    paintedHostW = opts.host.clientWidth;
+    // "All" (and 26w / 52w) fit the room the plot has: the host's width less the label
+    // column (150 px on a phone) and the stage's border
+    const labelW = window.matchMedia("(max-width: 599px)").matches ? 150 : 300;
+    const avail = (opts.host.clientWidth || wrap.clientWidth || 1200) - labelW - 4;
+    const win = ganttWindow(range, anchor, range === "all" ? scopeSpan() : null, todayN, avail);
+    const { days, dayW } = win;
+    fitted = range === "all" || win.months;
+    const d0 = win.start;
+    const startIso = isoOfDay(d0);
+    const width = Math.round(days * dayW);
+    // a bar stays grabbable when a day is three pixels wide
+    const minBar = Math.max(dayW, 6);
     const xOf = (iso: string): number | null => {
-      const t = parseDay(iso);
-      return t === null ? null : Math.round(((t - t0) / DAY) * dayW);
+      const n = dayNum(iso);
+      return n === null ? null : Math.round((n - d0) * dayW);
     };
+    // header ticks and the rows' scaffold, worked out once for every row
+    const ticks = ganttTicks(win);
+    const weekendAt: number[] = [];
+    if (!win.months) {
+      for (let d = 0; d < days; d++) {
+        const wd = weekdayOf(d0 + d);
+        if (wd === 6 || wd === 0) weekendAt.push(d);
+      }
+    }
 
     // toolbar
     const bar = el("div", "app-gx-bar");
@@ -366,19 +424,60 @@ export function mountGantt(opts: GanttOpts): () => void {
     });
     tog.append(sw, el("span", undefined, "Show completed"));
     bar.appendChild(tog);
-    bar.appendChild(el("span", "app-bar-gap"));
+    if (!opts.toolbarHost) bar.appendChild(el("span", "app-bar-gap"));
     if (view === "gantt") {
-      const win = el("div", "app-docs-seg");
-      for (const p of PRESETS) {
-        const b = el("button", "app-docs-segbtn" + (weeks === p.weeks ? " app-docs-segbtn-on" : ""), p.label) as HTMLButtonElement;
-        b.type = "button";
-        b.addEventListener("click", () => {
-          weeks = p.weeks;
+      // ‹ range › — the arrows move the window half its own length, so a
+      // long project is walked a stretch at a time; "All" has nowhere to
+      // go. "Today" appears once the window has left today.
+      const step = pageStep(range);
+      const stepWords = step === 7 ? "1 week" : `${step / 7} weeks`;
+      if (range !== "all" && anchor !== todayN) {
+        const now = el("button", "app-btn app-gx-nav app-gx-now", "Today") as HTMLButtonElement;
+        now.type = "button";
+        now.title = "Centre the window on today";
+        now.addEventListener("click", () => {
+          anchor = todayN;
+          tellWindow();
           render();
         });
-        win.appendChild(b);
+        bar.appendChild(now);
       }
-      bar.appendChild(win);
+      const nav = (glyph: string, dir: -1 | 1): HTMLButtonElement => {
+        const b = el("button", "app-btn app-gx-nav", glyph) as HTMLButtonElement;
+        b.type = "button";
+        const words = dir < 0 ? "Earlier" : "Later";
+        b.setAttribute("aria-label", words);
+        if (range === "all") {
+          b.disabled = true;
+          b.title = "All actions are in view";
+        } else {
+          b.title = `${words} by ${stepWords}`;
+          b.addEventListener("click", () => {
+            anchor += dir * step;
+            tellWindow();
+            render();
+          });
+        }
+        return b;
+      };
+      // ‹ range › stay together when the row wraps
+      const group = el("span", "app-gx-rangegroup");
+      group.appendChild(nav("‹", -1));
+      const rangeSeg = el("div", "app-docs-seg app-gx-range");
+      for (const p of GANTT_PRESETS) {
+        const b = el("button", "app-docs-segbtn" + (range === p.range ? " app-docs-segbtn-on" : ""), p.label) as HTMLButtonElement;
+        b.type = "button";
+        b.title = p.title;
+        b.addEventListener("click", () => {
+          range = p.range;
+          tellWindow();
+          render();
+        });
+        rangeSeg.appendChild(b);
+      }
+      group.appendChild(rangeSeg);
+      group.appendChild(nav("›", 1));
+      bar.appendChild(group);
     }
     const more = el("button", "app-btn app-gx-more", "⋮") as HTMLButtonElement;
     more.type = "button";
@@ -409,7 +508,7 @@ export function mountGantt(opts: GanttOpts): () => void {
       cleanups.push(() => menu.remove());
     });
     bar.appendChild(more);
-    wrap.appendChild(bar);
+    (opts.toolbarHost ?? wrap).appendChild(bar);
 
     if (view === "list") {
       const listBox = el("div", "app-gx-list");
@@ -489,37 +588,39 @@ export function mountGantt(opts: GanttOpts): () => void {
       r.appendChild(el("div", "app-gx-label app-gx-headlabel", ""));
       const tl = el("div", "app-gx-tl");
       tl.style.width = `${width}px`;
-      for (let d = 0; d < days; d++) {
-        const t = t0 + d * DAY;
-        const dt = new Date(t);
-        if (dt.getDay() === 1) {
-          const wk = el("div", "app-gx-week", dayLabel(toIso(t)));
-          wk.style.left = `${d * dayW}px`;
-          tl.appendChild(wk);
-        }
-        if (dt.getDay() === 6 || dt.getDay() === 0) {
-          const we = el("div", "app-gx-weekend");
-          we.style.left = `${d * dayW}px`;
-          we.style.width = `${dayW}px`;
-          tl.appendChild(we);
-        }
+      for (const t of ticks) {
+        const wk = el("div", "app-gx-week", win.months ? monthLabel(t.day, t.year) : dayLabel(isoOfDay(t.day)));
+        wk.style.left = `${t.offset * dayW}px`;
+        tl.appendChild(wk);
+      }
+      for (const d of weekendAt) {
+        const we = el("div", "app-gx-weekend");
+        we.style.left = `${d * dayW}px`;
+        we.style.width = `${dayW}px`;
+        tl.appendChild(we);
       }
       r.appendChild(tl);
       return r;
     };
     grid.appendChild(headRow());
 
-    /** Shared per-row timeline scaffold: weekend tint + today line. */
+    /** Shared per-row timeline scaffold: weekend tint (month lines on
+     *  the long windows, where a weekend is a few pixels) + today line. */
     const timelineCell = (): HTMLElement => {
       const tl = el("div", "app-gx-tl");
       tl.style.width = `${width}px`;
-      for (let d = 0; d < days; d++) {
-        const dt = new Date(t0 + d * DAY);
-        if (dt.getDay() === 6 || dt.getDay() === 0) {
-          const we = el("div", "app-gx-weekend");
-          we.style.left = `${d * dayW}px`;
-          we.style.width = `${dayW}px`;
-          tl.appendChild(we);
+      for (const d of weekendAt) {
+        const we = el("div", "app-gx-weekend");
+        we.style.left = `${d * dayW}px`;
+        we.style.width = `${dayW}px`;
+        tl.appendChild(we);
+      }
+      if (win.months) {
+        for (const t of ticks) {
+          if (t.offset === 0) continue;
+          const ml = el("div", "app-gx-monthline");
+          ml.style.left = `${t.offset * dayW}px`;
+          tl.appendChild(ml);
         }
       }
       const tx = xOf(today);
@@ -597,7 +698,7 @@ export function mountGantt(opts: GanttOpts): () => void {
       const barEl = el("div", "app-gx-actionbar" + (selected === a.id ? " app-gx-bar-sel" : ""));
       const left = Math.max(-4, x1);
       barEl.style.left = `${left}px`;
-      barEl.style.width = `${Math.max(dayW, Math.min(width + 4, x2 + dayW) - left)}px`;
+      barEl.style.width = `${Math.max(minBar, Math.min(width + 4, x2 + dayW) - left)}px`;
       if (state === "verify") {
         barEl.style.background = `repeating-linear-gradient(45deg, ${col}, ${col} 5px, color-mix(in srgb, ${col} 45%, white) 5px, color-mix(in srgb, ${col} 45%, white) 10px)`;
       } else if (state === "hold") {
@@ -649,7 +750,9 @@ export function mountGantt(opts: GanttOpts): () => void {
         }
         e.preventDefault();
         const rect = barEl.getBoundingClientRect();
-        const edge = e.clientX - rect.left < 8 ? "start" : rect.right - e.clientX < 8 ? "due" : "both";
+        // a bar too short to have a middle moves whole
+        const zone = rect.width >= 24 ? 8 : 0;
+        const edge = e.clientX - rect.left < zone ? "start" : rect.right - e.clientX < zone ? "due" : "both";
         const fromX = e.clientX;
         let dDays = 0;
         const origLeft = parseFloat(barEl.style.left);
@@ -680,7 +783,8 @@ export function mountGantt(opts: GanttOpts): () => void {
       });
       barEl.addEventListener("mousemove", (e: MouseEvent) => {
         const rect = barEl.getBoundingClientRect();
-        barEl.style.cursor = e.clientX - rect.left < 8 || rect.right - e.clientX < 8 ? "ew-resize" : "grab";
+        const zone = rect.width >= 24 ? 8 : 0;
+        barEl.style.cursor = e.clientX - rect.left < zone || rect.right - e.clientX < zone ? "ew-resize" : "grab";
       });
     }
 
@@ -695,7 +799,7 @@ export function mountGantt(opts: GanttOpts): () => void {
       const sum = el("div", "app-gx-summary");
       const left = Math.max(-4, x1);
       sum.style.left = `${left}px`;
-      sum.style.width = `${Math.max(dayW, Math.min(width + 4, x2 + dayW) - left)}px`;
+      sum.style.width = `${Math.max(minBar, Math.min(width + 4, x2 + dayW) - left)}px`;
       const worst = rows.map((a) => barState(a, today));
       sum.style.background = worst.includes("overdue") ? colours.overdue : worst.includes("verify") ? colours.verify : colours.ontrack;
       tl.appendChild(sum);
@@ -708,7 +812,7 @@ export function mountGantt(opts: GanttOpts): () => void {
       const groups = opts.groups
         .map((g) => ({ g, rows: g.items.filter(visibleAction).sort((a, b) => ((a.due || "9999") < (b.due || "9999") ? -1 : 1)) }))
         .filter((x) => x.rows.length > 0);
-      if (groups.length === 0) grid.appendChild(el("div", "app-gx-empty", "No open actions in this window. Try 8 or 13 weeks."));
+      if (groups.length === 0) grid.appendChild(el("div", "app-gx-empty", "No open actions."));
       for (const { g, rows } of groups) {
         const key = `col:${g.key}`;
         const open = !collapsed.has(key);
@@ -732,7 +836,7 @@ export function mountGantt(opts: GanttOpts): () => void {
     } else if (scope === "board") {
       // the actions card: what it was given, flat — no groups, no bands
       const rows = opts.actions.filter(visibleAction).sort((a, b) => ((a.due || "9999") < (b.due || "9999") ? -1 : 1));
-      if (rows.length === 0) grid.appendChild(el("div", "app-gx-empty", "No open actions in this window. Try 8 or 13 weeks."));
+      if (rows.length === 0) grid.appendChild(el("div", "app-gx-empty", "No open actions."));
       for (const a of rows) grid.appendChild(actionRow(a));
     } else if (scope === "initiative" && opts.initiative) {
       const i = opts.initiative;
@@ -753,7 +857,7 @@ export function mountGantt(opts: GanttOpts): () => void {
         .map((i) => ({ i, rows: byInitiative(i).filter(visibleAction).sort((a, b) => ((a.due || "9999") < (b.due || "9999") ? -1 : 1)) }))
         .filter((g) => g.rows.length > 0);
       if (groups.length === 0) {
-        grid.appendChild(el("div", "app-gx-empty", "No open actions in this window. Try 8 or 13 weeks."));
+        grid.appendChild(el("div", "app-gx-empty", "No open actions."));
       }
       for (const g of groups) {
         const open = expanded.has(g.i.id);
@@ -837,7 +941,14 @@ export function mountGantt(opts: GanttOpts): () => void {
       sw.classList.add("app-gx-swatch-diamond");
       sw.style.background = colours.ontrack;
     });
-    legend.appendChild(el("span", "app-gx-window", `${dayLabel(startIso)} – ${dayLabel(toIso(t0 + (days - 1) * DAY))}`));
+    // the window in words; with the year once it leaves this one
+    const endIso = isoOfDay(d0 + days - 1);
+    const thisYear = today.slice(0, 4);
+    const withYear = startIso.slice(0, 4) !== thisYear || endIso.slice(0, 4) !== thisYear;
+    const dl = (iso: string): string => (withYear ? `${dayLabel(iso)} ${iso.slice(0, 4)}` : dayLabel(iso));
+    const windowEl = el("span", "app-gx-window", `${dl(startIso)} – ${dl(endIso)}${win.clipped ? " · 3 years shown" : ""}`);
+    if (win.clipped) windowEl.title = "These actions span more than three years. Use 52w and the arrows to reach the rest.";
+    legend.appendChild(windowEl);
     wrap.appendChild(legend);
   };
 
@@ -857,6 +968,16 @@ export function mountGantt(opts: GanttOpts): () => void {
   };
 
   render();
+  // "All" and the long windows are fitted to the plot's width — refit
+  // when the card is resized (or first laid out: a host mounted off the
+  // page measures nothing)
+  if (typeof ResizeObserver !== "undefined") {
+    const ro = new ResizeObserver(() => {
+      if (fitted && wrap.isConnected && Math.abs(opts.host.clientWidth - paintedHostW) > 24) render();
+    });
+    ro.observe(opts.host);
+    cleanups.push(() => ro.disconnect());
+  }
   return () => {
     for (const fn of cleanups) fn();
   };
