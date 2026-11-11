@@ -513,6 +513,19 @@ Version lives in the tag alone — nothing is stamped into files.
   review's summary tiles and the task banner heading removed) is
   SOLUTION-CARRYING for the Utilities app only: prod imports the managed
   solution; the LeanBoard app is unchanged. No schema change.
+  v0.93.0 (2026-11-12, app-only, no schema): a re-exposed document
+  library keeps its columns — `refreshLibraryColumns` levels each
+  exposed library's stored columns with SharePoint at every Save and
+  every open of Settings → Documents, a failed field read wipes and
+  prunes nothing, unused mappings are shelved (`dormant`, "Kept for
+  later") and restored (UAT-DOC-092); the action board's tile kanban
+  no longer compresses its cards and "＋ Add action" sits at the right
+  of the tools row on every view; the Gantt's range controls share
+  that row through a toolbar slot (`GanttRenderer` ctx `toolbar`/
+  `window`/`onWindow`), with 26w, 52w and All, ‹ › paging by half a
+  window and Today — the window arithmetic is the pure module
+  `app/src/improvement/ganttWindow.ts` in UTC day numbers
+  (UAT-RIT-012). The Utilities app and the solution are unchanged.
   v0.92.0 (2026-11-09, Utilities only, no schema): notice given —
   the Cadence scan selects `createdDateTime`/`lastModifiedDateTime` and
   reads `createdDateTime,start` off series masters; `noticeHours` +

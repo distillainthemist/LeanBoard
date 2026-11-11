@@ -5,12 +5,23 @@ its decision date and enough context to pick it up cold. The phase plans
 (`leanboard-phase5-plan.md`, `leanboard-standard-documents-plan.md`)
 stay the design detail; this is the queue.
 
-## Current state (2026-11-09, after v0.92.0)
+## Current state (2026-11-12, after v0.93.0)
 
-Released through v0.91.0 (ledger: `leanboard-cascade-improvement-plan.md`;
+Released through v0.93.0 (ledger: `leanboard-cascade-improvement-plan.md`;
 release paragraphs: `../CLAUDE.md`). Production took v0.88.1 and the
-v0.89.0/v0.90.0 managed solution; v0.91.0 is app-only. Recent decisions
-of record:
+v0.89.0/v0.90.0 managed solution; v0.91.0 and v0.93.0 are app-only,
+v0.92.0 carries the Utilities app in the managed solution. Recent
+decisions of record:
+
+- **The 2026-11-11/12 rounds** (released as v0.93.0): a re-exposed
+  document library keeps its columns (levelled with SharePoint at every
+  Save and every open of Settings → Documents; unused mappings shelved,
+  not pruned); the tile kanban keeps its cards whole and Add action sits
+  at the top right of the action card; the Gantt's range controls share
+  that row, with 26w, 52w, All and ‹ › paging. Hosted checks Ben's: the
+  damaged library healing on open, the Gantt on a real long plan and on
+  a phone. Not built: a per-column card cap ("+N more") on the tile
+  kanban.
 
 - **The 2026-11-06 issue round** (`issues-plan-2026-11-06.md`): managing
   an org is its owner or the owner's direct reports; initiatives link only

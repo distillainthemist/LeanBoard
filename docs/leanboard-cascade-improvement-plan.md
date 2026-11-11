@@ -1455,6 +1455,53 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-11-12 — released as v0.93.0** (app-only, no schema change):
+  two rounds from Ben, built in the terminal session.
+  **Documents — a re-exposed library keeps its columns** (2026-11-11,
+  e6f6824): a library dropped and exposed again showed raw internal
+  column names in the details pane and blank register values. Cause:
+  the library row's own `config.columns` snapshot saved empty or short
+  (Save before the async field read landed, a failed read cached as
+  `[]`, or an untick/re-tick in one session upserting onto the row and
+  then deleting it). `docs/model.ts` gains `refreshLibraryColumns`,
+  `sameColumnSet`, `paneLabels`, `columnHasStanding`;
+  `levelWithSharePoint` in `docs/settingsTab.ts` runs at every Save and
+  every open of Settings → Documents, and drift found on open arms Save
+  and names the libraries out of step (how an already-damaged library
+  heals). A failed or empty field read wipes nothing, is not cached,
+  and `syncSiteDictionary(..., { incomplete })` prunes nothing.
+  Mappings no exposed library carries are shelved (`SiteDictionary.
+  dormant`) and restored when a library carrying them returns; "Kept
+  for later" lists them with Forget. The details pane labels from the
+  dictionary before the library snapshot. The diagnosis is from the
+  code, not from dev data. UAT-DOC-092.
+  **Action board** (2026-11-11, e6f6824): the tile kanban floors its
+  columns at 120px, wraps the who/due line, keeps cards at their
+  content height and shows "awaiting endorsement" as the glyph alone;
+  "＋ Add action" sits at the right of the tools row on every view and
+  in the all-complete state, nothing under the list. UAT-RIT-006 and
+  UAT-RIT-009 reworded.
+  **The Gantt's window** (2026-11-12, e4fe4ed): the actions card hands
+  the Gantt a slot in its tools row (`GanttRenderer` ctx `toolbar`,
+  `window`, `onWindow`; `mountGantt` `toolbarHost`/`window`/
+  `onWindow`), so the range controls share the row with Add action; a
+  container query on `.ltk-ab-tools-slot` (960px, 1070px with the
+  assignee select) drops them under it on a narrow card and Add action
+  keeps the top right. New pure module
+  `app/src/improvement/ganttWindow.ts`: presets 2/4/8/13/26/52 weeks
+  and All; day arithmetic in UTC day numbers (the old local-midnight
+  milliseconds named the wrong day across a daylight-saving change);
+  26w and 52w name months in the header and narrow their days to the
+  plot (floor 2px a day) rather than scroll; All runs from the earliest
+  start to the latest due date with today inside, capped at 1092 days;
+  ‹ › move half a window in whole weeks, Today returns; a
+  ResizeObserver refits the fitted windows. The editor keeps the range
+  and position across its repaints, so an edit no longer snaps the
+  chart back to four weeks. The Gantt card's `gxWeeks` setting gains
+  26, 52 and all. UAT-RIT-012. 1015 app tests (14 in
+  `ganttWindow.test.ts`). Verified on the harness
+  (`app/harness/actionboard.html`); hosted checks are Ben's. Not
+  built: a per-column card cap ("+N more") on the tile kanban.
 - **2026-11-09 — released as v0.92.0** (SOLUTION-CARRYING for the
   Utilities app only, no schema change): Cadence "notice given"
   (`docs/cadence-current-state-plan-2026-11.md` "Tweaks (Ben,
