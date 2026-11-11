@@ -17,7 +17,7 @@ import { takePendingDoc } from "../links";
 import { docsConfig } from "./docsStore";
 import { driveIdFor, renderListPage } from "./data";
 import { DocRow, buildRenderViewXml } from "./rows";
-import { sortByDictionary } from "./model";
+import { paneLabels, sortByDictionary } from "./model";
 import { openDocViewer } from "./viewer";
 
 export function mountDocSolo(parent: HTMLElement): () => void {
@@ -80,9 +80,7 @@ export function mountDocSolo(parent: HTMLElement): () => void {
       askToWork: false,
       solo: true,
       detailsOpen: false,
-      labels: Object.fromEntries(
-        lib.config.columns.filter((c) => c.label !== "").map((c) => [c.internal, c.label])
-      ),
+      labels: paneLabels(lib.config.columns, dict),
       columns: sortByDictionary(
         lib.config.columns.filter((c) => c.available).map((c) => c.internal),
         dictOrder

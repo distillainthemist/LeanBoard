@@ -338,6 +338,9 @@ export class ActionBoardEditor {
     return visibleActions(this.actions, this.showCompleted);
   }
 
+  /** The kebab is pinned over the body (no title bar to hold it). */
+  private kebabFloats = false;
+
   /** Completed actions the toggle is hiding. */
   private hiddenDone(): number {
     return this.showCompleted ? 0 : this.actions.filter((a) => a.status === "done").length;
@@ -395,7 +398,9 @@ export class ActionBoardEditor {
     this.dropZones = [];
     applyThemeVars(this.root, this.theme);
 
-    renderTitleBar(this.root, this.cardTitle, this.prompts);
+    // no bar (an untitled card) pins the kebab over the body's top
+    // right corner — the tools row then keeps clear of it
+    this.kebabFloats = renderTitleBar(this.root, this.cardTitle, this.prompts) === null && !this.readOnly;
     if (!this.readOnly) {
       renderKebab(this.root, [
         { label: "Download PNG", onClick: () => this.downloadPng() },
@@ -409,16 +414,11 @@ export class ActionBoardEditor {
     const visible = this.visible();
     if (visible.length === 0 && this.hiddenDone() > 0) {
       // every action is complete and hidden: say so, offer the switch
-      const tools = el("div", "ltk-ab-tools");
+      const tools = this.toolsRow();
       tools.appendChild(this.completedToggle());
+      if (!this.readOnly) tools.appendChild(this.addButton());
       body.appendChild(tools);
       body.appendChild(el("div", "ltk-ab-narrownote", `All ${this.hiddenDone()} actions are complete`));
-      if (!this.readOnly) {
-        const add = el("button", "ltk-ab-add", "＋ Add action");
-        add.type = "button";
-        add.addEventListener("click", () => this.addAction());
-        body.appendChild(add);
-      }
       return;
     }
     if (visible.length === 0) {
@@ -464,10 +464,13 @@ export class ActionBoardEditor {
       });
       views.appendChild(b);
     }
-    // the view switch and the Show completed switch share one row
-    const tools = el("div", "ltk-ab-tools");
+    // the view switch and the Show completed switch share one row, and
+    // Add action closes it at the top right (Ben, 2026-11-11: under a
+    // long list it had to be scrolled to)
+    const tools = this.toolsRow();
     if (!this.narrow) tools.appendChild(views);
     tools.appendChild(this.completedToggle());
+    if (!this.readOnly) tools.appendChild(this.addButton());
     body.appendChild(tools);
 
     if (view === "kanban") {
@@ -495,13 +498,18 @@ export class ActionBoardEditor {
     } else {
       body.appendChild(this.renderList(visible));
     }
+  }
 
-    if (!this.readOnly) {
-      const add = el("button", "ltk-ab-add", "＋ Add action");
-      add.type = "button";
-      add.addEventListener("click", () => this.addAction());
-      body.appendChild(add);
-    }
+  private toolsRow(): HTMLElement {
+    return el("div", "ltk-ab-tools" + (this.kebabFloats ? " ltk-ab-tools-kebab" : ""));
+  }
+
+  /** "＋ Add action" — the tools row's last item, pushed to its right. */
+  private addButton(): HTMLElement {
+    const add = el("button", "ltk-ab-add", "＋ Add action") as HTMLButtonElement;
+    add.type = "button";
+    add.addEventListener("click", () => this.addAction());
+    return add;
   }
 
   private renderList(visible: LtkAction[]): HTMLElement {
@@ -654,7 +662,10 @@ export class ActionBoardEditor {
     const whoEl = el("span", undefined, a.assignees[0]?.who ?? "Unassigned");
     meta.appendChild(whoEl);
     if (a.status === "verify") {
-      meta.appendChild(el("span", "ltk-ab-verify", "◐ awaiting endorsement"));
+      const verify = el("span", "ltk-ab-verify", "◐");
+      verify.title = "Awaiting endorsement";
+      verify.appendChild(el("span", "ltk-ab-verify-words", " awaiting endorsement"));
+      meta.appendChild(verify);
     }
     if (a.due !== "") {
       const dueEl = el("span", undefined, `Due ${a.due}`);

@@ -760,6 +760,17 @@ steps:
 2. Open a document's details.
 expected: every role maps to one column and the duplicate-role check refuses a second; labels and order are what the viewer and the add form show
 
+### UAT-DOC-092 — A library dropped and exposed again keeps its columns
+persona: superadmin
+modules: docs/settingsTab.ts docs/model.ts docs/docsStore.ts docs/docsScreen.ts docs/docsCards.ts docs/docSolo.ts
+preconditions: two exposed libraries, A and B, sharing mapped columns (labels, roles, a group); B also carrying one column of its own with a label and a place in the default view; documents in B with values in those columns
+steps:
+1. Settings → Documents → Libraries: untick B; Save. Read Document columns.
+2. Tick B again and press Save at once, before its panel has finished "Loading columns…". Close and reopen the app; open Documents on B; open a document's details.
+3. Settings → Documents → Libraries: untick B, tick it again, Save, without leaving the page between the two.
+4. Open Settings → Documents on a site where a library was saved without its columns (the state step 2 used to leave).
+expected: step 1 B's own column leaves the grid and is listed under "Kept for later" with its label, and the shared columns stay mapped; step 2 the register shows B's values in every default column, the details pane names every column by its label (no raw internal names) and B's own column is back in the grid with its label, role, group and default-view cell, off the kept list; step 3 B is still exposed after the save with its type, title and columns as they were; step 4 a note names the library, says its stored columns were out of step and that the list was refreshed, the Save bar is armed, and after Save and a reopen the register and the pane read correctly
+
 ### UAT-DOC-075 — Lifecycle mapping and review cadence
 persona: superadmin
 modules: docs/settingsTab.ts docs/model.ts

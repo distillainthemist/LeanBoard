@@ -49,7 +49,7 @@ import {
   emptySiteDictionary,
   isDateColumn,
   siteKey,
-  sortByDictionary, isRegisterLibrary } from "./model";
+  sortByDictionary, isRegisterLibrary, paneLabels } from "./model";
 import {
   RegisterCellCtx,
   buildRegisterColumns,
@@ -387,9 +387,7 @@ function detailProps(
       ? dialogSections(scope.dict, lib.libType)
       : undefined;
   return {
-    labels: Object.fromEntries(
-      (lib?.config.columns ?? []).filter((c) => c.label !== "").map((c) => [c.internal, c.label])
-    ),
+    labels: paneLabels(lib?.config.columns ?? [], scope.dict),
     linkColumns: (lib?.config.columns ?? [])
       .filter((c) => c.role === "linkedDocuments")
       .map((c) => c.internal),

@@ -46,7 +46,10 @@ export const ACTIONBOARD_CSS = `
   padding: 10px;
   min-height: 120px;
 }
-.ltk-tile .ltk-ab-col { min-width: 0; }
+/* a tile's columns still flex, but not to nothing: below this a card
+   cannot hold a name. An over-wide board clips at the tile's edge
+   (tiles hide scrollbars) rather than crushing every card (2026-11-11) */
+.ltk-tile .ltk-ab-col { min-width: 120px; }
 .ltk-ab-col-title {
   font-size: 12px;
   font-weight: 600;
@@ -160,14 +163,21 @@ export const ACTIONBOARD_CSS = `
 }
 .ltk-ab-card-desc { font-size: 13px; line-height: 1.35; overflow-wrap: break-word; }
 .ltk-ab-card-desc.ltk-ab-done { text-decoration: line-through; }
+/* who · awaiting endorsement · due. The row WRAPS: unwrapped, a narrow
+   card (a board tile) pushed "awaiting endorsement" out past its own
+   edge and broke the due date over three lines (Ben, 2026-11-11) */
 .ltk-ab-card-meta {
   font-size: 12px;
   font-weight: 600;
   color: var(--ltk-fg);
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
-  gap: 6px;
+  gap: 2px 8px;
 }
+.ltk-ab-card-meta > span { min-width: 0; overflow-wrap: anywhere; }
+/* a card keeps the height its content needs, whatever the column's */
+.ltk-ab-card { flex: none; }
 
 /* drag ghost + source dim (shared pattern) */
 .ltk-ab-ghost {
@@ -352,7 +362,14 @@ export const ACTIONBOARD_CSS = `
   transition: border-color 150ms ease, color 150ms ease;
 }
 .ltk-ab-add:hover { border-color: var(--ltk-accent); color: var(--ltk-accent); }
-.ltk-ab-verify { color: var(--ltk-muted); font-style: italic; margin-left: 6px; }
+/* in the tools row: last, at the right, as tall as its neighbours */
+.ltk-ab-tools .ltk-ab-add { margin-left: auto; align-self: center; min-height: 36px; padding: 6px 12px; }
+@media (pointer: coarse) { .ltk-ab-tools .ltk-ab-add { min-height: 44px; } }
+/* an untitled card pins its kebab over this corner */
+.ltk-ab-tools-kebab { padding-right: 44px; }
+.ltk-ab-verify { color: var(--ltk-muted); font-style: italic; }
+/* a tile has no room for the phrase: the glyph stands, the title says it */
+.ltk-tile .ltk-ab-verify-words { display: none; }
 
 .ltk-ab-resched { position: absolute; inset: 0; z-index: 40; background: rgba(20,20,20,0.4); display: flex; align-items: center; justify-content: center; }
 .ltk-ab-resched-box { background: #fff; border-radius: 10px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; min-width: 260px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); }

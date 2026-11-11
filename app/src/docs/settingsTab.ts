@@ -47,15 +47,14 @@ import {
   fieldsFromResponse,
   isDateColumn,
   librariesFromLists,
-  mergeColumns,
   dictionaryHealth,
   orgTreePaths,
   paletteKeyFor,
   rekeyPaletteToTerms,
-  resolveLibraryConfig,
+  refreshLibraryColumns,
+  sameColumnSet,
   orgSyncPlan,
   pathKey,
-  seedDefaultColumns,
   siteKey,
   syncSiteDictionary,
 } from "./model";
@@ -139,15 +138,92 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
 
   // ---- buffered state (written on Save) --------------------------------
   const removedRowIds: string[] = [];
+  /** Libraries unticked since the last save, by list — ticking one
+   *  again before saving takes it BACK (its row, type and columns)
+   *  instead of minting an empty twin that the save then upserted onto
+   *  the old row and deleted with it (2026-11-11). */
+  const removedLibs = new Map<string, DocLibrary>();
   let discovered: SpLibrary[] = [];
   const fieldsByList = new Map<string, SpField[]>();
 
+  /** One library's columns as SharePoint has them. EMPTY means the read
+   *  failed or said nothing — never cached, so the next ask tries again,
+   *  and never taken as "the library has no columns" (a failed read used
+   *  to wipe the stored list for the session, 2026-11-11). */
+  const loadFields = async (lib: { listId: string; siteUrl: string }): Promise<SpField[]> => {
+    const cached = fieldsByList.get(lib.listId);
+    if (cached) return cached;
+    const r = await fetchFields(lib.siteUrl, lib.listId);
+    const fields = r.ok ? fieldsFromResponse(r.data) : [];
+    if (fields.length > 0) fieldsByList.set(lib.listId, fields);
+    return fields;
+  };
+
+  const readSchemas = (): Promise<LibrarySchema[]> =>
+    Promise.all(
+      exposed.map(async (lib) => ({
+        listId: lib.listId,
+        name: lib.config.title !== "" ? lib.config.title : lib.name,
+        fields: await loadFields(lib),
+      }))
+    );
+
+  /**
+   * Every exposed library's STORED column list and the site dictionary
+   * brought level with what SharePoint says the libraries carry. The
+   * register fetches the columns a library's stored list names and the
+   * pane labels from it, so a list that is short or empty shows raw
+   * column names and blank values however well the dictionary is mapped
+   * (Ben, 2026-11-11: a library dropped and re-added, a second library
+   * still carrying the same mapped columns). Both the dictionary pass
+   * and Save run this, so no path writes a library without its columns.
+   */
+  const levelWithSharePoint = (
+    dict0: SiteDictionary,
+    schemas: LibrarySchema[]
+  ): { dict: SiteDictionary; carriers: Map<string, string[]>; moved: DocLibrary[] } => {
+    const fieldsOf = new Map(schemas.map((sc) => [sc.listId, sc.fields]));
+    const before = new Map(exposed.map((lib) => [lib, lib.config.columns]));
+    const refresh = (d: SiteDictionary) => {
+      for (const lib of exposed) {
+        lib.config = refreshLibraryColumns(lib.config, lib.libType, fieldsOf.get(lib.listId) ?? [], d);
+      }
+    };
+    // libraries first: a column new to the dictionary takes its type
+    // cells from the libraries that carry it (deriveTypeStates)
+    refresh(dict0);
+    const { dictionary, carriers } = syncSiteDictionary(dict0, schemas, {
+      incomplete: schemas.some((sc) => sc.fields.length === 0),
+    });
+    const dict = deriveTypeStates(dictionary, exposed);
+    refresh(dict);
+    const moved = exposed.filter((lib) => !sameColumnSet(before.get(lib) ?? [], lib.config.columns));
+    return { dict, carriers, moved };
+  };
+
   const save = async () => {
+    // level first (a library ticked a moment ago may not have its
+    // columns yet — the panel's read is still in flight, and after the
+    // re-read below it would land on an orphan object)
+    const key = siteKey(app.siteUrl);
+    const stored = app.sites[key];
+    if (stored !== undefined && stored.columns.length > 0 && exposed.length > 0) {
+      app.sites[key] = levelWithSharePoint(stored, await readSchemas()).dict;
+    } else {
+      for (const lib of exposed) {
+        lib.config = refreshLibraryColumns(
+          lib.config,
+          lib.libType,
+          await loadFields(lib),
+          stored ?? emptySiteDictionary()
+        );
+      }
+    }
     // the manager's cells are authoritative; the per-library flags are
     // their dormant mirror, kept true for the remaining readers
     // (fetch-field lists, dict-less fallbacks). Template libraries and
     // typeless columns pass through untouched.
-    const dict = app.sites[siteKey(app.siteUrl)];
+    const dict = app.sites[key];
     if (dict !== undefined) {
       for (const lib of exposed) {
         lib.config = mirrorCellsToConfig(dict, lib.libType, lib.config);
@@ -160,6 +236,7 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
     for (const rowId of removedRowIds.splice(0)) {
       if (rowId !== "") await deleteDocLibrary(rowId);
     }
+    removedLibs.clear();
     // re-read so row GUIDs exist for later deletes
     exposed = await listDocLibraries();
     invalidateDocsCache(); // the #/docs area re-reads on next entry
@@ -246,17 +323,15 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
       return;
     }
     dictBox.appendChild(el("div", "app-loading-line", "Reading columns from every library…"));
-    const schemas: LibrarySchema[] = await Promise.all(
-      exposed.map(async (lib) => ({
-        listId: lib.listId,
-        name: lib.config.title !== "" ? lib.config.title : lib.name,
-        fields: await loadFields(lib),
-      }))
-    );
+    const schemas = await readSchemas();
     clear(dictBox);
 
     const key = dictKey();
     let dict = app.sites[key] ?? emptySiteDictionary();
+    /** What is STORED had a dictionary — its drift is worth saying;
+     *  the first-open migration below stays silent, as designed. */
+    const hadDictionary = dict.columns.length > 0;
+    const storedColumns = dict.columns;
     if (dict.columns.length === 0) {
       // first open since the upgrade: adopt what the libraries already
       // say, majority winning, and remember every disagreement so the
@@ -268,10 +343,41 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
     // Part II: columns that predate the type cells get them from the
     // per-library past (union — widens, never narrows); persisted when
     // the admin saves, per Part I's silent-migration rules
-    const { dictionary: synced0, carriers } = syncSiteDictionary(dict, schemas);
-    const synced = deriveTypeStates(synced0, exposed);
+    const { dict: synced, carriers, moved } = levelWithSharePoint(dict, schemas);
     app.sites[key] = synced;
     lastCarriers = carriers;
+    // what is stored is not what the libraries carry: the register is
+    // running on the stored copy, so say so and arm Save — this is also
+    // how a library saved without its columns heals (open, Save)
+    const unsavedOnly = moved.every((lib) => lib.rowId === "");
+    if (
+      (moved.length > 0 && !unsavedOnly) ||
+      (hadDictionary && !sameColumnSet(storedColumns, synced.columns))
+    ) {
+      const names = moved
+        .filter((lib) => lib.rowId !== "")
+        .map((lib) => (lib.config.title !== "" ? lib.config.title : lib.name));
+      const warn = note(
+        (names.length > 0
+          ? `The columns stored for ${names.join(", ")} were out of step with what ` +
+            `${names.length === 1 ? "the library carries" : "those libraries carry"} in SharePoint. `
+          : "The site's columns have changed in SharePoint since the last save. ") +
+          "The list has been refreshed here — Save to keep it. Until then the register " +
+          "can show raw column names and blank values."
+      );
+      warn.classList.add("app-docs-colwarn");
+      dictBox.appendChild(warn);
+      ctx.markDirty();
+    }
+    const unread = schemas.filter((sc) => sc.fields.length === 0).map((sc) => sc.name);
+    if (unread.length > 0) {
+      dictBox.appendChild(
+        note(
+          `Columns could not be read from ${unread.join(", ")} just now, so ` +
+            "nothing has been removed from the list below on that evidence."
+        )
+      );
+    }
     // the palettes section needs the live schema to tell a Choice column
     // from a taxonomy one, and repaints whenever the dictionary does
     liveByInternal.clear();
@@ -548,6 +654,42 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
         paintManager();
       });
       gridHost.appendChild(addGroup);
+
+      // the shelf: mappings whose column no exposed library carries
+      const shelf = synced.dormant ?? [];
+      if (shelf.length > 0) {
+        const box = el("div", "app-docs-shelf");
+        box.appendChild(el("div", "app-docs-mgrgroupname", "Kept for later"));
+        box.appendChild(
+          note(
+            "No exposed library carries these columns right now. Their labels, roles and " +
+              "groups are kept, and come back the moment a library that carries them is exposed."
+          )
+        );
+        for (const c of shelf) {
+          const row = el("div", "app-docs-shelfrow");
+          row.appendChild(el("span", "", c.label !== "" ? c.label : c.internal));
+          const bits = [
+            c.label !== "" ? c.internal : "",
+            c.role !== "" ? (COLUMN_ROLES.find((r) => r.key === c.role)?.label ?? c.role) : "",
+            c.group,
+          ].filter((x) => x !== "");
+          row.appendChild(el("span", "app-docs-colwhere", bits.join(" · ")));
+          const drop = el("button", "app-link", "Forget") as HTMLButtonElement;
+          drop.type = "button";
+          drop.title = "Drop this kept mapping (written on Save)";
+          drop.addEventListener("click", () => {
+            const rest = (synced.dormant ?? []).filter((x) => x !== c);
+            if (rest.length > 0) synced.dormant = rest;
+            else delete synced.dormant;
+            ctx.markDirty();
+            paintManager();
+          });
+          row.appendChild(drop);
+          box.appendChild(row);
+        }
+        gridHost.appendChild(box);
+      }
     };
     paintManager();
     paintPalettes();
@@ -871,15 +1013,6 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
   const typeLabel = (t: LibraryType) =>
     LIBRARY_TYPES.find((x) => x.key === t)?.label ?? t;
 
-  const loadFields = async (lib: { listId: string; siteUrl: string }): Promise<SpField[]> => {
-    const cached = fieldsByList.get(lib.listId);
-    if (cached) return cached;
-    const r = await fetchFields(lib.siteUrl, lib.listId);
-    const fields = r.ok ? fieldsFromResponse(r.data) : [];
-    fieldsByList.set(lib.listId, fields);
-    return fields;
-  };
-
   const configPanel = async (lib: DocLibrary, host: HTMLElement) => {
     clear(host);
     host.appendChild(el("div", "app-loading-line", "Loading columns…"));
@@ -908,15 +1041,9 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
     }
     // merge the live schema, then let the site dictionary say what each
     // column IS (label, role, availability); this library decides only
-    // which of them its own register shows
-    lib.config.columns = mergeColumns(lib.config.columns, live);
-    lib.config = resolveLibraryConfig(lib.config, dictionary());
-    // the type's cells seed the flags when a dictionary exists (Part II
-    // S3); the C5 seeder only serves a site with no dictionary yet
-    lib.config =
-      dictionary().columns.length > 0
-        ? mirrorCellsToConfig(dictionary(), lib.libType, lib.config)
-        : seedDefaultColumns(lib.config, lib.libType);
+    // which of them its own register shows. A read that failed leaves
+    // the stored list alone.
+    lib.config = refreshLibraryColumns(lib.config, lib.libType, live, dictionary());
     const liveByName = new Map(live.map((f) => [f.internal, f]));
 
     const title = el("input", "app-input") as HTMLInputElement;
@@ -1020,7 +1147,8 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
 
       tick.addEventListener("change", () => {
         if (tick.checked) {
-          const lib: DocLibrary = {
+          const back = removedLibs.get(item.id);
+          const lib: DocLibrary = back ?? {
             rowId: "",
             listId: item.id,
             siteUrl: app.siteUrl,
@@ -1028,18 +1156,26 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
             libType: "standard",
             config: { title: "", columns: [], statusColors: {}, renditionPath: "" },
           };
+          if (back !== undefined) {
+            removedLibs.delete(item.id);
+            const at = removedRowIds.indexOf(back.rowId);
+            if (at >= 0) removedRowIds.splice(at, 1);
+          }
           exposed.push(lib);
           byId.set(item.id, lib);
         } else {
           const lib = byId.get(item.id);
           if (lib) {
-            if (lib.rowId !== "") removedRowIds.push(lib.rowId);
+            if (lib.rowId !== "") {
+              removedRowIds.push(lib.rowId);
+              removedLibs.set(item.id, lib);
+            }
             exposed = exposed.filter((l) => l !== lib);
             byId.delete(item.id);
           }
         }
         ctx.markDirty();
-        meta.textContent = tick.checked ? typeLabel("standard") : "";
+        meta.textContent = tick.checked ? typeLabel(byId.get(item.id)?.libType ?? "standard") : "";
         openPanel();
       });
       head.addEventListener("click", (e) => {

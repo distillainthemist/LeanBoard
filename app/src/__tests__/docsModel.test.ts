@@ -822,6 +822,135 @@ describe("dictionary ↔ live schema sync (C1)", () => {
     // and the settings table can say who actually carries what
     expect(carriers.get("DMSStatus")).toEqual(["Standards", "Records"]);
     expect(carriers.get("DMSOwner")).toEqual(["Standards"]);
+    // the vanished column's mapping was somebody's work: shelved, not lost
+    expect(dictionary.dormant?.map((c) => c.internal)).toEqual(["Retired"]);
+  });
+
+  // 2026-11-11 (Ben): a library dropped and later exposed again came
+  // back unmapped — its columns had left the dictionary with their
+  // labels, roles and groups
+  const col = (internal: string, over: Record<string, unknown> = {}) => ({
+    internal, label: "", role: "", available: true, termSetId: "", isDate: false, filterable: true, group: "", ...over,
+  });
+  const dictOf = (columns: ReturnType<typeof col>[], dormant?: ReturnType<typeof col>[]) => ({
+    columns, palettes: [], templates: {}, groups: [], ...(dormant !== undefined ? { dormant } : {}),
+  });
+
+  it("shelves only a mapping somebody made", async () => {
+    const { syncSiteDictionary, columnHasStanding } = await import("../docs/model");
+    const { dictionary } = syncSiteDictionary(
+      dictOf([
+        col("DMSStatus", { role: "status" }), // carried
+        col("Plain"), // nothing chosen: comes back identical by itself
+        col("DMSOwner", { role: "owner" }), // only the SUGGESTED role
+        col("Site", { label: "Site" }),
+        col("Area", { group: "Where" }),
+        col("Extra", { role: "tags" }), // a role someone chose
+        col("Shown", { types: { standard: "default" } }),
+        col("Offered", { types: { standard: "on" } }),
+      ]),
+      [{ listId: "1", name: "A", fields: [spField("DMSStatus")] }]
+    );
+    expect(dictionary.columns.map((c) => c.internal)).toEqual(["DMSStatus"]);
+    expect(dictionary.dormant?.map((c) => c.internal)).toEqual(["Site", "Area", "Extra", "Shown"]);
+    expect(columnHasStanding(col("Plain"))).toBe(false);
+  });
+
+  it("gives a re-exposed library its mappings back whole", async () => {
+    const { syncSiteDictionary } = await import("../docs/model");
+    const both = [
+      { listId: "1", name: "A", fields: [spField("DMSStatus")] },
+      { listId: "2", name: "B", fields: [spField("DMSStatus"), spField("Site", "set-2")] },
+    ];
+    const start = dictOf([
+      col("DMSStatus", { label: "Status", role: "status" }),
+      col("Site", { label: "Site / plant", role: "tags", group: "Where", types: { standard: "default" } }),
+    ]);
+    // B dropped
+    const dropped = syncSiteDictionary(start, [both[0]]).dictionary;
+    expect(dropped.columns.map((c) => c.internal)).toEqual(["DMSStatus"]);
+    // …and exposed again
+    const back = syncSiteDictionary(dropped, both).dictionary;
+    expect(back.columns[1]).toMatchObject({
+      internal: "Site", label: "Site / plant", role: "tags", group: "Where",
+      types: { standard: "default" }, termSetId: "set-2",
+    });
+    expect(back.dormant).toBeUndefined();
+  });
+
+  it("leaves a role where it was put while its old holder sat on the shelf", async () => {
+    const { syncSiteDictionary } = await import("../docs/model");
+    const { dictionary } = syncSiteDictionary(
+      dictOf([col("NewTags", { role: "tags" })], [col("OldTags", { label: "Tags", role: "tags" })]),
+      [{ listId: "1", name: "A", fields: [spField("NewTags"), spField("OldTags")] }]
+    );
+    expect(dictionary.columns.map((c) => [c.internal, c.role])).toEqual([["NewTags", "tags"], ["OldTags", ""]]);
+    expect(dictionary.columns[1].label).toBe("Tags");
+  });
+
+  it("shelves nothing on a partial read", async () => {
+    const { syncSiteDictionary } = await import("../docs/model");
+    const { dictionary } = syncSiteDictionary(
+      dictOf([col("DMSStatus", { role: "status" }), col("Site", { label: "Site" }), col("Plain")]),
+      [
+        { listId: "1", name: "A", fields: [spField("DMSStatus"), spField("Fresh")] },
+        { listId: "2", name: "B", fields: [] }, // the read failed
+      ],
+      { incomplete: true }
+    );
+    // stored columns stand in place; what WAS read still arrives
+    expect(dictionary.columns.map((c) => c.internal)).toEqual(["DMSStatus", "Site", "Plain", "Fresh"]);
+    expect(dictionary.dormant).toBeUndefined();
+  });
+
+  it("round-trips the shelf, and drops a shelved column that is listed again", async () => {
+    const mk = (dormant: ReturnType<typeof col>[]) =>
+      parseAppDocsConfig(
+        serializeAppDocsConfig({
+          ...parseAppDocsConfig(null),
+          siteUrl: "https://x.sharepoint.com/sites/Dev",
+          sites: { "https://x.sharepoint.com/sites/dev": dictOf([col("DMSStatus", { role: "status" })], dormant) },
+        })
+      );
+    const kept = Object.values(mk([col("Site", { label: "Site / plant", group: "Where", types: { record: "default" } })]).sites)[0];
+    expect(kept.dormant).toEqual([col("Site", { label: "Site / plant", group: "Where", types: { record: "default" } })]);
+    const stale = Object.values(mk([col("DMSStatus", { label: "Old" })]).sites)[0];
+    expect(stale.dormant).toBeUndefined();
+    expect(stale.columns[0].label).toBe("");
+  });
+
+  it("brings a library's stored columns level with what it carries", async () => {
+    const { refreshLibraryColumns, sameColumnSet } = await import("../docs/model");
+    const dict = dictOf([
+      col("DMSStatus", { label: "Status", role: "status", types: { standard: "default" } }),
+      col("Site", { label: "Site / plant", types: { standard: "on" } }),
+      col("Hidden", { label: "Not here", types: {} }),
+    ]);
+    const empty = { title: "", columns: [], statusColors: {}, renditionPath: "" };
+    // a library saved with NO columns (ticked, then saved before its
+    // columns had loaded) is rebuilt from the live read…
+    const healed = refreshLibraryColumns(empty, "standard", [spField("DMSStatus"), spField("Site"), spField("Hidden")], dict);
+    expect(healed.columns).toEqual([
+      { internal: "DMSStatus", label: "Status", role: "status", available: true, inDefault: true, termSetId: "" },
+      { internal: "Site", label: "Site / plant", role: "", available: true, inDefault: false, termSetId: "" },
+      { internal: "Hidden", label: "Not here", role: "", available: false, inDefault: false, termSetId: "" },
+    ]);
+    expect(sameColumnSet(empty.columns, healed.columns)).toBe(false);
+    // …a read that failed is no evidence: the stored list stands
+    expect(refreshLibraryColumns(healed, "standard", [], dict)).toBe(healed);
+    // …and a level library stays as it is, whatever the order
+    const again = refreshLibraryColumns(healed, "standard", [spField("Site"), spField("Hidden"), spField("DMSStatus")], dict);
+    expect(sameColumnSet(again.columns, healed.columns)).toBe(true);
+  });
+
+  it("labels the pane from the dictionary before the library", async () => {
+    const { paneLabels } = await import("../docs/model");
+    expect(
+      paneLabels(
+        [{ internal: "Site", label: "Stale" }, { internal: "Local", label: "Only here" }, { internal: "Bare", label: "" }],
+        { columns: [{ internal: "Site", label: "Site / plant" }, { internal: "DMSStatus", label: "Status" }, { internal: "Raw", label: "" }] }
+      )
+    ).toEqual({ Site: "Site / plant", Local: "Only here", DMSStatus: "Status" });
   });
 
   it("keeps a stored term set when the live read cannot see one", async () => {

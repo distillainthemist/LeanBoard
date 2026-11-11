@@ -2700,6 +2700,9 @@ button.app-docs-navterm.app-docs-navterm-on {
 .app-docs-mgrgroup { display: flex; gap: 4px; align-items: center; margin: 12px 0 2px; }
 .app-docs-mgrgroupinput { font-weight: 600; font-size: 12.5px; max-width: 220px; padding: 3px 8px; }
 .app-docs-mgrgroupname { font-weight: 600; }
+/* the shelf: mappings kept while no exposed library carries the column */
+.app-docs-shelf { margin-top: 16px; padding-top: 10px; border-top: 1px solid #e7e2d6; }
+.app-docs-shelfrow { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; padding: 2px 0; font-size: 13px; }
 /* group sub-headings as they render in the dialogs (Part II S2): the
    app-section anatomy — uppercase over a hairline rule — so property
    groups read as the same kind of section everything else uses. The

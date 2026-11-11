@@ -66,7 +66,7 @@ import {
   spErrorText,
   stageOfTerm,
   termForStage,
-  termsForStage, isRegisterLibrary, libRoleInternal, SiteColumn, reviewsOutstanding, orgTreePaths, orgTreePathsWithCompany, pathKey } from "./model";
+  termsForStage, isRegisterLibrary, libRoleInternal, SiteColumn, reviewsOutstanding, orgTreePaths, orgTreePathsWithCompany, pathKey, paneLabels } from "./model";
 import { controllerLookupFailed, viewerInPool, viewerIsController } from "./accessGates";
 import {
   TermNode,
@@ -4195,11 +4195,10 @@ export function mountDocs(
           askToWork: lib?.libType === "working",
           // details pane (Vault V4): the register's fields, never
           // SharePoint's plumbing — exactly the available-ticked columns
-          labels: Object.fromEntries(
-            (lib?.config.columns ?? [])
-              .filter((c) => c.label !== "")
-              .map((c) => [c.internal, c.label])
-          ),
+          // labels from the DICTIONARY first (2026-11-11): the pane's
+          // column list comes from it, and a library whose stored
+          // column list was short named its columns raw
+          labels: paneLabels(lib?.config.columns ?? [], siteDict),
           linkColumns: (lib?.config.columns ?? [])
             .filter((c) => c.role === "linkedDocuments")
             .map((c) => c.internal),

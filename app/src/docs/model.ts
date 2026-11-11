@@ -232,6 +232,12 @@ export interface SiteDictionary {
    *  by term ID so a rename cannot detach a stage. Optional so the many
    *  places that build dictionaries without a lifecycle stay honest. */
   lifecycle?: Record<string, LifecycleStage>;
+  /** Mappings SHELVED while no exposed library carries their column
+   *  (2026-11-11, Ben: a library dropped and later re-added came back
+   *  unmapped). Never read by the register, the pane or the forms —
+   *  `columns` stays "what a library carries" — and restored by
+   *  syncSiteDictionary the moment a library carries the column again. */
+  dormant?: SiteColumn[];
 }
 
 export function emptySiteDictionary(): SiteDictionary {
@@ -1112,8 +1118,9 @@ export function parseAppDocsConfig(raw: string | null | undefined): AppDocsConfi
 
 function parseSiteDictionary(o: Record<string, unknown>): SiteDictionary {
   const dict = emptySiteDictionary();
-  if (Array.isArray(o.columns)) {
-    for (const c of o.columns) {
+  const parseColumns = (raw: unknown, into: SiteColumn[]): void => {
+    if (!Array.isArray(raw)) return;
+    for (const c of raw) {
       if (!c || typeof c !== "object") continue;
       const col = c as Record<string, unknown>;
       const internal = asStr(col.internal);
@@ -1130,7 +1137,7 @@ function parseSiteDictionary(o: Record<string, unknown>): SiteDictionary {
         }
         if (Object.keys(t).length > 0) types = t;
       }
-      dict.columns.push({
+      into.push({
         internal,
         label: asStr(col.label),
         role: asStr(col.role),
@@ -1142,7 +1149,14 @@ function parseSiteDictionary(o: Record<string, unknown>): SiteDictionary {
         ...(types !== undefined ? { types } : {}),
       });
     }
-  }
+  };
+  parseColumns(o.columns, dict.columns);
+  const dormant: SiteColumn[] = [];
+  parseColumns(o.dormant, dormant);
+  // a shelved mapping whose column is listed again is simply stale
+  const listed = new Set(dict.columns.map((c) => c.internal));
+  const shelved = dormant.filter((c) => !listed.has(c.internal));
+  if (shelved.length > 0) dict.dormant = shelved;
   if (Array.isArray(o.groups)) {
     dict.groups = o.groups.map(asStr).filter((g) => g !== "");
   }
@@ -1199,7 +1213,7 @@ function parseSiteDictionary(o: Record<string, unknown>): SiteDictionary {
 
 function serializeSiteDictionary(dict: SiteDictionary): Record<string, unknown> {
   const o: Record<string, unknown> = {};
-  const cols = dict.columns.map((c) => {
+  const columnOut = (c: SiteColumn): Record<string, unknown> => {
     const col: Record<string, unknown> = { internal: c.internal };
     if (c.label !== "") col.label = c.label;
     if (c.role !== "") col.role = c.role;
@@ -1210,8 +1224,10 @@ function serializeSiteDictionary(dict: SiteDictionary): Record<string, unknown> 
     if (c.group !== "") col.group = c.group;
     if (c.types !== undefined && Object.keys(c.types).length > 0) col.types = c.types;
     return col;
-  });
+  };
+  const cols = dict.columns.map(columnOut);
   if (cols.length > 0) o.columns = cols;
+  if (dict.dormant !== undefined && dict.dormant.length > 0) o.dormant = dict.dormant.map(columnOut);
   if (dict.groups.length > 0) o.groups = dict.groups;
   const pals = dict.palettes.filter((p) => Object.keys(p.entries).length > 0);
   if (pals.length > 0) {
@@ -1697,8 +1713,15 @@ export interface LibrarySchema {
  * across EVERY exposed library — the dictionary's equivalent of
  * mergeColumns. Stored entries win on label and role (someone chose
  * them); the live schema wins on term set (SharePoint is the record);
- * columns no library carries any more are dropped; new ones append with
- * a suggested role.
+ * new ones append with a suggested role.
+ *
+ * A column no library carries any more LEAVES `columns` — but a mapping
+ * someone made (columnHasStanding) goes onto the `dormant` shelf rather
+ * than away, and comes back whole when a library carries the column
+ * again. Dropping a library and exposing it later used to cost its
+ * labels, roles, groups and default-view cells for good (Ben,
+ * 2026-11-11). `incomplete` says a library's columns could not be read
+ * this time: an unread library is no evidence, so nothing is shelved.
  *
  * Also answers which libraries carry each column, so the settings table
  * can say "in 2 of 3 libraries" — the quiet way a missing column in one
@@ -1706,7 +1729,8 @@ export interface LibrarySchema {
  */
 export function syncSiteDictionary(
   dict: SiteDictionary,
-  schemas: LibrarySchema[]
+  schemas: LibrarySchema[],
+  opts: { incomplete?: boolean } = {}
 ): { dictionary: SiteDictionary; carriers: Map<string, string[]> } {
   const carriers = new Map<string, string[]>();
   const liveByName = new Map<string, SpField>();
@@ -1720,9 +1744,20 @@ export function syncSiteDictionary(
   }
   const out: SiteColumn[] = [];
   const taken = new Set<string>();
+  const shelf = new Map((dict.dormant ?? []).map((c) => [c.internal, c]));
   for (const c of dict.columns) {
     const f = liveByName.get(c.internal);
-    if (f === undefined) continue; // no library carries it any more
+    if (f === undefined) {
+      // no library carries it right now
+      if (opts.incomplete === true) {
+        out.push(c); // …as far as a partial read can tell: leave it be
+        taken.add(c.internal);
+      } else if (columnHasStanding(c)) {
+        shelf.set(c.internal, c);
+      }
+      continue;
+    }
+    shelf.delete(c.internal);
     taken.add(c.internal);
     out.push({
       ...c,
@@ -1732,6 +1767,20 @@ export function syncSiteDictionary(
   }
   for (const [internal, f] of liveByName) {
     if (taken.has(internal)) continue;
+    const kept = shelf.get(internal);
+    if (kept !== undefined) {
+      // back from the shelf with everything it had; a role handed to
+      // another column in the meantime stays where it was put
+      shelf.delete(internal);
+      const roleTaken = kept.role !== "" && out.some((c) => c.role === kept.role);
+      out.push({
+        ...kept,
+        role: roleTaken ? "" : kept.role,
+        termSetId: f.termSetId !== "" ? f.termSetId : kept.termSetId,
+        isDate: isDateField(f),
+      });
+      continue;
+    }
     out.push({
       internal,
       label: "",
@@ -1747,7 +1796,71 @@ export function syncSiteDictionary(
       group: "",
     });
   }
-  return { dictionary: { ...dict, columns: out }, carriers };
+  const dictionary: SiteDictionary = { ...dict, columns: out };
+  if (shelf.size > 0) dictionary.dormant = [...shelf.values()];
+  else delete dictionary.dormant;
+  return { dictionary, carriers };
+}
+
+/** What a column would LOSE if its mapping were dropped: a label, a
+ *  sub-heading, a role someone chose (the suggested one comes back by
+ *  itself) or a place in a default view. A column with none of these
+ *  re-arrives identical, so it is not worth a place on the shelf. */
+export function columnHasStanding(c: SiteColumn): boolean {
+  return (
+    c.label !== "" ||
+    c.group !== "" ||
+    (c.role !== "" && c.role !== (ROLE_BY_INTERNAL[c.internal] ?? "")) ||
+    Object.values(c.types ?? {}).some((s) => s === "default")
+  );
+}
+
+/**
+ * One library's stored column list brought up to what SharePoint says
+ * it carries, then read through the dictionary — the whole of what
+ * Settings does when a library's panel opens, as one pure step so Save
+ * can do it for every library (2026-11-11: a library ticked and saved
+ * before its columns had loaded was stored with NO columns, and the
+ * register then fetched none of its values and the pane had no labels).
+ * An empty `live` is a read that failed or has not happened — never
+ * evidence that the library lost its columns — so the stored list stands.
+ */
+export function refreshLibraryColumns(
+  cfg: LibraryConfig,
+  libType: string,
+  live: SpField[],
+  dict: SiteDictionary
+): LibraryConfig {
+  if (live.length === 0) return cfg;
+  const merged = resolveLibraryConfig({ ...cfg, columns: mergeColumns(cfg.columns, live) }, dict);
+  // the type's cells seed the flags when a dictionary exists (Part II
+  // S3); the C5 seeder only serves a site with no dictionary yet
+  return dict.columns.length > 0
+    ? mirrorCellsToConfig(dict, libType, merged)
+    : seedDefaultColumns(merged, libType);
+}
+
+/** Do two column lists name the same columns? Order and flags aside —
+ *  this is the "did the library's schema move" question. */
+export function sameColumnSet(a: { internal: string }[], b: { internal: string }[]): boolean {
+  if (a.length !== b.length) return false;
+  const names = new Set(a.map((c) => c.internal));
+  return b.every((c) => names.has(c.internal));
+}
+
+/** The properties pane's labels for one library: the dictionary's
+ *  label wherever it has one, the library's own for a column the
+ *  dictionary has not heard of. Read from the DICTIONARY first so a
+ *  library whose stored column list is short still names its columns
+ *  (the pane's column list comes from the dictionary too). */
+export function paneLabels(
+  libColumns: { internal: string; label: string }[],
+  dict: { columns: { internal: string; label: string }[] }
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const c of libColumns) if (c.label !== "") out[c.internal] = c.label;
+  for (const c of dict.columns) if (c.label !== "") out[c.internal] = c.label;
+  return out;
 }
 
 /** The spec's core register view, seeded from column roles when a
