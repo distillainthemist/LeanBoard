@@ -18,13 +18,23 @@ if (!envUrl || !tokenFile) {
 const scope = `${envUrl.replace(/\/$/, "")}/.default offline_access`;
 
 const form = (o) => new URLSearchParams(o).toString();
+// A network blip must not end the sign-in: the person may already have
+// entered the code, and a dead poll throws their sign-in away (two codes
+// were lost to connect timeouts on 2026-11-16). Each request retries.
 const post = async (path, body) => {
-  const res = await fetch(`${AUTHORITY}${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: form(body),
-  });
-  return { status: res.status, json: await res.json() };
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const res = await fetch(`${AUTHORITY}${path}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: form(body),
+      });
+      return { status: res.status, json: await res.json() };
+    } catch (err) {
+      if (attempt >= 8) throw err;
+      await new Promise((r) => setTimeout(r, 3000));
+    }
+  }
 };
 
 const dc = await post("/oauth2/v2.0/devicecode", { client_id: CLIENT_ID, scope });
