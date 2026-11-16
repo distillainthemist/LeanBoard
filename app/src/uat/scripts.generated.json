@@ -1,6 +1,10 @@
 {
- "generatedAt": "2026-11-11",
+ "generatedAt": "2026-11-12",
  "releases": [
+  {
+   "tag": "v0.93.0",
+   "date": "2026-11-12"
+  },
   {
    "tag": "v0.92.0",
    "date": "2026-11-10"
@@ -2884,6 +2888,61 @@
        "changed": "2026-10-30"
       }
      ]
+    },
+    {
+     "title": "Journey 2 — Moving a due date",
+     "cases": [
+      {
+       "id": "UAT-ACT-003",
+       "title": "A later due date asks why, an earlier one does not",
+       "journey": "Journey 2 — Moving a due date",
+       "persona": "owner",
+       "modules": [
+        "shared/ui/actionUi.ts",
+        "shared/schema/reschedule.ts",
+        "shared/ui/reschedulePrompt.ts",
+        "shared/ui/actionLinkProvider.ts",
+        "actions/reschedule.ts",
+        "controls/ActionBoard/editor.ts",
+        "controls/LeanHub/editor.ts"
+       ],
+       "preconditions": "Settings → Improvement → Due date changes on \"Initiative actions only\"; an initiative with an open action that has a due date; a ritual board with an open action that has a due date",
+       "steps": [
+        "On the initiative's Action plan open the action, set the due date a week later and press Save.",
+        "Press Cancel on the question; then press Save again, press Move date without choosing, choose \"Other\" and press Move date, then type a note and press Move date.",
+        "Open the same action again and read \"Due date moves\"; read the action's card on the kanban and its row on My day.",
+        "Open it again, set the due date three days EARLIER and Save.",
+        "On the ritual board open its action from the Action card, set the due date a week later and Save. Do the same to an initiative action opened from another card on the initiative board (a 5 Whys or the agenda).",
+        "Raise a new action with no due date, save it, open it and give it a due date."
+       ],
+       "expected": "step 1 the dialog stays open and asks \"Why is this moving?\" under the comments, showing the old and new dates and a list of the organisation's reasons ending in \"Other\", with nothing chosen for you; step 2 Cancel closes the question only — the dialog is still open and nothing was saved; Move date with nothing chosen says \"Choose a reason.\"; \"Other\" with no note says \"Say what the reason is.\"; with the note the dialog closes and the new date shows; step 3 \"Due date moves · 1\" lists the move with its dates, \"Other — <your note>\", your name and today's date, and the card and the My day row carry \"↷ 1\" whose tooltip names the move and the reason; step 4 it saves with no question and the list gains a second line reading \"Brought forward\" (the ↷ count stays 1); step 5 the ritual's action saves with no question — its move is still listed when reopened, as \"No reason recorded\", and its card shows ↷ 1 — while the initiative action asks why from the other card exactly as it did from the Action plan; step 6 a first due date asks nothing and records nothing",
+       "hash": "92277fcc",
+       "changed": "2026-11-12"
+      },
+      {
+       "id": "UAT-ACT-004",
+       "title": "The Gantt follows the same rule",
+       "journey": "Journey 2 — Moving a due date",
+       "persona": "owner",
+       "modules": [
+        "improvement/gantt.ts",
+        "shared/schema/reschedule.ts",
+        "shared/ui/reschedulePrompt.ts",
+        "actions/reschedule.ts"
+       ],
+       "preconditions": "Settings → Improvement → Due date changes on \"Initiative actions only\"; an initiative with dated actions; a ritual board whose Action card holds dated actions",
+       "steps": [
+        "On the initiative's Gantt drag an action's bar a week to the right. Read the dialog, press Cancel.",
+        "Drag it again, choose a reason, add a note and press Move date. Open the action and read \"Due date moves\".",
+        "Drag the same bar a few days to the LEFT. Drag only its left edge.",
+        "On the ritual board's Action card, Gantt view, drag a bar a week to the right.",
+        "A super admin sets Due date changes to \"All actions\"; a minute later repeat step 4 and then edit a ritual action's due date later in its dialog."
+       ],
+       "expected": "step 1 \"Move due date to <date>?\" shows the previous date (in red with \"overdue\" when it was), the same reasons as the action's dialog with nothing chosen, and a Note; Cancel snaps the bar back; step 2 the bar stays moved and the list shows the move as \"<reason> — <note>\" with your name; step 3 the earlier date and the start-only move both save with no question, the earlier date listed as \"Brought forward\"; step 4 the ritual's action moves with no question and its move is recorded without a reason; step 5 both the Gantt and the dialog now ask why for the ritual's action",
+       "hash": "41d93d63",
+       "changed": "2026-11-12"
+      }
+     ]
     }
    ]
   },
@@ -3330,6 +3389,30 @@
        "expected": "each tab shows a spinner until its own sections arrive; step 2 the page holds Branding's sections only — nothing from Users or Organisation lands on it, and the section strip's pills name Branding's sections; step 3 the unsaved-changes prompt belongs to the tab you were on, and Users opens clean after Discard",
        "hash": "14a6bdf3",
        "changed": "2026-11-06"
+      },
+      {
+       "id": "UAT-SET-012",
+       "title": "Due date changes: who is asked why, and the reasons",
+       "journey": "Journey 6 — A slow connection",
+       "persona": "superadmin",
+       "modules": [
+        "improvement/templateWizard.ts",
+        "improvement/templateModel.ts",
+        "shared/schema/reschedule.ts",
+        "actions/reschedule.ts"
+       ],
+       "preconditions": "super admin; an initiative action with a due date that has already been moved once with the reason \"Scope changed\"",
+       "steps": [
+        "Open Settings → Improvement and read \"Due date changes\".",
+        "Add the reason \"Supplier late\"; drag it to the top; rename \"Scope changed\" to \"Scope grew\"; remove \"Waiting on parts\" and confirm.",
+        "Try to add \"supplier late\" and \"Other\".",
+        "Leave Settings, wait a minute, open the initiative action, move its due date later and press Save. Read the reasons, then read \"Due date moves\".",
+        "In Settings → Value drivers change who may edit values (any change that saves), then return to Improvement.",
+        "Set \"Ask for a reason on\" to \"All actions\"; a minute later move a ritual action's due date later."
+       ],
+       "expected": "step 1 the section explains the rule, shows \"Ask for a reason on: Initiative actions only\" and lists Waiting on parts, Resource unavailable, Scope changed, Blocked by another action, then a dashed \"Other — Always offered · needs a note\" with no handle or ×; step 2 each change saves at once (the remove asks first and says past moves keep the reason); step 3 neither is added — a repeat in any capitals and \"Other\" are refused; step 4 the question offers Supplier late first, Scope grew, no Waiting on parts, and Other last; the earlier move still reads \"Scope changed\"; step 5 the reasons and the choice are unchanged by the other tab's save; step 6 the ritual's action now asks why. A site admin does not see the section",
+       "hash": "c07e519b",
+       "changed": "2026-11-12"
       }
      ]
     }

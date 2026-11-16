@@ -299,13 +299,6 @@ export const CARDS: CardSpec[] = [
         help: "Adds a Verify column between Doing and Done (initiative boards): done work waits there for the owner; moving it to Done stamps who verified.",
       },
       {
-        key: "rescheduleReasons",
-        label: "Reschedule reasons",
-        kind: "boolean",
-        heading: "Reschedule",
-        help: "Moving an existing action's due date prompts 'Why is this moving?' and records the answer in the action's history.",
-      },
-      {
         key: "kanbanColumns",
         label: "Fixed columns",
         kind: "csvChips",

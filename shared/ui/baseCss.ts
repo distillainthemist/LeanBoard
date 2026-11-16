@@ -265,6 +265,13 @@ export const LTK_BASE_CSS = `
 .ltk-cmt-box { flex: 1; min-width: 0; min-height: 44px; }
 .ltk-cmt-add { flex: none; }
 .ltk-cmt-glyph { flex: none; font-size: 12px; color: var(--ltk-muted); white-space: nowrap; }
+.ltk-moved-glyph { flex: none; font-size: 12px; color: var(--ltk-muted); white-space: nowrap; cursor: default; }
+.ltk-resched-dates { font-size: 12.5px; color: var(--ltk-muted); }
+.ltk-resched-list { display: flex; flex-direction: column; gap: 6px; }
+.ltk-resched-row { display: grid; grid-template-columns: auto 1fr; column-gap: 12px; row-gap: 1px; font-size: 12.5px; padding: 6px 8px; border: 1px solid var(--ltk-hairline); border-radius: 8px; }
+.ltk-resched-move { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ltk-resched-why { min-width: 0; overflow-wrap: anywhere; }
+.ltk-resched-by { grid-column: 1 / -1; color: var(--ltk-muted); font-size: 12px; }
 
 /* an inline confirmation inside a dialog's body */
 .ltk-confirm {
@@ -272,6 +279,8 @@ export const LTK_BASE_CSS = `
   border: 1px solid #d13438; border-radius: 6px; background: rgba(209, 52, 56, 0.06);
 }
 .ltk-confirm-msg { font-size: 13.5px; font-weight: 600; }
+/* a question, not a warning: the reschedule bar drops the danger red */
+.ltk-confirm.ltk-resched { border-color: var(--ltk-accent); background: transparent; }
 .ltk-confirm-btns { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
 .ltk-input {
   font: inherit; font-size: 14px; color: var(--ltk-fg);

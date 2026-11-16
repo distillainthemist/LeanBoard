@@ -1412,7 +1412,6 @@ const REGISTRY: Record<string, CardMounter> = {
       groupBy: (groupBy === "issue" ? "issue" : "status") as never,
       columns: parseKanbanColumns(cfgRaw(opts, "kanbanColumns")),
       verifyColumn: config(opts).verifyColumn === true,
-      rescheduleReasons: config(opts).rescheduleReasons === true,
     });
     editor.setActor(opts.viewer);
     // an action raised HERE belongs to the board as a whole unless someone

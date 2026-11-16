@@ -22,7 +22,7 @@ import { pdcaOf, isOnHold, isOverdue, LtkAction, newAction, settleFromParts } fr
 import { actionViewer, endorsementFor } from "../../shared/ui/actionLinkProvider";
 import { applyEndorsementRule } from "../../shared/schema/actionEndorsement";
 import { Person } from "../../shared/schema/people";
-import { openActionDialog, pdcaDisc, confidentialGlyph, commentGlyph, endorseGlyph } from "../../shared/ui/actionUi";
+import { openActionDialog, pdcaDisc, confidentialGlyph, commentGlyph, endorseGlyph, movedGlyph } from "../../shared/ui/actionUi";
 import { DAY_LABELS, MONTH_LABELS, isoLocal, occurrenceTitle, startOfDay } from "../../shared/schema/recurrence";
 import { OrgSite } from "../../shared/schema/meeting";
 import {
@@ -1170,6 +1170,8 @@ export class LeanHubView {
     row.appendChild(pdcaDisc(pdcaOf(action), 15));
     const lock = confidentialGlyph(action);
     if (lock) row.appendChild(lock);
+    const moved = movedGlyph(action);
+    if (moved) row.appendChild(moved);
     const said = commentGlyph(action);
     if (said) row.appendChild(said);
     const waits = endorseGlyph(action);

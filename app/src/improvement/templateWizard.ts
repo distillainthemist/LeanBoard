@@ -24,7 +24,9 @@ import { deleteTemplate, ensureTemplateBoard, getTemplate, listTemplates, saveTe
 import { listInitiatives } from "../store/initiatives";
 import { cardLabel } from "../../../controls/CardSettings/registry";
 import { createWizardShell } from "./wizardShell";
-import { pickOwner } from "../priorities/dialogs";
+import { field, pickOwner } from "../priorities/dialogs";
+import { dropRescheduleSettings } from "../actions/reschedule";
+import { cleanReasons, OTHER_REASON } from "../../../shared/schema/reschedule";
 import { parseOrgTree } from "../../../shared/schema/meeting";
 import {
   METRIC_RULE_LABELS,
@@ -890,6 +892,101 @@ export async function renderImprovementSettings(body: HTMLElement, isSuper: bool
     };
     paintMethods();
     mBox.appendChild(chips);
+
+    // ---- due-date moves (Ben, 2026-11-16): who is asked why, and the
+    // organisation's reasons — one list for every site, so moves compare
+    const dBox = section(
+      "Due date changes",
+      "Every move of an action's due date is kept on the action. When the date moves LATER the person moving it is asked why — in the action's dialog and on the Gantt alike; an earlier date is recorded without a question. The reasons below are offered to everyone, with “Other” (which needs a note) always last. Past moves keep the wording they were given."
+    );
+    const persistMoves = () => {
+      // the dialogs keep the settings for a minute: forget that copy now
+      // and again as the write lands
+      dropRescheduleSettings();
+      void saveImprovementSettingsJson(serializeImprovementSettings(imp)).then(dropRescheduleSettings, dropRescheduleSettings);
+    };
+    const polSel = el("select", "app-input app-tw-movepol") as HTMLSelectElement;
+    for (const [v, l] of [["initiatives", "Initiative actions only"], ["all", "All actions"]] as const) {
+      const o = el("option", undefined, l) as HTMLOptionElement;
+      o.value = v;
+      polSel.appendChild(o);
+    }
+    polSel.value = imp.reschedule.policy;
+    polSel.addEventListener("change", () => {
+      imp.reschedule.policy = polSel.value === "all" ? "all" : "initiatives";
+      persistMoves();
+    });
+    dBox.appendChild(field("Ask for a reason on", polSel, "Initiative actions only: actions on rituals and boards move without a question. All actions: every action with a due date asks."));
+    const reasonList = el("div", "app-tw-methods");
+    const taken = (name: string, except: number): boolean =>
+      name.toLowerCase() === OTHER_REASON.toLowerCase() || imp.reschedule.reasons.some((r, ri) => ri !== except && r.toLowerCase() === name.toLowerCase());
+    const paintReasons = () => {
+      clear(reasonList);
+      imp.reschedule.reasons.forEach((r, i) => {
+        const rowEl = el("div", "app-tw-method");
+        const handle = el("span", "app-drag-handle app-tw-method-handle", "⠿");
+        handle.title = "Drag to reorder";
+        rowEl.appendChild(handle);
+        rowEl.appendChild(el("span", "app-tw-method-name", r));
+        draggableRow(rowEl, handle, "imp-move-reasons", i, imp.reschedule.reasons, () => {
+          persistMoves();
+          paintReasons();
+        });
+        const edit = el("button", "app-org-edit", "\u270e") as HTMLButtonElement;
+        edit.type = "button";
+        edit.title = "Rename (past moves keep the old wording)";
+        edit.addEventListener("click", () => {
+          void promptText({ title: "Rename reason", initial: r, confirmLabel: "Rename" }).then((v) => {
+            const name = (v ?? "").trim();
+            if (name === "" || name === r || taken(name, i)) return;
+            imp.reschedule.reasons[i] = name;
+            persistMoves();
+            paintReasons();
+          });
+        });
+        rowEl.appendChild(edit);
+        const x = el("button", "app-org-x", "\u00d7") as HTMLButtonElement;
+        x.type = "button";
+        x.title = "Remove (past moves keep the reason)";
+        x.addEventListener("click", () => {
+          void confirmRemoval(`the reason “${r}”`, "It leaves the list people choose from; moves already recorded keep it. This saves straight away.").then((ok) => {
+            if (!ok) return;
+            imp.reschedule.reasons.splice(i, 1);
+            persistMoves();
+            paintReasons();
+          });
+        });
+        rowEl.appendChild(x);
+        reasonList.appendChild(rowEl);
+      });
+      // "Other" is the prompt's own: shown so the list reads as people see it
+      const other = el("div", "app-tw-method app-tw-method-fixed");
+      other.appendChild(el("span", "app-tw-method-name", OTHER_REASON));
+      other.appendChild(el("span", "app-settings-note", "Always offered · needs a note"));
+      reasonList.appendChild(other);
+      const addRow = el("div", "app-org-row");
+      const input = el("input", "app-input") as HTMLInputElement;
+      input.placeholder = "Add reason";
+      input.maxLength = 60;
+      const commit = () => {
+        const v = input.value.trim();
+        if (v === "" || taken(v, -1)) return;
+        imp.reschedule.reasons = cleanReasons([...imp.reschedule.reasons, v]);
+        input.value = "";
+        persistMoves();
+        paintReasons();
+      };
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") commit();
+      });
+      const add = el("button", "app-btn", "\uFF0B") as HTMLButtonElement;
+      add.type = "button";
+      add.addEventListener("click", commit);
+      addRow.append(input, add);
+      reasonList.appendChild(addRow);
+    };
+    paintReasons();
+    dBox.appendChild(reasonList);
 
     const rBox = section(
       "Standard roles",

@@ -7,6 +7,7 @@
 
 import { LinkTarget } from "../schema/actionLinks";
 import type { EndorseContext } from "../schema/actionEndorsement";
+import type { RescheduleSettings } from "../schema/reschedule";
 
 export interface ActionLinkContext {
   targets: LinkTarget[];
@@ -66,6 +67,25 @@ export function setEndorsementLookup(f: ((a: { initiativeId?: string; instanceId
 export function endorsementFor(a: { initiativeId?: string; instanceId: string }): EndorseContext | null {
   try {
     return endorsementLookup ? endorsementLookup(a) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Due-date moves: which actions ask for a reason, and the reasons
+ *  offered. The host registers the organisation's settings; null = no
+ *  host (a standalone control) or a failed read — the asker falls back
+ *  to the defaults (`currentRescheduleSettings` in reschedulePrompt.ts;
+ *  the registry stays type-only so the shell carries no rule code). */
+let rescheduleProvider: (() => Promise<RescheduleSettings>) | null = null;
+
+export function setRescheduleProvider(p: (() => Promise<RescheduleSettings>) | null): void {
+  rescheduleProvider = p;
+}
+
+export async function hostRescheduleSettings(): Promise<RescheduleSettings | null> {
+  try {
+    return rescheduleProvider ? await rescheduleProvider() : null;
   } catch {
     return null;
   }

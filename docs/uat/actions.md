@@ -21,3 +21,30 @@ steps:
 1. Open the card's ＋ Action → the action → press the chip's ✕ (Take it off) → Save.
 2. Open the action from My day; reopen the initiative's Action plan.
 expected: the action leaves the card and the initiative's Action plan and shows on My day as "Personal — not linked"; it is NOT re-linked to the initiative behind the scenes (the row has no initiative id); linking it back from My day's search restores it to the initiative
+
+## Journey 2 — Moving a due date
+
+### UAT-ACT-003 — A later due date asks why, an earlier one does not
+persona: owner
+modules: shared/ui/actionUi.ts shared/schema/reschedule.ts shared/ui/reschedulePrompt.ts shared/ui/actionLinkProvider.ts actions/reschedule.ts controls/ActionBoard/editor.ts controls/LeanHub/editor.ts
+preconditions: Settings → Improvement → Due date changes on "Initiative actions only"; an initiative with an open action that has a due date; a ritual board with an open action that has a due date
+steps:
+1. On the initiative's Action plan open the action, set the due date a week later and press Save.
+2. Press Cancel on the question; then press Save again, press Move date without choosing, choose "Other" and press Move date, then type a note and press Move date.
+3. Open the same action again and read "Due date moves"; read the action's card on the kanban and its row on My day.
+4. Open it again, set the due date three days EARLIER and Save.
+5. On the ritual board open its action from the Action card, set the due date a week later and Save. Do the same to an initiative action opened from another card on the initiative board (a 5 Whys or the agenda).
+6. Raise a new action with no due date, save it, open it and give it a due date.
+expected: step 1 the dialog stays open and asks "Why is this moving?" under the comments, showing the old and new dates and a list of the organisation's reasons ending in "Other", with nothing chosen for you; step 2 Cancel closes the question only — the dialog is still open and nothing was saved; Move date with nothing chosen says "Choose a reason."; "Other" with no note says "Say what the reason is."; with the note the dialog closes and the new date shows; step 3 "Due date moves · 1" lists the move with its dates, "Other — <your note>", your name and today's date, and the card and the My day row carry "↷ 1" whose tooltip names the move and the reason; step 4 it saves with no question and the list gains a second line reading "Brought forward" (the ↷ count stays 1); step 5 the ritual's action saves with no question — its move is still listed when reopened, as "No reason recorded", and its card shows ↷ 1 — while the initiative action asks why from the other card exactly as it did from the Action plan; step 6 a first due date asks nothing and records nothing
+
+### UAT-ACT-004 — The Gantt follows the same rule
+persona: owner
+modules: improvement/gantt.ts shared/schema/reschedule.ts shared/ui/reschedulePrompt.ts actions/reschedule.ts
+preconditions: Settings → Improvement → Due date changes on "Initiative actions only"; an initiative with dated actions; a ritual board whose Action card holds dated actions
+steps:
+1. On the initiative's Gantt drag an action's bar a week to the right. Read the dialog, press Cancel.
+2. Drag it again, choose a reason, add a note and press Move date. Open the action and read "Due date moves".
+3. Drag the same bar a few days to the LEFT. Drag only its left edge.
+4. On the ritual board's Action card, Gantt view, drag a bar a week to the right.
+5. A super admin sets Due date changes to "All actions"; a minute later repeat step 4 and then edit a ritual action's due date later in its dialog.
+expected: step 1 "Move due date to <date>?" shows the previous date (in red with "overdue" when it was), the same reasons as the action's dialog with nothing chosen, and a Note; Cancel snaps the bar back; step 2 the bar stays moved and the list shows the move as "<reason> — <note>" with your name; step 3 the earlier date and the start-only move both save with no question, the earlier date listed as "Brought forward"; step 4 the ritual's action moves with no question and its move is recorded without a reason; step 5 both the Gantt and the dialog now ask why for the ritual's action

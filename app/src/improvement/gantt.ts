@@ -12,15 +12,19 @@
 // Bar states carry a SHAPE as well as a colour (§2.2): on-track solid
 // accent · overdue solid red · awaiting-verification hatched amber ·
 // completed flat grey; no start date = a diamond on the due date. Editing
-// (§2.3): drag moves both dates, edges resize; any due-date move opens
-// the reschedule dialog (the ActionBoard's four reasons) and Cancel snaps
-// back; the start-only (left-edge) drag never prompts. Touch: tap to
+// (§2.3): drag moves both dates, edges resize; a due-date move follows
+// the one rule in shared/schema/reschedule.ts — every move is recorded,
+// a move LATER on an in-scope action opens the reschedule dialog (the
+// organisation's reasons) and Cancel snaps back; the start-only
+// (left-edge) drag never prompts. Touch: tap to
 // select, ±1d/±1w steppers + Set dates… — no drag. Dependencies are out
 // of scope by design.
 
 import { actionBelongsTo, isOnHold } from "../../../shared/schema/actions";
 import { el, clear } from "../../../shared/ui/dom";
-import { LtkAction, ActionHistoryEntry } from "../../../shared/schema/actions";
+import { LtkAction } from "../../../shared/schema/actions";
+import { dueMove, reasonChoices, recordDueMove } from "../../../shared/schema/reschedule";
+import { currentRescheduleSettings, rescheduleFields } from "../../../shared/ui/reschedulePrompt";
 import { todayIso } from "../../../shared/schema/id";
 import { dayLabel } from "../linkTitle";
 import { upsertActions } from "../store/actions";
@@ -49,13 +53,6 @@ export interface GanttWindowState {
   range: GanttRange;
   anchor: string | null;
 }
-
-export const RESCHEDULE_REASONS = [
-  "Waiting on parts",
-  "Resource unavailable",
-  "Scope changed",
-  "Blocked by another action",
-];
 
 export interface GanttOpts {
   host: HTMLElement;
@@ -225,20 +222,10 @@ export function mountGantt(opts: GanttOpts): () => void {
 
   // ---- date writes ----------------------------------------------------------
 
-  const writeDates = async (a: LtkAction, start: string, due: string, reason: string, note: string) => {
+  /** `reason`: the answer given, "" when the move needed none. */
+  const writeDates = async (a: LtkAction, start: string, due: string, reason: string) => {
     const next: LtkAction = { ...a, start, due };
-    if (due !== a.due) {
-      const entry: ActionHistoryEntry = {
-        kind: "rescheduled",
-        whoId: opts.actor.whoId,
-        who: opts.actor.who,
-        when: new Date().toISOString(),
-        from: a.due,
-        to: due,
-        reason: note !== "" ? `${reason} — ${note}` : reason,
-      };
-      next.history = [...(a.history ?? []), entry];
-    }
+    recordDueMove(next, a.due, opts.actor, reason, new Date().toISOString());
     await upsertActions([next]);
     const local = opts.actions.find((x) => x.id === a.id);
     if (local) {
@@ -250,24 +237,18 @@ export function mountGantt(opts: GanttOpts): () => void {
   };
 
   /** The §2.3 dialog. Resolves true = moved, false = cancelled. */
-  const rescheduleDialog = (a: LtkAction, start: string, due: string): Promise<boolean> =>
+  const rescheduleDialog = (a: LtkAction, start: string, due: string, choices: string[]): Promise<boolean> =>
     new Promise((resolve) => {
-      const m = modal(opts.host, `Move due date to ${dayLabel(due)}?`, undefined);
+      const m = modal(opts.host, due !== "" ? `Move due date to ${dayLabel(due)}?` : "Remove the due date?", undefined);
       const prev = el("div", "app-gx-dlgprev");
       const wasOverdue = a.due !== "" && a.due < today;
       prev.textContent = a.due !== "" ? `Was ${dayLabel(a.due)}${wasOverdue ? " — overdue" : ""}` : "No due date was set";
       if (wasOverdue) prev.style.color = colours.overdue;
       m.body.appendChild(prev);
-      const sel = el("select", "app-input") as HTMLSelectElement;
-      for (const r of RESCHEDULE_REASONS) {
-        const o = el("option", "", r) as HTMLOptionElement;
-        o.value = r;
-        sel.appendChild(o);
-      }
-      m.body.appendChild(field("Why is this moving?", sel));
-      const note = el("input", "app-input") as HTMLInputElement;
-      note.placeholder = "Optional note";
-      m.body.appendChild(field("Note", note));
+      const f = rescheduleFields(choices, "app-input", "app-gx-dlgerr");
+      m.body.appendChild(field("Why is this moving?", f.select));
+      m.body.appendChild(field("Note", f.note));
+      m.body.appendChild(f.err);
       let done = false;
       const finish = (ok: boolean) => {
         if (done) return;
@@ -287,18 +268,28 @@ export function mountGantt(opts: GanttOpts): () => void {
       const go = el("button", "app-btn app-btn-primary", "Move date") as HTMLButtonElement;
       go.type = "button";
       go.addEventListener("click", () => {
-        void writeDates(a, start, due, sel.value, note.value.trim()).then(() => finish(true));
+        const reason = f.read();
+        if (reason === null) return;
+        go.disabled = true;
+        void writeDates(a, start, due, reason).then(() => finish(true));
       });
       m.footer.append(cancel, go);
     });
 
-  /** A move settles: start-only writes silently, a due change prompts. */
+  /** A move settles: a start-only move writes silently; a due move is
+   *  recorded, and asked about first where the organisation's rule says
+   *  so (later, and in scope). */
   const settle = async (a: LtkAction, start: string, due: string): Promise<boolean> => {
     if (due === a.due) {
-      if (start !== a.start) await writeDates(a, start, due, "", "");
+      if (start !== a.start) await writeDates(a, start, due, "");
       return true;
     }
-    return rescheduleDialog(a, start, due);
+    const s = await currentRescheduleSettings();
+    if (dueMove(a.due, due, a, s.policy) !== "ask") {
+      await writeDates(a, start, due, "");
+      return true;
+    }
+    return rescheduleDialog(a, start, due, reasonChoices(s));
   };
 
   const setDatesDialog = (a: LtkAction) => {

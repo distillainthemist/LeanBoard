@@ -10,6 +10,8 @@
 import { ActionComment, ActionPdca, ACTION_PDCA, isOverdue, LtkAction, newAction, newComment, PDCA_LABELS, PDCA_QUARTERS, pdcaOf } from "../schema/actions";
 import { ActionLink, applyLink, boardOnlyTarget, currentLink, isCardKeyed, linkChanges, linkLabel, LinkTarget, searchLinkTargets } from "../schema/actionLinks";
 import { ACTION_MOVED_EVENT, ActionLinkContext, actionLinkProvider, actionViewer, endorsementFor } from "./actionLinkProvider";
+import { dueMove, dueMoves, isLaterMove, reasonChoices, recordDueMove, slipCount } from "../schema/reschedule";
+import { currentRescheduleSettings, rescheduleFields } from "./reschedulePrompt";
 import { applyEndorsementRule, awaitingEndorsement, endorse, sendBack } from "../schema/actionEndorsement";
 import { Person, splitWho } from "../schema/people";
 import { textOn } from "../tokens";
@@ -29,6 +31,8 @@ export interface ActionForm {
   el: HTMLElement;
   focus: () => void;
   hasContent: () => boolean;
+  /** The due date as the form holds it now (yyyy-mm-dd, "" = none). */
+  due: () => string;
   apply: (action: LtkAction) => void;
 }
 
@@ -149,6 +153,7 @@ export function buildActionForm(
     el: wrap,
     focus: () => desc.focus(),
     hasContent: () => desc.value.trim() !== "",
+    due: () => due.value,
     apply: (action) => {
       action.description = desc.value.trim();
       action.start = start.value;
@@ -377,6 +382,8 @@ export function actionRow(a: LtkAction, opts: ActionRowOptions): HTMLElement {
   } else if (a.escalated) {
     whoEl.appendChild(el("span", "ltk-action-flag", " ⚑"));
   }
+  const moved = movedGlyph(a);
+  if (moved) right.appendChild(moved);
   const said = commentGlyph(a);
   if (said) right.appendChild(said);
   const waits = endorseGlyph(a);
@@ -467,6 +474,64 @@ function reasonBar(body: HTMLElement, message: string, placeholder: string, yes:
   body.appendChild(bar);
   bar.scrollIntoView({ block: "nearest" });
   box.focus();
+}
+
+/** "Why is this moving?" inside the action dialog: the organisation's
+ *  reasons and a note. Cancel leaves the dialog open with nothing saved,
+ *  so the date can be put back or the edit abandoned. */
+function rescheduleBar(body: HTMLElement, from: string, to: string, choices: string[], onYes: (reason: string) => void): void {
+  body.querySelector(".ltk-confirm")?.remove();
+  const bar = el("div", "ltk-confirm ltk-resched");
+  bar.setAttribute("role", "alertdialog");
+  bar.appendChild(el("div", "ltk-confirm-msg", "Why is this moving?"));
+  bar.appendChild(el("div", "ltk-resched-dates", to !== "" ? `Due ${from} → ${to}` : `Due ${from} → no due date`));
+  const f = rescheduleFields(choices, "ltk-input", "ltk-confirm-err");
+  bar.append(f.select, f.note, f.err);
+  const row = el("div", "ltk-confirm-btns");
+  const keep = el("button", "ltk-btn ltk-btn-secondary", "Cancel") as HTMLButtonElement;
+  keep.type = "button";
+  keep.addEventListener("click", () => bar.remove());
+  const go = el("button", "ltk-btn ltk-btn-primary", "Move date") as HTMLButtonElement;
+  go.type = "button";
+  go.addEventListener("click", () => {
+    const reason = f.read();
+    if (reason === null) return;
+    bar.remove();
+    onYes(reason);
+  });
+  row.append(keep, go);
+  bar.appendChild(row);
+  body.appendChild(bar);
+  bar.scrollIntoView({ block: "nearest" });
+  f.select.focus();
+}
+
+/** "↷ 2" for an action whose due date has moved later, wherever a row
+ *  shows one — the tooltip carries the latest move and its reason. */
+export function movedGlyph(a: Pick<LtkAction, "history">): HTMLElement | null {
+  const n = slipCount(a);
+  if (n === 0) return null;
+  const g = el("span", "ltk-moved-glyph", `↷ ${n}`);
+  const later = dueMoves(a).filter((h) => isLaterMove(h.from ?? "", h.to ?? ""));
+  const last = later[later.length - 1];
+  const why = last.reason !== "" ? ` (${last.reason})` : "";
+  g.title = `Due date moved later ${n === 1 ? "once" : `${n} times`} — latest: ${last.from ?? ""} → ${last.to || "no due date"}${why}`;
+  return g;
+}
+
+/** The due-date moves, latest first: dates, reason, who and when. */
+function dueMoveList(a: Pick<LtkAction, "history">): HTMLElement {
+  const list = el("div", "ltk-resched-list");
+  for (const h of [...dueMoves(a)].reverse()) {
+    const row = el("div", "ltk-resched-row");
+    row.appendChild(el("div", "ltk-resched-move", `${h.from ?? ""} → ${h.to || "no due date"}`));
+    const why = h.reason !== "" ? h.reason : isLaterMove(h.from ?? "", h.to ?? "") ? "No reason recorded" : "Brought forward";
+    row.appendChild(el("div", "ltk-resched-why", why));
+    const by = [h.who, h.when.slice(0, 10)].filter((x) => x !== "").join(" · ");
+    if (by !== "") row.appendChild(el("div", "ltk-resched-by", by));
+    list.appendChild(row);
+  }
+  return list;
 }
 
 /** "💬 3" for an action that carries comments, wherever a row shows one. */
@@ -715,6 +780,11 @@ export function openActionDialog(o: ActionDialogOptions): void {
   // are measured against, and what the endorsement rule calls prior
   const prior = o.isNew ? null : action.status;
   const wasClosed = action.status === "done" || action.status === "verify";
+  // the due date the action arrived with — a move from it is recorded,
+  // and a move later may ask why (shared/schema/reschedule.ts). The
+  // settings are asked for now so the save does not wait on them.
+  const prevDue = o.isNew ? "" : action.due;
+  if (prevDue !== "") void currentRescheduleSettings();
   // PDCA toggle (Ben, 2026-08-31): disc + label each — replaces the old
   // Completed checkbox (Closed IS completion). On hold (2026-09-30)
   // pauses: the action stays open and is not overdue while held.
@@ -767,8 +837,22 @@ export function openActionDialog(o: ActionDialogOptions): void {
     }
   );
 
+  let asking = false;
   const save = () => {
     if (o.isNew && !form.hasContent() && issue.value.trim() === "") return;
+    const nextDue = form.due();
+    if (prevDue === "" || nextDue === prevDue) return commit(null);
+    if (asking) return;
+    asking = true;
+    void currentRescheduleSettings().then((s) => {
+      asking = false;
+      if (dueMove(prevDue, nextDue, action, s.policy) !== "ask") return commit("");
+      rescheduleBar(dlg.body, prevDue, nextDue, reasonChoices(s), (reason) => commit(reason));
+    });
+  };
+  /** `moved`: null = the due date did not move; otherwise the reason
+   *  given ("" when none was asked for). */
+  const commit = (moved: string | null) => {
     action.issue = issue.value.trim();
     action.pdca = pdca;
     // Closed IS completion; leaving Closed reopens. An untouched state
@@ -785,6 +869,7 @@ export function openActionDialog(o: ActionDialogOptions): void {
     // its endorser — unless an endorser is the one closing
     const who = o.viewer ?? actionViewer();
     if (who !== null) applyEndorsementRule(action, prior, endorsementFor(action), who, new Date().toISOString());
+    if (moved !== null) recordDueMove(action, prevDue, who, moved, new Date().toISOString());
     const linkedNow = linkField?.origin() ?? null;
     let picked = linkField?.chosen();
     // the list has not arrived but the host knows the open board: a new
@@ -893,6 +978,10 @@ export function openActionDialog(o: ActionDialogOptions): void {
   }
   dlg.body.appendChild(escChk.wrap);
   dlg.body.appendChild(confChk.wrap);
+  if (!o.isNew && dueMoves(action).length > 0) {
+    dlg.body.appendChild(sectionLabel(`Due date moves · ${dueMoves(action).length}`));
+    dlg.body.appendChild(dueMoveList(action));
+  }
   const count = action.comments.length;
   dlg.body.appendChild(sectionLabel(count > 0 ? `Comments · ${count}` : "Comments"));
   dlg.body.appendChild(comments.el);

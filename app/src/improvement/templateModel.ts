@@ -8,6 +8,7 @@
 // pure and tested; the store maps it to ben_ltkinitiativetemplate.
 
 import { DEFAULT_ROWS_CARD, parseSpecRows, SpecRows } from "../../../shared/schema/specSeries";
+import { defaultRescheduleSettings, parseRescheduleSettings, RescheduleSettings } from "../../../shared/schema/reschedule";
 
 export type Pdca = "plan" | "do" | "check" | "act";
 
@@ -242,6 +243,10 @@ export interface ImprovementSettings {
   /** Built-in standard fields a site has removed (keys) — the built-ins
    *  are seeded on read, so a removal must be remembered (2026-10-08). */
   hiddenBuiltins: string[];
+  /** Due-date moves (2026-11-16): which actions ask for a reason, and the
+   *  organisation's list of reasons. Lives here because this is the
+   *  app-level settings JSON every editor already round-trips. */
+  reschedule: RescheduleSettings;
 }
 
 /** The people who may act for a role on a SITE's initiative: the role's
@@ -287,9 +292,10 @@ export function parseImprovementSettings(raw: string): ImprovementSettings {
     const hiddenBuiltins = Array.isArray((o as { hiddenBuiltins?: unknown }).hiddenBuiltins)
       ? ((o as { hiddenBuiltins: unknown[] }).hiddenBuiltins).filter((k): k is string => typeof k === "string")
       : [];
-    return { methods: methods.length > 0 ? methods : [...METHODS], standardRoles: roles, standardFields: withBuiltinFields(fields, hiddenBuiltins), vdtEditorRole, hiddenBuiltins };
+    const reschedule = parseRescheduleSettings((o as { reschedule?: unknown }).reschedule);
+    return { methods: methods.length > 0 ? methods : [...METHODS], standardRoles: roles, standardFields: withBuiltinFields(fields, hiddenBuiltins), vdtEditorRole, hiddenBuiltins, reschedule };
   } catch {
-    return { methods: [...METHODS], standardRoles: [], standardFields: withBuiltinFields([], []), vdtEditorRole: "", hiddenBuiltins: [] };
+    return { methods: [...METHODS], standardRoles: [], standardFields: withBuiltinFields([], []), vdtEditorRole: "", hiddenBuiltins: [], reschedule: defaultRescheduleSettings() };
   }
 }
 
@@ -318,6 +324,7 @@ export function serializeImprovementSettings(s: ImprovementSettings): string {
     standardFields: s.standardFields.filter((f) => !isBuiltinField(f.key) || JSON.stringify(f) !== JSON.stringify(BUILTIN_STANDARD_FIELDS.find((b) => b.key === f.key))),
     hiddenBuiltins: s.hiddenBuiltins,
     vdtEditorRole: s.vdtEditorRole,
+    reschedule: { policy: s.reschedule.policy, reasons: s.reschedule.reasons },
   });
 }
 

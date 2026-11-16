@@ -565,7 +565,9 @@ Version lives in the tag alone — nothing is stamped into files.
   for every action or every card lives in ONE pure function and is
   applied at the screen for an honest picture AND at the store's
   write as the backstop (`actionEndorsement.ts`, `actionLinks.ts`,
-  `tileActions.ts`, `splitWho`); surfaces never carry their own copy
+  `tileActions.ts`, `splitWho`, `reschedule.ts` — a due-date move is
+  recorded and asked about by the action dialog and the Gantt from the
+  one rule, never by a card); surfaces never carry their own copy
   (2026-09-30: the present view's metric cell, the actions tile and
   three who-pickers had each drifted from the main rule).
 

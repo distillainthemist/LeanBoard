@@ -25,7 +25,7 @@ export function metricsCardSlot(): { pos: number; w: number; h: number; nav: num
  *  it is the only one copied; a template author who placed a card meant
  *  it to be there), keeping the template's card ids (so a reset keeps
  *  the data of cards that survive), the action plan on kanban with
- *  Verify + reschedule reasons, and ONE Metrics card (`metricsCardId`
+ *  Verify, and ONE Metrics card (`metricsCardId`
  *  keeps an existing one's id, so its sub-location data survives a
  *  reset). The composer's archived cards do not come. */
 export function slotsFromTemplate(
@@ -52,13 +52,14 @@ export function slotsFromTemplate(
     cardId: s.cardId,
     cardType: s.cardType,
     title: s.title,
-    // the initiative's action plan gets the Verify column + reschedule
-    // reasons (design 2.4) whatever the template author set
+    // the initiative's action plan gets the Verify column (design 2.4)
+    // whatever the template author set; reschedule reasons are no longer
+    // a card's choice — shared/schema/reschedule.ts asks on every surface
     settingsJSON:
       s.cardType === "ActionBoard"
         ? {
             ...s.settings,
-            config: { ...((s.settings.config ?? {}) as Record<string, unknown>), view: "kanban", verifyColumn: true, rescheduleReasons: true },
+            config: { ...((s.settings.config ?? {}) as Record<string, unknown>), view: "kanban", verifyColumn: true },
           }
         : s.settings,
   }));

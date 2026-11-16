@@ -8,7 +8,7 @@ import { clear, el, ensureStylesheet } from "../../shared/ui/dom";
 import { parsePrompts, Prompts, renderGhost, renderTitleBar } from "../../shared/ui/chrome";
 import { renderKebab } from "../../shared/ui/menu";
 import {
-  pdcaDisc, actionRow, completeCircle, openActionDialog, confidentialGlyph, commentGlyph } from "../../shared/ui/actionUi";
+  pdcaDisc, actionRow, completeCircle, openActionDialog, confidentialGlyph, commentGlyph, movedGlyph } from "../../shared/ui/actionUi";
 import { makeInteractive } from "../../shared/interact/drag";
 import { htmlToPng, htmlToSvg, saveSvg, SnapshotScheduler } from "../../shared/export/png";
 import { pdcaOf, ActionStatus, isOverdue, LtkAction, newAction } from "../../shared/schema/actions";
@@ -163,7 +163,6 @@ export class ActionBoardEditor {
   private ganttRenderer: GanttRenderer | null = null;
   private ganttTeardown: (() => void) | null = null;
   private ganttWindowState: GanttWindowState | null = null;
-  private rescheduleReasons = false;
   /** The signed-in viewer — stamps verifications ("" = unknown). */
   private actor: { whoId: string; who: string } = { whoId: "", who: "" };
   /** Configured "by issue" columns; empty = discovered from the actions. */
@@ -298,22 +297,17 @@ export class ActionBoardEditor {
      *  done work awaiting the owner; moving Verify → Done stamps who
      *  verified. */
     verifyColumn?: boolean;
-    /** Initiative boards: a due-date change on an existing action prompts
-     *  "Why is this moving?" and records the answer in its history. */
-    rescheduleReasons?: boolean;
   }): void {
     const cols = opts.columns ?? [];
     if (
       this.view === opts.view &&
       this.groupBy === opts.groupBy &&
       this.verifyColumn === (opts.verifyColumn === true) &&
-      this.rescheduleReasons === (opts.rescheduleReasons === true) &&
       JSON.stringify(cols) === JSON.stringify(this.fixedColumns)
     ) {
       return;
     }
     this.verifyColumn = opts.verifyColumn === true;
-    this.rescheduleReasons = opts.rescheduleReasons === true;
     // re-fit the gantt whenever it is (re)entered
     if (opts.view === "gantt" && this.view !== "gantt") this.ganttAutoFit = true;
     this.view = opts.view;
@@ -668,6 +662,8 @@ export class ActionBoardEditor {
     head.appendChild(pdcaDisc(pdcaOf(a), 16));
     const lock = confidentialGlyph(a);
     if (lock) head.appendChild(lock);
+    const moved = movedGlyph(a);
+    if (moved) head.appendChild(moved);
     const said = commentGlyph(a);
     if (said) head.appendChild(said);
     if (this.groupBy !== "issue" && a.issue.trim() !== "") {
@@ -1075,34 +1071,10 @@ export class ActionBoardEditor {
     });
   }
 
-  /** "Why is this moving?" — the design's fixed picklist. */
-  private promptReschedule(from: string, to: string, done: (reason: string | null) => void): void {
-    const overlay = el("div", "ltk-ab-resched");
-    const box = el("div", "ltk-ab-resched-box");
-    box.appendChild(el("div", "ltk-ab-resched-title", "Why is this moving?"));
-    box.appendChild(el("div", "ltk-ab-resched-note", `${from || "no date"} → ${to || "no date"}`));
-    for (const r of ["Waiting on parts", "Resource unavailable", "Scope changed", "Blocked by another action"]) {
-      const b = el("button", "ltk-ab-resched-opt", r) as HTMLButtonElement;
-      b.type = "button";
-      b.addEventListener("click", () => {
-        overlay.remove();
-        done(r);
-      });
-      box.appendChild(b);
-    }
-    const skip = el("button", "ltk-ab-resched-skip", "Cancel the change") as HTMLButtonElement;
-    skip.type = "button";
-    skip.addEventListener("click", () => {
-      overlay.remove();
-      done(null);
-    });
-    box.appendChild(skip);
-    overlay.appendChild(box);
-    this.root.appendChild(overlay);
-  }
-
   private editAction(action: LtkAction): void {
-    const prevDue = action.due;
+    // a due-date move is recorded — and, where the organisation's rule
+    // says so, asked about — by the dialog itself (shared/schema/
+    // reschedule.ts), the same on every card
     openActionDialog({
       host: this.root,
       action,
@@ -1110,32 +1082,9 @@ export class ActionBoardEditor {
       isNew: false,
       linkTargets: this.linkTargets,
       linkTarget: action.instanceId,
-      onCommit: () => {
-        if (this.rescheduleReasons && action.due !== prevDue && prevDue !== "") {
-          // a due-date move on an initiative action is never silent
-          this.promptReschedule(prevDue, action.due, (reason) => {
-            if (reason === null) {
-              action.due = prevDue; // the change is cancelled with the prompt
-            } else {
-              action.history = [
-                ...(action.history ?? []),
-                {
-                  kind: "rescheduled",
-                  whoId: this.actor.whoId,
-                  who: this.actor.who,
-                  when: new Date().toISOString().slice(0, 10),
-                  from: prevDue,
-                  to: action.due,
-                  reason,
-                },
-              ];
-            }
-            this.commit();
-          });
-          return;
-        }
-        this.commit();
-      },
+      // who moved it, where the host has no viewer provider of its own
+      viewer: this.actor.whoId !== "" ? this.actor : undefined,
+      onCommit: () => this.commit(),
     });
   }
 

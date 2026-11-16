@@ -128,3 +128,16 @@ steps:
 3. Back on Organisation, change a name, then switch to Users before saving; answer the unsaved-changes prompt.
 expected: each tab shows a spinner until its own sections arrive; step 2 the page holds Branding's sections only — nothing from Users or Organisation lands on it, and the section strip's pills name Branding's sections; step 3 the unsaved-changes prompt belongs to the tab you were on, and Users opens clean after Discard
 
+
+### UAT-SET-012 — Due date changes: who is asked why, and the reasons
+persona: superadmin
+modules: improvement/templateWizard.ts improvement/templateModel.ts shared/schema/reschedule.ts actions/reschedule.ts
+preconditions: super admin; an initiative action with a due date that has already been moved once with the reason "Scope changed"
+steps:
+1. Open Settings → Improvement and read "Due date changes".
+2. Add the reason "Supplier late"; drag it to the top; rename "Scope changed" to "Scope grew"; remove "Waiting on parts" and confirm.
+3. Try to add "supplier late" and "Other".
+4. Leave Settings, wait a minute, open the initiative action, move its due date later and press Save. Read the reasons, then read "Due date moves".
+5. In Settings → Value drivers change who may edit values (any change that saves), then return to Improvement.
+6. Set "Ask for a reason on" to "All actions"; a minute later move a ritual action's due date later.
+expected: step 1 the section explains the rule, shows "Ask for a reason on: Initiative actions only" and lists Waiting on parts, Resource unavailable, Scope changed, Blocked by another action, then a dashed "Other — Always offered · needs a note" with no handle or ×; step 2 each change saves at once (the remove asks first and says past moves keep the reason); step 3 neither is added — a repeat in any capitals and "Other" are refused; step 4 the question offers Supplier late first, Scope grew, no Waiting on parts, and Other last; the earlier move still reads "Scope changed"; step 5 the reasons and the choice are unchanged by the other tab's save; step 6 the ritual's action now asks why. A site admin does not see the section

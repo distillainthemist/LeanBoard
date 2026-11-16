@@ -13,6 +13,20 @@ v0.89.0/v0.90.0 managed solution; v0.91.0 and v0.93.0 are app-only,
 v0.92.0 carries the Utilities app in the managed solution. Recent
 decisions of record:
 
+- **Due-date moves: one rule** (2026-11-16, unreleased, app-only):
+  Ben's three choices — a Settings switch (Improvement → Due date
+  changes) between "Initiative actions only" (the default) and "All
+  actions"; ONE organisation-wide reasons list (add, rename, reorder,
+  remove; "Other" always offered and needs a note); only a move LATER
+  asks, an earlier date is recorded silently. Every move of an existing
+  due date is now on the action's history whoever asked or did not; the
+  action dialog lists the moves and cards carry "↷ n". The per-card
+  "Reschedule reasons" setting is retired and the Gantt no longer asks
+  on every move. Stored in the app row's improvement settings JSON
+  (`reschedule`), no schema. Hosted checks Ben's: the Settings section,
+  the question on a real initiative action and Gantt, a ritual action
+  under "All actions". Not built: a count of moves by reason in the
+  initiative report; per-site reasons.
 - **The 2026-11-11/12 rounds** (released as v0.93.0): a re-exposed
   document library keeps its columns (levelled with SharePoint at every
   Save and every open of Settings → Documents; unused mappings shelved,
