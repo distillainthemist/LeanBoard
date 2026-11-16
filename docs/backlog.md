@@ -36,7 +36,10 @@ decisions of record:
   Agenda card's who-search (a drifted copy); (12) team import's root
   search (no debounce — a directory call per keystroke); (13) notify
   panel and the initiative form's priority menu (already float; keys
-  and timing only). Left as they are: lists that ARE a modal's body
+  and timing only); (14) low value: the register filter's people
+  search (`docs/docsScreen.ts`), UAT testers (`uat/settingsTab.ts`) and
+  issue merge (`issues/adminTab.ts`, no stale guard). Not started —
+  Ben asked for the list to be kept here (2026-11-16). Left as they are: lists that ARE a modal's body
   (`pickOwner`, Pull from above, the driver link, the access group
   picker), cascading selects, and filters over a table on screen.
 - **The 2026-11-16 issue tranche** (13 issues, built on dev, unreleased,
