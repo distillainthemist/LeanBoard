@@ -13,6 +13,32 @@ v0.89.0/v0.90.0 managed solution; v0.91.0 and v0.93.0 are app-only,
 v0.92.0 carries the Utilities app in the managed solution. Recent
 decisions of record:
 
+- **Search pickers: where the type-ahead pattern is still owed**
+  (survey 2026-11-16, read from the code; the pattern is
+  `ui-standard.md` §2.x). Built: the action dialog's "Search everyone…"
+  and "Linked to", `pickOwner` / `pickPeople`'s directory half. Owed,
+  most valuable first: (1) document person fields
+  (`docs/fieldEditors.ts` — Add, Edit properties, ingestion defaults
+  and the cell popover; inline, fires from one letter) with Submit for
+  review's "Add reviewers" and role reassign's "With" as the same
+  builder; (2) Users register "Search directory & add"
+  (`screens/settings.ts`, a button and an uncapped list; a pick opens a
+  placement form); (3) the meeting wizard's owner and participants
+  (`controls/MeetingWizard/editor.ts` — two boxes and a Search button,
+  25 rows shown unasked); (4) Organisation owners `pickPerson`
+  (`screens/settings.ts`, two boxes and a button, its own copy of the
+  directory add that skips `people/directoryAdd.ts`); (5) the action
+  dialog's Support search (inline grid, beside the reference box);
+  (6) ingestion task assignees; (7) document group members add;
+  (8) the two document searches (Supersede, Links editor — no stale
+  guard; the Links editor has no catch); (9) the multi-value tags
+  select; (10) the hub's person scope (a browser datalist); (11) the
+  Agenda card's who-search (a drifted copy); (12) team import's root
+  search (no debounce — a directory call per keystroke); (13) notify
+  panel and the initiative form's priority menu (already float; keys
+  and timing only). Left as they are: lists that ARE a modal's body
+  (`pickOwner`, Pull from above, the driver link, the access group
+  picker), cascading selects, and filters over a table on screen.
 - **The 2026-11-16 issue tranche** (13 issues, built on dev, unreleased,
   SOLUTION-CARRYING — `issues-plan-2026-11-16.md` holds Ben's decisions
   and an "As built" section): initiative boards always live; comment
