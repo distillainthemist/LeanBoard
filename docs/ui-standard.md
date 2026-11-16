@@ -241,6 +241,43 @@ the same commit.
   other card when a title is set (Ben's option 3, 2026-08-31) — empty
   title = no chrome, the shared rule.
 
+### 2.x Search pickers are type-aheads (Ben, 2026-11-16 — the standing pattern)
+
+Anything a person searches in order to PICK — a person, a ritual, an
+initiative, an organisation, a term — is built one way. Reference:
+"Search everyone…" (`buildActionForm`) and "Linked to" (`buildLinkField`)
+in `shared/ui/actionUi.ts`, styles `.ltk-who-pop` / `.ltk-link-pop` in
+`shared/ui/baseCss.ts`; `directoryLookup` in `app/src/priorities/dialogs.ts`
+for a modal picker's directory half.
+
+- **As you type.** Results follow each keystroke. No Search button, and
+  no second step to reach a slower source.
+- **The list floats.** It opens under the box (absolute, inside a
+  relative wrapper), over whatever is below. It never pushes content
+  down and never stretches the dialog or the page.
+- **The list scrolls on its own**, capped at about 300px. This is the one
+  allowed scroller inside a dialog body: it is a picker, not content.
+- **A slow source searches itself.** Local matches show at once; the
+  directory (or any connector call) is asked after a 350 ms pause once
+  there are three or more letters — one call for what is in the box, a
+  stale answer dropped by a sequence number, "Searching…" while it
+  travels, its matches under their own heading.
+- **Keyboard.** ↑ ↓ move the highlight, Enter picks it and NEVER submits
+  the form around it, Escape clears and closes.
+- **Focus stays in the box**: options take `mousedown` preventDefault;
+  the list closes on blur.
+- **Room for the answer**: the list may be wider than its box
+  (`width: max(100%, 320px)`).
+- **The box sits with what it finds** — the people search is the first
+  cell of the people grid, the size of a person's box.
+- **Optional says so** in the label ("Linked to (optional)"); no
+  explanatory line under an empty search.
+
+It does NOT replace a list of predefined choices: the participants'
+tick-box grid stays, with the type-ahead beside or inside it. A text
+filter over a table already on screen is a filter, not a picker, and
+stays as it is.
+
 ## 3. Page anatomy (the Documents register is the reference)
 
 1. **Title block** left: bold 20–22px scope title, muted subtitle,
