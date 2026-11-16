@@ -107,8 +107,7 @@ export function buildActionForm(
   // chips above included, so a name is found wherever it sits — then,
   // where the host offers it (admins), the directory, searched by itself
   // after a short pause. ↑ ↓ move, Enter picks, Escape closes.
-  let whoQuery: HTMLInputElement | null = null;
-  let whoPop: HTMLElement | null = null;
+  let whoBox: HTMLElement | null = null;
   if (people.length > 0) {
     const query = textInput("", { placeholder: "Search everyone…" });
     query.setAttribute("aria-label", "Search everyone");
@@ -118,8 +117,12 @@ export function buildActionForm(
     const pop = el("div", "ltk-who-pop");
     pop.setAttribute("role", "listbox");
     pop.style.display = "none";
-    whoQuery = query;
-    whoPop = pop;
+    // the box is the FIRST cell of the people grid (Ben, 2026-11-16) —
+    // "find someone" sits where the people are, the same size as one of
+    // them; its list opens under it, over the grid
+    const box = el("div", "ltk-who-box");
+    box.append(query, pop);
+    whoBox = box;
     let road: ActionDirectoryRoad | null = null;
     let dir: { q: string; state: "idle" | "busy" | "done" | "failed"; hits: { objectId: string; displayName: string; mail: string }[] } = { q: "", state: "idle", hits: [] };
     let dirSeq = 0;
@@ -273,10 +276,10 @@ export function buildActionForm(
     });
     // with nobody behind the chips and no directory, there is nothing to
     // search: the box shows only once one of the two exists
-    query.style.display = secondary.length > 0 ? "" : "none";
+    box.style.display = secondary.length > 0 ? "" : "none";
     void actionDirectory().then((r) => {
       road = r;
-      if (r !== null) query.style.display = "";
+      if (r !== null) box.style.display = "";
     });
   }
 
@@ -366,19 +369,11 @@ export function buildActionForm(
 
   wrap.classList.add("ltk-act-form");
   wrap.appendChild(fieldRow("Action", desc));
-  // Who: the label with the search beside it, what the search finds, then
-  // the people of the meeting or initiative as before
+  // Who: a label like any other field's, then the grid — the search box
+  // its first cell, the people of the meeting or initiative after it
   const whoBlock = el("div", "ltk-who");
-  const whoHead = el("div", "ltk-who-head");
-  whoHead.appendChild(el("span", "ltk-field-label", "Who"));
-  if (whoQuery && whoPop) {
-    // the list opens under the box, over the form — it never pushes the
-    // people down
-    const box = el("div", "ltk-who-box");
-    box.append(whoQuery, whoPop);
-    whoHead.appendChild(box);
-  }
-  whoBlock.appendChild(whoHead);
+  whoBlock.appendChild(el("div", "ltk-field-label", "Who"));
+  if (whoBox) whoWrap.insertBefore(whoBox, whoWrap.firstChild);
   whoBlock.appendChild(whoWrap);
   wrap.appendChild(whoBlock);
   wrap.appendChild(supWrap);

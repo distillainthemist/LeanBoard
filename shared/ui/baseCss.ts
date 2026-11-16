@@ -280,16 +280,17 @@ export const LTK_BASE_CSS = `
 .ltk-act-form { gap: 10px !important; }
 .ltk-act-linked .ltk-link-chip { min-height: 44px; box-sizing: border-box; }
 .ltk-act-linked .ltk-link-note { min-height: 44px; display: flex; align-items: center; }
-/* Who: the label with "Search everyone…" beside it, then the people */
-.ltk-who { display: flex; flex-direction: column; gap: 6px; }
-.ltk-who-head { display: flex; align-items: center; gap: 10px; min-height: 20px; }
-.ltk-who-head .ltk-input { flex: 1; min-width: 0; min-height: 36px; padding: 4px 10px; font-size: 13px; }
+/* Who: a label, then the grid — "Search everyone…" its first cell, the
+   size of a person's box, the people after it */
+.ltk-who { display: flex; flex-direction: column; gap: 4px; }
 /* "Search everyone…" is a type-ahead: its list opens under the box, over
-   the form, and never pushes the people down */
-.ltk-who-box { position: relative; flex: 1; min-width: 0; display: flex; }
-.ltk-who-box .ltk-input { width: 100%; }
+   the grid, and never pushes the people down — wider than its cell, so a
+   name and an email have room */
+.ltk-who-box { position: relative; min-width: 0; display: flex; }
+.ltk-who-box .ltk-input { width: 100%; min-width: 0; min-height: 44px; }
 .ltk-who-pop {
-  position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 5;
+  position: absolute; top: calc(100% + 4px); left: 0; z-index: 5;
+  width: max(100%, 320px); max-width: min(420px, 88vw);
   display: flex; flex-direction: column; gap: 2px; padding: 6px;
   max-height: 290px; overflow-y: auto; scrollbar-width: thin;
   background: var(--ltk-bg); color: var(--ltk-fg);
@@ -335,9 +336,6 @@ export const LTK_BASE_CSS = `
 @container (min-width: 720px) {
   .ltk-act-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; column-gap: 24px; align-items: start; padding: 4px 4px 0; }
   .ltk-act-side { border-left: 1px solid var(--ltk-hairline); padding-left: 24px; align-self: stretch; }
-  /* "Who" reads as a label like the others; its search is an accessory
-     at the row's right end */
-  .ltk-who-head .ltk-who-box { flex: 0 1 300px; margin-left: auto; }
   /* the people three across — each box its full 44px (Ben, 2026-11-16) */
   .ltk-act-form .ltk-checklist { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .ltk-pdca-seg.ltk-act-pdca { grid-template-columns: repeat(6, minmax(0, 1fr)); max-width: none; }

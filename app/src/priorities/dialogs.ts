@@ -240,6 +240,85 @@ export interface OwnerPickerExtras {
   };
 }
 
+/** How many letters before the directory is asked, and the pause in
+ *  typing that sets the question off. */
+const DIRECTORY_MIN = 3;
+const DIRECTORY_PAUSE_MS = 350;
+
+/** The directory half of a people picker, as a type-ahead (Ben,
+ *  2026-11-16: typing a name, pressing "Search the directory for …",
+ *  then picking was clunky — the action dialog searches by itself, and
+ *  so do these). `typed` is told every keystroke; one call goes out for
+ *  what is in the box once the typing pauses, and a stale answer is
+ *  dropped. `render` appends the section to the picker's list. */
+function directoryLookup(road: NonNullable<OwnerPickerExtras["directory"]>, repaint: () => void) {
+  type Hit = { objectId: string; displayName: string; mail: string };
+  let state: { q: string; status: "idle" | "busy" | "done" | "failed"; hits: Hit[]; err: string } = { q: "", status: "idle", hits: [], err: "" };
+  let seq = 0;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let addErr = "";
+  return {
+    typed(q: string): void {
+      if (timer !== null) clearTimeout(timer);
+      addErr = "";
+      if (q.length < DIRECTORY_MIN) {
+        seq++;
+        state = { q: "", status: "idle", hits: [], err: "" };
+        return;
+      }
+      if (state.q === q && state.status !== "idle") return;
+      const mine = ++seq;
+      state = { q, status: "busy", hits: [], err: "" };
+      timer = setTimeout(() => {
+        void road.search(q).then(
+          (found) => {
+            if (mine !== seq) return;
+            state = { q, status: "done", hits: found, err: "" };
+            repaint();
+          },
+          (err) => {
+            if (mine !== seq) return;
+            state = { q, status: "failed", hits: [], err: err instanceof Error ? err.message : String(err) };
+            repaint();
+          }
+        );
+      }, DIRECTORY_PAUSE_MS);
+    },
+    /** `known` = who is already on the roster; `words` say what a click
+     *  does; `added` receives the person once they are in the app. */
+    render(list: HTMLElement, q: string, known: Set<string>, words: string, added: (p: PersonRef) => void): void {
+      if (q.length < DIRECTORY_MIN) return;
+      if (state.q !== q || state.status === "busy" || state.status === "idle") {
+        list.appendChild(el("div", "app-settings-note", "Searching the directory…"));
+        return;
+      }
+      if (state.status === "failed") {
+        list.appendChild(el("div", "app-cp-err", `Directory search failed: ${state.err}`));
+        return;
+      }
+      const fresh = state.hits.filter((h) => !known.has(h.objectId));
+      list.appendChild(el("div", "app-cp-menu-h", "In the directory — not yet in the app"));
+      if (fresh.length === 0) list.appendChild(el("div", "app-settings-note", "No one else in the directory matches."));
+      for (const h of fresh) {
+        const b = el("button", "app-cp-person") as HTMLButtonElement;
+        b.type = "button";
+        b.textContent = h.displayName;
+        b.appendChild(el("span", "app-cp-person-note", `${h.mail || "no email"} · ${words}`));
+        b.addEventListener("click", () => {
+          b.disabled = true;
+          b.textContent = `Adding ${h.displayName}…`;
+          void road.add(h).then(added, (err) => {
+            addErr = `Could not add them: ${err instanceof Error ? err.message : String(err)}`;
+            repaint();
+          });
+        });
+        list.appendChild(b);
+      }
+      if (addErr !== "") list.appendChild(el("div", "app-cp-err", addErr));
+    },
+  };
+}
+
 export function pickOwner(
   host: HTMLElement,
   roster: RosterPerson[],
@@ -251,7 +330,7 @@ export function pickOwner(
     const m = modal(host, `Choose the ${roleLabel.toLowerCase()}`, roleLabel === "owner" ? "The person accountable for this priority." : `The person holding the ${roleLabel} role.`);
     const filter = el("input", "app-input") as HTMLInputElement;
     filter.type = "search";
-    filter.placeholder = extra.suggested && extra.suggested.length > 0 ? "Search the app roster…" : "Filter people…";
+    filter.placeholder = extra.directory ? "Search the app and the directory…" : extra.suggested && extra.suggested.length > 0 ? "Search the app roster…" : "Filter people…";
     const list = el("div", "app-cp-people");
     const done = (v: PersonRef | null | "clear") => {
       m.close();
@@ -267,10 +346,7 @@ export function pickOwner(
     };
     // the suggested set shows until the person searches or asks for everyone
     let browsing = false;
-    let dirHits: { objectId: string; displayName: string; mail: string }[] | null = null;
-    let dirBusy = false;
-    let dirErr = "";
-    let dirSeq = 0;
+    const lookup = extra.directory ? directoryLookup(extra.directory, () => paint()) : null;
     const suggested = (extra.suggested ?? []).filter((p, i, all) => p.whoId !== "" && all.findIndex((x) => x.whoId === p.whoId) === i);
     const paint = () => {
       clear(list);
@@ -293,66 +369,12 @@ export function pickOwner(
         .slice(0, 40);
       for (const p of hits) list.appendChild(personBtn({ whoId: p.whoId, who: p.who }));
       if (hits.length === 0) list.appendChild(el("div", "app-settings-note", q === "" ? "No one on the roster yet." : "No one on the roster matches."));
-      if (extra.directory && q.length >= 2) {
-        // the directory road: find the person in Entra and add them to the app
-        if (dirHits === null) {
-          const find = el("button", "app-btn app-cp-person-dir", dirBusy ? "Searching the directory…" : `Search the directory for “${filter.value.trim()}”`) as HTMLButtonElement;
-          find.type = "button";
-          find.disabled = dirBusy;
-          find.addEventListener("click", () => {
-            const seq = ++dirSeq;
-            dirBusy = true;
-            dirErr = "";
-            paint();
-            void extra.directory!.search(filter.value.trim()).then(
-              (found) => {
-                if (seq !== dirSeq) return;
-                dirBusy = false;
-                dirHits = found;
-                paint();
-              },
-              (err) => {
-                if (seq !== dirSeq) return;
-                dirBusy = false;
-                dirErr = `Directory search failed: ${err instanceof Error ? err.message : String(err)}`;
-                paint();
-              }
-            );
-          });
-          list.appendChild(find);
-          if (dirErr !== "") list.appendChild(el("div", "app-cp-err", dirErr));
-        } else {
-          list.appendChild(el("div", "app-cp-menu-h", "In the directory — not yet in the app"));
-          const onRoster = new Set(roster.map((p) => p.whoId));
-          const fresh = dirHits.filter((h) => !onRoster.has(h.objectId));
-          if (fresh.length === 0) list.appendChild(el("div", "app-settings-note", "No one else in the directory matches."));
-          for (const h of fresh) {
-            const b = el("button", "app-cp-person") as HTMLButtonElement;
-            b.type = "button";
-            b.textContent = h.displayName;
-            b.appendChild(el("span", "app-cp-person-note", `${h.mail || "no email"} · ＋ add to the app and choose`));
-            b.addEventListener("click", () => {
-              b.disabled = true;
-              b.textContent = `Adding ${h.displayName}…`;
-              void extra.directory!.add(h).then(
-                (p) => done(p),
-                (err) => {
-                  dirErr = `Could not add them: ${err instanceof Error ? err.message : String(err)}`;
-                  paint();
-                }
-              );
-            });
-            list.appendChild(b);
-          }
-          if (dirErr !== "") list.appendChild(el("div", "app-cp-err", dirErr));
-        }
-      }
+      // the directory, searched by itself as the name is typed: a person
+      // found there is added to the app and chosen in one click
+      lookup?.render(list, filter.value.trim(), new Set(roster.map((p) => p.whoId)), "＋ add to the app and choose", (p) => done(p));
     };
     filter.addEventListener("input", () => {
-      dirHits = null;
-      dirErr = "";
-      dirSeq++;
-      dirBusy = false;
+      lookup?.typed(filter.value.trim());
       paint();
     });
     paint();
@@ -377,15 +399,12 @@ export function pickPeople(host: HTMLElement, roster: RosterPerson[], current: P
   return new Promise((resolve) => {
     // the directory road, as in pickOwner: someone not on the roster is
     // found, added to the app and ticked (issue 12, 2026-11-16)
-    let dirHits: { objectId: string; displayName: string; mail: string }[] | null = null;
-    let dirBusy = false;
-    let dirErr = "";
-    let dirSeq = 0;
+    const lookup = extra.directory ? directoryLookup(extra.directory, () => paint()) : null;
     const m = modal(host, `Choose the ${roleLabel.toLowerCase()}`, "Tick everyone holding this role.");
     const chosen = new Map(current.map((p) => [p.whoId, p]));
     const filter = el("input", "app-input") as HTMLInputElement;
     filter.type = "search";
-    filter.placeholder = "Filter people…";
+    filter.placeholder = extra.directory ? "Search the app and the directory…" : "Filter people…";
     const list = el("div", "app-cp-people");
     const paint = () => {
       clear(list);
@@ -402,70 +421,16 @@ export function pickPeople(host: HTMLElement, roster: RosterPerson[], current: P
         });
         list.appendChild(b);
       }
-      if (hits.length === 0) list.appendChild(el("div", "app-settings-note", "No one matches."));
-      const typed = filter.value.trim();
-      if (extra.directory && typed.length >= 2) {
-        if (dirHits === null) {
-          const find = el("button", "app-btn app-cp-person-dir", dirBusy ? "Searching the directory…" : `Search the directory for “${typed}”`) as HTMLButtonElement;
-          find.type = "button";
-          find.disabled = dirBusy;
-          find.addEventListener("click", () => {
-            const seq = ++dirSeq;
-            dirBusy = true;
-            dirErr = "";
-            paint();
-            void extra.directory!.search(typed).then(
-              (found) => {
-                if (seq !== dirSeq) return;
-                dirBusy = false;
-                dirHits = found;
-                paint();
-              },
-              (err) => {
-                if (seq !== dirSeq) return;
-                dirBusy = false;
-                dirErr = `Directory search failed: ${err instanceof Error ? err.message : String(err)}`;
-                paint();
-              }
-            );
-          });
-          list.appendChild(find);
-        } else {
-          list.appendChild(el("div", "app-cp-menu-h", "In the directory — not yet in the app"));
-          const onRoster = new Set(roster.map((p) => p.whoId));
-          const fresh = dirHits.filter((h) => !onRoster.has(h.objectId));
-          if (fresh.length === 0) list.appendChild(el("div", "app-settings-note", "No one else in the directory matches."));
-          for (const h of fresh) {
-            const b = el("button", "app-cp-person") as HTMLButtonElement;
-            b.type = "button";
-            b.textContent = h.displayName;
-            b.appendChild(el("span", "app-cp-person-note", `${h.mail || "no email"} · ＋ add to the app and tick`));
-            b.addEventListener("click", () => {
-              b.disabled = true;
-              b.textContent = `Adding ${h.displayName}…`;
-              void extra.directory!.add(h).then(
-                (p) => {
-                  chosen.set(p.whoId, p);
-                  dirHits = null;
-                  paint();
-                },
-                (err) => {
-                  dirErr = `Could not add them: ${err instanceof Error ? err.message : String(err)}`;
-                  paint();
-                }
-              );
-            });
-            list.appendChild(b);
-          }
-        }
-        if (dirErr !== "") list.appendChild(el("div", "app-cp-err", dirErr));
-      }
+      if (hits.length === 0) list.appendChild(el("div", "app-settings-note", extra.directory ? "No one in the app matches." : "No one matches."));
+      lookup?.render(list, filter.value.trim(), new Set(roster.map((p) => p.whoId)), "＋ add to the app and tick", (p) => {
+        chosen.set(p.whoId, p);
+        filter.value = "";
+        lookup?.typed("");
+        paint();
+      });
     };
     filter.addEventListener("input", () => {
-      dirHits = null;
-      dirErr = "";
-      dirSeq++;
-      dirBusy = false;
+      lookup?.typed(filter.value.trim());
       paint();
     });
     paint();
