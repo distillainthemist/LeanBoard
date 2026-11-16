@@ -57,3 +57,16 @@ steps:
 2. Improvement tab: read the rows in the list view, then the tiles view.
 3. Raise an action and search "Linked to" for the initiative.
 expected: the two-owner initiative reads "Last, First & Last, First" in all three places; the four-owner one names the first two and "+2" on the popup row and tile (the list names three); nothing shows only the first owner
+
+### UAT-IMP-006 — An admin adds someone from the directory while assigning a role
+persona: siteadmin
+modules: people/directoryAdd.ts improvement/initiativeForm.ts improvement/binding.ts priorities/dialogs.ts priorities/prioritiesScreen.ts shared/ui/actionUi.ts shared/ui/actionLinkProvider.ts main.ts
+preconditions: signed in as a site admin of site A; a colleague in the directory who is NOT in the app; a person whose app access was revoked; an ordinary user on a second device
+steps:
+1. Create an initiative (or Edit details): press ＋ on the Owner role. Read the picker's title. Type the colleague's name, press "Search the directory…", and pick them.
+2. On the initiative's charter card press a bound multi-person role, search the directory the same way and tick the person.
+3. Edit a priority at a site-B org and set its owner from the directory with a second new person. Open Settings → Users and find both people.
+4. Raise an action: in "Search everyone…" type a third new name, search the directory and pick them.
+5. Search the directory for the revoked person and pick them.
+6. As the ordinary user, open the same pickers and type a name nobody on the roster matches.
+expected: step 1 the picker is titled by the role ("Choose the owner", "Choose the sponsor" …) and the person is added to the app and chosen in one step; step 2 the multi-person picker offers the same road and ticks them; step 3 both new people sit at site A — the admin's own site — whatever org was being edited, with the department only when the org was at site A; step 4 the action is assigned to the new person; step 5 the picker refuses: "had their access revoked. Restore them in Settings → Users first" — nobody is silently re-activated; step 6 an ordinary user is offered no directory search anywhere

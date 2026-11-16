@@ -3121,6 +3121,34 @@
        "expected": "the two-owner initiative reads \"Last, First & Last, First\" in all three places; the four-owner one names the first two and \"+2\" on the popup row and tile (the list names three); nothing shows only the first owner",
        "hash": "725adb8c",
        "changed": "2026-11-16"
+      },
+      {
+       "id": "UAT-IMP-006",
+       "title": "An admin adds someone from the directory while assigning a role",
+       "journey": "Journey 2 — Initiatives",
+       "persona": "siteadmin",
+       "modules": [
+        "people/directoryAdd.ts",
+        "improvement/initiativeForm.ts",
+        "improvement/binding.ts",
+        "priorities/dialogs.ts",
+        "priorities/prioritiesScreen.ts",
+        "shared/ui/actionUi.ts",
+        "shared/ui/actionLinkProvider.ts",
+        "main.ts"
+       ],
+       "preconditions": "signed in as a site admin of site A; a colleague in the directory who is NOT in the app; a person whose app access was revoked; an ordinary user on a second device",
+       "steps": [
+        "Create an initiative (or Edit details): press ＋ on the Owner role. Read the picker's title. Type the colleague's name, press \"Search the directory…\", and pick them.",
+        "On the initiative's charter card press a bound multi-person role, search the directory the same way and tick the person.",
+        "Edit a priority at a site-B org and set its owner from the directory with a second new person. Open Settings → Users and find both people.",
+        "Raise an action: in \"Search everyone…\" type a third new name, search the directory and pick them.",
+        "Search the directory for the revoked person and pick them.",
+        "As the ordinary user, open the same pickers and type a name nobody on the roster matches."
+       ],
+       "expected": "step 1 the picker is titled by the role (\"Choose the owner\", \"Choose the sponsor\" …) and the person is added to the app and chosen in one step; step 2 the multi-person picker offers the same road and ticks them; step 3 both new people sit at site A — the admin's own site — whatever org was being edited, with the department only when the org was at site A; step 4 the action is assigned to the new person; step 5 the picker refuses: \"had their access revoked. Restore them in Settings → Users first\" — nobody is silently re-activated; step 6 an ordinary user is offered no directory search anywhere",
+       "hash": "bd55e307",
+       "changed": "2026-11-16"
       }
      ]
     }
@@ -3338,6 +3366,56 @@
        ],
        "expected": "step 2 Priorities returns on the other site, the other year and Status All, with the popup reopened on the Actions tab; step 3 Improvement opens on the same site and year, and a site chosen there is the site Priorities shows next — its other filters (view, search, stage) are its own; step 4 Back reopens the popup on the Charter tab; step 5 a fresh start opens on your own site and the current year; step 6 a changed home site clears the memory",
        "hash": "2a252272",
+       "changed": "2026-11-16"
+      },
+      {
+       "id": "UAT-PRI-010",
+       "title": "Proposed priorities",
+       "journey": "Journey 2 — Who manages an org, pulling from above (issue round 2026-11-06)",
+       "persona": "orgowner",
+       "modules": [
+        "priorities/model.ts",
+        "priorities/prioritiesScreen.ts",
+        "priorities/lifecycle.ts",
+        "improvement/initiativeForm.ts"
+       ],
+       "preconditions": "an org with an owner; a direct report of that owner able to sign in; the org's site admin; an accepted priority with an initiative; a priority set at the org above",
+       "steps": [
+        "As the direct report, press ＋ Priority. Read the dialog's title, fill it in and save.",
+        "Read the matrix: the Priorities row, the Objectives row, the row beneath, and the chip in the bar. Open the row.",
+        "As the direct report, open the proposal: read the header and its buttons; edit its wording; create an initiative under it.",
+        "As the direct report, ＋ Priority → Pull from above: read the buttons, pick a priority and \"Propose as-is\". Read the cascades chip.",
+        "As the owner, read the same screen; open \"to accept\", accept the pull; open the proposal and press Accept.",
+        "As the direct report, propose another. As the owner, Decline it with a reason.",
+        "As the direct report, set Status to All, open the declined one, read its buttons, and press Propose again.",
+        "As the direct report, edit, complete and cascade an ACCEPTED priority."
+       ],
+       "expected": "step 1 the dialog reads \"Propose a priority\" and offers no cascade targets; step 2 the proposal is in NO column of the Priorities row and adds nothing to Objectives, tallies or the poster; a \"▸ Proposed\" row sits under Objectives with \"1 proposed\" in its column and the bar shows \"✎ 1 proposed\"; opening the row shows a dashed card with no tallies; step 3 the header reads \"Proposed — waiting for the org's owner or an admin\", with Edit but no Accept, Decline or Reopen; the initiative form lists the priority tagged \"(proposed)\"; step 4 the buttons read \"Propose as-is\" / \"Propose & customise…\" with a line saying a pull is proposed; the pull waits in \"cascades to accept\" marked \"Pulled … by <name> — proposed\" with its buttons greyed for the direct report; step 5 the owner (and the site admin) can accept both — the accepted priority joins its column and starts to count; step 6 it leaves the Proposed row; step 7 the declined one reads \"Declined — <reason>\" and offers \"Propose again\", never \"Reopen\", to someone who cannot approve; step 8 the direct report can do all three, as before",
+       "hash": "ae6d948b",
+       "changed": "2026-11-16"
+      },
+      {
+       "id": "UAT-PRI-011",
+       "title": "A priority's sub-pillar, year by year",
+       "journey": "Journey 2 — Who manages an org, pulling from above (issue round 2026-11-06)",
+       "persona": "orgowner",
+       "modules": [
+        "priorities/model.ts",
+        "priorities/prioritiesScreen.ts",
+        "priorities/dialogs.ts",
+        "prompts.ts",
+        "store/priorities.ts"
+       ],
+       "preconditions": "a priority that began last year under sub-pillar A; a sub-pillar B in force this year; a priority completed last year",
+       "steps": [
+        "On this year, edit the priority and change its sub-pillar to B. Read the question; choose \"From <this year>\".",
+        "Read this year's matrix, then switch the year to last year.",
+        "Edit it again on this year, choose a third sub-pillar and \"Every year\"; look at last year.",
+        "On last year, leave Status on Active and look for the priority that was completed last year.",
+        "On last year, press ＋ Priority and read the sub-pillar choices."
+       ],
+       "expected": "step 1 the dialog opens on the sub-pillar the priority sits under in the year in view and asks \"from <year>, or for every year?\" only because the priority began earlier; step 2 this year shows it under B and last year still shows it under A; step 3 \"Every year\" puts it under the third sub-pillar in both years; step 4 a past year is a record: the completed priority shows on the year it ran in under Active, marked completed, though it is hidden on this year; step 5 only the sub-pillars in force in the year in view are offered",
+       "hash": "773f399f",
        "changed": "2026-11-16"
       }
      ]
@@ -3636,6 +3714,31 @@
        ],
        "expected": "on every tab the first section's card sits directly under the pills — there is never an empty white card (a blank bordered row) above it, during the load or after it; the spinner shows on the tinted ground with no card around it; tabs that open with content before their first heading still show that content in a card of its own",
        "hash": "96c6584d",
+       "changed": "2026-11-16"
+      },
+      {
+       "id": "UAT-SET-014",
+       "title": "Strategic pillars, year by year",
+       "journey": "Journey 6 — A slow connection",
+       "persona": "superadmin",
+       "modules": [
+        "priorities/settingsTab.ts",
+        "priorities/model.ts",
+        "store/priorities.ts",
+        "prompts.ts"
+       ],
+       "preconditions": "super admin; pillars and sub-pillars that have been in force since last year, with priorities under some of them; next year on offer",
+       "steps": [
+        "Settings → Priorities → Strategic pillars. Read \"Year in view\" and the list.",
+        "Set the year to next year. Add a sub-pillar and name it. Save. Look at this year and next year on the Priorities tab.",
+        "With next year in view, rename a sub-pillar that priorities sit under and leave the field. Choose \"From <next year>\". Save.",
+        "On the Priorities tab compare this year and next year. Back in Settings, open \"Other years\".",
+        "With next year in view, change a sub-pillar's \"Under:\" to another pillar and choose \"From <next year>\". Save and compare the two years.",
+        "Press × on a sub-pillar that has priorities; read the question. Press × on one that has none.",
+        "Rename another one and choose \"Every year\"."
+       ],
+       "expected": "step 1 the list shows the pillars in force this year, with a note saying what adding and renaming do; step 2 the new sub-pillar is a column next year and NOT this year; step 3 the question names the old and new name; step 4 this year keeps the OLD name and next year shows the NEW one, each with the same priorities under it (they followed the rename — nothing was re-filed by hand); \"Other years\" lists the ended version with its span; step 5 the sub-pillar sits under the old pillar this year and the new one next year; step 6 a sub-pillar in use is ENDED after the year before the one in view (\"ended rather than deleted\"), never deleted; an unused one is removed as before; step 7 the name changes on every year",
+       "hash": "4f4fc978",
        "changed": "2026-11-16"
       }
      ]

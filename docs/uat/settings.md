@@ -151,3 +151,17 @@ steps:
 2. Open Value drivers, Priorities, Health checks and Documents in turn, waiting for each to finish loading.
 3. Switch quickly back and forth between Improvement and Priorities several times.
 expected: on every tab the first section's card sits directly under the pills — there is never an empty white card (a blank bordered row) above it, during the load or after it; the spinner shows on the tinted ground with no card around it; tabs that open with content before their first heading still show that content in a card of its own
+
+### UAT-SET-014 — Strategic pillars, year by year
+persona: superadmin
+modules: priorities/settingsTab.ts priorities/model.ts store/priorities.ts prompts.ts
+preconditions: super admin; pillars and sub-pillars that have been in force since last year, with priorities under some of them; next year on offer
+steps:
+1. Settings → Priorities → Strategic pillars. Read "Year in view" and the list.
+2. Set the year to next year. Add a sub-pillar and name it. Save. Look at this year and next year on the Priorities tab.
+3. With next year in view, rename a sub-pillar that priorities sit under and leave the field. Choose "From <next year>". Save.
+4. On the Priorities tab compare this year and next year. Back in Settings, open "Other years".
+5. With next year in view, change a sub-pillar's "Under:" to another pillar and choose "From <next year>". Save and compare the two years.
+6. Press × on a sub-pillar that has priorities; read the question. Press × on one that has none.
+7. Rename another one and choose "Every year".
+expected: step 1 the list shows the pillars in force this year, with a note saying what adding and renaming do; step 2 the new sub-pillar is a column next year and NOT this year; step 3 the question names the old and new name; step 4 this year keeps the OLD name and next year shows the NEW one, each with the same priorities under it (they followed the rename — nothing was re-filed by hand); "Other years" lists the ended version with its span; step 5 the sub-pillar sits under the old pillar this year and the new one next year; step 6 a sub-pillar in use is ENDED after the year before the one in view ("ended rather than deleted"), never deleted; an unused one is removed as before; step 7 the name changes on every year

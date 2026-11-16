@@ -13,6 +13,7 @@ import { listPeople } from "../store/people";
 import { listInitiatives, saveInitiative } from "../store/initiatives";
 import { track } from "../store/inflight";
 import { pickOwner, pickPeople } from "../priorities/dialogs";
+import { myDirectoryRoad } from "../people/directoryAdd";
 import { getTemplate, listTemplates } from "../store/templates";
 import { improvementSettingsJson } from "../store/config";
 import { activeRoles, fieldKindLabel, parseImprovementSettings, roleFillersAt } from "./templateModel";
@@ -220,11 +221,13 @@ export async function makeInitiativeBinding(boardId: string, onChanged: () => vo
         const multi = def ? def.multi : rk !== "owner";
         const cur = i.roles[rk] ?? [];
         if (multi) {
-          const res = await pickPeople(host, roster, cur, roleLabel(rk));
+          const directory = await myDirectoryRoad({ site: i.org.site, department: i.org.department }, roster);
+          const res = await pickPeople(host, roster, cur, roleLabel(rk), { directory });
           if (res === null) return;
           i.roles[rk] = res.map((p) => ({ whoId: p.whoId, who: p.who }));
         } else {
-          const res = await pickOwner(host, roster, cur[0] ?? null, roleLabel(rk));
+          const directory = await myDirectoryRoad({ site: i.org.site, department: i.org.department }, roster);
+          const res = await pickOwner(host, roster, cur[0] ?? null, roleLabel(rk), { directory });
           if (res === null) return;
           i.roles[rk] = res === "clear" ? [] : [{ whoId: res.whoId, who: res.who }];
         }

@@ -3,7 +3,7 @@
 // from the typed Dataverse store inside Power Apps, demo data on a bare
 // dev server.
 
-import { setActionLinkProvider, setActionViewerProvider, setEndorsementLookup, setRescheduleProvider } from "../../shared/ui/actionLinkProvider";
+import { setActionDirectoryProvider, setActionLinkProvider, setActionViewerProvider, setEndorsementLookup, setRescheduleProvider } from "../../shared/ui/actionLinkProvider";
 import { el, clear } from "../../shared/ui/dom";
 import { boardOrigin, REOPEN_PRIORITY_KEY } from "./improvement/boardOrigin";
 import { getLeaveGuard, setLeaveGuard } from "./navGuard";
@@ -16,6 +16,11 @@ setActionLinkProvider(() => import("./actions/linkTargets").then((m) => m.loadLi
 // due-date moves: which actions ask for a reason, and the organisation's
 // reasons — read on first use, like the link list
 setRescheduleProvider(() => import("./actions/reschedule").then((m) => m.loadRescheduleSettings()));
+// adding someone from the directory while assigning an action: offered
+// to admins only (people/directoryAdd.ts decides), loaded on first use
+setActionDirectoryProvider(() =>
+  import("./people/directoryAdd").then(async (m) => (await m.myDirectoryRoad({ site: "", department: "" }, [])) ?? null)
+);
 // endorsement: does closing this action wait for its endorser, and may
 // the viewer endorse? Answered from a cache the module keeps warm; the
 // module loads on first use (the shell carries the registry only)

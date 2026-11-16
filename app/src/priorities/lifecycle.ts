@@ -28,6 +28,9 @@ import { promptConfirm } from "../prompts";
 import {
   CLOSE_REASONS,
   CloseReason,
+  DECLINED_PREFIX,
+  isDeclined,
+  isPulledProposal,
   lineageFor,
   OrgRef,
   orgLevel,
@@ -62,6 +65,10 @@ export interface LifecycleCtx {
   palette: Record<string, string>;
   actor: () => { whoId: string; who: string };
   canManage: (org: OrgRef) => boolean;
+  /** May the viewer ACCEPT what lands on this org's board — its owner or
+   *  an admin, not the owner's direct reports (model `canApproveAt`,
+   *  issue 13, 2026-11-16)? */
+  canApprove: (org: OrgRef) => boolean;
   /** May the viewer hang an initiative under this priority? The one rule
    *  (`canLinkInitiative`, issue round 2026-11-06): a priority at an org
    *  they manage, or adopted at one. */
@@ -525,8 +532,9 @@ export function renderReviewList(ctx: LifecycleCtx, org: OrgRef, list: HTMLEleme
       const pillar = data.pillars.find((x) => x.id === p.pillarId);
       const parentL1 = pillar ? data.pillars.find((x) => x.id === pillar.parentId) : undefined;
       const lin = lineageFor(p, data.priorities, data.assignments);
+      const pulled = isPulledProposal(a);
       const meta = [
-        `Cascaded from ${orgName(p.org)}${p.ownerName !== "" ? ` · ${p.ownerName}` : ""}`,
+        pulled ? `Pulled from ${orgName(p.org)} by ${a.decidedByName !== "" ? a.decidedByName : "a team member"} — proposed` : `Cascaded from ${orgName(p.org)}${p.ownerName !== "" ? ` · ${p.ownerName}` : ""}`,
         pillar ? `${parentL1 ? parentL1.name + " › " : ""}${pillar.name}` : "",
         lin.from ? `↑ ${orgName(lin.from)}` : "",
         p.period,
@@ -535,7 +543,9 @@ export function renderReviewList(ctx: LifecycleCtx, org: OrgRef, list: HTMLEleme
       main.appendChild(el("div", "app-cp-review-meta", meta.join(" · ")));
       row.appendChild(main);
       const acts = el("div", "app-cp-review-acts");
-      const can = ctx.canManage(org);
+      // a cascade sent from above: any manager decides, as before; a pull
+      // proposed by someone who cannot approve: the owner or an admin
+      const can = pulled ? ctx.canApprove(org) : ctx.canManage(org);
       const accept = btn("Accept", "app-btn app-btn-primary");
       const customise = btn("Accept & customise");
       const hold = btn(a.status === "onhold" ? "Update hold" : "Hold");
@@ -593,7 +603,10 @@ export async function customiseInto(
   org: OrgRef,
   p: Priority,
   a: PriorityAssignment | null,
-  title: string
+  title: string,
+  /** The person may add but not approve: the customised copy waits as a
+   *  proposal (a pull by an owner's direct report — issue 13). */
+  asProposal = false
 ): Promise<boolean> {
   const data = ctx.data();
   const draft = newPriority(org, p.period);
@@ -612,15 +625,17 @@ export async function customiseInto(
     pillars: data.pillars,
     periods: ctx.periodsOnOffer(),
     roster: ctx.roster,
-    cascadeTargets: childOrgs(ctx.tree, org).map((o) => ({ org: o, ownerName: ctx.ownerNameFor(o), kind: "child" as const })),
+    // a proposal is not cascaded: that waits for its acceptance
+    cascadeTargets: asProposal ? [] : childOrgs(ctx.tree, org).map((o) => ({ org: o, ownerName: ctx.ownerNameFor(o), kind: "child" as const })),
     alreadyCascaded: [],
     primaryInitiativeLabel: "",
     ownerPicker: ctx.ownerPickerFor(org),
   });
   if (!r) return false;
+  if (asProposal) r.priority.status = "proposed";
   r.priority.rowId = await savePriority(r.priority, data);
   data.priorities.push(r.priority);
-  await appendEvent(r.priority, "created", { statement: r.priority.statement, customisedFrom: p.id }, ctx.actor());
+  await appendEvent(r.priority, asProposal ? "proposed" : "created", { statement: r.priority.statement, customisedFrom: p.id }, ctx.actor());
   await recordAccepted(ctx, org, p, a, r.priority.id);
   await appendEvent(p, "customised", { org: orgName(org), child: r.priority.id, statement: r.priority.statement }, ctx.actor());
   for (const o of r.cascadeTo) {
@@ -661,6 +676,9 @@ export function pullFromAbove(ctx: LifecycleCtx, org: OrgRef, opts: { onNew?: ()
   const data = ctx.data();
   const cands = pullCandidates(org, data.priorities, data.assignments);
   const customise = ctx.canCustomise(org);
+  // the org's owner or an admin adopts; anyone else who may add PROPOSES
+  // the pull (issue 13, 2026-11-16)
+  const approves = ctx.canApprove(org);
   const m = modal(
     ctx.host,
     opts.onNew ? "Add priority" : `Pull a priority to ${orgName(org)}`,
@@ -685,8 +703,9 @@ export function pullFromAbove(ctx: LifecycleCtx, org: OrgRef, opts: { onNew?: ()
   const list = el("div", "app-cp-cascade");
   m.body.append(search, list);
   // Adopt as-is is the primary (Ben, 2026-11-06)
-  const adopt = btn("Adopt as-is", "app-btn app-btn-primary");
-  const custom = btn("Adopt & customise…", "app-btn");
+  const adopt = btn(approves ? "Adopt as-is" : "Propose as-is", "app-btn app-btn-primary");
+  const custom = btn(approves ? "Adopt & customise…" : "Propose & customise…", "app-btn");
+  if (!approves) m.body.appendChild(el("div", "app-cp-muted", `A pull you make is PROPOSED: it waits for ${orgName(org)}'s owner or an admin to accept.`));
   const draw = () => {
     clear(list);
     const q = search.value.trim().toLowerCase();
@@ -722,8 +741,20 @@ export function pullFromAbove(ctx: LifecycleCtx, org: OrgRef, opts: { onNew?: ()
     if (!p) return;
     m.close();
     void (async () => {
-      await recordAccepted(ctx, org, p, null, "");
-      await appendEvent(p, "pulled", { org: orgName(org) }, ctx.actor());
+      if (approves) {
+        await recordAccepted(ctx, org, p, null, "");
+        await appendEvent(p, "pulled", { org: orgName(org) }, ctx.actor());
+      } else {
+        // waits in the org's "to accept" queue, naming who pulled it — the
+        // owner or an admin decides (isPulledProposal)
+        const by = ctx.actor();
+        const prior = data.assignments.find((x) => x.priorityId === p.id && orgKey(x.org) === orgKey(org)) ?? null;
+        await saveAssignment(
+          { id: prior?.id ?? "", priorityId: p.id, org: { ...org }, status: "proposed", reason: "", decidedById: by.whoId, decidedByName: by.who, decidedAt: new Date().toISOString(), childPriorityId: "" },
+          data
+        );
+        await appendEvent(p, "proposed", { org: orgName(org), pulled: "yes" }, by);
+      }
       await ctx.changed();
     })();
   });
@@ -731,7 +762,7 @@ export function pullFromAbove(ctx: LifecycleCtx, org: OrgRef, opts: { onNew?: ()
     const p = chosen;
     if (!p) return;
     m.close();
-    void customiseInto(ctx, org, p, null, `Adopt & customise — from ${orgName(p.org)}`);
+    void customiseInto(ctx, org, p, null, `Adopt & customise — from ${orgName(p.org)}`, !approves);
   });
   if (customise) m.footer.append(cancel, custom, adopt);
   else m.footer.append(cancel, adopt);
@@ -814,6 +845,11 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
     }
     headText.appendChild(chip);
     headText.appendChild(el("h2", "app-cp-ov-statement", live.statement));
+    if (live.status === "proposed") {
+      headText.appendChild(el("div", "app-cp-ov-proposedpill", ctx.canApprove(live.org) ? "Proposed — yours to accept or decline" : "Proposed — waiting for the org's owner or an admin"));
+    } else if (isDeclined(live)) {
+      headText.appendChild(el("div", "app-cp-ov-proposedpill app-cp-ov-declinedpill", live.statusReason));
+    }
     headText.appendChild(
       el("div", "app-cp-ov-meta", [orgName(live.org), live.period, live.ownerName !== "" ? `owner ${live.ownerName}` : "no owner", primary !== null ? `★ ${primary.title}${primary.completed ? " (completed)" : ""}` : "", live.status !== "active" ? live.status : ""].filter((s) => s !== "").join(" · "))
     );
@@ -826,7 +862,8 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
     add.title = mayLink
       ? "Create an initiative linked to this priority"
       : `Initiatives link to priorities at an org you manage — pull this priority to your org first (＋ Priority → Pull from above)`;
-    add.disabled = live.status !== "active" || !mayLink;
+    // initiatives may hang under a proposal too (issue 13)
+    add.disabled = (live.status !== "active" && live.status !== "proposed") || !mayLink;
     add.addEventListener("click", () => {
       // hand the priority to the Improvement tab's create flow (design 1.3:
       // pre-filled and locked to the source priority)
@@ -887,7 +924,67 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
       });
       headBtns.appendChild(more);
     }
-    if (can && live.status !== "active") {
+    if (live.status === "proposed") {
+      // a proposal (issue 13, 2026-11-16): the org's owner or an admin
+      // accepts or declines; whoever may add can still edit the wording
+      const approves = ctx.canApprove(live.org);
+      if (can) {
+        const edit = btn("Edit…", "app-btn");
+        edit.addEventListener("click", () => {
+          close();
+          onEdit(live);
+        });
+        headBtns.appendChild(edit);
+      }
+      if (approves) {
+        const decline = btn("Decline…", "app-btn");
+        decline.addEventListener("click", () => {
+          void (async () => {
+            const reason = await reasonDialog(ctx.host, "Decline this proposal", `“${live.statement.slice(0, 80)}” leaves the Proposed row. It stays on record as declined and can be proposed again.`, "Why it is not being taken on");
+            if (reason === null) return;
+            live.status = "archived";
+            live.statusReason = `${DECLINED_PREFIX}${reason}`;
+            live.toPeriod = ctx.currentPeriod;
+            await savePriority(live, ctx.data());
+            await appendEvent(live, "declined", { reason }, ctx.actor());
+            await ctx.changed();
+            events = null;
+            if (scrim.isConnected) paint();
+          })();
+        });
+        const accept = btn("Accept", "app-btn app-btn-primary");
+        accept.title = "Take it on: it joins the board's priorities and counts from now";
+        accept.addEventListener("click", () => {
+          void (async () => {
+            live.status = "active";
+            live.statusReason = "";
+            await savePriority(live, ctx.data());
+            await appendEvent(live, "approved", {}, ctx.actor());
+            await ctx.changed();
+            events = null;
+            if (scrim.isConnected) paint();
+          })();
+        });
+        headBtns.append(decline, accept);
+      }
+    } else if (can && isDeclined(live) && !ctx.canApprove(live.org)) {
+      // a declined proposal is not "reopened" into an accepted priority
+      // by someone who cannot approve — they may propose it again
+      const again = btn("Propose again", "app-btn");
+      again.addEventListener("click", () => {
+        void (async () => {
+          live.status = "proposed";
+          live.statusReason = "";
+          live.toPeriod = "";
+          await savePriority(live, ctx.data());
+          await appendEvent(live, "proposed", { again: "yes" }, ctx.actor());
+          await ctx.changed();
+          events = null;
+          if (scrim.isConnected) paint();
+        })();
+      });
+      headBtns.appendChild(again);
+    } else if (can && live.status !== "active") {
       const reopen = btn("Reopen", "app-btn");
       reopen.title = "Set back to active";
       reopen.addEventListener("click", () => {
@@ -1515,6 +1612,12 @@ function eventWords(e: PriorityEvent): string {
       return `${str("org")} pulled it and adopted it as-is`;
     case "dropped":
       return `${str("org")} dropped it — “${str("reason")}”`;
+    case "proposed":
+      return str("pulled") !== "" ? `proposed for ${str("org")} (a pull, waiting to be accepted)` : str("again") !== "" ? "proposed again" : str("customisedFrom") !== "" ? "proposed as a customised copy" : "proposed";
+    case "approved":
+      return "accepted";
+    case "declined":
+      return `declined — “${str("reason")}”`;
     default:
       return "";
   }

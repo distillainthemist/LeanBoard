@@ -3568,6 +3568,17 @@ textarea.app-cp-statement { font-size: 14px; font-weight: 500; }
 .app-cp-people .app-cp-menu-h { padding: 8px 10px 2px; }
 /* lifecycle (P2): review list, reason chips, detail overlay */
 .app-cp-cascadechip-quiet { background: #f4f1ea; border-color: #d9d3c8; color: #6d675c; }
+/* proposed priorities (issue 13): a chip in the bar, a collapsed row
+   under the objectives, dashed cards that carry no tallies */
+.app-cp-proposedchip { background: #f4f1ea; border-color: #d9d3c8; border-style: dashed; color: #4a443a; }
+button.app-cp-proposedlabel { font: inherit; text-align: left; background: none; border: none; cursor: pointer; color: inherit; align-self: start; }
+button.app-cp-proposedlabel:hover { color: var(--app-accent); }
+.app-cp-proposedrow { border-top: 1px dashed #d9d3c8; }
+button.app-cp-proposedcount { font: inherit; font-size: 12px; padding: 3px 10px; border: 1px dashed #b9b2a4; border-radius: 999px; background: #faf9f7; color: #4a443a; cursor: pointer; }
+button.app-cp-proposedcount:hover { border-color: var(--app-accent); color: var(--app-accent); }
+button.app-cp-card-proposed { font: inherit; text-align: left; width: 100%; cursor: pointer; border-style: dashed; border-left-style: dashed; border-color: #b9b2a4; background: #faf9f7; color: inherit; }
+button.app-cp-card-proposed:hover { border-color: var(--app-accent); }
+.app-cp-proposedmeta { font-size: 11.5px; color: #6d675c; margin-top: 4px; }
 .app-cp-flag-red { color: #b3261e; }
 .app-cp-flag-amber { color: #7a4d00; }
 .app-cp-q { font-weight: 600; font-size: 13.5px; }
@@ -3626,6 +3637,13 @@ textarea.app-cp-statement { font-size: 14px; font-weight: 500; }
 .app-cp-ov-tab { border: none; background: none; font: inherit; font-size: 13px; font-weight: 600; color: #6d675c; padding: 8px 12px; cursor: pointer; border-bottom: 2px solid transparent; min-height: 40px; }
 .app-cp-ov-tab-on { color: #26241f; border-bottom-color: #26241f; }
 .app-cp-ov-body { padding: 16px 22px; overflow: auto; flex: 1; font-size: 13.5px; }
+/* Settings → Priorities → Strategic pillars: the year in view */
+.app-pr-lens { align-items: center; gap: 10px; flex-wrap: wrap; margin: 6px 0 10px; }
+.app-pr-lensnote { margin: 0; flex: 1 1 260px; }
+.app-pr-under { max-width: 200px; }
+/* a proposal's standing, under the statement */
+.app-cp-ov-proposedpill { display: inline-block; margin-top: 6px; font-size: 12px; padding: 3px 10px; border: 1px dashed #b9b2a4; border-radius: 999px; background: #faf9f7; color: #4a443a; }
+.app-cp-ov-declinedpill { border-style: solid; }
 /* the primary initiative's notices (stale, or completed and not listed) */
 .app-cp-ov-primarynote { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; padding: 8px 12px; margin-bottom: 10px; border: 1px solid #f0c36d; border-radius: 8px; background: #fff7e0; color: #5c3b00; }
 /* objectives picked from the linked initiatives' metrics (no primary) */

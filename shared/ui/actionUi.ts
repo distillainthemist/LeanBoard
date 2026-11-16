@@ -9,7 +9,7 @@
 
 import { ActionComment, ActionPdca, ACTION_PDCA, canEditComment, cleanSupporters, COMMENT_EDIT_HOURS, editComment, isOverdue, LtkAction, newAction, newComment, Supporter, supportLabel, PDCA_LABELS, PDCA_QUARTERS, pdcaOf } from "../schema/actions";
 import { ActionLink, applyLink, boardOnlyTarget, currentLink, isCardKeyed, linkChanges, linkLabel, LinkTarget, searchLinkTargets } from "../schema/actionLinks";
-import { ACTION_MOVED_EVENT, ActionLinkContext, actionLinkProvider, actionViewer, endorsementFor } from "./actionLinkProvider";
+import { ACTION_MOVED_EVENT, actionDirectory, ActionDirectoryRoad, ActionLinkContext, actionLinkProvider, actionViewer, endorsementFor } from "./actionLinkProvider";
 import { dueMove, dueMoves, isLaterMove, reasonChoices, recordDueMove, slipCount } from "../schema/reschedule";
 import { currentRescheduleSettings, rescheduleFields } from "./reschedulePrompt";
 import { applyEndorsementRule, awaitingEndorsement, endorse, sendBack } from "../schema/actionEndorsement";
@@ -131,8 +131,78 @@ export function buildActionForm(
         results.appendChild(hit);
       }
     };
-    query.addEventListener("input", renderResults);
-    searchWrap.append(query, results);
+    // the directory road (issue 12, 2026-11-16): where the host offers it
+    // (admins), a name nobody on the roster matches can be looked up in
+    // the directory and the person added to the app, then assigned
+    let road: ActionDirectoryRoad | null = null;
+    let dirHits: { objectId: string; displayName: string; mail: string }[] | null = null;
+    const dirBox = el("div", "ltk-who-results ltk-who-dir");
+    const renderDir = () => {
+      while (dirBox.firstChild) dirBox.removeChild(dirBox.firstChild);
+      const q = query.value.trim();
+      if (road === null || q.length < 2) return;
+      if (dirHits === null) {
+        const find = el("button", "ltk-check ltk-who-hit ltk-who-dirfind", `Search the directory for “${q}”`) as HTMLButtonElement;
+        find.type = "button";
+        find.addEventListener("click", () => {
+          find.disabled = true;
+          find.textContent = "Searching the directory…";
+          void road!.search(q).then(
+            (found) => {
+              if (query.value.trim() !== q) return;
+              dirHits = found;
+              renderDir();
+            },
+            () => {
+              find.textContent = "The directory search failed";
+            }
+          );
+        });
+        dirBox.appendChild(find);
+        return;
+      }
+      const known = new Set([...checks.map((c) => c.person.whoId), ...secondary.map((p) => p.whoId)]);
+      const fresh = dirHits.filter((h) => !known.has(h.objectId)).slice(0, 8);
+      if (fresh.length === 0) dirBox.appendChild(el("div", "ltk-cmt-none", "No one else in the directory matches."));
+      for (const h of fresh) {
+        const hit = el("button", "ltk-check ltk-who-hit", `${h.displayName} · ＋ add to the app and assign`) as HTMLButtonElement;
+        hit.type = "button";
+        hit.title = h.mail;
+        hit.addEventListener("click", () => {
+          hit.disabled = true;
+          hit.textContent = `Adding ${h.displayName}…`;
+          void road!.add(h).then(
+            (p) => {
+              for (const other of checks) {
+                if (other.box.checked) {
+                  other.box.checked = false;
+                  other.wrap.classList.remove("ltk-check-on");
+                }
+              }
+              addChip({ whoId: p.whoId, who: p.who, initials: "" }, true);
+              query.value = "";
+              dirHits = null;
+              renderResults();
+              renderDir();
+            },
+            (err) => {
+              hit.textContent = err instanceof Error ? err.message : "Could not add them";
+            }
+          );
+        });
+        dirBox.appendChild(hit);
+      }
+    };
+    query.addEventListener("input", () => {
+      dirHits = null;
+      renderResults();
+      renderDir();
+    });
+    void actionDirectory().then((r) => {
+      road = r;
+      renderDir();
+    });
+    searchWrap.append(query, results, dirBox);
   }
 
   // support (issue 7, 2026-11-16): people who help without owing a part.

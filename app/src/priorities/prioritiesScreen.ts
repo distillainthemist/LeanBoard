@@ -25,6 +25,7 @@ import { el, clear } from "../../../shared/ui/dom";
 import { paletteMap } from "../../../shared/palette";
 import { todayIso } from "../../../shared/schema/id";
 import { showLoading } from "../loading";
+import { promptChoice } from "../prompts";
 import { currentViewer } from "../runtime";
 import {
   allSitePrioritySettings,
@@ -36,7 +37,8 @@ import {
   saveOrgVision,
   siteCompanies,
 } from "../store/config";
-import { listPeople, managerOf, searchEntra, upsertPerson } from "../store/people";
+import { listPeople, managerOf } from "../store/people";
+import { directoryRoad } from "../people/directoryAdd";
 import { effectivePerson } from "../viewAs";
 import type { RosterPerson } from "../store/mappers";
 import {
@@ -71,11 +73,19 @@ import { REOPEN_PRIORITY_KEY } from "../improvement/boardOrigin";
 import { PDCA_TOKENS } from "../improvement/templateModel";
 import { buildMetricState, loadMetricLasts } from "../improvement/metricValues";
 import {
+  canApproveAt,
   canCustomiseAt,
+  comparePeriods,
+  liveThen,
+  moveFrom,
+  pillarIdIn,
+  pillarVersions,
+  placedIn,
+  prevPeriod,
   canLinkInitiative,
+  countedDescendants,
   canManageOrg,
   densityFor,
-  descendantPriorities,
   initiativeRag,
   groupByColumn,
   livePrimaryId,
@@ -108,6 +118,7 @@ import {
   Rag,
   ragPaletteKey,
   healthChipStale,
+  isDeclined,
   rollup,
   RollupRule,
   sameOrg,
@@ -232,7 +243,7 @@ function makeRagsFor(
 ): (p: Priority) => Rag[] {
   const today = todayIso();
   return (p) => {
-    const ids = [p, ...descendantPriorities(p, allPriorities())].map((x) => x.id);
+    const ids = [p, ...countedDescendants(p, allPriorities())].map((x) => x.id);
     const seen = new Set<string>();
     const out: Rag[] = [];
     for (const id of ids) {
@@ -247,6 +258,9 @@ function makeRagsFor(
     return out;
   };
 }
+
+/** The Proposed row: collapsed until the person opens it, for the session. */
+let proposedOpen = false;
 
 export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts = {}): () => void {
   const card = opts.card ?? null;
@@ -410,6 +424,10 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
     };
 
     const canManage = () => canManageOrg(viewer, state.org, owners);
+    /** May the viewer ACCEPT what lands on this org's board (issue 13)?
+     *  Its owner or an admin — not the owner's direct reports, whose own
+     *  additions and pulls wait as proposals. */
+    const canApprove = (org: OrgRef) => canApproveAt(viewer, org, owners);
     const reviewQueueLen = () => data.assignments.filter((a) => orgKey(a.org) === orgKey(state.org) && a.status === "onhold").length;
     // the year picker is a LENS over spans (2026-10-02): every period from
     // the earliest start to the later of next period and the latest end
@@ -421,6 +439,22 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       );
     /** The pillars in force in the viewed period — chips and columns. */
     const livePillars = () => pillarsLiveIn(settings.period, data.pillars, state.period);
+    /** The sub-pillar a priority sits under in the YEAR BEING VIEWED
+     *  (issue 4, 2026-11-16): its own earlier homes, and the version of
+     *  the pillar in force that year. Every column grouping asks this. */
+    const colOf = (p: Priority): string => pillarIdIn(settings.period, p, state.period, data.pillars);
+    /** A pillar filter or a card's rotation focus names a pillar ROW; in
+     *  a year where that row's successor (or predecessor) is the one in
+     *  force, the filter follows it. */
+    const liveVersion = (id: string): string => {
+      const live = livePillars();
+      if (live.some((x) => x.id === id)) return id;
+      return pillarVersions(id, data.pillars).find((v) => live.some((x) => x.id === v.id))?.id ?? id;
+    };
+    const focusNow = (): string | string[] | null => (state.focus ? state.focus.map(liveVersion) : state.l1 !== null ? liveVersion(state.l1) : null);
+    /** A year before this one is a RECORD: it shows what was live then,
+     *  whatever has completed or been archived since. */
+    const viewingPast = (): boolean => state.period !== "" && comparePeriods(settings.period, state.period, currentPeriod) < 0;
 
     /** The org's first owner from organisation settings (an area is
      *  governed by its department) — the default owner of a new
@@ -438,27 +472,12 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
      *  from the org) and chosen in one step. */
     // the directory road (adding a person to the app) is for admins
     // only — the Users register's rule (Ben, 2026-10-02)
-    const isAdmin = viewer.role === "superadmin" || viewer.role === "siteadmin";
     const ownerPickerFor = (o: OrgRef) => ({
       suggested: [ownerFor(o), ...childOrgs(tree, o).map(ownerFor)].filter((p): p is { whoId: string; who: string } => p !== null),
-      directory: !isAdmin ? undefined : {
-        search: searchEntra,
-        add: async (hit: { objectId: string; displayName: string; mail: string }) => {
-          const person = {
-            whoId: hit.objectId,
-            who: hit.displayName,
-            email: hit.mail,
-            site: o.site,
-            department: o.department,
-            area: "",
-            role: "user",
-            active: true,
-          };
-          await upsertPerson(person);
-          if (!roster.some((p) => p.whoId === person.whoId)) roster.push(person);
-          return { whoId: person.whoId, who: person.who };
-        },
-      },
+      // the ONE directory road (people/directoryAdd.ts, issue 12): admins
+      // only, a site admin's add pinned to their own site, nobody on the
+      // roster overwritten, a revoked person not quietly restored
+      directory: directoryRoad({ role: viewer.role, site: viewer.site ?? "" }, { site: o.site, department: o.department }, roster),
     });
     const actorRef = () => ({ whoId: viewer.whoId, who: me?.who ?? who?.name ?? "" });
     // ---- a priority's primary initiative and its objectives, as they
@@ -467,7 +486,7 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
     const primaryIdOf = (p: Priority): string => livePrimaryId(p, initiativeList);
     const valuesOf = (initiativeId: string) => metricState.get(initiativeId)?.values ?? [];
     const underPriority = (p: Priority, initiativeId: string): boolean =>
-      [p, ...descendantPriorities(p, data.priorities)].some((pr) => (byPriority.get(pr.id) ?? []).some((i) => i.id === initiativeId));
+      [p, ...countedDescendants(p, data.priorities)].some((pr) => (byPriority.get(pr.id) ?? []).some((i) => i.id === initiativeId));
     const objectivesOf = (p: Priority) => objectiveValues(p, primaryIdOf(p), valuesOf, (id) => underPriority(p, id));
     const ctx: LifecycleCtx = {
       host: wrap,
@@ -479,6 +498,7 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       palette,
       actor: actorRef,
       canManage: (o) => canManageOrg(viewer, o, owners),
+      canApprove,
       canLink: (p) => canLinkInitiative(viewer, p, owners, data.assignments),
       canCustomise: (o) => canCustomiseAt(o, parseSiteCascadeSettings(siteCascade[o.site] ?? "").customiseLevel),
       ownerNameFor,
@@ -496,7 +516,7 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       metricChoicesFor: (p) => {
         const out: ReturnType<LifecycleCtx["metricChoicesFor"]> = [];
         const seen = new Set<string>();
-        for (const pr of [p, ...descendantPriorities(p, data.priorities)]) {
+        for (const pr of [p, ...countedDescendants(p, data.priorities)]) {
           for (const i of byPriority.get(pr.id) ?? []) {
             if (seen.has(i.id) || i.confidential) continue;
             seen.add(i.id);
@@ -514,7 +534,7 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
         return out;
       },
       ganttFor: (p) => {
-        const ids = new Set([p.id, ...descendantPriorities(p, data.priorities).map((x) => x.id)]);
+        const ids = new Set([p.id, ...countedDescendants(p, data.priorities).map((x) => x.id)]);
         const seen = new Set<string>();
         const inits: Initiative[] = [];
         for (const id of ids) {
@@ -537,7 +557,7 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       },
       initiativesFor: (p) => {
         const today = todayIso();
-        const ids = [p, ...descendantPriorities(p, data.priorities)];
+        const ids = [p, ...countedDescendants(p, data.priorities)];
         const seen = new Set<string>();
         const out: ReturnType<LifecycleCtx["initiativesFor"]> = [];
         for (const pr of ids) {
@@ -630,7 +650,7 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       // through, ＋ Priority, ⋮ for everything else; then the vision band
       // directly over the pillars
       wrap.append(renderHeader(), renderVision());
-      const columns = objectiveColumns(livePillars(), state.focus ?? state.l1);
+      const columns = objectiveColumns(livePillars(), focusNow());
       if (state.groupByPillar && state.l1 === null && densityFor(columns.length) === "scroll") {
         for (const l1 of strategyChips(livePillars())) {
           const cols = objectiveColumns(livePillars(), l1.id);
@@ -643,7 +663,7 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       wrap.appendChild(renderOther());
       if (card?.onSnapshot) {
         const visible = visibleFor(state.org);
-        const { byColumn } = groupByColumn(columns, visible);
+        const { byColumn } = groupByColumn(columns, visible, colOf);
         card.onSnapshot(
           prioritiesSnapshotSvg(
             `${orgName(state.org)} · ${state.period}`,
@@ -770,6 +790,20 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
           bar.appendChild(toggle);
         }
         return bar;
+      }
+      // proposals waiting on this org's owner (issue 13): worded apart
+      // from "cascades to accept", which is the assignment queue
+      const proposedCount = proposedFor(state.org).length;
+      if (proposedCount > 0) {
+        const chip = el("button", "app-cp-cascadechip app-cp-proposedchip", `✎ ${proposedCount} proposed`) as HTMLButtonElement;
+        chip.type = "button";
+        chip.title = canApprove(state.org) ? "Priorities proposed for this org — open one to accept or decline it" : "Priorities proposed for this org, waiting for its owner or an admin";
+        chip.addEventListener("click", () => {
+          proposedOpen = true;
+          render();
+          wrap.querySelector(".app-cp-proposedrow")?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        });
+        bar.appendChild(chip);
       }
       // cascade chip — the one cascade surface
       const pending = pendingCascades(state.org, data.assignments).length;
@@ -937,9 +971,9 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       acts.appendChild(more);
       head.appendChild(acts);
       wrap.append(head, renderVision());
-      const columns = objectiveColumns(livePillars(), state.focus ?? state.l1);
+      const columns = objectiveColumns(livePillars(), focusNow());
       const visible = visibleFor(state.org);
-      const { byColumn } = groupByColumn(columns, visible);
+      const { byColumn } = groupByColumn(columns, visible, colOf);
       const adoptedIds = new Set(prioritiesForOrg(state.org, data.priorities, data.assignments).adopted.map((p) => p.id));
       closeWalk?.();
       closeWalk = mountWalk({
@@ -977,9 +1011,9 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       render();
     };
     const renderWalk = () => {
-      const columns = objectiveColumns(livePillars(), state.focus ?? state.l1);
+      const columns = objectiveColumns(livePillars(), focusNow());
       const visible = visibleFor(state.org);
-      const { byColumn } = groupByColumn(columns, visible);
+      const { byColumn } = groupByColumn(columns, visible, colOf);
       const adoptedIds = new Set(prioritiesForOrg(state.org, data.priorities, data.assignments).adopted.map((p) => p.id));
       closeWalk?.();
       closeWalk = mountWalk({
@@ -1102,9 +1136,9 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
         import("./pdfPoster"),
         import("../issues/pdf"),
       ]);
-      const columns = objectiveColumns(livePillars(), state.focus ?? state.l1);
+      const columns = objectiveColumns(livePillars(), focusNow());
       const visible = visibleFor(state.org);
-      const { byColumn } = groupByColumn(columns, visible);
+      const { byColumn } = groupByColumn(columns, visible, colOf);
       const ragHex = (r: Rag): string => palette[ragPaletteKey(r)] ?? "";
       const posterColumns = columns.map((col) => {
         const l1 = data.pillars.find((x) => x.id === col.parentId);
@@ -1309,18 +1343,27 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       const { own, adopted } = prioritiesForOrg(org, data.priorities, data.assignments);
       return [...own, ...adopted].filter(
         (p) =>
+          // a proposal is not on the board yet, under ANY status filter —
+          // so it is out of the rows, the Objectives, the walk, the poster
+          // and the tile, which all read this list (issue 13, 2026-11-16)
+          p.status !== "proposed" &&
           priorityLiveIn(settings.period, p, state.period) &&
           (state.status === "all" ||
-            (state.status === "active" ? p.status === "active" : p.status === "completed"))
+            // a past year's "active" = live in that year (liveThen): one
+            // completed since still belongs on the year it ran in
+            (state.status === "active" ? p.status === "active" || (viewingPast() && liveThen(settings.period, p, state.period)) : p.status === "completed"))
       );
     };
+    /** The org's own proposals, live in the viewed year. */
+    const proposedFor = (org: OrgRef): Priority[] =>
+      prioritiesForOrg(org, data.priorities, data.assignments).own.filter((p) => p.status === "proposed" && priorityLiveIn(settings.period, p, state.period));
 
     const renderMatrix = (columns: Pillar[], onlyL1: Pillar | null): HTMLElement => {
       const density = densityFor(columns.length);
       const phone = window.matchMedia("(max-width: 719px)").matches;
       const box = el("div", `app-cp-matrix app-cp-${density}` + (phone ? " app-cp-phone" : ""));
       const visible = visibleFor(state.org);
-      const { byColumn, unplaced } = groupByColumn(columns, visible);
+      const { byColumn, unplaced } = groupByColumn(columns, visible, colOf);
       const adoptedIds = new Set(prioritiesForOrg(state.org, data.priorities, data.assignments).adopted.map((p) => p.id));
 
       const cardFor = (p: Priority, col: Pillar) =>
@@ -1454,6 +1497,42 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       if (columns.length === 0) grid.appendChild(el("div", "app-cp-cell"));
       }
 
+      // row 5: Proposed (issue 13, 2026-11-16) — under the objectives, in
+      // their columns; absent with none, collapsed to a count per column
+      // until opened. Dashed, no tallies: a proposal counts for nothing yet
+      const proposals = proposedFor(state.org);
+      if (proposals.length > 0) {
+        const byCol = groupByColumn(columns, proposals, colOf).byColumn;
+        const label = el("button", "app-cp-label app-cp-proposedlabel", `${proposedOpen ? "▾" : "▸"} Proposed`) as HTMLButtonElement;
+        label.type = "button";
+        label.title = proposedOpen ? "Hide the proposed priorities" : `Show the ${proposals.length} proposed priorit${proposals.length === 1 ? "y" : "ies"}`;
+        label.setAttribute("aria-expanded", String(proposedOpen));
+        label.addEventListener("click", () => {
+          proposedOpen = !proposedOpen;
+          render();
+        });
+        grid.appendChild(label);
+        for (const col of columns) {
+          const cell = el("div", "app-cp-cell app-cp-proposedrow");
+          const items = byCol.get(col.id) ?? [];
+          if (!proposedOpen) {
+            if (items.length > 0) {
+              const chip = el("button", "app-cp-proposedcount", `${items.length} proposed`) as HTMLButtonElement;
+              chip.type = "button";
+              chip.addEventListener("click", () => {
+                proposedOpen = true;
+                render();
+              });
+              cell.appendChild(chip);
+            }
+          } else {
+            for (const p of items) cell.appendChild(proposedCard(p));
+          }
+          grid.appendChild(cell);
+        }
+        if (columns.length === 0) grid.appendChild(el("div", "app-cp-cell"));
+      }
+
       // priorities whose sub-pillar is not a shown column
       if (unplaced.length > 0 && onlyL1 === null) {
         const note = el("div", "app-cp-unplaced");
@@ -1537,6 +1616,18 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       return card;
     };
 
+    /** A proposal in the Proposed row: its statement and who proposed it,
+     *  dashed, no tallies — click opens it (Accept / Decline live there). */
+    const proposedCard = (p: Priority): HTMLElement => {
+      const card = el("button", "app-cp-card app-cp-card-proposed") as HTMLButtonElement;
+      card.type = "button";
+      card.appendChild(el("div", "app-cp-statement", p.statement));
+      card.appendChild(el("div", "app-cp-proposedmeta", p.ownerName !== "" ? `Proposed · owner ${p.ownerName}` : "Proposed"));
+      card.title = canApprove(p.org) ? "Open to accept or decline" : "Waiting for the org's owner or an admin";
+      card.addEventListener("click", () => ctx.open(p));
+      return card;
+    };
+
     const priorityCard = (p: Priority, adopted: boolean, density: ReturnType<typeof densityFor>): HTMLElement => {
       const rags = ragsFor(p);
       const t = tally(rags);
@@ -1594,14 +1685,14 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
         menu.appendChild(b);
       };
       item("Edit…", () => void editPriority(p));
-      const siblings = visibleFor(state.org).filter((x) => x.pillarId === p.pillarId && orgKey(x.org) === orgKey(state.org));
+      const siblings = visibleFor(state.org).filter((x) => colOf(x) === colOf(p) && orgKey(x.org) === orgKey(state.org));
       const i = siblings.indexOf(p);
       item("Move up", () => void reorder(siblings, i, i - 1), i <= 0);
       item("Move down", () => void reorder(siblings, i, i + 1), i < 0 || i >= siblings.length - 1);
       item("Cascade to…", () => cascadeDialog(ctx, p), p.status !== "active");
       item("Complete…", () => void closeFromCard(p, "complete"), p.status !== "active");
       item("Archive…", () => void closeFromCard(p, "archive"), p.status !== "active");
-      item("Reopen", () => void reopenPriority(ctx, p), p.status === "active");
+      item("Reopen", () => void reopenPriority(ctx, p), p.status === "active" || p.status === "proposed" || (isDeclined(p) && !canApprove(p.org)));
       const r = anchor.getBoundingClientRect();
       menu.style.top = `${r.bottom + 4}px`;
       menu.style.left = `${Math.min(r.left, window.innerWidth - 240)}px`;
@@ -1691,38 +1782,50 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
         draft.ownerId = defaultOwner.whoId;
         draft.ownerName = defaultOwner.who;
       }
-      const inColumn = visibleFor(state.org).filter((x) => x.pillarId === (state.lastColumn || ""));
+      const inColumn = visibleFor(state.org).filter((x) => colOf(x) === (state.lastColumn || ""));
       draft.order = inColumn.length + 1;
+      // the org's owner or an admin adds; anyone else who may add
+      // PROPOSES — it waits in the Proposed row (issue 13, 2026-11-16)
+      const approves = canApprove(state.org);
       const r = await priorityDialog({
         host: wrap,
-        title: "Add priority",
+        title: approves ? "Add priority" : "Propose a priority",
         priority: draft,
-        pillars: data.pillars,
+        pillars: livePillars(),
         preselectPillarId: state.lastColumn,
         periods: periodsOnOffer(),
         roster,
-        cascadeTargets: cascadeTargetsFor(null),
+        // a proposal is not cascaded: that waits for its acceptance
+        cascadeTargets: approves ? cascadeTargetsFor(null) : [],
         alreadyCascaded: [],
         primaryInitiativeLabel: "",
         ownerPicker: ownerPickerFor(state.org),
         onPull: withToggle ? () => openAddMenu() : undefined,
       });
       if (!r) return;
+      if (!approves) r.priority.status = "proposed";
       r.priority.rowId = await savePriority(r.priority, data);
       data.priorities.push(r.priority);
-      await appendEvent(r.priority, "created", { statement: r.priority.statement }, actor());
-      await cascade(r.priority, r.cascadeTo);
+      await appendEvent(r.priority, approves ? "created" : "proposed", { statement: r.priority.statement }, actor());
+      if (approves) await cascade(r.priority, r.cascadeTo);
+      else proposedOpen = true; // show the person where it went
       await reload();
     };
 
     const editPriority = async (p: Priority) => {
-      const copy: Priority = { ...p, org: { ...p.org } };
+      // the dialog shows the sub-pillar the priority sits under in the
+      // year in view, among the sub-pillars in force that year (issue 4)
+      const homeThen = colOf(p);
+      const copy: Priority = { ...p, org: { ...p.org }, pillarId: homeThen, placements: [...p.placements] };
+      const offered = livePillars();
       const already = data.assignments.filter((a) => a.priorityId === p.id).map((a) => ({ org: a.org, status: a.status, reason: a.reason }));
       const r = await priorityDialog({
         host: wrap,
         title: "Edit priority",
         priority: copy,
-        pillars: data.pillars,
+        // its home that year is always among the choices, even when the
+        // year's set no longer carries it (the unplaced road)
+        pillars: offered.some((x) => x.id === homeThen) ? offered : data.pillars,
         periods: periodsOnOffer(),
         roster,
         cascadeTargets: cascadeTargetsFor(p),
@@ -1732,6 +1835,34 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       });
       if (!r) return;
       const before = p.statement;
+      if (r.priority.pillarId === homeThen) {
+        // the sub-pillar was not touched: its real home and history stand
+        r.priority.pillarId = p.pillarId;
+        r.priority.placements = p.placements;
+      } else {
+        const newHome = r.priority.pillarId;
+        const hasEarlier = p.period !== "" && state.period !== "" && comparePeriods(settings.period, p.period, state.period) < 0;
+        let how: "from" | "all" | null = "all";
+        if (hasEarlier) {
+          const pillarName = (id: string) => data.pillars.find((x) => x.id === id)?.name ?? "its sub-pillar";
+          how = await promptChoice({
+            title: `Move to “${pillarName(newHome)}” from ${state.period}, or for every year?`,
+            note: `This priority began in ${p.period}. “From ${state.period}” keeps it under “${pillarName(placedIn(settings.period, p, prevPeriod(settings.period, state.period)))}” for the years before, as a record. “Every year” corrects where it has always belonged.`,
+            choices: [
+              { key: "all", label: "Every year" },
+              { key: "from", label: `From ${state.period}`, primary: true },
+            ],
+          });
+          if (how === null) return;
+        }
+        if (how === "from") {
+          const moved = moveFrom(settings.period, p, state.period, newHome);
+          r.priority.pillarId = moved.pillarId;
+          r.priority.placements = moved.placements;
+        } else {
+          r.priority.placements = [];
+        }
+      }
       await savePriority(r.priority, data);
       Object.assign(p, r.priority);
       await appendEvent(

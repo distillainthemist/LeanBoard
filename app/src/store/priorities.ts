@@ -74,6 +74,7 @@ function pillarFromRow(row: Ben_ltkpillars, guidToId: Map<string, string>): Pill
     company: row.ben_company ?? "",
     fromPeriod: row.ben_fromperiod ?? "",
     toPeriod: row.ben_toperiod ?? "",
+    succeedsId: row.ben_succeedsid ?? "",
   };
 }
 
@@ -97,6 +98,7 @@ export async function savePillar(p: Pillar, all: Pillar[]): Promise<string> {
     ben_company: p.company,
     ben_fromperiod: p.fromPeriod,
     ben_toperiod: p.toPeriod,
+    ben_succeedsid: p.succeedsId ?? "",
     "ben_ParentPillar@odata.bind": parent?.rowId ? `/ben_ltkpillars(${parent.rowId})` : undefined,
   } as never;
   if (p.rowId) {

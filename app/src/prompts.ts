@@ -132,6 +132,48 @@ export function confirmRemoval(what: string, note = "This removes it straight aw
   return promptConfirm({ title: `Remove ${what}?`, note, confirmLabel: "Remove", danger: true });
 }
 
+/** One of several ways forward, or none (Cancel / Escape → null). For a
+ *  change that can be made two ways — "from this year" or "everywhere" —
+ *  where neither is the safe default, so neither is the Escape answer. */
+export function promptChoice<K extends string>(opts: { title: string; note?: string; choices: { key: K; label: string; primary?: boolean }[] }): Promise<K | null> {
+  return new Promise((resolve) => {
+    const overlay = el("div", "app-modal-overlay app-modal-top");
+    const box = el("div", "app-modal");
+    box.appendChild(el("div", "app-modal-title", opts.title));
+    if (opts.note) box.appendChild(el("div", "app-modal-note", opts.note));
+    const footer = el("div", "app-modal-footer");
+    const done = (v: K | null) => {
+      overlay.remove();
+      document.removeEventListener("keydown", onKey, true);
+      resolve(v);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        done(null);
+      }
+    };
+    const cancel = el("button", "app-link", "Cancel") as HTMLButtonElement;
+    cancel.type = "button";
+    cancel.addEventListener("click", () => done(null));
+    footer.appendChild(cancel);
+    let first: HTMLButtonElement | null = null;
+    for (const c of opts.choices) {
+      const b = el("button", "app-btn" + (c.primary ? " app-btn-primary" : ""), c.label) as HTMLButtonElement;
+      b.type = "button";
+      b.addEventListener("click", () => done(c.key));
+      footer.appendChild(b);
+      if (c.primary || first === null) first = b;
+    }
+    box.appendChild(footer);
+    // a form: a click outside does not answer it
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    document.addEventListener("keydown", onKey, true);
+    first?.focus();
+  });
+}
+
 export function promptConfirm(opts: {
   title: string;
   note?: string;

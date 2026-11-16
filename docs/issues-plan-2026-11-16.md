@@ -5,7 +5,10 @@ Source: `leanboard-issues-2026-11-16.pdf` (Sue Vallance and Ben, filed
 nothing here was reproduced in the player. Decisions are Ben's, taken
 one by one on 2026-11-16.
 
-Status: PLAN — not built.
+Status: BUILT on dev 2026-11-16 in four tranches (0198d55, c9bff91,
+df1e7cb, then tranche 4), schema deployed to dev. NOT released — the
+release is solution-carrying and waits for "Cut the release". See "As
+built" at the foot for where the build differs from the plan below.
 
 ## Decisions of record
 
@@ -283,3 +286,38 @@ Size L overall, schema for 4.
    moves round and the Settings empty-row fix already on dev.
 
 Every tranche carries its tests and UAT cases in the same commit.
+
+## As built (2026-11-16)
+
+Where the build differs from, or adds to, the plan above:
+
+- **13, cascades sent from above** are still accepted by any manager of
+  the receiving org, direct reports included, as before. Only what a
+  non-approver ADDS or PULLS waits: a pull is an assignment left
+  "proposed" that names who pulled it (`isPulledProposal`), and that one
+  needs the owner or an admin.
+- **13, declined** = archived with the reason prefixed "Declined — "
+  (`isDeclined`) and a "declined" event. No new status value for it.
+- **13, release step**: a bundle from before this release reads
+  "proposed" as "active". After the release, raise the release gate's
+  MINIMUM build to it (Settings, the release policy) so no old client
+  keeps running.
+- **4, health checks** are keyed on the pillar row: a pillar renamed
+  "from a year" starts a new health-check history. The matrix's pillar
+  filter and a Priorities card's rotation focus DO follow the renamed
+  row (`liveVersion`).
+- **4, the popup's pillar chip** shows the priority's current home, not
+  the home of the year in view. "Adopt & customise" still offers every
+  active sub-pillar.
+- **4, no year-end snapshot** (not chosen): a past year shows the
+  structure as it was, with today's ratings and metric values.
+- **12, the action dialog** offers the directory only where its who
+  picker has a search box (a roster behind the chips).
+- **5 + 11, the kanban in the popup** groups by status with the Verify
+  column; "by issue" is a card setting the popup has no place for.
+- **10, the store's merge** (`mergeComments`) runs on every action
+  save, not only from the dialog.
+- **Found, not fixed**: an action raised with several assignees keeps
+  only the chosen one when saved from the dialog.
+- `data/get-token.mjs` retries its requests: two device codes were lost
+  to connect timeouts during this build.

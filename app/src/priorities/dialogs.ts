@@ -373,8 +373,14 @@ export function pickOwner(
 
 /** Several people for a role (a charter's bound multi-person role,
  *  2026-09-15): tick from the roster, Done. */
-export function pickPeople(host: HTMLElement, roster: RosterPerson[], current: PersonRef[], roleLabel: string): Promise<PersonRef[] | null> {
+export function pickPeople(host: HTMLElement, roster: RosterPerson[], current: PersonRef[], roleLabel: string, extra: Pick<OwnerPickerExtras, "directory"> = {}): Promise<PersonRef[] | null> {
   return new Promise((resolve) => {
+    // the directory road, as in pickOwner: someone not on the roster is
+    // found, added to the app and ticked (issue 12, 2026-11-16)
+    let dirHits: { objectId: string; displayName: string; mail: string }[] | null = null;
+    let dirBusy = false;
+    let dirErr = "";
+    let dirSeq = 0;
     const m = modal(host, `Choose the ${roleLabel.toLowerCase()}`, "Tick everyone holding this role.");
     const chosen = new Map(current.map((p) => [p.whoId, p]));
     const filter = el("input", "app-input") as HTMLInputElement;
@@ -397,8 +403,71 @@ export function pickPeople(host: HTMLElement, roster: RosterPerson[], current: P
         list.appendChild(b);
       }
       if (hits.length === 0) list.appendChild(el("div", "app-settings-note", "No one matches."));
+      const typed = filter.value.trim();
+      if (extra.directory && typed.length >= 2) {
+        if (dirHits === null) {
+          const find = el("button", "app-btn app-cp-person-dir", dirBusy ? "Searching the directory…" : `Search the directory for “${typed}”`) as HTMLButtonElement;
+          find.type = "button";
+          find.disabled = dirBusy;
+          find.addEventListener("click", () => {
+            const seq = ++dirSeq;
+            dirBusy = true;
+            dirErr = "";
+            paint();
+            void extra.directory!.search(typed).then(
+              (found) => {
+                if (seq !== dirSeq) return;
+                dirBusy = false;
+                dirHits = found;
+                paint();
+              },
+              (err) => {
+                if (seq !== dirSeq) return;
+                dirBusy = false;
+                dirErr = `Directory search failed: ${err instanceof Error ? err.message : String(err)}`;
+                paint();
+              }
+            );
+          });
+          list.appendChild(find);
+        } else {
+          list.appendChild(el("div", "app-cp-menu-h", "In the directory — not yet in the app"));
+          const onRoster = new Set(roster.map((p) => p.whoId));
+          const fresh = dirHits.filter((h) => !onRoster.has(h.objectId));
+          if (fresh.length === 0) list.appendChild(el("div", "app-settings-note", "No one else in the directory matches."));
+          for (const h of fresh) {
+            const b = el("button", "app-cp-person") as HTMLButtonElement;
+            b.type = "button";
+            b.textContent = h.displayName;
+            b.appendChild(el("span", "app-cp-person-note", `${h.mail || "no email"} · ＋ add to the app and tick`));
+            b.addEventListener("click", () => {
+              b.disabled = true;
+              b.textContent = `Adding ${h.displayName}…`;
+              void extra.directory!.add(h).then(
+                (p) => {
+                  chosen.set(p.whoId, p);
+                  dirHits = null;
+                  paint();
+                },
+                (err) => {
+                  dirErr = `Could not add them: ${err instanceof Error ? err.message : String(err)}`;
+                  paint();
+                }
+              );
+            });
+            list.appendChild(b);
+          }
+        }
+        if (dirErr !== "") list.appendChild(el("div", "app-cp-err", dirErr));
+      }
     };
-    filter.addEventListener("input", paint);
+    filter.addEventListener("input", () => {
+      dirHits = null;
+      dirErr = "";
+      dirSeq++;
+      dirBusy = false;
+      paint();
+    });
     paint();
     m.body.append(filter, list);
     const cancel = el("button", "app-link", "Cancel") as HTMLButtonElement;

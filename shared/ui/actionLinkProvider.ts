@@ -91,6 +91,27 @@ export async function hostRescheduleSettings(): Promise<RescheduleSettings | nul
   }
 }
 
+/** Adding someone from the directory while assigning an action (issue
+ *  12, 2026-11-16). The host registers the road — and decides who is
+ *  offered it (admins); null = not offered to this viewer, or no host. */
+export interface ActionDirectoryRoad {
+  search: (q: string) => Promise<{ objectId: string; displayName: string; mail: string }[]>;
+  add: (hit: { objectId: string; displayName: string; mail: string }) => Promise<{ whoId: string; who: string }>;
+}
+let directoryProvider: (() => Promise<ActionDirectoryRoad | null>) | null = null;
+
+export function setActionDirectoryProvider(p: (() => Promise<ActionDirectoryRoad | null>) | null): void {
+  directoryProvider = p;
+}
+
+export async function actionDirectory(): Promise<ActionDirectoryRoad | null> {
+  try {
+    return directoryProvider ? await directoryProvider() : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Fired when the endorsement rule changed an action at the write (a
  *  closing road that could not apply it itself) — open lists refresh. */
 export const ACTION_RULED_EVENT = "ltk-action-ruled";

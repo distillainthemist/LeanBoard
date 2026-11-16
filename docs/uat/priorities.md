@@ -109,3 +109,30 @@ steps:
 5. Close the app and open it again.
 6. In Settings → My profile change your site, then open Priorities.
 expected: step 2 Priorities returns on the other site, the other year and Status All, with the popup reopened on the Actions tab; step 3 Improvement opens on the same site and year, and a site chosen there is the site Priorities shows next — its other filters (view, search, stage) are its own; step 4 Back reopens the popup on the Charter tab; step 5 a fresh start opens on your own site and the current year; step 6 a changed home site clears the memory
+
+### UAT-PRI-010 — Proposed priorities
+persona: orgowner
+modules: priorities/model.ts priorities/prioritiesScreen.ts priorities/lifecycle.ts improvement/initiativeForm.ts
+preconditions: an org with an owner; a direct report of that owner able to sign in; the org's site admin; an accepted priority with an initiative; a priority set at the org above
+steps:
+1. As the direct report, press ＋ Priority. Read the dialog's title, fill it in and save.
+2. Read the matrix: the Priorities row, the Objectives row, the row beneath, and the chip in the bar. Open the row.
+3. As the direct report, open the proposal: read the header and its buttons; edit its wording; create an initiative under it.
+4. As the direct report, ＋ Priority → Pull from above: read the buttons, pick a priority and "Propose as-is". Read the cascades chip.
+5. As the owner, read the same screen; open "to accept", accept the pull; open the proposal and press Accept.
+6. As the direct report, propose another. As the owner, Decline it with a reason.
+7. As the direct report, set Status to All, open the declined one, read its buttons, and press Propose again.
+8. As the direct report, edit, complete and cascade an ACCEPTED priority.
+expected: step 1 the dialog reads "Propose a priority" and offers no cascade targets; step 2 the proposal is in NO column of the Priorities row and adds nothing to Objectives, tallies or the poster; a "▸ Proposed" row sits under Objectives with "1 proposed" in its column and the bar shows "✎ 1 proposed"; opening the row shows a dashed card with no tallies; step 3 the header reads "Proposed — waiting for the org's owner or an admin", with Edit but no Accept, Decline or Reopen; the initiative form lists the priority tagged "(proposed)"; step 4 the buttons read "Propose as-is" / "Propose & customise…" with a line saying a pull is proposed; the pull waits in "cascades to accept" marked "Pulled … by <name> — proposed" with its buttons greyed for the direct report; step 5 the owner (and the site admin) can accept both — the accepted priority joins its column and starts to count; step 6 it leaves the Proposed row; step 7 the declined one reads "Declined — <reason>" and offers "Propose again", never "Reopen", to someone who cannot approve; step 8 the direct report can do all three, as before
+
+### UAT-PRI-011 — A priority's sub-pillar, year by year
+persona: orgowner
+modules: priorities/model.ts priorities/prioritiesScreen.ts priorities/dialogs.ts prompts.ts store/priorities.ts
+preconditions: a priority that began last year under sub-pillar A; a sub-pillar B in force this year; a priority completed last year
+steps:
+1. On this year, edit the priority and change its sub-pillar to B. Read the question; choose "From <this year>".
+2. Read this year's matrix, then switch the year to last year.
+3. Edit it again on this year, choose a third sub-pillar and "Every year"; look at last year.
+4. On last year, leave Status on Active and look for the priority that was completed last year.
+5. On last year, press ＋ Priority and read the sub-pillar choices.
+expected: step 1 the dialog opens on the sub-pillar the priority sits under in the year in view and asks "from <year>, or for every year?" only because the priority began earlier; step 2 this year shows it under B and last year still shows it under A; step 3 "Every year" puts it under the third sub-pillar in both years; step 4 a past year is a record: the completed priority shows on the year it ran in under Active, marked completed, though it is hidden on this year; step 5 only the sub-pillars in force in the year in view are offered

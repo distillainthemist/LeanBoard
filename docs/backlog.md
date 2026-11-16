@@ -13,6 +13,21 @@ v0.89.0/v0.90.0 managed solution; v0.91.0 and v0.93.0 are app-only,
 v0.92.0 carries the Utilities app in the managed solution. Recent
 decisions of record:
 
+- **The 2026-11-16 issue tranche** (13 issues, built on dev, unreleased,
+  SOLUTION-CARRYING — `issues-plan-2026-11-16.md` holds Ben's decisions
+  and an "As built" section): initiative boards always live; comment
+  edits for a day; supporters on an action; the action card in the
+  priority popup; the primary initiative that counts (archived drops,
+  completed stays) and picked objectives without one; every owner
+  named; a session's site and year shared by Priorities and
+  Improvement; proposed priorities (direct reports propose, the owner
+  or an admin accepts); pillars per year (year view, from-year renames
+  and moves, a priority's sub-pillar per year, ended not deleted);
+  directory add in every picker, admins only. Schema on dev:
+  `ben_supportersjson`, `ben_objectivesjson`, `ben_placementsjson`,
+  `ben_succeedsid`. Hosted checks are all Ben's — the UAT cases added
+  with it are the list. After the release: raise the release gate's
+  minimum build.
 - **Due-date moves: one rule** (2026-11-16, unreleased, app-only):
   Ben's three choices — a Settings switch (Improvement → Due date
   changes) between "Initiative actions only" (the default) and "All

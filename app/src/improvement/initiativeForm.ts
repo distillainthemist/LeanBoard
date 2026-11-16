@@ -21,6 +21,7 @@ import { fieldInput, FieldInputContext } from "./fieldInput";
 import { isFieldEmpty } from "./fieldCodec";
 import { renderMetricsList } from "./metricsList";
 import { pickOwner } from "../priorities/dialogs";
+import { myDirectoryRoad } from "../people/directoryAdd";
 import { isDescendant, OrgRef, orgName, orgRef, pickerSections, sameOrg } from "../priorities/model";
 import { validateNewInitiative } from "./initiativeModel";
 import { ImprovementSettings, MetricRule, normalizeMetrics, RolePerson, roleFillersAt, TemplateField, TemplateMetric, TemplateRole } from "./templateModel";
@@ -286,7 +287,9 @@ export function renderInitiativeForm(o: InitiativeFormOpts): InitiativeFormHandl
       // a priority at an org the person manages, or adopted at one — a
       // priority from further up is pulled to the org first (2026-11-06)
       const at = orgRef(company, siteSel.value, deptSel.value, areaSel.value);
-      const open = all.filter((p) => p.status === "active" && !links.some((l) => l.priorityId === p.id) && (sameOrg(p.org, at) || isDescendant(at, p.org)) && may(p));
+      // a PROPOSED priority may be linked too (issue 13): work can start
+      // under a proposal, and the link stands if it is declined
+      const open = all.filter((p) => (p.status === "active" || p.status === "proposed") && !links.some((l) => l.priorityId === p.id) && (sameOrg(p.org, at) || isDescendant(at, p.org)) && may(p));
       document.querySelectorAll(".app-im-primenu").forEach((m) => m.remove());
       const menu = el("div", "app-cp-menu app-im-primenu");
       // searchable, and the initiative's own org first (Ben, 2026-10-31):
@@ -307,7 +310,7 @@ export function renderInitiativeForm(o: InitiativeFormOpts): InitiativeFormHandl
         const addGroup = (g: { label: string; items: PriorityLite[] }) => {
           items.appendChild(el("div", "app-cp-menu-h", g.label));
           for (const p of g.items) {
-            const item = btn(p.statement.slice(0, 70), "app-cp-menu-item");
+            const item = btn(p.status === "proposed" ? `${p.statement.slice(0, 58)} (proposed)` : p.statement.slice(0, 70), "app-cp-menu-item");
             item.title = p.statement;
             item.addEventListener("click", () => {
               menu.remove();
@@ -391,7 +394,11 @@ export function renderInitiativeForm(o: InitiativeFormOpts): InitiativeFormHandl
         const add = btn("＋", "app-owner app-owner-none");
         add.title = `Add ${role.label.toLowerCase()}`;
         add.addEventListener("click", () => {
-          void pickOwner(o.dialogHost, o.roster, null).then((res) => {
+          // titled by the role (every picker read "Choose the owner"), and
+          // an admin can add someone from the directory here (issue 12)
+          void myDirectoryRoad({ site: siteSel.value, department: deptSel.value }, o.roster)
+            .then((directory) => pickOwner(o.dialogHost, o.roster, null, role.label, { directory }))
+            .then((res) => {
             if (res === null || res === "clear") return;
             const cur = d.roles[role.key] ?? [];
             if (cur.some((p) => p.whoId === res.whoId)) return;

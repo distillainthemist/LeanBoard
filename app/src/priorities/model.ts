@@ -150,6 +150,11 @@ export interface Pillar {
    *  The year picker shows the pillars live in the viewed year. */
   fromPeriod: string;
   toPeriod: string;
+  /** The pillar row this one FOLLOWS (issue 4, 2026-11-16): a pillar
+   *  renamed or re-parented "from a year" ends, and a successor starts
+   *  that names it. "" = none. Priorities follow the chain into the year
+   *  being viewed, so nothing is rewritten per priority. */
+  succeedsId?: string;
 }
 
 /** Level-2 pillars in display order, optionally under one L1. */
@@ -196,7 +201,10 @@ export function strategyChips(pillars: Pillar[]): Pillar[] {
 
 // ---- priorities ---------------------------------------------------------------
 
-export type PriorityStatus = "active" | "completed" | "archived" | "retired";
+/** "proposed" (issue 13, 2026-11-16): added by someone who may add but
+ *  not approve — it waits, off the board's rows and out of every tally,
+ *  for the org's owner or an admin to accept or decline. */
+export type PriorityStatus = "active" | "completed" | "archived" | "retired" | "proposed";
 
 export interface Priority {
   rowId?: string;
@@ -368,7 +376,10 @@ export type PriorityEventKind =
   | "reopened"
   | "reordered"
   | "pulled"
-  | "dropped";
+  | "dropped"
+  | "proposed"
+  | "approved"
+  | "declined";
 
 export interface PriorityEvent {
   /** Row GUID ("" when new). */
@@ -382,7 +393,7 @@ export interface PriorityEvent {
 }
 
 export function isPriorityStatus(v: unknown): v is PriorityStatus {
-  return v === "active" || v === "completed" || v === "archived" || v === "retired";
+  return v === "active" || v === "completed" || v === "archived" || v === "retired" || v === "proposed";
 }
 
 export function isAssignmentStatus(v: unknown): v is AssignmentStatus {
@@ -458,6 +469,22 @@ export function descendantPriorities(p: Priority, all: Priority[]): Priority[] {
         out.push(c);
         walk(c.id);
       }
+    }
+  };
+  walk(p.id);
+  return out;
+}
+
+/** The descendants that COUNT toward a priority's tallies, objectives
+ *  and actions: a proposed priority, and everything under it, does not —
+ *  it is not on the board yet (issue 13). */
+export function countedDescendants(p: Priority, all: Priority[]): Priority[] {
+  const out: Priority[] = [];
+  const walk = (id: string) => {
+    for (const c of all) {
+      if (c.parentId !== id || c.status === "proposed") continue;
+      out.push(c);
+      walk(c.id);
     }
   };
   walk(p.id);
@@ -682,7 +709,8 @@ export function comparePeriods(settings: PeriodSettings, a: string, b: string): 
  *  before ends were stamped — the period it started in. "" = still open. */
 export function effectiveEnd(x: { status: string; period: string; toPeriod: string }): string {
   if (x.toPeriod !== "") return x.toPeriod;
-  return x.status === "active" ? "" : x.period;
+  // a proposal has not ended: it has not begun
+  return x.status === "active" || x.status === "proposed" ? "" : x.period;
 }
 
 /** Live in `year`: started by then (or no start) and not ended before it. */
@@ -820,6 +848,38 @@ export function canManageOrg(viewer: Viewer, org: OrgRef, owners: OrgOwnersMap):
 }
 
 /**
+ * May this viewer ACCEPT what lands on an org's board (issue 13,
+ * 2026-11-16)? `canManageOrg` without its direct-report clause: a super
+ * admin, the site's own admin, or an owner of the governing node or any
+ * node above it. An owner's direct reports still manage the org's
+ * accepted priorities; what they ADD or PULL waits for one of these.
+ */
+export function canApproveAt(viewer: Viewer, org: OrgRef, owners: OrgOwnersMap): boolean {
+  if (viewer.role === "superadmin") return true;
+  if (viewer.role === "siteadmin" && org.site !== "" && org.site === viewer.site) return true;
+  let node: OrgRef | null = governingOrg(org);
+  while (node) {
+    const list = owners[orgKey(node)] ?? [];
+    if (list.some((o) => o.whoId !== "" && o.whoId === viewer.whoId)) return true;
+    node = orgParent(node);
+  }
+  return false;
+}
+
+/** A pull from above made by someone who may not approve: the assignment
+ *  waits as "proposed" and names who pulled it. A cascade SENT from above
+ *  is "proposed" too, with nobody named — that one any manager accepts. */
+export function isPulledProposal(a: Pick<PriorityAssignment, "status" | "decidedById">): boolean {
+  return a.status === "proposed" && a.decidedById !== "";
+}
+
+/** How a declined proposal is kept: archived, with the reason marked. */
+export const DECLINED_PREFIX = "Declined — ";
+export function isDeclined(p: Pick<Priority, "status" | "statusReason">): boolean {
+  return p.status === "archived" && p.statusReason.startsWith(DECLINED_PREFIX);
+}
+
+/**
  * May this viewer link an initiative to priority `p`? Only to a priority
  * at an org they manage, or one ADOPTED as-is at an org they manage (the
  * parent's row shown there). Upward linking ended 2026-11-06 — a priority
@@ -872,17 +932,98 @@ export function canEditPillars(viewer: Viewer): boolean {
 
 // ---- the matrix (screen-shaped, still pure) ---------------------------------
 
+// ---- pillars per year (issue 4, 2026-11-16) ------------------------------------
+
+/** Every version of a pillar: the rows linked to `id` through
+ *  `succeedsId`, in either direction, itself included. */
+export function pillarVersions(id: string, pillars: Pillar[]): Pillar[] {
+  const byId = new Map(pillars.map((p) => [p.id, p]));
+  const seen = new Set<string>();
+  const out: Pillar[] = [];
+  const visit = (pid: string) => {
+    if (pid === "" || seen.has(pid)) return;
+    seen.add(pid);
+    const p = byId.get(pid);
+    if (!p) return;
+    out.push(p);
+    visit(p.succeedsId ?? "");
+    for (const q of pillars) if ((q.succeedsId ?? "") === pid) visit(q.id);
+  };
+  visit(id);
+  return out;
+}
+
+/** The sub-pillar a priority's OWN history puts it under in `year`: an
+ *  earlier home recorded in `placements` ("up to and including `to` it
+ *  sat under X") for the years it covers, otherwise its current home. */
+export function placedIn(settings: PeriodSettings, p: Pick<Priority, "pillarId" | "placements">, year: string): string {
+  if (year === "") return p.pillarId;
+  const earlier = [...p.placements].sort((a, b) => comparePeriods(settings, a.to, b.to));
+  for (const pl of earlier) if (comparePeriods(settings, year, pl.to) <= 0) return pl.pillarId;
+  return p.pillarId;
+}
+
+/** The sub-pillar a priority sits under AS OF `year`.
+ *  1. Its own history (`placedIn`).
+ *  2. The pillar's history: when that row is not in force in the year,
+ *     the version of it that is (a pillar renamed from a year is two
+ *     rows; the priority follows whichever was live).
+ *  The stored id is returned when no version is live — the caller's
+ *  "unplaced" note then says so, and nothing silently disappears. */
+export function pillarIdIn(settings: PeriodSettings, p: Pick<Priority, "pillarId" | "placements">, year: string, pillars: Pillar[]): string {
+  const id = placedIn(settings, p, year);
+  const own = pillars.find((x) => x.id === id);
+  if (!own || year === "" || pillarLiveIn(settings, own, year)) return id;
+  const live = pillarVersions(id, pillars).find((v) => pillarLiveIn(settings, v, year));
+  return live ? live.id : id;
+}
+
+/** Move a priority to `toPillarId` FROM `year`: that year and every later
+ *  one sit under the new sub-pillar; the years before keep the home they
+ *  had. With no earlier year to keep it is a plain change of home. */
+export function moveFrom(
+  settings: PeriodSettings,
+  p: Pick<Priority, "pillarId" | "placements">,
+  year: string,
+  toPillarId: string
+): { pillarId: string; placements: PriorityPlacement[] } {
+  const before = prevPeriod(settings, year);
+  if (before === "") return { pillarId: toPillarId, placements: [] };
+  const home = placedIn(settings, p, before);
+  // what was recorded for the years before `before` stands; anything for
+  // `year` onward is replaced by the new home
+  const kept = p.placements.filter((pl) => comparePeriods(settings, pl.to, before) < 0).sort((a, b) => comparePeriods(settings, a.to, b.to));
+  return { pillarId: toPillarId, placements: home === toPillarId ? kept : [...kept, { pillarId: home, to: before }] };
+}
+
+/** How many priorities sit under a pillar row in ANY year — its current
+ *  home or an earlier one. A row that is referenced is ended, not deleted. */
+export function pillarUse(pillarId: string, priorities: Pick<Priority, "pillarId" | "placements">[]): number {
+  return priorities.filter((p) => p.pillarId === pillarId || p.placements.some((pl) => pl.pillarId === pillarId)).length;
+}
+
+/** Was this priority live in `year` as the year saw it — whatever has
+ *  happened to it since? A past year is a record: a priority completed
+ *  later still belongs on it. Proposals and declined proposals never. */
+export function liveThen(settings: PeriodSettings, p: Priority, year: string): boolean {
+  if (p.status === "proposed" || isDeclined(p)) return false;
+  return priorityLiveIn(settings, p, year);
+}
+
 /** Priorities of an org's matrix grouped under each sub-pillar column;
  *  a priority whose pillar is not a shown column goes to `unplaced`
- *  (retired pillar / no pillar) so nothing silently disappears. */
+ *  (retired pillar / no pillar) so nothing silently disappears.
+ *  `pillarOf` says which sub-pillar a priority sits under in the year
+ *  being viewed (`pillarIdIn`); absent, its current home. */
 export function groupByColumn(
   columns: Pillar[],
-  priorities: Priority[]
+  priorities: Priority[],
+  pillarOf: (p: Priority) => string = (p) => p.pillarId
 ): { byColumn: Map<string, Priority[]>; unplaced: Priority[] } {
   const byColumn = new Map<string, Priority[]>(columns.map((c) => [c.id, []]));
   const unplaced: Priority[] = [];
   for (const p of priorities) {
-    const list = byColumn.get(p.pillarId);
+    const list = byColumn.get(pillarOf(p));
     if (list) list.push(p);
     else unplaced.push(p);
   }
@@ -954,7 +1095,8 @@ export type CloseReason = (typeof CLOSE_REASONS)[number];
 export function parentClosed(p: Priority, all: Priority[]): Priority | null {
   if (p.parentId === "" || p.status !== "active") return null;
   const parent = all.find((x) => x.id === p.parentId);
-  return parent && parent.status !== "active" ? parent : null;
+  // a proposed parent is not a closed one
+  return parent && parent.status !== "active" && parent.status !== "proposed" ? parent : null;
 }
 
 /** Sender's-view flags for a priority: who declined or parked it, with
