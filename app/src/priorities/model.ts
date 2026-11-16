@@ -873,6 +873,20 @@ export function isPulledProposal(a: Pick<PriorityAssignment, "status" | "decided
   return a.status === "proposed" && a.decidedById !== "";
 }
 
+/** What an accepted priority has spread to below — said in the question
+ *  before it is moved back to proposed (Ben, 2026-11-16): the orgs that
+ *  adopted it as-is (it leaves their boards while proposed), the
+ *  customised copies made from it (they stay — each is that org's own),
+ *  and the cascades still waiting on an org's decision. */
+export function spreadOf(p: Pick<Priority, "id">, priorities: Pick<Priority, "parentId">[], assignments: Pick<PriorityAssignment, "priorityId" | "status" | "childPriorityId">[]): { adopted: number; customised: number; waiting: number } {
+  const mine = assignments.filter((a) => a.priorityId === p.id);
+  return {
+    adopted: mine.filter((a) => a.status === "accepted" && a.childPriorityId === "").length,
+    customised: priorities.filter((x) => x.parentId === p.id).length,
+    waiting: mine.filter((a) => a.status === "proposed" || a.status === "onhold").length,
+  };
+}
+
 /** How a declined proposal is kept: archived, with the reason marked. */
 export const DECLINED_PREFIX = "Declined — ";
 export function isDeclined(p: Pick<Priority, "status" | "statusReason">): boolean {

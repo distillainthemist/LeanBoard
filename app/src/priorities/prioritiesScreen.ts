@@ -67,7 +67,7 @@ import { mountWalk } from "./walk";
 import { initialsFor } from "../../../shared/schema/people";
 import { prioritiesViewUrl, takePendingPrioritiesView } from "../links";
 import { decodePrioritiesView, encodePrioritiesView } from "./viewLink";
-import { cascadeDialog, cascadeReview, closeDialog, closePriority, LifecycleCtx, openPriorityOverlay, pullFromAbove, reopenPriority, sendCascade } from "./lifecycle";
+import { cascadeDialog, cascadeReview, closeDialog, closePriority, LifecycleCtx, moveBackToProposed, openPriorityOverlay, pullFromAbove, reopenPriority, sendCascade } from "./lifecycle";
 import { Initiative, adminScopeFor, initiativesByPriority, ragInputsFor } from "../improvement/initiativeModel";
 import { REOPEN_PRIORITY_KEY } from "../improvement/boardOrigin";
 import { PDCA_TOKENS } from "../improvement/templateModel";
@@ -1692,6 +1692,8 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       item("Cascade to…", () => cascadeDialog(ctx, p), p.status !== "active");
       item("Complete…", () => void closeFromCard(p, "complete"), p.status !== "active");
       item("Archive…", () => void closeFromCard(p, "archive"), p.status !== "active");
+      // the undo of Accept, for whoever may accept (Ben, 2026-11-16)
+      if (canApprove(p.org)) item("Move back to proposed…", () => void moveBackToProposed(ctx, p), p.status !== "active");
       item("Reopen", () => void reopenPriority(ctx, p), p.status === "active" || p.status === "proposed" || (isDeclined(p) && !canApprove(p.org)));
       const r = anchor.getBoundingClientRect();
       menu.style.top = `${r.bottom + 4}px`;

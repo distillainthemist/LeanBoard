@@ -22,6 +22,7 @@ import {
   pillarVersions,
   placedIn,
   Priority,
+  spreadOf,
   DEFAULT_PRIORITY_SETTINGS,
 } from "../priorities/model";
 
@@ -193,6 +194,14 @@ describe("proposed priorities", () => {
     expect(isPulledProposal({ status: "proposed", decidedById: "report" })).toBe(true);
     expect(isPulledProposal({ status: "proposed", decidedById: "" })).toBe(false);
     expect(isPulledProposal({ status: "accepted", decidedById: "owner" })).toBe(false);
+  });
+
+  it("counts what an accepted priority has spread to, for the question before it goes back", () => {
+    const p = pr("top");
+    const all = [p, pr("copy1", { parentId: "top" }), pr("copy2", { parentId: "top" }), pr("other", { parentId: "elsewhere" })];
+    const a = (status: string, childPriorityId = "", priorityId = "top") => ({ priorityId, status: status as never, childPriorityId });
+    expect(spreadOf(p, all, [a("accepted"), a("accepted"), a("accepted", "copy1"), a("proposed"), a("onhold"), a("rejected"), a("accepted", "", "other")])).toEqual({ adopted: 2, customised: 2, waiting: 2 });
+    expect(spreadOf(p, [p], [])).toEqual({ adopted: 0, customised: 0, waiting: 0 });
   });
 
   it("keeps a declined proposal on record, marked", () => {

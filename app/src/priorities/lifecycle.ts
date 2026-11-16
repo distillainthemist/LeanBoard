@@ -32,6 +32,7 @@ import {
   isDeclined,
   isPulledProposal,
   lineageFor,
+  spreadOf,
   OrgRef,
   orgLevel,
   orgPath,
@@ -424,6 +425,34 @@ async function mountPrimaryCard(
     return;
   }
   await mountRO(cardType, cardType === "CanvasCard" ? "Charter" : "Metrics");
+}
+
+/** An ACCEPTED priority goes back to proposed (Ben, 2026-11-16) — its
+ *  owner or an admin only, behind a confirmation that says what follows:
+ *  it stops counting at once, like any proposal; orgs that adopted it
+ *  as-is lose it from their boards until it is accepted again; customised
+ *  copies below are left alone. No reason is asked. */
+export async function moveBackToProposed(ctx: LifecycleCtx, p: Priority): Promise<boolean> {
+  if (p.status !== "active" || !ctx.canApprove(p.org)) return false;
+  const data = ctx.data();
+  const spread = spreadOf(p, data.priorities, data.assignments);
+  const n = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
+  const note = [
+    "It leaves the Priorities row for the Proposed row and stops counting: its initiatives no longer feed objectives, ratings or tallies until it is accepted again.",
+    spread.adopted > 0 ? `${n(spread.adopted, "org adopted it as-is: it leaves that org's board", "orgs adopted it as-is: it leaves their boards")} too, and returns when it is accepted.` : "",
+    spread.customised > 0 ? `${n(spread.customised, "customised copy below stays as it is", "customised copies below stay as they are")} — each is that org's own priority.` : "",
+    spread.waiting > 0 ? `${n(spread.waiting, "cascade still waiting on an org stays", "cascades still waiting on orgs stay")} waiting.` : "",
+  ]
+    .filter((x) => x !== "")
+    .join(" ");
+  const ok = await promptConfirm({ title: `Move “${p.statement.slice(0, 60)}” back to proposed?`, note, confirmLabel: "Move back to proposed" });
+  if (!ok) return false;
+  p.status = "proposed";
+  p.statusReason = "";
+  await savePriority(p, data);
+  await appendEvent(p, "proposed", { back: "yes" }, ctx.actor());
+  await ctx.changed();
+  return true;
 }
 
 export async function reopenPriority(ctx: LifecycleCtx, p: Priority): Promise<void> {
@@ -1015,6 +1044,16 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
         });
         item("Complete…", () => void doClose(live, "complete"));
         item("Archive…", () => void doClose(live, "archive"));
+        // the undo of Accept — for whoever may accept
+        if (ctx.canApprove(live.org)) {
+          item("Move back to proposed…", () => {
+            void moveBackToProposed(ctx, live).then((moved) => {
+              if (!moved) return;
+              events = null;
+              if (scrim.isConnected) paint();
+            });
+          });
+        }
         item("Delete…", () => {
           void (async () => {
             const kids = data.priorities.filter((x) => x.parentId === live.id).length;
@@ -1613,7 +1652,7 @@ function eventWords(e: PriorityEvent): string {
     case "dropped":
       return `${str("org")} dropped it — “${str("reason")}”`;
     case "proposed":
-      return str("pulled") !== "" ? `proposed for ${str("org")} (a pull, waiting to be accepted)` : str("again") !== "" ? "proposed again" : str("customisedFrom") !== "" ? "proposed as a customised copy" : "proposed";
+      return str("pulled") !== "" ? `proposed for ${str("org")} (a pull, waiting to be accepted)` : str("back") !== "" ? "moved back to proposed" : str("again") !== "" ? "proposed again" : str("customisedFrom") !== "" ? "proposed as a customised copy" : "proposed";
     case "approved":
       return "accepted";
     case "declined":
