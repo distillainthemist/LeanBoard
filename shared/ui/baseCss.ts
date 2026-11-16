@@ -275,26 +275,26 @@ export const LTK_BASE_CSS = `
 .ltk-act-grid { display: flex; flex-direction: column; gap: 12px; }
 .ltk-act-main, .ltk-act-side { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .ltk-act-form { gap: 10px !important; }
-.ltk-act-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
-.ltk-act-row > .ltk-field { flex: 1 1 200px; min-width: 0; }
-.ltk-act-row > .ltk-act-issue { flex: 0.7 1 140px; }
-/* alone on its row (a host with no "Linked to"): the whole width */
-.ltk-act-row > .ltk-act-issue:only-child { flex: 1 1 100%; }
 .ltk-act-linked .ltk-link-chip { min-height: 44px; box-sizing: border-box; }
+.ltk-act-linked .ltk-link-note { min-height: 44px; display: flex; align-items: center; }
 /* Who: the label with "Search everyone…" beside it, then the people */
 .ltk-who { display: flex; flex-direction: column; gap: 6px; }
 .ltk-who-head { display: flex; align-items: center; gap: 10px; min-height: 20px; }
 .ltk-who-head .ltk-input { flex: 1; min-width: 0; min-height: 36px; padding: 4px 10px; font-size: 13px; }
-.ltk-who .ltk-who-search { margin-top: 0; }
-.ltk-who .ltk-who-search:empty { display: none; }
+/* what the search finds lists between the head and the people; with
+   nothing found it takes no room (an empty box doubled the gap) */
+.ltk-who .ltk-who-search { display: contents; }
+.ltk-who .ltk-who-results:empty { display: none; }
 /* support: one line until it is used */
 .ltk-sup-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .ltk-sup-open { border: none; background: none; font: inherit; font-size: 13px; color: var(--ltk-accent); cursor: pointer; padding: 4px 0; text-align: left; min-height: 28px; }
 .ltk-sup-open:hover, .ltk-sup-open:focus-visible { text-decoration: underline; }
-/* Start · Due · the two flags, one row where they fit */
-.ltk-act-when { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
-.ltk-act-when > .ltk-act-date { flex: 1 1 130px; max-width: 200px; min-width: 0; }
-.ltk-act-flags { display: flex; gap: 8px; flex: 1 1 100%; min-width: 0; }
+/* Start · Due, side by side, each half the row — their edges line up
+   with every field above and below */
+.ltk-act-when { display: flex; gap: 12px; align-items: flex-end; }
+.ltk-act-when > .ltk-act-date { flex: 1 1 0; min-width: 0; }
+/* Escalated · Confidential: two equal boxes, with the link above them */
+.ltk-act-flags { display: flex; gap: 8px; min-width: 0; }
 .ltk-act-flags .ltk-check { flex: 1 1 0; min-width: 0; }
 /* the due-date record, one line that opens */
 .ltk-resched-sum { display: flex; flex-direction: column; gap: 6px; }
@@ -311,13 +311,16 @@ export const LTK_BASE_CSS = `
    inside it here */
 .ltk-act-side .ltk-cmt-list { max-height: none; overflow: visible; }
 @container (min-width: 720px) {
-  .ltk-act-grid { display: grid; grid-template-columns: minmax(0, 1fr) 310px; column-gap: 20px; align-items: start; }
-  .ltk-act-side { border-left: 1px solid var(--ltk-hairline); padding-left: 20px; align-self: stretch; }
+  .ltk-act-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; column-gap: 24px; align-items: start; padding: 4px 4px 0; }
+  .ltk-act-side { border-left: 1px solid var(--ltk-hairline); padding-left: 24px; align-self: stretch; }
+  /* "Who" reads as a label like the others; its search is an accessory
+     at the row's right end */
+  .ltk-who-head .ltk-input { flex: 0 1 260px; margin-left: auto; }
   /* the people three across — each box its full 44px (Ben, 2026-11-16) */
   .ltk-act-form .ltk-checklist { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .ltk-act-when > .ltk-act-date { flex: 0 0 142px; }
-  .ltk-act-flags { flex: 1 1 0; }
-  .ltk-act-flags .ltk-check { padding: 8px; font-size: 13px; }
+  /* the side's two halves — where it shows, then the conversation — are
+     set apart by a rule, as the columns are */
+  .ltk-act-side > .ltk-act-flags { padding-bottom: 12px; border-bottom: 1px solid var(--ltk-hairline); margin-bottom: 2px; }
   .ltk-pdca-seg.ltk-act-pdca { grid-template-columns: repeat(6, minmax(0, 1fr)); max-width: none; }
   .ltk-pdca-seg.ltk-act-pdca .ltk-pdca-btn { padding: 6px 4px; gap: 5px; }
 }

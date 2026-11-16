@@ -33,8 +33,6 @@ export interface ActionForm {
   hasContent: () => boolean;
   /** The due date as the form holds it now (yyyy-mm-dd, "" = none). */
   due: () => string;
-  /** The Start / Due row — the dialog sets its two flags beside the dates. */
-  dates: HTMLElement;
   apply: (action: LtkAction) => void;
 }
 
@@ -322,7 +320,6 @@ export function buildActionForm(
     focus: () => desc.focus(),
     hasContent: () => desc.value.trim() !== "",
     due: () => due.value,
-    dates,
     apply: (action) => {
       action.description = desc.value.trim();
       action.start = start.value;
@@ -998,8 +995,11 @@ function buildLinkField(o: ActionDialogOptions, body: () => HTMLElement, onTouch
       wrap.appendChild(chip);
       return;
     }
-    wrap.appendChild(el("div", "ltk-link-note", "Personal — not linked to a ritual or an initiative."));
+    // no "Personal — not linked…" line (Ben, 2026-11-16): the field is
+    // optional and an empty search already says nothing is linked
     const query = textInput("", { placeholder: "Search rituals and initiatives…" });
+    query.setAttribute("aria-label", "Link to a ritual or an initiative");
+    query.title = "Optional. Left empty, the action is a personal one.";
     const results = el("div", "ltk-link-results");
     const group = (label: string, list: LinkTarget[]) => {
       if (list.length === 0) return;
@@ -1236,25 +1236,25 @@ export function openActionDialog(o: ActionDialogOptions): void {
   const side = el("div", "ltk-act-side");
   grid.append(main, side);
   dlg.body.appendChild(grid);
-  const top = el("div", "ltk-act-row");
-  const issueRow = fieldRow("Issue", issue);
-  issueRow.classList.add("ltk-act-issue");
-  top.appendChild(issueRow);
+  // LEFT — the action itself: what, who, when, its state
+  main.appendChild(fieldRow("Issue", issue));
+  main.appendChild(form.el);
+  // RIGHT — where it shows and who sees it, then the conversation
+  // (Ben, 2026-11-16: "Linked to" beside Issue threw the top row out of
+  // line; it is optional and sits here, as do the two flags that were
+  // squeezed in beside the dates). One column: these follow the action.
   if (linkField !== null) {
-    const linked = fieldRow("Linked to", linkField.el);
+    const linked = fieldRow("Linked to (optional)", linkField.el);
     linked.classList.add("ltk-act-linked");
-    top.appendChild(linked);
+    side.appendChild(linked);
   }
-  main.appendChild(top);
   if (linkSel !== null) {
     linkRow = fieldRow(o.linkLabel ?? "Linked card", linkSel);
-    main.appendChild(linkRow);
+    side.appendChild(linkRow);
   }
-  main.appendChild(form.el);
-  // the two flags share the dates' row
   const flags = el("div", "ltk-act-flags");
   flags.append(escChk.wrap, confChk.wrap);
-  form.dates.appendChild(flags);
+  side.appendChild(flags);
   const state = el("div", "ltk-field");
   state.append(el("div", "ltk-field-label", "PDCA state"), pdcaWrap);
   pdcaWrap.classList.add("ltk-act-pdca");

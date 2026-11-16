@@ -4,16 +4,28 @@
 // date is dragged). Due-date moves: `?policy=all` asks every action why
 // it moves later (the default asks the one initiative action, number 1);
 // action 2 arrives with two moves on its history; `?edit=1` lets the
-// Gantt's bars be dragged as far as its own prompt.
+// Gantt's bars be dragged as far as its own prompt. `?links=1` gives the
+// dialog its "Linked to" field (a ritual and an initiative to find).
 import "../src/style.css";
 import { ActionBoardEditor } from "../../controls/ActionBoard/editor";
 import { newAction, LtkAction } from "../../shared/schema/actions";
-import { setActionViewerProvider, setRescheduleProvider } from "../../shared/ui/actionLinkProvider";
+import { setActionLinkProvider, setActionViewerProvider, setRescheduleProvider } from "../../shared/ui/actionLinkProvider";
 import { mountGantt } from "../src/improvement/gantt";
 
 setActionViewerProvider(() => ({ whoId: "u1", who: "Ben O'Brien" }));
 const query = new URLSearchParams(window.location.search);
 setRescheduleProvider(() => Promise.resolve({ policy: query.get("policy") === "all" ? "all" : "initiatives", reasons: ["Waiting on parts", "Supplier late", "Scope changed"] }));
+if (query.get("links") === "1") {
+  const target = (kind: "ritual" | "initiative", id: string, boardId: string, title: string, detail: string) => ({ kind, id, boardId, title, detail, keywords: "", mine: true, near: true, cards: {} });
+  setActionLinkProvider(() =>
+    Promise.resolve({
+      targets: [target("ritual", "B1", "B1", "Daily production meeting", "Weipa · Mining"), target("initiative", "in-1", "init-in1", "Contractor Safety Improvement Strategy", "Weipa · Vallance, Colin")],
+      personalWho: "u1",
+      openBoardId: null,
+      openHome: "",
+    })
+  );
+}
 const day = (n: number) => new Date(Date.UTC(2026, 8, 30) + n * 86400000).toISOString().slice(0, 10);
 const make = (n: number, status: LtkAction["status"]): LtkAction => {
   const a = newAction({ source: "actionboard", sourceId: "" });
