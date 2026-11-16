@@ -26,6 +26,8 @@ export function currentSectionIndex(tops: number[], threshold: number): number {
 }
 
 const CARD = "app-settings-sectioncard";
+/** `showLoading`'s wrap (loading.ts). */
+const LOADING = "app-loading";
 
 /**
  * Section cards (Ben, 2026-10-08 — "hard to delineate the sections"):
@@ -45,6 +47,12 @@ function groupWithin(host: HTMLElement): void {
   // (Site cadence's pane fills after its picker is on the page): take
   // it apart so the pass below can card what is there NOW
   for (const lead of Array.from(host.querySelectorAll<HTMLElement>(`:scope > .${CARD}-lead`))) {
+    // a leading card whose content has gone leaves no shell behind (Ben,
+    // 2026-11-16: an empty white row above the first section)
+    if (lead.childElementCount === 0) {
+      lead.remove();
+      continue;
+    }
     if (lead.querySelector(".app-pr-section") === null) continue;
     for (const c of Array.from(lead.children)) host.insertBefore(c, lead);
     lead.remove();
@@ -55,6 +63,11 @@ function groupWithin(host: HTMLElement): void {
       card = child;
       continue;
     }
+    // the tab's loading spinner is not content. It sits in the body
+    // ahead of the tab's pane (settings.ts mountTab); a pass that ran
+    // while the tab was still loading carded it, and when the spinner
+    // left the card stayed — the empty row. It is never carded.
+    if (child.classList.contains(LOADING)) continue;
     const isHead = child.classList.contains("app-pr-section");
     // a container with sections of its OWN (Site cadence's pane under
     // its site picker): the cards go inside it and the container stays

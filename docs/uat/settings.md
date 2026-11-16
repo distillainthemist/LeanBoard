@@ -141,3 +141,13 @@ steps:
 5. In Settings → Value drivers change who may edit values (any change that saves), then return to Improvement.
 6. Set "Ask for a reason on" to "All actions"; a minute later move a ritual action's due date later.
 expected: step 1 the section explains the rule, shows "Ask for a reason on: Initiative actions only" and lists Waiting on parts, Resource unavailable, Scope changed, Blocked by another action, then a dashed "Other — Always offered · needs a note" with no handle or ×; step 2 each change saves at once (the remove asks first and says past moves keep the reason); step 3 neither is added — a repeat in any capitals and "Other" are refused; step 4 the question offers Supplier late first, Scope grew, no Waiting on parts, and Other last; the earlier move still reads "Scope changed"; step 5 the reasons and the choice are unchanged by the other tab's save; step 6 the ritual's action now asks why. A site admin does not see the section
+
+### UAT-SET-013 — No empty row above a tab's first section
+persona: superadmin
+modules: settingsStrip.ts screens/settings.ts
+preconditions: super admin; a connection slow enough that a Settings tab shows its spinner for a moment (a first open of the day, or a throttled network)
+steps:
+1. Open Settings → Improvement and wait for the templates to appear. Read the space between the section pills and "Initiative templates".
+2. Open Value drivers, Priorities, Health checks and Documents in turn, waiting for each to finish loading.
+3. Switch quickly back and forth between Improvement and Priorities several times.
+expected: on every tab the first section's card sits directly under the pills — there is never an empty white card (a blank bordered row) above it, during the load or after it; the spinner shows on the tinted ground with no card around it; tabs that open with content before their first heading still show that content in a card of its own
