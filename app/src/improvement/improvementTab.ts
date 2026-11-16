@@ -33,7 +33,9 @@ import { effectiveEnd, groupPrioritiesForPicker, isDescendant, orgFromKey, orgKe
 import { paletteMap } from "../../../shared/palette";
 import { appPalettes } from "../store/config";
 import { todayIso } from "../../../shared/schema/id";
-import { ImprovementViewer, Initiative, adminScopeFor, groupInitiatives, myRoles, nextGateFor, orgKeyOf, orgsOf, ragInputsFor, validateNewInitiative } from "./initiativeModel";
+import { ImprovementViewer, Initiative, adminScopeFor, groupInitiatives, myRoles, nextGateFor, orgKeyOf, orgsOf, ragInputsFor, validateNewInitiative,
+  ownersLabel,
+} from "./initiativeModel";
 import { fieldInput } from "./fieldInput";
 import { isFieldEmpty } from "./fieldCodec";
 import { assigneePeople } from "../../../shared/schema/people";
@@ -43,6 +45,7 @@ import { mountCentralPicker, mountProcessPicker } from "../../../shared/ui/proce
 import { mountOrgCascade } from "../priorities/orgCascade";
 import { allSiteProcessRoots, listProcessNodes } from "../store/processes";
 import { initiativeRag } from "../priorities/model";
+import { improvementView, rememberImprovement, rememberShared, sharedView } from "../sessionView";
 import {
   primaryMetric,
   normalizeMetrics,
@@ -54,7 +57,7 @@ import {
   roleFillersAt,
   STANDARD_ROLES,
   stepperChips, activeRoles } from "./templateModel";
-import { buildTree, childOrgs, pickOrg, pickOwner, siblingOrgs } from "../priorities/dialogs";
+import { buildTree, childOrgs, orgInTree, pickOrg, pickOwner, siblingOrgs } from "../priorities/dialogs";
 
 const btn = (label: string, cls = "app-btn"): HTMLButtonElement => {
   const b = el("button", cls, label) as HTMLButtonElement;
@@ -117,7 +120,12 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
     const tree = buildTree(treeRaw, siteCo, companyList);
     const mySite = me?.site && siteCo[me.site] !== undefined ? orgRef(siteCo[me.site], me.site) : null;
     const firstSite = tree.companies.flatMap((c) => c.sites.map((x) => orgRef(c.name, x.name)))[0] ?? orgRef(companyList[0] ?? "");
-    let scope: OrgRef = mySite ?? firstSite;
+    // the site and year in view are the session's, shared with Priorities
+    // (Ben, 2026-11-16, issue 9); the other filters are this screen's own
+    const session = sharedView();
+    const sessionOrg = session.org ? orgFromKey(session.org) : null;
+    const sessionImp = improvementView();
+    let scope: OrgRef = (sessionOrg && orgInTree(tree, sessionOrg) ? sessionOrg : null) ?? mySite ?? firstSite;
     /** In scope = at the scoped org OR anywhere below it. */
     const inScope = (o: Initiative["org"]): boolean =>
       (scope.company === "" || o.company === scope.company) &&
@@ -168,14 +176,22 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
       /** A process node id: the initiative's process is it or beneath it. */
       process: string;
     }
-    const f: Filters = { pdca: "", period: currentPeriod, status: "active", flagOnly: false, method: "", teamScope: "", process: "" };
+    const f: Filters = {
+      pdca: sessionImp?.pdca ?? "",
+      period: session.period ?? currentPeriod,
+      status: (sessionImp?.status ?? "active") as Filters["status"],
+      flagOnly: sessionImp?.flagOnly ?? false,
+      method: sessionImp?.method ?? "",
+      teamScope: sessionImp?.teamScope ?? "",
+      process: sessionImp?.process ?? "",
+    };
     // the process model (term-store-proposal §6): the filter and the chip
     const processTree = buildProcessTree(processNodes);
     const processRootOfScope = () => (scope.site !== "" ? siteRootOf(processTree, scope.site) : "");
     const processText = (i: Initiative): string => (i.processNodeId ?? "") === "" ? "" : processPathLabel(processTree, i.processNodeId ?? "", i.org.site);
-    let viewMode: "list" | "tiles" | "gantt" = "list";
+    let viewMode: "list" | "tiles" | "gantt" = sessionImp?.viewMode ?? "list";
     let ganttUnmount: (() => void) | null = null;
-    let search = "";
+    let search = sessionImp?.search ?? "";
 
     const visible = (i: Initiative): boolean =>
       (search === "" || i.title.toLowerCase().includes(search.toLowerCase())) &&
@@ -200,6 +216,9 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
       filterPop = null;
     };
     const render = () => {
+      // where the person is, for the session (sessionView.ts)
+      rememberShared(orgKey(scope), f.period);
+      rememberImprovement({ pdca: f.pdca, status: f.status, flagOnly: f.flagOnly, method: f.method, teamScope: f.teamScope, process: f.process, viewMode, search });
       clear(wrap);
       wrap.appendChild(renderHeader());
       if (filterPop) paintFilterPop();
@@ -619,7 +638,7 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
       // meta = priority statement · owner (org and roles are columns now)
       const primary = i.priorities.find((p) => p.primary) ?? i.priorities[0] ?? null;
       const priorityText = primary ? (priorityStatement.get(primary.priorityId) ?? "Linked priority") : "Other";
-      const owner = (i.roles.owner ?? []).map((p) => p.who).join(", ");
+      const owner = ownersLabel(i, 3);
       main.appendChild(el("div", "app-im-meta", [priorityText, owner, processText(i)].filter((x) => x !== "").join(" · ")));
       row.appendChild(main);
       // org column: department (or site), full chain on hover
@@ -742,7 +761,7 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
       tile.appendChild(
         el("div", "app-im-tile-metric" + (mv && mv.display !== "" ? "" : " app-cp-muted"), mv && mv.display !== "" ? `${mv.name} ${mv.display}${mv.target !== null ? ` / ${mv.target}${mv.unit}` : ""}` : "No metric value")
       );
-      tile.appendChild(el("div", "app-im-tile-owner", [(i.roles.owner ?? [])[0]?.who ?? "no owner", i.org.department || i.org.site, processText(i)].filter((x) => x !== "").join(" · ")));
+      tile.appendChild(el("div", "app-im-tile-owner", [ownersLabel(i) || "no owner", i.org.department || i.org.site, processText(i)].filter((x) => x !== "").join(" · ")));
       tile.addEventListener("click", () => openInitiative(i));
       return tile;
     };
@@ -933,9 +952,9 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
             }
             list = await listInitiatives();
             // the first initiative to call a priority its primary claims the
-            // priority's primary slot when it's empty (Ben, 2026-09-14)
-            const primaryLink = made.priorities.find((l) => l.primary) ?? null;
-            if (primaryLink) await import("../store/priorities").then((m) => m.setPrimaryInitiative(primaryLink.priorityId, made.id, true)).catch(() => false);
+            // (the priority's primary slot is no longer claimed here — an
+            // initiative becomes a priority's primary only when someone
+            // stars it; Ben, 2026-11-16, issue 8)
             close();
             if (made.boardId !== "") {
               rememberBoardOrigin("#/improvement");

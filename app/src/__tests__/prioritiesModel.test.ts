@@ -53,6 +53,8 @@ function pr(id: string, org = site, over: Partial<Priority> = {}): Priority {
     primaryInitiativeId: "",
     order: 0,
     notes: "",
+    objectives: [],
+    placements: [],
     ...over,
   };
 }

@@ -18,6 +18,8 @@ import {
   AssignmentStatus,
   isAssignmentStatus,
   isPriorityStatus,
+  parseObjectives,
+  parsePlacements,
   OrgRef,
   Pillar,
   Priority,
@@ -133,6 +135,8 @@ function priorityFromRow(
     primaryInitiativeId: row.ben_primaryinitiativeid ?? "",
     order: typeof row.ben_order === "number" ? row.ben_order : 0,
     notes: row.ben_notes ?? "",
+    objectives: parseObjectives(row.ben_objectivesjson),
+    placements: parsePlacements(row.ben_placementsjson),
   };
 }
 
@@ -161,21 +165,6 @@ export interface CascadeData {
 
 /** Everything the priorities screens need for one company, in one go
  *  (three reads, run together). Company "" = all rows. */
-/** A priority's PRIMARY initiative (its charter and metrics headline the
- *  priority — Ben, 2026-09-14). Set explicitly in the overlay; claimed
- *  automatically by the first initiative that links the priority as its
- *  own primary while the priority has none. */
-export async function setPrimaryInitiative(priorityId: string, initiativeId: string, onlyIfEmpty: boolean): Promise<boolean> {
-  const data = await loadCascade("");
-  const p = data.priorities.find((x) => x.id === priorityId);
-  if (!p) return false;
-  if (onlyIfEmpty && p.primaryInitiativeId !== "") return false;
-  if (p.primaryInitiativeId === initiativeId) return false;
-  p.primaryInitiativeId = initiativeId;
-  await savePriority(p, data);
-  return true;
-}
-
 export async function loadCascade(company: string): Promise<CascadeData> {
   const filter = company !== "" ? eq("ben_company", company) : undefined;
   const [pillarRows, priorityRows, assignmentRows] = await Promise.all([
@@ -215,6 +204,8 @@ export async function savePriority(p: Priority, data: CascadeData): Promise<stri
     ben_order: p.order,
     ben_primaryinitiativeid: p.primaryInitiativeId,
     ben_notes: p.notes,
+    ben_objectivesjson: p.objectives.length > 0 ? JSON.stringify(p.objectives) : "",
+    ben_placementsjson: p.placements.length > 0 ? JSON.stringify(p.placements) : "",
     "ben_Pillar@odata.bind": pillar?.rowId ? `/ben_ltkpillars(${pillar.rowId})` : undefined,
     // an UPDATE without a parent sends null — that is how the Web API
     // clears a lookup; undefined would be stripped and the old parent kept
@@ -305,6 +296,8 @@ export function newPriority(org: OrgRef, period: string): Priority {
     primaryInitiativeId: "",
     order: 0,
     notes: "",
+    objectives: [],
+    placements: [],
   };
 }
 

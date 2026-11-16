@@ -57,8 +57,10 @@ import {
   pickOrg,
   priorityDialog,
   siblingOrgs,
+  orgInTree,
 } from "./dialogs";
 import { loadPriorityPrefs, savePriorityPrefs, ViewMode } from "./prefs";
+import { prioritiesView, rememberPriorities, rememberShared, sharedView } from "../sessionView";
 import { mountWalk } from "./walk";
 import { initialsFor } from "../../../shared/schema/people";
 import { prioritiesViewUrl, takePendingPrioritiesView } from "../links";
@@ -76,6 +78,9 @@ import {
   descendantPriorities,
   initiativeRag,
   groupByColumn,
+  livePrimaryId,
+  objectiveValues,
+  stalePrimary,
   isDescendant,
   objectiveColumns,
   periodsOnOffer as periodsOffered,
@@ -317,16 +322,23 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
     // a shared view link (Ben, 2026-10-07) sets the opening state once
     const linkView = card ? null : decodePrioritiesView(takePendingPrioritiesView());
     const linkOrg = linkView && linkView.org !== "" ? orgFromKey(linkView.org) : null;
-    // ALWAYS the person's site (Ben, 2026-10-19): the remembered org
-    // used to win and pinned whatever the screen first opened on
-    const startOrg = cardOrg() ?? linkOrg ?? mySite ?? firstSite;
+    // the person's site at app START (Ben, 2026-10-19: a remembered org
+    // used to win across sessions and pinned whatever the screen first
+    // opened on) — and, within the session, where they last were (Ben,
+    // 2026-11-16, issue 9: going to an initiative and back threw the
+    // site and the year away). sessionView.ts holds it; a card mount
+    // neither reads nor writes it.
+    const session = card ? null : sharedView();
+    const sessionOrg = session?.org ? orgFromKey(session.org) : null;
+    const sessionPri = card ? null : prioritiesView();
+    const startOrg = cardOrg() ?? linkOrg ?? (sessionOrg && orgInTree(tree, sessionOrg) ? sessionOrg : null) ?? mySite ?? firstSite;
     const cardL1 = card?.pillarName ? (data0Pillars: Pillar[]) => data0Pillars.find((x) => x.level === 1 && x.name.toLowerCase() === card.pillarName!.toLowerCase())?.id ?? null : null;
     const state: ScreenState = {
       org: startOrg,
-      l1: null,
+      l1: sessionPri?.l1 ?? null,
       focus: card?.focus && card.focus.length > 0 ? card.focus : null,
-      period: currentPeriod,
-      status: "active",
+      period: session?.period ?? currentPeriod,
+      status: sessionPri?.status ?? "active",
       rule: prefs.rule,
       showOther: prefs.showOther,
       groupByPillar: prefs.groupByPillar,
@@ -373,6 +385,8 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
     if (dead) return;
     stopLoading();
     if (cardL1) state.l1 = cardL1(data.pillars);
+    // a remembered pillar filter from another company's set means nothing here
+    else if (state.l1 !== null && !data.pillars.some((x) => x.id === state.l1)) state.l1 = null;
 
     /** The nearest scrolling ancestor — closing the overlay / repainting
      *  after a write must land where the user was (§13). */
@@ -447,6 +461,14 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       },
     });
     const actorRef = () => ({ whoId: viewer.whoId, who: me?.who ?? who?.name ?? "" });
+    // ---- a priority's primary initiative and its objectives, as they
+    // count NOW (issues 1 and 8, 2026-11-16) — the one road every reader
+    // takes: the matrix, the walk, the poster, the dynamic card, the popup
+    const primaryIdOf = (p: Priority): string => livePrimaryId(p, initiativeList);
+    const valuesOf = (initiativeId: string) => metricState.get(initiativeId)?.values ?? [];
+    const underPriority = (p: Priority, initiativeId: string): boolean =>
+      [p, ...descendantPriorities(p, data.priorities)].some((pr) => (byPriority.get(pr.id) ?? []).some((i) => i.id === initiativeId));
+    const objectivesOf = (p: Priority) => objectiveValues(p, primaryIdOf(p), valuesOf, (id) => underPriority(p, id));
     const ctx: LifecycleCtx = {
       host: wrap,
       data: () => data,
@@ -465,6 +487,32 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       periodsOnOffer: () => periodsOnOffer(),
       currentPeriod,
       ragsFor,
+      primaryOf: (p) => {
+        const id = primaryIdOf(p);
+        const i = id !== "" ? initiativeList.find((x) => x.id === id) : undefined;
+        return i ? { id: i.id, title: i.title, completed: i.status === "completed" } : null;
+      },
+      stalePrimaryOf: (p) => stalePrimary(p, initiativeList),
+      metricChoicesFor: (p) => {
+        const out: ReturnType<LifecycleCtx["metricChoicesFor"]> = [];
+        const seen = new Set<string>();
+        for (const pr of [p, ...descendantPriorities(p, data.priorities)]) {
+          for (const i of byPriority.get(pr.id) ?? []) {
+            if (seen.has(i.id) || i.confidential) continue;
+            seen.add(i.id);
+            const metrics = valuesOf(i.id).map((v) => ({
+              key: v.key,
+              name: v.name,
+              objective: v.objective,
+              plan: v.target !== null ? `${v.target}${v.unit}` : "",
+              actual: v.display,
+              rag: v.rag,
+            }));
+            if (metrics.length > 0) out.push({ initiativeId: i.id, title: i.title, inheritedFrom: pr.id === p.id ? "" : orgName(pr.org), metrics });
+          }
+        }
+        return out;
+      },
       ganttFor: (p) => {
         const ids = new Set([p.id, ...descendantPriorities(p, data.priorities).map((x) => x.id)]);
         const seen = new Set<string>();
@@ -556,6 +604,11 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
      *  a primary initiative closed it): the overlay's scrim lives in
      *  `wrap`, so it is lifted out before the clear and put back after. */
     const render = () => {
+      // where the person is, for the session (sessionView.ts)
+      if (!card) {
+        rememberShared(orgKey(state.org), state.period);
+        rememberPriorities({ status: state.status, l1: state.l1 });
+      }
       const keep = Array.from(wrap.children).filter((c) => c.classList.contains("app-cp-scrim"));
       renderBody();
       for (const k of keep) wrap.appendChild(k);
@@ -1062,7 +1115,7 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
           pillarColor: l1?.color ?? "",
           priorities: (byColumn.get(col.id) ?? []).map((p) => {
             const t = tally(ragsFor(p));
-            const starred = p.primaryInitiativeId !== "" ? (metricState.get(p.primaryInitiativeId)?.values ?? []).filter((v) => v.starred) : [];
+            const starred = objectivesOf(p);
             const flags: string[] = [];
             if (parentClosed(p, data.priorities)) flags.push("Parent completed");
             if (p.status !== "active") flags.push(p.status === "completed" ? "Completed" : p.status === "archived" ? "Archived" : "Retired");
@@ -1222,7 +1275,7 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
      *  and the present view show the same lines (2026-09-29 — the present
      *  view carried a placeholder and never showed a metric). */
     const objectiveLinesFor = (p: Priority): HTMLElement[] => {
-      const starred = p.primaryInitiativeId !== "" ? (metricState.get(p.primaryInitiativeId)?.values ?? []).filter((v) => v.starred) : [];
+      const starred = objectivesOf(p);
       // no placeholder line (Ben, 2026-10-31: the row repeated "No primary
       // initiative" / "No metric value yet" down every column) — the row
       // lists the metrics there are, and stays blank otherwise
@@ -1443,7 +1496,8 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       const val = el("div", "app-cp-dcard-value");
       // the primary initiative's first ★ starred metric (Ben, 2026-09-14);
       // its objective, when written, captions it
-      const mv = p.primaryInitiativeId !== "" ? (metricState.get(p.primaryInitiativeId)?.values ?? [])[0] ?? null : null;
+      const livePrimary = primaryIdOf(p);
+      const mv = livePrimary !== "" ? (valuesOf(livePrimary)[0] ?? null) : (objectivesOf(p)[0] ?? null);
       if (mv) {
         const num = el("span", "app-cp-dcard-num", mv.display !== "" ? mv.display : "—");
         if (mv.rag) num.style.color = palette[ragPaletteKey(mv.rag)] ?? "";
@@ -1451,7 +1505,7 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
         val.appendChild(el("span", "app-cp-dcard-target", `${mv.name}${mv.objective !== "" ? `: ${mv.objective}` : ""}${mv.target !== null ? ` · plan ${mv.target}${mv.unit}` : ""}`));
       } else {
         val.appendChild(el("span", "app-cp-dcard-num app-cp-muted", "—"));
-        val.appendChild(el("span", "app-cp-dcard-target", p.primaryInitiativeId !== "" ? "No metric value yet" : "No primary initiative"));
+        val.appendChild(el("span", "app-cp-dcard-target", livePrimary !== "" || p.objectives.length > 0 ? "No metric value yet" : "No primary initiative"));
       }
       metric.appendChild(val);
       const spark = el("div", "app-cp-dcard-spark");
@@ -1673,7 +1727,7 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
         roster,
         cascadeTargets: cascadeTargetsFor(p),
         alreadyCascaded: already,
-        primaryInitiativeLabel: initiativeList.find((x) => x.id === p.primaryInitiativeId)?.title ?? "",
+        primaryInitiativeLabel: initiativeList.find((x) => x.id === primaryIdOf(p))?.title ?? "",
         ownerPicker: ownerPickerFor(p.org),
       });
       if (!r) return;

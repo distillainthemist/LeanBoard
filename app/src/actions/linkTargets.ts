@@ -6,7 +6,7 @@
 // listed every active one by title).
 
 import { currentViewer } from "../runtime";
-import { ImprovementViewer, Initiative, adminScopeFor, canSee, orgsOf } from "../improvement/initiativeModel";
+import { ImprovementViewer, Initiative, adminScopeFor, canSee, orgsOf, ownersLabel } from "../improvement/initiativeModel";
 import { archivedSites, orgOwnersMap } from "../store/config";
 import { canViewBoard, listBoards } from "../store/boards";
 import { listInitiatives } from "../store/initiatives";
@@ -75,7 +75,7 @@ async function loadTargets(): Promise<LinkTarget[]> {
   const boardById = new Map(boards.map((b) => [b.boardId, b]));
   for (const i of initiatives) {
     const people = Object.values(i.roles).flat();
-    const owner = (i.roles.owner ?? [])[0]?.who ?? "";
+    const owner = ownersLabel(i);
     const board = i.boardId !== "" ? boardById.get(i.boardId) : undefined;
     out.push({
       kind: "initiative",

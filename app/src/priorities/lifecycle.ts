@@ -23,6 +23,7 @@ import {
 } from "../store/priorities";
 import { addModeToggle, modal, field, OrgTree, childOrgs, priorityDialog, cascadeTargetList, CascadeTarget } from "./dialogs";
 import { rememberBoardOrigin } from "../improvement/boardOrigin";
+import { popupTabFor, rememberPopupTab } from "../sessionView";
 import { promptConfirm } from "../prompts";
 import {
   CLOSE_REASONS,
@@ -99,6 +100,21 @@ export interface LifecycleCtx {
     actions: import("../../../shared/schema/actions").LtkAction[];
     ragFor: (i: import("../improvement/initiativeModel").Initiative) => "green" | "amber" | "red" | "grey";
   };
+  /** The priority's primary initiative AS IT COUNTS NOW (model
+   *  `livePrimaryId`: still linked, active or completed) — null = none.
+   *  Every tab that shows the primary's charter, metrics or commentary
+   *  asks this, never the stored id (issue 1, 2026-11-16). */
+  primaryOf: (p: Priority) => { id: string; title: string; completed: boolean } | null;
+  /** A stored primary that no longer counts, and why. */
+  stalePrimaryOf: (p: Priority) => { id: string; title: string; why: "archived" | "unlinked" | "gone" } | null;
+  /** With no primary: the metrics its objectives may be picked from —
+   *  the initiatives under the priority that carry any (issue 8). */
+  metricChoicesFor: (p: Priority) => {
+    initiativeId: string;
+    title: string;
+    inheritedFrom: string;
+    metrics: { key: string; name: string; objective: string; plan: string; actual: string; rag: "green" | "amber" | "red" | null }[];
+  }[];
   /** After any write: reload the cascade and repaint (scroll preserved). */
   changed: () => Promise<void>;
   /** The initiative behind a popup row (null = not loaded / confidential
@@ -224,7 +240,7 @@ export async function closePriority(
 /** The primary initiative's commentary (2026-09-29): the latest update in
  *  full, the earlier ones beneath — and the team adds and edits here as
  *  on the initiative's own board (the same dialog, the same writes). */
-async function mountPrimaryCommentary(host: HTMLElement, initiativeId: string, actor: { whoId: string; who: string }): Promise<void> {
+async function mountPrimaryCommentary(host: HTMLElement, initiativeId: string, actor: { whoId: string; who: string }, priorityId = ""): Promise<void> {
   host.appendChild(el("div", "app-cp-muted", "Loading…"));
   const [{ listInitiatives, listInitiativeEvents }, { listPeople }, { myRoles, adminOver }, { updatesFrom, staleDays }, { renderUpdateCard, renderTrail, openUpdateDialog }, { addUpdate, editUpdate }, { todayIso }] = await Promise.all([
     import("../store/initiatives"),
@@ -251,7 +267,7 @@ async function mountPrimaryCommentary(host: HTMLElement, initiativeId: string, a
   const open = btn("Open board ↗", "app-link");
   open.disabled = i.boardId === "";
   open.addEventListener("click", () => {
-    rememberBoardOrigin("#/priorities", "");
+    rememberBoardOrigin("#/priorities", priorityId);
     window.location.hash = `#/board/${i.boardId}`;
   });
   head.appendChild(open);
@@ -311,7 +327,7 @@ async function mountPrimaryCard(
   host: HTMLElement,
   initiativeId: string,
   cardType: "CanvasCard" | "MetricsCard",
-  who: { actor: { whoId: string; who: string }; adminScope: AdminScope }
+  who: { actor: { whoId: string; who: string }; adminScope: AdminScope; priorityId?: string }
 ): Promise<void> {
   host.appendChild(el("div", "app-cp-muted", "Loading…"));
   const [{ listInitiatives }, { getBoard }, { parseManifest }, { liveRow, ensureLiveRow, saveCard }, { cardMounter }, { makeInitiativeBinding }, { defaultTheme }, { myRoles, adminOver }, { upsertActions }] = await Promise.all([
@@ -337,7 +353,7 @@ async function mountPrimaryCard(
   const open = btn("Open board ↗", "app-link");
   open.disabled = i.boardId === "";
   open.addEventListener("click", () => {
-    rememberBoardOrigin("#/priorities", "");
+    rememberBoardOrigin("#/priorities", who.priorityId ?? "");
     window.location.hash = `#/board/${i.boardId}`;
   });
   head.appendChild(open);
@@ -769,7 +785,9 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
     if (e.target === scrim) close();
   });
 
-  let tab: "initiatives" | "actions" | "commentary" | "metrics" | "cascade" | "charter" | "history" = "initiatives";
+  // the tab it was left on, for the session — returning from a board
+  // reopens the popup where the person was (issue 9, 2026-11-16)
+  let tab: "initiatives" | "actions" | "commentary" | "metrics" | "cascade" | "charter" | "history" = (popupTabFor(p.id) as "initiatives" | null) ?? "initiatives";
   /** The Actions tab wrote something the screen's tallies have not seen. */
   let actionsTouched = false;
   let events: PriorityEvent[] | null = null;
@@ -778,6 +796,7 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
     clear(box);
     const data = ctx.data();
     const live = data.priorities.find((x) => x.id === p.id) ?? p;
+    const primary = ctx.primaryOf(live);
     const pillar = data.pillars.find((x) => x.id === live.pillarId);
     const parentL1 = pillar ? data.pillars.find((x) => x.id === pillar.parentId) : undefined;
     const can = ctx.canManage(live.org);
@@ -796,7 +815,7 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
     headText.appendChild(chip);
     headText.appendChild(el("h2", "app-cp-ov-statement", live.statement));
     headText.appendChild(
-      el("div", "app-cp-ov-meta", [orgName(live.org), live.period, live.ownerName !== "" ? `owner ${live.ownerName}` : "no owner", live.primaryInitiativeId !== "" ? `★ ${ctx.initiativesFor(live).find((r) => r.id === live.primaryInitiativeId)?.title ?? "primary initiative"}` : "", live.status !== "active" ? live.status : ""].filter((s) => s !== "").join(" · "))
+      el("div", "app-cp-ov-meta", [orgName(live.org), live.period, live.ownerName !== "" ? `owner ${live.ownerName}` : "no owner", primary !== null ? `★ ${primary.title}${primary.completed ? " (completed)" : ""}` : "", live.status !== "active" ? live.status : ""].filter((s) => s !== "").join(" · "))
     );
     head.appendChild(headText);
     const headBtns = el("div", "app-cp-ov-headbtns");
@@ -979,22 +998,28 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
     const left = el("div", "app-cp-ov-left");
     const tabs = el("div", "app-cp-ov-tabs");
     const rags = ctx.ragsFor(live);
-    const tabDefs: [typeof tab, string][] = [
+    // the charter and the commentary are the PRIMARY initiative's: a
+    // priority without one has neither tab (Ben, 2026-11-16, issue 8),
+    // and its Metrics tab is where its objectives are picked
+    const allTabs: [typeof tab, string][] = [
       // Ben's order, 2026-09-29: what is being done, then how it is
       // going, then the reference material
       ["initiatives", `Initiatives ${rags.length}`],
       ["actions", "Actions"],
       ["commentary", "Commentary"],
-      ["metrics", "Metrics"],
+      ["metrics", primary !== null ? "Metrics" : "Objectives"],
       ["cascade", "Cascade"],
       ["charter", "Charter"],
       ["history", "History"],
     ];
+    const tabDefs = allTabs.filter(([key]) => primary !== null || (key !== "commentary" && key !== "charter"));
+    if (!tabDefs.some(([key]) => key === tab)) tab = "initiatives";
     for (const [key, label] of tabDefs) {
       const t = btn(label, "app-cp-ov-tab" + (tab === key ? " app-cp-ov-tab-on" : ""));
       t.addEventListener("click", () => {
         const leavingActions = tab === "actions" && key !== "actions";
         tab = key;
+        rememberPopupTab(p.id, key);
         paint();
         if (leavingActions && actionsTouched) {
           // actions were written on the Actions tab: the matrix behind
@@ -1034,7 +1059,7 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
         // ★ the priority's PRIMARY initiative (its charter + metrics on the
         // Charter tab) — a direct link only, set by whoever manages the org
         if (r.inheritedFrom === "") {
-          const isPrimary = live.primaryInitiativeId === r.id;
+          const isPrimary = primary?.id === r.id;
           const star = btn(isPrimary ? "★ Primary" : "☆", "app-link app-cp-ov-star" + (isPrimary ? " app-cp-ov-star-on" : ""));
           star.title = isPrimary ? "The primary initiative — its charter and metrics headline this priority" : "Make this the primary initiative";
           star.disabled = !ctx.canManage(live.org);
@@ -1045,8 +1070,8 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
               // metrics headline the priority — not a one-click swap
               const ok = await promptConfirm(
                 isPrimary
-                  ? { title: "Clear the primary initiative?", note: `“${r.title}” will no longer headline this priority — the Charter, Metrics and Commentary tabs empty until another is starred.`, confirmLabel: "Clear" }
-                  : { title: "Make this the primary initiative?", note: `“${r.title}” — its charter, metrics and commentary headline this priority${live.primaryInitiativeId !== "" ? ", replacing the current primary" : ""}.`, confirmLabel: "Make primary" }
+                  ? { title: "Clear the primary initiative?", note: `“${r.title}” will no longer headline this priority. The Charter and Commentary tabs go until another is starred, and its objectives are picked on the Objectives tab.`, confirmLabel: "Clear" }
+                  : { title: "Make this the primary initiative?", note: `“${r.title}” — its charter, metrics and commentary headline this priority${primary !== null ? ", replacing the current primary" : ""}.`, confirmLabel: "Make primary" }
               );
               if (!ok) return;
               live.primaryInitiativeId = isPrimary ? "" : r.id;
@@ -1099,8 +1124,47 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
         }
         return rowEl;
       };
+      // a primary that is not in the list below still has to be said, and
+      // be clearable: a COMPLETED one keeps headlining but only active
+      // initiatives are listed; a STALE one (archived, unlinked, gone) no
+      // longer counts (issue 1, 2026-11-16)
+      const clearPrimary = (label: string): HTMLButtonElement => {
+        const b = btn(label, "app-link");
+        b.addEventListener("click", () => {
+          void (async () => {
+            live.primaryInitiativeId = "";
+            await savePriority(live, ctx.data());
+            await ctx.changed();
+            if (scrim.isConnected) paint();
+          })();
+        });
+        return b;
+      };
+      const stale = ctx.stalePrimaryOf(live);
+      if (stale !== null) {
+        const note = el("div", "app-cp-ov-primarynote");
+        const name = stale.title !== "" ? `“${stale.title}”` : "that was starred";
+        note.appendChild(
+          el(
+            "span",
+            undefined,
+            stale.why === "archived"
+              ? `The primary initiative ${name} was archived, so it no longer headlines this priority. Star another, or restore it.`
+              : stale.why === "unlinked"
+                ? `The primary initiative ${name} is no longer linked to this priority. Star another.`
+                : `The primary initiative ${name} no longer exists. Star another.`
+          )
+        );
+        if (ctx.canManage(live.org)) note.appendChild(clearPrimary("Clear"));
+        body.appendChild(note);
+      } else if (primary !== null && !shown.some((r) => r.id === primary.id)) {
+        const note = el("div", "app-cp-ov-primarynote");
+        note.append(el("span", "app-cp-ov-star-on", "★"), el("span", undefined, ` Primary initiative: “${primary.title}”${primary.completed ? " — completed. Its charter and final metrics still headline this priority." : ""}`));
+        if (ctx.canManage(live.org)) note.appendChild(clearPrimary("Clear"));
+        body.appendChild(note);
+      }
       // ★ the primary initiative always leads (Ben, 2026-09-23), set apart
-      const primaryRow = shown.find((r) => r.id === live.primaryInitiativeId) ?? null;
+      const primaryRow = primary !== null ? (shown.find((r) => r.id === primary.id) ?? null) : null;
       if (primaryRow) {
         const h = el("div", "app-cp-ov-group app-cp-ov-group-primary");
         h.append(el("span", "app-cp-ov-star-on", "★"), el("span", undefined, "Primary initiative"));
@@ -1123,22 +1187,60 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
       }
       const hidden = rows.length - shown.length;
       if (hidden > 0) body.appendChild(el("div", "app-cp-muted", `+ ${hidden} confidential initiative${hidden === 1 ? "" : "s"}`));
-    } else if (tab === "charter" || tab === "metrics") {
-      if (live.primaryInitiativeId === "") {
-        body.appendChild(el("div", "app-cp-muted", `No primary initiative yet — ★ one on the Initiatives tab. Its ${tab === "charter" ? "charter shows here, read-only" : "metrics show here"}.`));
-      } else {
-        const host = el("div", "app-cp-ov-charter");
-        body.appendChild(host);
-        void mountPrimaryCard(host, live.primaryInitiativeId, tab === "charter" ? "CanvasCard" : "MetricsCard", { actor: ctx.actor(), adminScope: ctx.viewerAdminScope });
+    } else if ((tab === "charter" || tab === "metrics") && primary !== null) {
+      const host = el("div", "app-cp-ov-charter");
+      body.appendChild(host);
+      void mountPrimaryCard(host, primary.id, tab === "charter" ? "CanvasCard" : "MetricsCard", { actor: ctx.actor(), adminScope: ctx.viewerAdminScope, priorityId: live.id });
+    } else if (tab === "metrics") {
+      // no primary initiative: the objectives are PICKED from the metrics
+      // of the initiatives under the priority (issue 8, 2026-11-16)
+      const may = ctx.canManage(live.org);
+      const choices = ctx.metricChoicesFor(live);
+      body.appendChild(
+        el(
+          "div",
+          "app-cp-muted app-cp-ov-objnote",
+          choices.length === 0
+            ? "This priority has no primary initiative, and none of its initiatives carries a metric yet. Its objectives are picked here once one does — or ★ a primary on the Initiatives tab."
+            : may
+              ? "This priority has no primary initiative. Tick the metrics that are its objectives — they show in the Objectives row. (★ a primary on the Initiatives tab instead and its starred metrics take over.)"
+              : "This priority has no primary initiative. The ticked metrics are its objectives."
+        )
+      );
+      const picked = (initiativeId: string, key: string) => live.objectives.some((o) => o.initiativeId === initiativeId && o.metricKey === key);
+      for (const c of choices) {
+        const head = el("div", "app-cp-ov-group");
+        head.appendChild(el("span", undefined, c.inheritedFrom !== "" ? `${c.title} · via ${c.inheritedFrom}` : c.title));
+        body.appendChild(head);
+        for (const m of c.metrics) {
+          const row = el("label", "app-cp-ov-objrow");
+          const box = el("input") as HTMLInputElement;
+          box.type = "checkbox";
+          box.checked = picked(c.initiativeId, m.key);
+          box.disabled = !may;
+          const light = el("span", "app-cp-objective-light");
+          light.style.background = m.rag ? (ctx.palette[ragPaletteKey(m.rag)] ?? "#9a948a") : "#d9d3c8";
+          const text = el("span", "app-cp-ov-objtext");
+          text.appendChild(el("span", "app-cp-ov-objname", m.objective !== "" ? `${m.name}: ${m.objective}` : m.name));
+          text.appendChild(el("span", "app-cp-ov-objnums", `Plan ${m.plan !== "" ? m.plan : "—"} · Actual ${m.actual !== "" ? m.actual : "—"}`));
+          row.append(box, light, text);
+          box.addEventListener("change", () => {
+            const rest = live.objectives.filter((o) => !(o.initiativeId === c.initiativeId && o.metricKey === m.key));
+            live.objectives = box.checked ? [...rest, { initiativeId: c.initiativeId, metricKey: m.key }] : rest;
+            box.disabled = true;
+            void (async () => {
+              await savePriority(live, ctx.data());
+              await ctx.changed();
+              box.disabled = false;
+            })();
+          });
+          body.appendChild(row);
+        }
       }
-    } else if (tab === "commentary") {
-      if (live.primaryInitiativeId === "") {
-        body.appendChild(el("div", "app-cp-muted", "No primary initiative yet — ★ one on the Initiatives tab. Its commentary shows here."));
-      } else {
-        const host = el("div", "app-cp-ov-charter");
-        body.appendChild(host);
-        void mountPrimaryCommentary(host, live.primaryInitiativeId, ctx.actor());
-      }
+    } else if (tab === "commentary" && primary !== null) {
+      const host = el("div", "app-cp-ov-charter");
+      body.appendChild(host);
+      void mountPrimaryCommentary(host, primary.id, ctx.actor(), live.id);
     } else if (tab === "actions") {
       // the action card the boards use (issues 5 and 11, 2026-11-16) —
       // List | Kanban | Gantt, the full dialog, Add action — over every

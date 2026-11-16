@@ -219,6 +219,119 @@ export interface Priority {
   primaryInitiativeId: string;
   order: number;
   notes: string;
+  /** With no primary initiative: the metrics picked from the linked
+   *  initiatives as this priority's objectives (issue 8, 2026-11-16). */
+  objectives: PriorityObjective[];
+  /** The sub-pillars it sat under in EARLIER years (issue 4, 2026-11-16);
+   *  `pillarId` stays its current home. Oldest first. */
+  placements: PriorityPlacement[];
+}
+
+/** One picked objective: a metric of a linked initiative. */
+export interface PriorityObjective {
+  initiativeId: string;
+  metricKey: string;
+}
+
+/** "Up to and including `to`, it sat under `pillarId`." */
+export interface PriorityPlacement {
+  pillarId: string;
+  to: string;
+}
+
+export function parseObjectives(raw: unknown): PriorityObjective[] {
+  let v: unknown = raw;
+  if (typeof v === "string") {
+    try {
+      v = JSON.parse(v || "[]");
+    } catch {
+      return [];
+    }
+  }
+  if (!Array.isArray(v)) return [];
+  const out: PriorityObjective[] = [];
+  for (const x of v) {
+    if (!x || typeof x !== "object") continue;
+    const o = x as Record<string, unknown>;
+    if (typeof o.initiativeId !== "string" || typeof o.metricKey !== "string" || o.initiativeId === "" || o.metricKey === "") continue;
+    if (out.some((y) => y.initiativeId === o.initiativeId && y.metricKey === o.metricKey)) continue;
+    out.push({ initiativeId: o.initiativeId, metricKey: o.metricKey });
+  }
+  return out;
+}
+
+export function parsePlacements(raw: unknown): PriorityPlacement[] {
+  let v: unknown = raw;
+  if (typeof v === "string") {
+    try {
+      v = JSON.parse(v || "[]");
+    } catch {
+      return [];
+    }
+  }
+  if (!Array.isArray(v)) return [];
+  const out: PriorityPlacement[] = [];
+  for (const x of v) {
+    if (!x || typeof x !== "object") continue;
+    const o = x as Record<string, unknown>;
+    if (typeof o.pillarId !== "string" || typeof o.to !== "string" || o.pillarId === "" || o.to === "") continue;
+    out.push({ pillarId: o.pillarId, to: o.to });
+  }
+  return out;
+}
+
+// ---- the primary initiative, as it counts now (issues 1 and 8) ---------------
+
+/** What the rule needs to know of an initiative. */
+export interface PrimaryCandidate {
+  id: string;
+  title: string;
+  status: string;
+  priorities: { priorityId: string }[];
+}
+
+/** The priority's primary initiative AS IT COUNTS NOW. The stored id
+ *  counts only while that initiative is still linked to the priority and
+ *  is active or completed — a completed primary keeps headlining (its
+ *  metrics are the result), an archived, unlinked or deleted one does
+ *  not (Ben, 2026-11-16: an archived primary kept driving the
+ *  priority's key details). "" = none. ONE rule: every reader of the
+ *  primary's charter, metrics and commentary asks it. */
+export function livePrimaryId(p: Pick<Priority, "id" | "primaryInitiativeId">, initiatives: PrimaryCandidate[]): string {
+  if (p.primaryInitiativeId === "") return "";
+  const i = initiatives.find((x) => x.id === p.primaryInitiativeId);
+  if (!i) return "";
+  if (i.status !== "active" && i.status !== "completed") return "";
+  return i.priorities.some((l) => l.priorityId === p.id) ? i.id : "";
+}
+
+/** A stored primary that no longer counts, and why — the popup says so
+ *  and offers to clear it. null = there is none, or it is live. */
+export function stalePrimary(p: Pick<Priority, "id" | "primaryInitiativeId">, initiatives: PrimaryCandidate[]): { id: string; title: string; why: "archived" | "unlinked" | "gone" } | null {
+  if (p.primaryInitiativeId === "" || livePrimaryId(p, initiatives) !== "") return null;
+  const i = initiatives.find((x) => x.id === p.primaryInitiativeId);
+  if (!i) return { id: p.primaryInitiativeId, title: "", why: "gone" };
+  return { id: i.id, title: i.title, why: i.status !== "active" && i.status !== "completed" ? "archived" : "unlinked" };
+}
+
+/** A priority's objectives. With a live primary: its ★ starred metrics
+ *  (as always). Without one: the metrics its owner picked from the
+ *  linked initiatives, dropping any whose initiative is no longer under
+ *  the priority. */
+export function objectiveValues<V extends { key: string; starred: boolean }>(
+  p: Pick<Priority, "objectives">,
+  livePrimary: string,
+  valuesOf: (initiativeId: string) => V[],
+  linked: (initiativeId: string) => boolean
+): V[] {
+  if (livePrimary !== "") return valuesOf(livePrimary).filter((v) => v.starred);
+  const out: V[] = [];
+  for (const o of p.objectives) {
+    if (!linked(o.initiativeId)) continue;
+    const v = valuesOf(o.initiativeId).find((x) => x.key === o.metricKey);
+    if (v) out.push(v);
+  }
+  return out;
 }
 
 export type AssignmentStatus = "proposed" | "accepted" | "rejected" | "onhold" | "completed";

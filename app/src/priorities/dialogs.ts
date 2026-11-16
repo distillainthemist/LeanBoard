@@ -23,6 +23,21 @@ export interface OrgTree {
   companies: { name: string; sites: { name: string; departments: { name: string; areas: string[] }[] }[] }[];
 }
 
+/** Is this organisation still in the tree? A remembered or linked org
+ *  is checked before a screen opens on it (a site renamed or archived
+ *  since must fall back to home). Company level: the company exists. */
+export function orgInTree(tree: OrgTree, o: { company: string; site: string; department: string; area: string }): boolean {
+  const co = tree.companies.find((c) => c.name === o.company);
+  if (!co) return false;
+  if (o.site === "") return true;
+  const site = co.sites.find((x) => x.name === o.site);
+  if (!site) return false;
+  if (o.department === "") return true;
+  const dept = site.departments.find((d) => d.name === o.department);
+  if (!dept) return false;
+  return o.area === "" || dept.areas.includes(o.area);
+}
+
 export interface OrgSiteRow {
   site: string;
   departments?: { department?: string; name?: string; areas?: string[] }[];

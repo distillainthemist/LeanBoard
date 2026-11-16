@@ -386,6 +386,21 @@ export function ragInputsFor(
 }
 
 /** priorityId → the initiatives linked to it (active ones only). */
+/** An initiative's owners as one label (issue 6, 2026-11-16: only the
+ *  first of several showed). Names here are "Last, First", so they join
+ *  with " & " — a comma join reads as twice the people. Up to `max`
+ *  names, then "+N". "" with no owner. */
+export function ownersLabel(i: Pick<Initiative, "roles">, max = 2): string {
+  const names = (i.roles.owner ?? []).map((p) => p.who).filter((n) => n !== "");
+  if (names.length <= max) return names.join(" & ");
+  return `${names.slice(0, max).join(" & ")} +${names.length - max}`;
+}
+
+/** Every owner's name, for a tooltip. */
+export function ownersTitle(i: Pick<Initiative, "roles">): string {
+  return (i.roles.owner ?? []).map((p) => p.who).filter((n) => n !== "").join("; ");
+}
+
 export function initiativesByPriority(list: Initiative[]): Map<string, Initiative[]> {
   const map = new Map<string, Initiative[]>();
   for (const i of list) {

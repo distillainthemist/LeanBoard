@@ -47,3 +47,13 @@ steps:
 4. Click Live board, pick the gate snapshot, read the tiles and the banner; click "Back to live".
 5. Return to the ritual board: read its button, then click it back to "Live board".
 expected: step 2 the initiative's cards render their live content — the charter's fields, the metrics, the action plan with its actions — never a blank tile reading "CanvasCard" or "MetricsCard"; step 3 no "Nothing recorded yet" line under a charter that shows header data (a charter with nothing in any bound field still wears it); step 4 the gate shows the board as stamped, read-only, with the snapshot banner, and Back to live restores the living board; step 5 the ritual board still reads "Stored board" (the switch is the ritual boards' own), and a stored tile with no snapshot says "No stored snapshot"
+
+### UAT-IMP-005 — Every owner is named
+persona: member
+modules: improvement/initiativeModel.ts improvement/improvementTab.ts priorities/prioritiesScreen.ts actions/linkTargets.ts
+preconditions: an initiative whose Owner role holds two people, another with four, linked to a priority
+steps:
+1. Open the priority's popup, Initiatives tab; read each row's line.
+2. Improvement tab: read the rows in the list view, then the tiles view.
+3. Raise an action and search "Linked to" for the initiative.
+expected: the two-owner initiative reads "Last, First & Last, First" in all three places; the four-owner one names the first two and "+2" on the popup row and tile (the list names three); nothing shows only the first owner

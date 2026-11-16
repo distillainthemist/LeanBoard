@@ -73,3 +73,39 @@ steps:
 8. As someone who does not manage the priority's org but can open the initiative's board, open the same tab and edit an action.
 9. Improvement tab → Gantt view → click an action's name.
 expected: step 1 List | Kanban | Gantt, Show completed, All assignees and ＋ Add action share one row; the list has a heading per initiative with its count; step 2 the FULL action dialog opens (not "Set dates") and the row shows the changes; step 3 every view shows only that person's actions and the choice survives the switch; the Gantt has no second assignee select; step 4 the card moves and stays; each card names its initiative; step 5 the dialog offers an "Initiative" select of this priority's initiatives and no "Linked to" field; the new action appears under the chosen initiative and on that initiative's own board; step 6 the move follows the due-date rule (UAT-ACT-004) and the name opens the full dialog; step 7 the counts and ratings include what was just changed; step 8 they can edit — the same rights as on the initiative's board; step 9 the full dialog opens there too
+
+### UAT-PRI-007 — An archived primary initiative stops driving the priority
+persona: orgowner
+modules: priorities/model.ts priorities/prioritiesScreen.ts priorities/lifecycle.ts store/priorities.ts
+preconditions: a priority with two linked initiatives, one starred as primary with a charter, commentary and a starred metric; rights to archive that initiative
+steps:
+1. Read the priority's Objectives cell on the matrix and its popup header; open Charter, Metrics and Commentary.
+2. Archive the primary initiative (Improvement tab → ⋮ → Archive). Return to Priorities and read the same places.
+3. On the Initiatives tab read the notice; press Clear.
+4. Restore the initiative, then star it again. Mark it COMPLETED instead and read the priority again.
+5. Edit the other initiative's details and remove its link to the priority while it is starred.
+expected: step 1 the primary's starred metric shows as the objective and the three tabs show its content; step 2 the Objectives cell is blank, the header has no ★ line, the popup has no Charter or Commentary tab, and the Metrics tab reads "Objectives"; step 3 the notice names the archived initiative ("was archived, so it no longer headlines this priority") and Clear removes it; step 4 a COMPLETED primary keeps headlining: its metric still shows, the header reads "★ <title> (completed)", and the Initiatives tab says so with a Clear link; step 5 an unlinked primary drops the same way with "is no longer linked to this priority"
+
+### UAT-PRI-008 — A priority with no primary initiative: picked objectives
+persona: orgowner
+modules: priorities/model.ts priorities/prioritiesScreen.ts priorities/lifecycle.ts store/priorities.ts improvement/improvementTab.ts improvement/editDetails.ts
+preconditions: a new priority; two initiatives with metrics; a child priority with an initiative that has a metric
+steps:
+1. Create an initiative linked to the new priority as its primary link. Open the priority's popup.
+2. Open the Objectives tab. Tick one metric from each initiative; close the popup; read the Objectives cell, the walk and the poster.
+3. Untick one. As someone who does not manage the org, open the same tab.
+4. On the Initiatives tab ★ one initiative; read the tabs and the Objectives cell. Clear the star.
+expected: step 1 the initiative is NOT starred by itself — the priority has no primary, no Charter or Commentary tab; step 2 the tab lists each initiative under the priority with its metrics (name, objective, plan, actual, light), the child priority's marked "via <org>"; the ticked metrics show as the priority's objectives everywhere the Objectives row is drawn; step 3 the cell follows; a non-manager sees the ticks greyed; step 4 with a primary starred its starred metrics take over and Charter, Metrics and Commentary return; clearing the star brings the picked objectives back
+
+### UAT-PRI-009 — The site and the year stay put for the session
+persona: orgowner
+modules: sessionView.ts priorities/prioritiesScreen.ts improvement/improvementTab.ts priorities/lifecycle.ts priorities/dialogs.ts
+preconditions: priorities and initiatives at a site other than your own, in a year other than the current one
+steps:
+1. Open Priorities. Switch to the other site and the other year; set Status to All.
+2. Open a priority, go to its Actions tab, and open an initiative's board from it. Press Back.
+3. Switch to the Improvement tab. Change its site; return to Priorities.
+4. From a priority's Charter tab press "Open board", then Back.
+5. Close the app and open it again.
+6. In Settings → My profile change your site, then open Priorities.
+expected: step 2 Priorities returns on the other site, the other year and Status All, with the popup reopened on the Actions tab; step 3 Improvement opens on the same site and year, and a site chosen there is the site Priorities shows next — its other filters (view, search, stage) are its own; step 4 Back reopens the popup on the Charter tab; step 5 a fresh start opens on your own site and the current year; step 6 a changed home site clears the memory
