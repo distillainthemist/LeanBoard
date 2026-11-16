@@ -115,6 +115,9 @@ export const TABLES = [
       ben_issue: { ...text(400), display: "Issue" },
       ben_description: { ...memo(4000), display: "Description" },
       ben_assigneesjson: { ...memo(10000), display: "Assignees (JSON)" },
+      // people who support the action without owing a part of it
+      // (2026-11-16, issue 7): [{whoId, who}]
+      ben_supportersjson: { ...memo(4000), display: "Supporters (JSON)" },
       ben_start: { kind: "dateonly", display: "Start" },
       ben_due: { kind: "dateonly", display: "Due" },
       ben_status: { ...text(20), display: "Status" },
@@ -677,6 +680,9 @@ export const TABLES = [
       // the pillars live in the viewed year; blank = open at that end
       ben_fromperiod: { ...text(40), display: "From period" },
       ben_toperiod: { ...text(40), display: "To period" },
+      // a pillar renamed or re-parented "from a year" ends and a successor
+      // row starts, naming the row it follows (2026-11-16, issue 4)
+      ben_succeedsid: { ...text(40), display: "Succeeds (pillar Id)" },
     },
     key: ["ben_pillarid"],
     role: { delete: true },
@@ -708,6 +714,13 @@ export const TABLES = [
       ben_order: { kind: "int", display: "Order" },
       ben_primaryinitiativeid: { ...text(40), display: "Primary initiative Id" },
       ben_notes: { ...memo(4000), display: "Notes" },
+      // with no primary initiative, the metrics picked from the linked
+      // initiatives as this priority's objectives (2026-11-16, issue 8):
+      // [{initiativeId, metricKey}]
+      ben_objectivesjson: { ...memo(4000), display: "Objectives (JSON)" },
+      // the sub-pillars it sat under in earlier years (2026-11-16, issue
+      // 4): [{pillarId, to}] — the ben_Pillar lookup stays its current home
+      ben_placementsjson: { ...memo(4000), display: "Placements (JSON)" },
     },
     key: ["ben_priorityid"],
     role: { delete: true },
