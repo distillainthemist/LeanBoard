@@ -39,3 +39,44 @@ describe("otherSurfaceBoards", () => {
     expect(otherSurfaceBoards([{ configuredSource: "" }, { configuredSource: "B9" }, { configuredSource: "B9" }, { configuredSource: "B1" }, { configuredSource: "B4" }], "B1")).toEqual(["B9", "B4"]);
   });
 });
+
+// ---- live or stored, and what counts as content (issues 2 and 3, 2026-11-16)
+import { boundContent, boundTargets, liveTilesEnabled, liveWanted } from "../store/tiles";
+
+describe("an initiative board is always live", () => {
+  it("ignores the per-browser switch on an initiative board", () => {
+    expect(liveWanted(true, "0")).toBe(true);
+    expect(liveWanted(true, null)).toBe(true);
+  });
+  it("keeps the switch on a ritual board", () => {
+    expect(liveWanted(false, "0")).toBe(false);
+    expect(liveWanted(false, "1")).toBe(true);
+    expect(liveWanted(false, null)).toBe(true);
+  });
+  it("still shows a gate snapshot stored: a gate is a closed instance", () => {
+    expect(liveTilesEnabled(liveWanted(true, "0"), "closed")).toBe(false);
+    expect(liveTilesEnabled(liveWanted(true, "0"), "open")).toBe(true);
+  });
+});
+
+describe("a bound card's content", () => {
+  const settings = {
+    config: {
+      canvasJSON: JSON.stringify({ cols: 2, fields: [{ id: "a", bound: "title" }, { id: "b", bound: "" }, { id: "c", bound: "field:problem" }, { id: "d" }] }),
+    },
+  };
+  it("reads the bound targets from the layout, string or object", () => {
+    expect(boundTargets(settings)).toEqual(["title", "field:problem"]);
+    expect(boundTargets({ config: { canvasJSON: { fields: [{ bound: "owner" }] } } })).toEqual(["owner"]);
+    expect(boundTargets({ config: { canvasJSON: "not json" } })).toEqual([]);
+    expect(boundTargets({})).toEqual([]);
+  });
+  it("is content when any bound field has a value", () => {
+    expect(boundContent(settings, (b) => (b === "field:problem" ? "Contractors differ" : ""))).toBe(true);
+    expect(boundContent(settings, () => "  ")).toBe(false);
+    expect(boundContent({}, () => "x")).toBe(false);
+  });
+  it("is not content when the read throws", () => {
+    expect(boundContent(settings, () => { throw new Error("gone"); })).toBe(false);
+  });
+});

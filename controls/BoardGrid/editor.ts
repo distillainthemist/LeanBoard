@@ -422,7 +422,9 @@ export class BoardGridView {
     }
     const raw = tile.svg.trim();
     if (raw === "") {
-      snap.appendChild(el("div", "ltk-bg-nosnap", tile.cardType || "Card"));
+      // stored mode with nothing stored: say so, not the card's type name
+      // ("CanvasCard" read as a fault — issue 2, 2026-11-16)
+      snap.appendChild(el("div", "ltk-bg-nosnap", "No stored snapshot"));
       return;
     }
     if (isImageUri(raw)) {

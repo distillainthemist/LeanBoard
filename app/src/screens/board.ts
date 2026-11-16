@@ -55,7 +55,7 @@ import {
   rescheduleInstance,
   resetInstance,
 } from "../store/instances";
-import { embedPreloadEnabled, joinTiles, liveTilesEnabled } from "../store/tiles";
+import { boundContent, embedPreloadEnabled, joinTiles, liveTilesEnabled, liveWanted } from "../store/tiles";
 
 /** Remembers the live-tiles comparison toggle per browser. */
 const LIVE_TILES_KEY = "ltk.liveTiles";
@@ -483,7 +483,8 @@ async function renderBoard(
     // mount — refresh so a just-stamped gate is viewable immediately
     cardRows = await rowsForBoard(board.boardId);
   };
-  const liveOn = () => localStorage.getItem(LIVE_TILES_KEY) !== "0";
+  // an initiative board is always live (its gates alone render stored)
+  const liveOn = () => liveWanted(initBoard, localStorage.getItem(LIVE_TILES_KEY));
   const applyLiveMode = () => {
     const wanted = liveOn();
     const on = liveTilesEnabled(wanted, current?.status);
@@ -658,6 +659,13 @@ async function renderBoard(
       // the links card reads as recorded once the initiative's working
       // folder is set: that lives on the header, not in the card's document
       if (t.cardType === "LinksCard" && out.noData && (charterBinding?.get("field:workingFolder") ?? "").trim() !== "") out = { ...out, noData: false };
+      // a canvas whose fields read the initiative's header shows that
+      // data though it never saved a tile of its own — on the living
+      // board only; a gate shows what was stamped
+      if (t.cardType === "CanvasCard" && out.noData && charterBinding && viewingSnap === null) {
+        const slot = m.slots.find((sl) => sl.cardId === t.cardId);
+        if (slot && boundContent(slot.settings, (b) => charterBinding!.get(b))) out = { ...out, noData: false };
+      }
       // initiative boards: the tile wears its stage chip in the stage's
       // PDCA colour; current-stage cards get the 2px ring (design 2.3)
       if (stageInfo) {

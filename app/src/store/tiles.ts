@@ -53,6 +53,50 @@ export function joinTiles(
   });
 }
 
+/** The switch a board's Live button reads. An initiative board has no
+ *  stored snapshots of its living state — only its gates are stamped — so
+ *  the per-browser switch never applies there: off, every tile drew its
+ *  card type name and the button offered no way back (issue 2,
+ *  2026-11-16). Its gate snapshots are closed instances and still render
+ *  stored, by `liveTilesEnabled` below. */
+export function liveWanted(isInitiativeBoard: boolean, storedFlag: string | null): boolean {
+  return isInitiativeBoard || storedFlag !== "0";
+}
+
+/** The header targets a canvas card's fields are bound to
+ *  (`settings.config.canvasJSON` → fields[].bound), "" entries dropped. */
+export function boundTargets(settings: Record<string, unknown>): string[] {
+  const cfg = (settings.config ?? {}) as Record<string, unknown>;
+  let raw: unknown = cfg.canvasJSON;
+  if (typeof raw === "string") {
+    try {
+      raw = JSON.parse(raw);
+    } catch {
+      return [];
+    }
+  }
+  const fields = raw && typeof raw === "object" ? (raw as { fields?: unknown }).fields : undefined;
+  if (!Array.isArray(fields)) return [];
+  return fields
+    .map((f) => (f && typeof f === "object" ? (f as { bound?: unknown }).bound : ""))
+    .filter((b): b is string => typeof b === "string" && b !== "");
+}
+
+/** Does a bound card SHOW something? "Nothing recorded yet" was decided
+ *  by whether the card had ever saved a tile of its own, so a charter
+ *  filled entirely from the initiative's header wore the line over its
+ *  content (issue 3, 2026-11-16). Any bound field with a value is
+ *  content. */
+export function boundContent(settings: Record<string, unknown>, get: (bound: string) => string): boolean {
+  return boundTargets(settings).some((b) => {
+    try {
+      return get(b).trim() !== "";
+    } catch {
+      return false;
+    }
+  });
+}
+
 /**
  * Whether a board should render LIVE tiles rather than its stored snapshots.
  *

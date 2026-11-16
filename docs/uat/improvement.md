@@ -35,3 +35,15 @@ steps:
 2. Open the site-A initiative's board: Edit details in the header, the health check button, an endorsement.
 3. As the super admin, the same three rows.
 expected: the site admin may edit, flag, escalate and archive the site-A initiative and the one that also spans site A, and sees those actions greyed on the site-B-only initiative; on the board the header's Edit details, the health check and the endorsement follow the same line; a confidential site-B initiative is hidden from the site admin unless they hold a role or own its org; the super admin has every action on all three — including initiatives they did not create and hold no role on
+
+### UAT-IMP-004 — An initiative board is always live; a filled charter is not "empty"
+persona: member
+modules: screens/board.ts store/tiles.ts controls/BoardGrid/editor.ts
+preconditions: an initiative whose charter card is filled from the header (title, problem, owner) and has never been edited on the card itself; at least one approved gate; a ritual board
+steps:
+1. Open a ritual board and click "Live board" so it reads "Stored board". Leave it that way.
+2. Open the initiative's board. Read each card's tile and the Live board button.
+3. Read the foot of the charter tile.
+4. Click Live board, pick the gate snapshot, read the tiles and the banner; click "Back to live".
+5. Return to the ritual board: read its button, then click it back to "Live board".
+expected: step 2 the initiative's cards render their live content — the charter's fields, the metrics, the action plan with its actions — never a blank tile reading "CanvasCard" or "MetricsCard"; step 3 no "Nothing recorded yet" line under a charter that shows header data (a charter with nothing in any bound field still wears it); step 4 the gate shows the board as stamped, read-only, with the snapshot banner, and Back to live restores the living board; step 5 the ritual board still reads "Stored board" (the switch is the ritual boards' own), and a stored tile with no snapshot says "No stored snapshot"
