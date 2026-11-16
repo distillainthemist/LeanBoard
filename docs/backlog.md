@@ -5,12 +5,14 @@ its decision date and enough context to pick it up cold. The phase plans
 (`leanboard-phase5-plan.md`, `leanboard-standard-documents-plan.md`)
 stay the design detail; this is the queue.
 
-## Current state (2026-11-12, after v0.93.0)
+## Current state (2026-11-16, after v0.94.0)
 
-Released through v0.93.0 (ledger: `leanboard-cascade-improvement-plan.md`;
+Released through v0.94.0 (ledger: `leanboard-cascade-improvement-plan.md`;
 release paragraphs: `../CLAUDE.md`). Production took v0.88.1 and the
 v0.89.0/v0.90.0 managed solution; v0.91.0 and v0.93.0 are app-only,
-v0.92.0 carries the Utilities app in the managed solution. Recent
+v0.92.0 carries the Utilities app in the managed solution, and v0.94.0
+is SOLUTION-CARRYING (four columns) — import the solution first, then
+lock older builds from Settings once the new one runs. Recent
 decisions of record:
 
 - **Search pickers: where the type-ahead pattern is still owed**
@@ -42,7 +44,7 @@ decisions of record:
   Ben asked for the list to be kept here (2026-11-16). Left as they are: lists that ARE a modal's body
   (`pickOwner`, Pull from above, the driver link, the access group
   picker), cascading selects, and filters over a table on screen.
-- **The 2026-11-16 issue tranche** (13 issues, built on dev, unreleased,
+- **The 2026-11-16 issue tranche** (13 issues, released as v0.94.0,
   SOLUTION-CARRYING — `issues-plan-2026-11-16.md` holds Ben's decisions
   and an "As built" section): initiative boards always live; comment
   edits for a day; supporters on an action; the action card in the
@@ -55,9 +57,9 @@ decisions of record:
   directory add in every picker, admins only. Schema on dev:
   `ben_supportersjson`, `ben_objectivesjson`, `ben_placementsjson`,
   `ben_succeedsid`. Hosted checks are all Ben's — the UAT cases added
-  with it are the list. After the release: raise the release gate's
-  minimum build.
-- **Due-date moves: one rule** (2026-11-16, unreleased, app-only):
+  with it are the list. After the import: lock older builds (Settings →
+  the release policy).
+- **Due-date moves: one rule** (2026-11-16, released as v0.94.0):
   Ben's three choices — a Settings switch (Improvement → Due date
   changes) between "Initiative actions only" (the default) and "All
   actions"; ONE organisation-wide reasons list (add, rename, reorder,

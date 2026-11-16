@@ -513,6 +513,21 @@ Version lives in the tag alone — nothing is stamped into files.
   review's summary tiles and the task banner heading removed) is
   SOLUTION-CARRYING for the Utilities app only: prod imports the managed
   solution; the LeanBoard app is unchanged. No schema change.
+  v0.94.0 (2026-11-16: the 2026-11-16 issue tranche —
+  `docs/issues-plan-2026-11-16.md`; due-date moves under one rule with
+  an organisation-wide reasons list; initiative boards always live;
+  comment edits for a day; supporters on an action; the action card in
+  the priority popup; the primary initiative that counts and picked
+  objectives without one; a session's site and year; proposed
+  priorities; pillars per year; one admin-only directory road; the
+  action dialog rebuilt in two columns with type-ahead search pickers —
+  the standing pattern, `docs/ui-standard.md` §2.x) is
+  SOLUTION-CARRYING: `ben_supportersjson` on `ben_ltkaction`,
+  `ben_objectivesjson` + `ben_placementsjson` on `ben_ltkpriority`,
+  `ben_succeedsid` on `ben_ltkpillar`. Prod imports the managed
+  solution FIRST, then — once the new build is running — Settings →
+  the release policy → "Lock every older build": an older bundle reads
+  the priority status "proposed" as "active".
   v0.93.0 (2026-11-12, app-only, no schema): a re-exposed document
   library keeps its columns — `refreshLibraryColumns` levels each
   exposed library's stored columns with SharePoint at every Save and

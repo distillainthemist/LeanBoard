@@ -6,9 +6,9 @@ nothing here was reproduced in the player. Decisions are Ben's, taken
 one by one on 2026-11-16.
 
 Status: BUILT on dev 2026-11-16 in four tranches (0198d55, c9bff91,
-df1e7cb, then tranche 4), schema deployed to dev. NOT released — the
-release is solution-carrying and waits for "Cut the release". See "As
-built" at the foot for where the build differs from the plan below.
+df1e7cb, 9156309), schema deployed to dev. RELEASED as v0.94.0
+(2026-11-16, solution-carrying). See "As built" at the foot for where
+the build differs from the plan below.
 
 ## Decisions of record
 

@@ -1455,6 +1455,65 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-11-16 — released as v0.94.0** (SOLUTION-CARRYING: four
+  additive columns — `ben_supportersjson` on `ben_ltkaction`,
+  `ben_objectivesjson` and `ben_placementsjson` on `ben_ltkpriority`,
+  `ben_succeedsid` on `ben_ltkpillar`; prod imports the managed
+  solution before the app package). Built in the terminal session over
+  one day; `docs/issues-plan-2026-11-16.md` holds Ben's decisions and an
+  "As built" section. AFTER the release reaches an environment: Settings
+  → the release policy → "Lock every older build" — a bundle from before
+  it reads the new priority status "proposed" as "active".
+  **Due-date moves, one rule** (48f5828): `shared/schema/reschedule.ts`
+  (`dueMove` none / record / ask) applied by the action dialog and the
+  Gantt alike — every move of an existing due date is recorded, a move
+  LATER asks why on an initiative's action, or on every action when the
+  organisation's policy says so; Settings → Improvement → "Due date
+  changes" holds the policy and ONE reasons list (`reschedule` in the
+  improvement settings JSON); the dialog lists the moves, cards carry
+  "↷ n". The action card's "Reschedule reasons" setting is retired.
+  **Settings**: no empty card above a tab's first section (5a4ee52 — the
+  section strip carded the loading spinner).
+  **The 2026-11-16 issue tranche, 13 issues** — boards (0198d55):
+  initiative boards ignore the per-browser Live switch (`liveWanted`),
+  a charter filled from the header is not "empty" (`boundContent`).
+  Actions (c9bff91): a comment's author edits or deletes it for 24
+  hours (`canEditComment`; ids and times on comments; `mergeComments`
+  at the store's write, so two savers no longer lose one side's);
+  supporters on an action (named, seen under "Supporting", owing no
+  part); the priority popup's Actions tab is the action card
+  (`priorities/actionsTab.ts`; the card gained sections and an assignee
+  filter). Priorities popup and screen (df1e7cb): `livePrimaryId` — an
+  archived, unlinked or deleted primary initiative no longer drives a
+  priority, a completed one keeps headlining; nothing claims the star
+  any more, and without a primary the popup's Objectives tab picks
+  metrics from the linked initiatives (`objectiveValues`); every owner
+  named (`ownersLabel`); the site and the year are the session's,
+  shared by Priorities and Improvement (`sessionView.ts`). Priority
+  model (9156309): proposed priorities (`canApproveAt`,
+  `countedDescendants`, a Proposed row, Accept / Decline, pulls by a
+  non-approver wait in the queue); pillars per year (`pillarIdIn`,
+  `moveFrom`, the Settings year view, from-year renames and moves
+  through a successor row, ended-not-deleted, a past year as a record);
+  ONE directory road for every people picker, admins only
+  (`people/directoryAdd.ts`). Then (ef80479): an accepted priority can
+  go back to proposed (`moveBackToProposed`, owner and admins).
+  **The action dialog** (03b525c → e9f3dd5): two columns where the
+  dialog is wide enough (940px, a container query), one on a phone; the
+  participants' tick boxes kept at 44px with "Search everyone…" as the
+  grid's first cell; "Linked to (optional)" on the right; Support one
+  line until used; the due-date record one line that opens; ONE
+  scroller. "Search everyone…", "Linked to" and the owner / role
+  pickers' directory half are TYPE-AHEADS — a floating list with its
+  own scroll, the directory searched by itself after a pause — and that
+  is the standing pattern (`ui-standard.md` §2.x; the places still owed
+  it are in the backlog). The priority form lost its read-only
+  "Primary initiative" line (11da2b1). `data/get-token.mjs` retries
+  through network timeouts. UAT: ACT-003 → 007, PRI-006 → 011, SET-012
+  → 014, IMP-004 → 006 (166 cases). 1105 app tests. Verified on the
+  harness where a harness reaches (the action dialog and card, the
+  popup's Actions tab, the pickers); Priorities and Settings were not
+  seen running — every hosted check is Ben's.
 - **2026-11-12 — released as v0.93.0** (app-only, no schema change):
   two rounds from Ben, built in the terminal session.
   **Documents — a re-exposed library keeps its columns** (2026-11-11,

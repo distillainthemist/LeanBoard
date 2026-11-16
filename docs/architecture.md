@@ -133,7 +133,9 @@ model section) — the canvas/PCF sections there are historical.
   holds the card-type catalog and default tiles; `ben_ltkcardseries`
   holds every dated series (card readings, value-driver actuals and the
   per-period `spec:*` plan / forecast / limit points — §3.3);
-  `ben_ltkaction` is the central actions register (§3.4);
+  `ben_ltkaction` is the central actions register (§3.4;
+  `ben_supportersjson` = people who support an action without owing a
+  part of it, 2026-11-16);
   `ben_ltkpeoples` is the app's user record (role user / siteadmin /
   superadmin, site / department / area / crew); `ben_ltksitesettings`
   and `ben_ltkuserprefs` hold settings — the site row carries
@@ -145,12 +147,20 @@ model section) — the canvas/PCF sections there are historical.
   · standard fields · the value-driver editor role) and the priorities
   settings (period definition, RAG ratio).
   **Cascaded priorities:** `ben_ltkpillar` (with `ben_fromperiod` /
-  `ben_toperiod` = the span it is in force), `ben_ltkpriority` (owned
+  `ben_toperiod` = the span it is in force, and `ben_succeedsid` = the
+  row it follows when a pillar was renamed or moved "from a year",
+  2026-11-16), `ben_ltkpriority` (owned
   by its originating org by NAME; `ben_period` = START of its span,
   `ben_toperiod` stamped at close, `ben_plannedend` optional — the
   period picker is a lens over spans, nothing is copied at a year end
   (2026-10-02); `ben_primaryinitiativeid` = the ★ primary initiative
-  whose charter / metrics headline it), `ben_ltkpriorityassignment`,
+  whose charter / metrics headline it — counted only while still linked
+  and active or completed; `ben_objectivesjson` = the metrics picked as
+  objectives when it has none; `ben_placementsjson` = the sub-pillars it
+  sat under in earlier years; `ben_status` may be "proposed": added by
+  someone who may add but not approve, off the board and out of every
+  tally until its owner or an admin accepts — all 2026-11-16),
+  `ben_ltkpriorityassignment`,
   `ben_ltkpriorityevent`.
   **Improvement:** `ben_ltkinitiativetemplate` (stages / gates / roles
   incl. hidden standard roles / fields / metric rule + a template
