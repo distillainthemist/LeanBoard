@@ -21,7 +21,18 @@ if (query.get("links") === "1") {
   const target = (kind: "ritual" | "initiative", id: string, boardId: string, title: string, detail: string) => ({ kind, id, boardId, title, detail, keywords: "", mine: true, near: true, cards: {} });
   setActionLinkProvider(() =>
     Promise.resolve({
-      targets: [target("ritual", "B1", "B1", "Daily production meeting", "Weipa · Mining"), target("initiative", "in-1", "init-in1", "Contractor Safety Improvement Strategy", "Weipa · Vallance, Colin")],
+      targets: [
+        target("ritual", "B1", "B1", "Daily production meeting", "Weipa · Mining"),
+        target("ritual", "B2", "B2", "Bottling line standup", "Mine · Planning · John O'Brien"),
+        target("ritual", "B3", "B3", "Test Meeting New Board", "Mine / Asset Management · Performance · Ben Pechey"),
+        target("ritual", "B4", "B4", "Daily Department Meeting", "Mine / Operations · Performance · Ben Pechey"),
+        target("ritual", "B5", "B5", "Test Meeting", "Mine / Asset Management · John O'Brien"),
+        target("initiative", "in-1", "init-in1", "Contractor Safety Improvement Strategy", "Weipa · Vallance, Colin"),
+        target("initiative", "in-2", "init-in2", "Test problem", "Mine · Ben Pechey"),
+        target("initiative", "in-3", "init-in3", "Fix this thing", "Mine · Ben Pechey"),
+        target("initiative", "in-4", "init-in4", "LiF Plan on a Page", "Mine · Ben Pechey"),
+        target("initiative", "in-5", "init-in5", "Embed the bottling checks", "Mine · Ben Pechey"),
+      ],
       personalWho: "u1",
       openBoardId: null,
       openHome: "",

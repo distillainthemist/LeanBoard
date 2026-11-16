@@ -1036,6 +1036,8 @@ function buildLinkField(o: ActionDialogOptions, body: () => HTMLElement, onTouch
     b.type = "button";
     b.appendChild(el("span", "ltk-link-hit-title", t.title));
     if (t.detail !== "") b.appendChild(el("span", "ltk-link-hit-detail", t.detail));
+    // mousedown, not click: the search box keeps its focus until the pick
+    b.addEventListener("mousedown", (e) => e.preventDefault());
     b.addEventListener("click", () => choose(t));
     return b;
   };
@@ -1071,26 +1073,87 @@ function buildLinkField(o: ActionDialogOptions, body: () => HTMLElement, onTouch
     const query = textInput("", { placeholder: "Search rituals and initiatives…" });
     query.setAttribute("aria-label", "Link to a ritual or an initiative");
     query.title = "Optional. Left empty, the action is a personal one.";
-    const results = el("div", "ltk-link-results");
+    query.setAttribute("role", "combobox");
+    query.setAttribute("aria-autocomplete", "list");
+    query.autocomplete = "off";
+    // what the search finds opens UNDER the box, over the column, and
+    // scrolls there (Ben, 2026-11-16: listed in the column it stretched
+    // the dialog and pushed the comments out of sight) — the same
+    // type-ahead as "Search everyone…": ↑ ↓ move, Enter picks, Escape clears
+    const box = el("div", "ltk-link-box");
+    const results = el("div", "ltk-link-pop");
+    results.setAttribute("role", "listbox");
+    results.style.display = "none";
+    let hits: HTMLElement[] = [];
+    let active = 0;
+    const close = () => {
+      results.style.display = "none";
+      query.setAttribute("aria-expanded", "false");
+      hits = [];
+    };
+    const paintActive = () => {
+      hits.forEach((h, n) => {
+        h.classList.toggle("ltk-link-hit-on", n === active);
+        h.setAttribute("aria-selected", String(n === active));
+      });
+      hits[active]?.scrollIntoView({ block: "nearest" });
+    };
     const group = (label: string, list: LinkTarget[]) => {
       if (list.length === 0) return;
       results.appendChild(el("div", "ltk-link-group", label));
-      for (const t of list) results.appendChild(hit(t));
+      for (const t of list) {
+        const b = hit(t);
+        b.setAttribute("role", "option");
+        hits.push(b);
+        results.appendChild(b);
+      }
     };
     const renderResults = () => {
       while (results.firstChild) results.removeChild(results.firstChild);
-      if (ctx === null) return;
+      hits = [];
       // nothing until something is typed (Ben, 2026-09-29: a suggested
       // list cost the dialog too much height)
-      if (query.value.trim() === "") return;
+      if (ctx === null || query.value.trim() === "") return close();
       const found = searchLinkTargets(ctx.targets, query.value);
       group("Rituals", found.rituals);
       group("Initiatives", found.initiatives);
-      if (found.rituals.length + found.initiatives.length === 0) results.appendChild(el("div", "ltk-link-note", "Nothing matches."));
+      if (hits.length === 0) results.appendChild(el("div", "ltk-link-note", "Nothing matches."));
+      active = Math.min(active, Math.max(0, hits.length - 1));
+      results.style.display = "";
+      query.setAttribute("aria-expanded", "true");
+      paintActive();
+      // in one column the field sits low in the dialog: bring the list
+      // into view rather than leave it under the fold
+      if (hits.length === 0 || active === 0) results.scrollIntoView({ block: "nearest" });
     };
-    query.addEventListener("input", renderResults);
-    renderResults();
-    wrap.append(query, results);
+    query.addEventListener("input", () => {
+      active = 0;
+      renderResults();
+    });
+    query.addEventListener("focus", () => {
+      if (query.value.trim() !== "") renderResults();
+    });
+    query.addEventListener("blur", () => setTimeout(() => {
+      if (document.activeElement !== query) close();
+    }, 150));
+    query.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        if (hits.length === 0) return;
+        e.preventDefault();
+        active = (active + (e.key === "ArrowDown" ? 1 : hits.length - 1)) % hits.length;
+        paintActive();
+      } else if (e.key === "Enter") {
+        // never the dialog's Save: Enter picks the highlighted target
+        e.preventDefault();
+        (hits[active] as HTMLButtonElement | undefined)?.click();
+      } else if (e.key === "Escape" && results.style.display !== "none") {
+        e.preventDefault();
+        query.value = "";
+        close();
+      }
+    });
+    box.append(query, results);
+    wrap.appendChild(box);
   };
 
   paint();

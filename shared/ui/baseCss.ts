@@ -279,6 +279,21 @@ export const LTK_BASE_CSS = `
 .ltk-act-main, .ltk-act-side { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .ltk-act-form { gap: 10px !important; }
 .ltk-act-linked .ltk-link-chip { min-height: 44px; box-sizing: border-box; }
+/* "Linked to" is a type-ahead too: what it finds opens under the box,
+   over the column, and scrolls THERE — never stretching the dialog */
+.ltk-link-box { position: relative; display: flex; min-width: 0; }
+.ltk-link-box .ltk-input { width: 100%; min-width: 0; }
+.ltk-link-pop {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 5;
+  display: flex; flex-direction: column; gap: 2px; padding: 6px;
+  max-height: 300px; overflow-y: auto; scrollbar-width: thin;
+  background: var(--ltk-bg); color: var(--ltk-fg);
+  border: 1px solid var(--ltk-hairline); border-radius: 8px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+.ltk-link-pop .ltk-link-group { padding: 8px 10px 2px; margin: 0; }
+.ltk-link-pop .ltk-link-hit { border: none; border-radius: 6px; padding: 8px 10px; min-height: 40px; flex: none; }
+.ltk-link-pop .ltk-link-hit:hover, .ltk-link-pop .ltk-link-hit-on { background: var(--ltk-hairline); }
+.ltk-link-pop .ltk-link-note { padding: 8px 10px; min-height: 0; }
 .ltk-act-linked .ltk-link-note { min-height: 44px; display: flex; align-items: center; }
 /* Who: a label, then the grid — "Search everyone…" its first cell, the
    size of a person's box, the people after it */
