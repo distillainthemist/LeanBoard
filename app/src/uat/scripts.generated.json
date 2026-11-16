@@ -3365,10 +3365,10 @@
         "Create an initiative linked to the new priority as its primary link. Open the priority's popup.",
         "Open the Objectives tab. Tick one metric from each initiative; close the popup; read the Objectives cell, the walk and the poster.",
         "Untick one. As someone who does not manage the org, open the same tab.",
-        "On the Initiatives tab ★ one initiative; read the tabs and the Objectives cell. Clear the star."
+        "On the Initiatives tab ★ one initiative; read the tabs and the Objectives cell. Open the priority's Edit form and read it. Clear the star."
        ],
-       "expected": "step 1 the initiative is NOT starred by itself — the priority has no primary, no Charter or Commentary tab; step 2 the tab lists each initiative under the priority with its metrics (name, objective, plan, actual, light), the child priority's marked \"via <org>\"; the ticked metrics show as the priority's objectives everywhere the Objectives row is drawn; step 3 the cell follows; a non-manager sees the ticks greyed; step 4 with a primary starred its starred metrics take over and Charter, Metrics and Commentary return; clearing the star brings the picked objectives back",
-       "hash": "4fee6eb9",
+       "expected": "step 1 the initiative is NOT starred by itself — the priority has no primary, no Charter or Commentary tab; step 2 the tab lists each initiative under the priority with its metrics (name, objective, plan, actual, light), the child priority's marked \"via <org>\"; the ticked metrics show as the priority's objectives everywhere the Objectives row is drawn; step 3 the cell follows; a non-manager sees the ticks greyed; step 4 with a primary starred its starred metrics take over and Charter, Metrics and Commentary return; the Edit form has no \"Primary initiative\" line — the star lives on the Initiatives tab alone; clearing the star brings the picked objectives back",
+       "hash": "fc0a4742",
        "changed": "2026-11-16"
       },
       {

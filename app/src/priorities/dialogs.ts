@@ -537,7 +537,6 @@ export interface PriorityDialogOpts {
   /** Existing assignments of this priority: live ones show ticked and
    *  locked; declined / parked ones can be ticked again to re-send. */
   alreadyCascaded: { org: OrgRef; status: string; reason: string }[];
-  primaryInitiativeLabel: string; // "" = none yet
   /** The owner picker's suggested people and directory road. */
   ownerPicker?: OwnerPickerExtras;
   /** Add priority below the company (Ben, 2026-11-06): the dialog opens
@@ -650,11 +649,9 @@ export function priorityDialog(o: PriorityDialogOpts): Promise<PriorityDialogRes
       planned.appendChild(opt);
     }
 
-    // primary initiative — read-only here; a NEW priority has no
-    // Initiatives tab yet, so the row is left out until the priority
-    // exists (Ben, 2026-11-06: "None yet" read as a demand on Add)
-    const isNew = (p.rowId ?? "") === "";
-    const primary = el("div", "app-cp-muted", o.primaryInitiativeLabel !== "" ? `★ ${o.primaryInitiativeLabel}` : "None yet — star one on the priority's Initiatives tab.");
+    // (no read-only "Primary initiative" line: it is set, shown and
+    // cleared on the priority's Initiatives tab — here it only took a row;
+    // Ben, 2026-11-16)
 
     // cascade to — children and peers, clearly separated (Ben, 2026-08-19)
     const already = new Map(o.alreadyCascaded.map((a) => [orgKey(a.org), { status: a.status, reason: a.reason }]));
@@ -676,7 +673,6 @@ export function priorityDialog(o: PriorityDialogOpts): Promise<PriorityDialogRes
       field("Owner", ownerRow),
       field("Start period", period),
       field("Planned end", planned, "Optional. Still open past it, the priority asks for a review — it never closes on its own."),
-      ...(isNew ? [] : [field("Primary initiative", primary)]),
       field("Cascade to", cascadeBox, "Child orgs and peers. Each receives it as a request to accept."),
       confirm,
       field("Notes", notes)

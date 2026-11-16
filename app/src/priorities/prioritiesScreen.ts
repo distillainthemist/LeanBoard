@@ -1800,7 +1800,6 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
         // a proposal is not cascaded: that waits for its acceptance
         cascadeTargets: approves ? cascadeTargetsFor(null) : [],
         alreadyCascaded: [],
-        primaryInitiativeLabel: "",
         ownerPicker: ownerPickerFor(state.org),
         onPull: withToggle ? () => openAddMenu() : undefined,
       });
@@ -1832,7 +1831,6 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
         roster,
         cascadeTargets: cascadeTargetsFor(p),
         alreadyCascaded: already,
-        primaryInitiativeLabel: initiativeList.find((x) => x.id === primaryIdOf(p))?.title ?? "",
         ownerPicker: ownerPickerFor(p.org),
       });
       if (!r) return;

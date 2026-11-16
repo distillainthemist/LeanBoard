@@ -657,7 +657,6 @@ export async function customiseInto(
     // a proposal is not cascaded: that waits for its acceptance
     cascadeTargets: asProposal ? [] : childOrgs(ctx.tree, org).map((o) => ({ org: o, ownerName: ctx.ownerNameFor(o), kind: "child" as const })),
     alreadyCascaded: [],
-    primaryInitiativeLabel: "",
     ownerPicker: ctx.ownerPickerFor(org),
   });
   if (!r) return false;
