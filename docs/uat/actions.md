@@ -48,3 +48,31 @@ steps:
 4. On the ritual board's Action card, Gantt view, drag a bar a week to the right.
 5. A super admin sets Due date changes to "All actions"; a minute later repeat step 4 and then edit a ritual action's due date later in its dialog.
 expected: step 1 "Move due date to <date>?" shows the previous date (in red with "overdue" when it was), the same reasons as the action's dialog with nothing chosen, and a Note; Cancel snaps the bar back; step 2 the bar stays moved and the list shows the move as "<reason> — <note>" with your name; step 3 the earlier date and the start-only move both save with no question, the earlier date listed as "Brought forward"; step 4 the ritual's action moves with no question and its move is recorded without a reason; step 5 both the Gantt and the dialog now ask why for the ritual's action
+
+## Journey 3 — Comments and supporters
+
+### UAT-ACT-005 — A comment's author can put it right for a day
+persona: assignee
+modules: shared/ui/actionUi.ts shared/schema/actions.ts store/actions.ts store/dv.ts controls/EscalationViewer/editor.ts
+preconditions: an action you can open, carrying a comment from someone else and one of your own written more than a day ago; a second person signed in on another device
+steps:
+1. Open the action, write a comment with a spelling mistake, press Add, then Save.
+2. Open the action again. Read the tools on each comment.
+3. Press ✎ on the new comment, fix the spelling, press Done, read the row, then Save. Open it again.
+4. The second person opens the same action and leaves it open. You add another comment and Save. The second person then adds their own comment and saves. Both reopen the action.
+5. Press ✕ on one of your comments from today, confirm, and press Close; answer the question; then delete it again and Save.
+6. Open the action the next day.
+expected: step 2 only your own comment from the last 24 hours shows ✎ and ✕ — not the other person's, not your older one; step 3 the edited row reads "edited · not saved yet" with a dashed edge until Save, and afterwards "· edited" with the edit date in its tooltip; step 4 both comments are there after both saves — neither save dropped the other's; step 5 Close asks about the unsaved change before leaving, and after Save the comment is gone; step 6 yesterday's comments carry no tools: they are the record
+
+### UAT-ACT-006 — Supporters: named, seen, never owing a part
+persona: owner
+modules: shared/ui/actionUi.ts shared/schema/actions.ts store/actions.ts store/mappers.ts controls/LeanHub/editor.ts controls/ActionBoard/editor.ts improvement/gantt.ts
+preconditions: an action assigned to person A; person B and person C on the roster; B able to sign in
+steps:
+1. Open the action. Under "Support (optional)" type part of B's name, pick B; add C the same way; remove C with its ✕; Save.
+2. Read the action's row in the list view, its card on the kanban, its line on the Gantt, and the Gantt's CSV export.
+3. As B, open the hub: read My day, the Actions tab's badge and list, and the group at its foot.
+4. As B, open the action from "Supporting". As A, complete it.
+5. Make the action confidential. As B, find it again. As B's manager (not otherwise involved), look for it.
+6. Open the action, pick B as the person it is assigned to, and Save.
+expected: step 1 the search offers people not already chosen and each choice becomes a chip; step 2 the list row reads "support: B", the kanban card shows ＋1 with B in its tooltip, the Gantt line and the export's Support column name B; step 3 the action is NOT in B's My day, does not count in the Actions badge or the overdue filter of B's own list, and sits under "Supporting · 1" with no tick; step 4 B can open and comment; the action closes when A completes it — B owed nothing; step 5 B still sees the confidential action, B's manager does not; step 6 B is now assigned and no longer listed in support (nobody is both)

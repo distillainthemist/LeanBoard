@@ -57,3 +57,19 @@ steps:
 3. As the site's owner, open the second priority.
 expected: step 1 the department's matrix shows the department's own priority with the new wording in place of the adopted one; it can be renamed through ⋮ → Edit… and unlinked from the Cascade tab; step 2 the priority leaves the department's matrix; step 3 its sender flags and Cascade tab read "↓ <department> ✕ declined — “<reason>”" and History reads "<department> dropped it — “<reason>”"
 
+
+### UAT-PRI-006 — The popup's Actions tab is the action card
+persona: orgowner
+modules: priorities/lifecycle.ts priorities/actionsTab.ts priorities/actionsTabModel.ts controls/ActionBoard/editor.ts controls/ActionBoard/styles.ts shared/ui/actionUi.ts improvement/gantt.ts improvement/improvementTab.ts actions/quickAdd.ts cardRegistry.ts
+preconditions: a priority with two or more linked initiatives that carry actions for different people, one initiative you hold no role on and whose org you do not manage; a completed action among them
+steps:
+1. Open the priority, then the Actions tab. Read the tools row and the list.
+2. Click an action's row. Change its description, assignee and PDCA state; add a comment; Save.
+3. Choose a person in "All assignees"; switch to Kanban, then Gantt, then back to List; set it back to All assignees.
+4. On Kanban, drag a card to Doing. Read the card's small grey line.
+5. Press ＋ Add action, read the dialog, choose the second initiative, fill it in, and Raise.
+6. On Gantt, drag a bar later; click an action's name.
+7. Switch to the Initiatives tab and read the open-action counts; close the popup and read the priority's card.
+8. As someone who does not manage the priority's org but can open the initiative's board, open the same tab and edit an action.
+9. Improvement tab → Gantt view → click an action's name.
+expected: step 1 List | Kanban | Gantt, Show completed, All assignees and ＋ Add action share one row; the list has a heading per initiative with its count; step 2 the FULL action dialog opens (not "Set dates") and the row shows the changes; step 3 every view shows only that person's actions and the choice survives the switch; the Gantt has no second assignee select; step 4 the card moves and stays; each card names its initiative; step 5 the dialog offers an "Initiative" select of this priority's initiatives and no "Linked to" field; the new action appears under the chosen initiative and on that initiative's own board; step 6 the move follows the due-date rule (UAT-ACT-004) and the name opens the full dialog; step 7 the counts and ratings include what was just changed; step 8 they can edit — the same rights as on the initiative's board; step 9 the full dialog opens there too

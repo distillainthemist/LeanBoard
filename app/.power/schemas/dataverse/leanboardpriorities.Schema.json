@@ -61,6 +61,14 @@
           "x-ms-schema-name": "ben_notes",
           "maxLength": 4000
         },
+        "ben_objectivesjson": {
+          "type": "string",
+          "title": "Objectives (JSON)",
+          "x-ms-dataverse-attribute": "ben_objectivesjson",
+          "x-ms-dataverse-type": "MemoType",
+          "x-ms-schema-name": "ben_objectivesjson",
+          "maxLength": 4000
+        },
         "ben_order": {
           "type": "string",
           "title": "Order",
@@ -123,6 +131,14 @@
           "x-ms-schema-name": "ben_PillarName",
           "x-ms-read-only": true,
           "maxLength": 200
+        },
+        "ben_placementsjson": {
+          "type": "string",
+          "title": "Placements (JSON)",
+          "x-ms-dataverse-attribute": "ben_placementsjson",
+          "x-ms-dataverse-type": "MemoType",
+          "x-ms-schema-name": "ben_placementsjson",
+          "maxLength": 4000
         },
         "ben_plannedend": {
           "type": "string",

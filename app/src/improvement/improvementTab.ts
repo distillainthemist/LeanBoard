@@ -26,7 +26,7 @@ import { actionsForInitiatives, upsertActions } from "../store/actions";
 import { listBoards } from "../store/boards";
 import { rowsForInitiativeBoards } from "../store/cards";
 import { buildMetricState, loadMetricLasts } from "./metricValues";
-import { newAction } from "../../../shared/schema/actions";
+import { actionBelongsTo, newAction } from "../../../shared/schema/actions";
 import { promptConfirm } from "../prompts";
 import { parseOrgTree } from "../../../shared/schema/meeting";
 import { effectiveEnd, groupPrioritiesForPicker, isDescendant, orgFromKey, orgKey, orgName, OrgRef, orgRef, orgLevel, orgPath, periodFor, periodsOnOffer, parsePrioritySettings, ragPaletteKey, sameOrg, spanLiveIn } from "../priorities/model";
@@ -228,6 +228,14 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
             actor: actor(),
             hideViewSwitch: true,
             onChanged: () => {},
+            // a click on an action opens the dialog every card uses — it
+            // could only "Set dates" here (issue 11, 2026-11-16)
+            onEdit: (a) => {
+              const i = groups.all.find((x) => actionBelongsTo(x, a));
+              const near = new Map<string, { whoId: string; who: string }>();
+              for (const list of Object.values(i?.roles ?? {})) for (const p of list) if (p.whoId !== "") near.set(p.whoId, { whoId: p.whoId, who: p.who });
+              void import("../actions/quickAdd").then((m) => m.openActionEditor(a, [...near.values()], () => render()));
+            },
             onOpenBoard: (boardId) => {
               rememberBoardOrigin("#/improvement");
               window.location.hash = boardHash(boardId);

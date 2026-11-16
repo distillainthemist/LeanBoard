@@ -758,6 +758,11 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
   const close = () => {
     scrim.remove();
     document.removeEventListener("keydown", onKey, true);
+    // the matrix behind the popup shows tallies too
+    if (actionsTouched) {
+      actionsTouched = false;
+      void ctx.changed();
+    }
   };
   document.addEventListener("keydown", onKey, true);
   scrim.addEventListener("pointerdown", (e) => {
@@ -765,6 +770,8 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
   });
 
   let tab: "initiatives" | "actions" | "commentary" | "metrics" | "cascade" | "charter" | "history" = "initiatives";
+  /** The Actions tab wrote something the screen's tallies have not seen. */
+  let actionsTouched = false;
   let events: PriorityEvent[] | null = null;
 
   const paint = () => {
@@ -986,8 +993,17 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
     for (const [key, label] of tabDefs) {
       const t = btn(label, "app-cp-ov-tab" + (tab === key ? " app-cp-ov-tab-on" : ""));
       t.addEventListener("click", () => {
+        const leavingActions = tab === "actions" && key !== "actions";
         tab = key;
         paint();
+        if (leavingActions && actionsTouched) {
+          // actions were written on the Actions tab: the matrix behind
+          // the popup carries tallies and ratings too
+          actionsTouched = false;
+          void ctx.changed().then(() => {
+            if (scrim.isConnected) paint();
+          });
+        }
       });
       tabs.appendChild(t);
     }
@@ -1124,25 +1140,30 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
         void mountPrimaryCommentary(host, live.primaryInitiativeId, ctx.actor());
       }
     } else if (tab === "actions") {
-      // the actions Gantt (P8) — the List | Gantt switch lives inside it
+      // the action card the boards use (issues 5 and 11, 2026-11-16) —
+      // List | Kanban | Gantt, the full dialog, Add action — over every
+      // initiative's actions, a heading per initiative
       const g = ctx.ganttFor(live);
       if (g.initiatives.length === 0) {
-        body.appendChild(el("div", "app-cp-muted", "No initiatives linked yet — their actions chart here."));
+        body.appendChild(el("div", "app-cp-muted", "No initiatives linked yet — their actions show here."));
       } else {
-        const host = el("div", "app-cp-ov-gantthost");
+        const host = el("div", "app-cp-ov-gantthost app-cp-ov-actionshost");
         body.appendChild(host);
-        void import("../improvement/gantt").then((m) => {
+        void import("./actionsTab").then((m) => {
           if (!host.isConnected) return;
-          m.mountGantt({
+          m.mountPriorityActions({
             host,
-            scopes: [{ key: "org", label: "All initiatives" }],
             initiatives: g.initiatives,
             actions: g.actions,
+            roster: ctx.roster,
             palette: ctx.palette,
             ragFor: g.ragFor,
-            canEdit: ctx.canManage(live.org),
             actor: ctx.actor(),
-            onChanged: () => void ctx.changed(),
+            // an edit leaves the tallies on the other tabs stale; the
+            // screen reloads when this tab is left, not under the editor
+            onWritten: () => {
+              actionsTouched = true;
+            },
             onOpenBoard: (boardId) => {
               rememberBoardOrigin("#/priorities", live.id);
               close();

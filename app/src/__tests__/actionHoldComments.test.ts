@@ -38,7 +38,8 @@ describe("On hold", () => {
 
 describe("comments", () => {
   it("are stamped with who and the day, trimmed", () => {
-    expect(newComment({ whoId: "u1", who: "Jane Smith" }, "  Parts arrive Friday \n", "2026-09-30")).toEqual({ whoId: "u1", who: "Jane Smith", when: "2026-09-30", text: "Parts arrive Friday" });
+    // since 2026-11-16 a comment also carries an id and its moment
+    expect(newComment({ whoId: "u1", who: "Jane Smith" }, "  Parts arrive Friday \n", "2026-09-30")).toMatchObject({ whoId: "u1", who: "Jane Smith", when: "2026-09-30", text: "Parts arrive Friday" });
     expect(newComment({ whoId: "u1", who: "" }, "x", "2026-09-30").who).toBeUndefined();
   });
   it("survive the sanitiser in order; empty ones are dropped", () => {

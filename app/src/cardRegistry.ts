@@ -1464,6 +1464,7 @@ const REGISTRY: Record<string, CardMounter> = {
           toolbarHost: g.toolbar,
           window: g.window,
           onWindow: g.onWindow,
+          hideAssignee: g.hideAssignee,
         });
       })().catch(() => {
         if (!dead) host.replaceChildren(el("div", "app-cp-muted", "The Gantt could not load."));

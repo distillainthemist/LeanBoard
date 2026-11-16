@@ -7,7 +7,7 @@
 // actions are never hard-deleted (the danger button cancels); Done/Due/
 // Overdue are capitalised; circle colours are set inline (Safari rule).
 
-import { ActionComment, ActionPdca, ACTION_PDCA, isOverdue, LtkAction, newAction, newComment, PDCA_LABELS, PDCA_QUARTERS, pdcaOf } from "../schema/actions";
+import { ActionComment, ActionPdca, ACTION_PDCA, canEditComment, cleanSupporters, COMMENT_EDIT_HOURS, editComment, isOverdue, LtkAction, newAction, newComment, Supporter, supportLabel, PDCA_LABELS, PDCA_QUARTERS, pdcaOf } from "../schema/actions";
 import { ActionLink, applyLink, boardOnlyTarget, currentLink, isCardKeyed, linkChanges, linkLabel, LinkTarget, searchLinkTargets } from "../schema/actionLinks";
 import { ACTION_MOVED_EVENT, ActionLinkContext, actionLinkProvider, actionViewer, endorsementFor } from "./actionLinkProvider";
 import { dueMove, dueMoves, isLaterMove, reasonChoices, recordDueMove, slipCount } from "../schema/reschedule";
@@ -135,10 +135,74 @@ export function buildActionForm(
     searchWrap.append(query, results);
   }
 
+  // support (issue 7, 2026-11-16): people who help without owing a part.
+  // Chosen through a search, shown as removable chips — never a second
+  // wall of tick boxes under the first.
+  let supporters: Supporter[] = (initial?.supporters ?? []).map((x) => ({ ...x }));
+  const supWrap = el("div", "ltk-sup");
+  const supChips = el("div", "ltk-sup-chips");
+  const supSearch = el("div", "ltk-who-search");
+  const supQuery = textInput("", { placeholder: people.length > 0 ? "Add someone in support…" : "Name, then Enter" });
+  supQuery.setAttribute("aria-label", "Add someone in support");
+  const supResults = el("div", "ltk-who-results");
+  const sameWho = (a: { whoId: string; who: string }, b: { whoId: string; who: string }) =>
+    a.whoId !== "" && b.whoId !== "" ? a.whoId === b.whoId : a.who.toLowerCase() === b.who.toLowerCase();
+  const paintSupport = () => {
+    while (supChips.firstChild) supChips.removeChild(supChips.firstChild);
+    for (const p of supporters) {
+      const chip = el("span", "ltk-sup-chip", p.who);
+      const x = el("button", "ltk-sup-x", "✕") as HTMLButtonElement;
+      x.type = "button";
+      x.title = `Remove ${p.who} from support`;
+      x.setAttribute("aria-label", x.title);
+      x.addEventListener("click", () => {
+        supporters = supporters.filter((y) => y !== p);
+        paintSupport();
+      });
+      chip.appendChild(x);
+      supChips.appendChild(chip);
+    }
+    supChips.style.display = supporters.length > 0 ? "" : "none";
+  };
+  const addSupporter = (p: Supporter) => {
+    if (!supporters.some((y) => sameWho(y, p))) supporters = [...supporters, p];
+    supQuery.value = "";
+    paintSupportResults();
+    paintSupport();
+  };
+  const paintSupportResults = () => {
+    while (supResults.firstChild) supResults.removeChild(supResults.firstChild);
+    const q = supQuery.value.trim().toLowerCase();
+    if (q === "" || people.length === 0) return;
+    const matches = people.filter((p) => p.who.toLowerCase().includes(q) && !supporters.some((y) => sameWho(y, p))).slice(0, 8);
+    for (const person of matches) {
+      const hit = el("button", "ltk-check ltk-who-hit", person.who) as HTMLButtonElement;
+      hit.type = "button";
+      hit.addEventListener("click", () => addSupporter({ whoId: person.whoId, who: person.who }));
+      supResults.appendChild(hit);
+    }
+  };
+  supQuery.addEventListener("input", paintSupportResults);
+  supQuery.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    // no roster (a standalone control): a typed name stands
+    const typed = supQuery.value.trim();
+    if (people.length === 0 && typed !== "") addSupporter({ whoId: "", who: typed });
+    else (supResults.firstChild as HTMLButtonElement | null)?.click();
+  });
+  supSearch.append(supQuery, supResults);
+  supWrap.append(supChips, supSearch);
+  paintSupport();
+
   wrap.appendChild(fieldRow("Action", desc));
   wrap.appendChild(sectionLabel("Who"));
   wrap.appendChild(whoWrap);
   if (searchWrap) wrap.appendChild(searchWrap);
+  const supLabel = sectionLabel("Support (optional)");
+  supLabel.title = "People helping with the action. It shows among their actions under Supporting; completing it stays with whoever it is assigned to.";
+  wrap.appendChild(supLabel);
+  wrap.appendChild(supWrap);
   const dates = el("div");
   dates.style.display = "flex";
   dates.style.gap = "12px";
@@ -170,6 +234,10 @@ export function buildActionForm(
       } else {
         action.assignees = [];
       }
+      // assigned wins: nobody is both (cleanSupporters drops the overlap)
+      const sup = cleanSupporters(supporters, action.assignees);
+      if (sup.length > 0) action.supporters = sup;
+      else delete action.supporters;
     },
   };
 }
@@ -382,6 +450,8 @@ export function actionRow(a: LtkAction, opts: ActionRowOptions): HTMLElement {
   } else if (a.escalated) {
     whoEl.appendChild(el("span", "ltk-action-flag", " ⚑"));
   }
+  const support = supportLabel(a);
+  if (support !== "") right.appendChild(el("div", "ltk-action-support", support));
   const moved = movedGlyph(a);
   if (moved) right.appendChild(moved);
   const said = commentGlyph(a);
@@ -415,6 +485,12 @@ export interface ActionDialogOptions {
    *  discussion often reveals an action belongs to another card). Keys
    *  are instance keys ("board:card"); shown as a "Linked card" select. */
   linkTargets?: { key: string; label: string }[];
+  /** What the targets ARE, for the select's caption — "Linked card" on a
+   *  board, "Initiative" where they are initiatives (the priority popup). */
+  linkLabel?: string;
+  /** No "Linked to" field: the host's targets are the whole choice (a new
+   *  action raised under a priority lands on one of ITS initiatives). */
+  noLinkField?: boolean;
   /** The origin card's instance key — the select's initial value. */
   linkTarget?: string;
   /** What the action may be linked to — a ritual or an initiative, one
@@ -545,9 +621,11 @@ export function commentGlyph(a: Pick<LtkAction, "comments">): HTMLElement | null
 
 interface CommentField {
   el: HTMLElement;
-  /** The comments written in this dialog, the box's text included. */
-  added: () => ActionComment[];
-  /** Something written that a plain Close would lose. */
+  /** Write the comments as the dialog leaves them — what was added (the
+   *  box's text included), and the author's edits and deletions — onto
+   *  the action. */
+  apply: (action: LtkAction) => void;
+  /** Something written or changed that a plain Close would lose. */
   unsaved: () => boolean;
 }
 
@@ -556,20 +634,104 @@ interface CommentField {
  *  dialog's own Save — Close asks before it is lost. */
 function buildCommentField(o: ActionDialogOptions): CommentField {
   const viewer = o.viewer ?? actionViewer();
+  const viewerId = viewer?.whoId ?? "";
   const wrap = el("div", "ltk-cmt");
   const list = el("div", "ltk-cmt-list");
+  // the saved comments as this dialog will leave them: an edit replaces
+  // the entry, a delete drops it — applied with the dialog's Save, like
+  // the comments added here
+  let saved: ActionComment[] = [...o.action.comments];
+  const touched = new Set<ActionComment>();
+  let changed = false;
   const staged: ActionComment[] = [];
+  let editing: ActionComment | null = null;
+  const tool = (glyph: string, title: string, run: () => void): HTMLButtonElement => {
+    const b = el("button", "ltk-cmt-tool", glyph) as HTMLButtonElement;
+    b.type = "button";
+    b.title = title;
+    b.setAttribute("aria-label", title);
+    b.addEventListener("click", run);
+    return b;
+  };
   const paint = () => {
     while (list.firstChild) list.removeChild(list.firstChild);
-    const all = [...o.action.comments.map((c) => ({ c, fresh: false })), ...staged.map((c) => ({ c, fresh: true }))];
+    const all = [...saved.map((c) => ({ c, fresh: false })), ...staged.map((c) => ({ c, fresh: true }))];
     if (all.length === 0) list.appendChild(el("div", "ltk-cmt-none", "No comments yet."));
     for (const { c, fresh } of all) {
-      const row = el("div", "ltk-cmt-row" + (fresh ? " ltk-cmt-fresh" : ""));
-      row.appendChild(el("div", "ltk-cmt-meta", `${c.who ?? "Someone"} · ${c.when}${fresh ? " · not saved yet" : ""}`));
+      const row = el("div", "ltk-cmt-row" + (fresh || touched.has(c) ? " ltk-cmt-fresh" : ""));
+      const head = el("div", "ltk-cmt-head");
+      const meta = el("div", "ltk-cmt-meta", `${c.who ?? "Someone"} · ${c.when}`);
+      if (c.editedAt) {
+        const mark = el("span", "ltk-cmt-edited", " · edited");
+        mark.title = `Edited ${c.editedAt.slice(0, 10)}`;
+        meta.appendChild(mark);
+      }
+      if (fresh || touched.has(c)) meta.appendChild(document.createTextNode(" · not saved yet"));
+      head.appendChild(meta);
+      // its author, for a day (a staged comment is simply still theirs)
+      const mine = fresh || canEditComment(c, viewerId);
+      if (mine && editing === null) {
+        head.appendChild(
+          tool("✎", fresh ? "Edit this comment" : `Edit this comment — its author can for ${COMMENT_EDIT_HOURS} hours`, () => {
+            editing = c;
+            paint();
+          })
+        );
+        head.appendChild(
+          tool("✕", "Delete this comment", () => {
+            const drop = () => {
+              if (fresh) staged.splice(staged.indexOf(c), 1);
+              else {
+                saved = saved.filter((x) => x !== c);
+                changed = true;
+              }
+              paint();
+            };
+            if (fresh) drop();
+            else confirmBar(wrap, "Delete this comment? It goes when the action is saved.", "Delete it", "Keep it", drop);
+          })
+        );
+      }
+      row.appendChild(head);
+      if (editing === c) {
+        const area = el("textarea", "ltk-input ltk-textarea ltk-cmt-box") as HTMLTextAreaElement;
+        area.rows = 3;
+        area.value = c.text;
+        area.setAttribute("aria-label", "Edit the comment");
+        const btns = el("div", "ltk-confirm-btns");
+        const cancel = el("button", "ltk-btn ltk-btn-secondary", "Cancel") as HTMLButtonElement;
+        cancel.type = "button";
+        cancel.addEventListener("click", () => {
+          editing = null;
+          paint();
+        });
+        const keep = el("button", "ltk-btn ltk-btn-primary", "Done") as HTMLButtonElement;
+        keep.type = "button";
+        keep.title = "Keep the new wording — it is saved with the action";
+        keep.addEventListener("click", () => {
+          const text = area.value.trim();
+          editing = null;
+          if (text !== "" && text !== c.text) {
+            if (fresh) c.text = text;
+            else {
+              const next = editComment(c, text);
+              saved = saved.map((x) => (x === c ? next : x));
+              touched.add(next);
+              changed = true;
+            }
+          }
+          paint();
+        });
+        btns.append(cancel, keep);
+        row.append(area, btns);
+        list.appendChild(row);
+        setTimeout(() => area.focus(), 0);
+        continue;
+      }
       row.appendChild(el("div", "ltk-cmt-text", c.text));
       list.appendChild(row);
     }
-    list.scrollTop = list.scrollHeight;
+    if (editing === null) list.scrollTop = list.scrollHeight;
   };
   wrap.appendChild(list);
   let box: HTMLTextAreaElement | null = null;
@@ -604,11 +766,12 @@ function buildCommentField(o: ActionDialogOptions): CommentField {
   paint();
   return {
     el: wrap,
-    added: () => {
+    apply: (action) => {
       const typed = box !== null && viewer !== null && box.value.trim() !== "" ? [newComment(viewer, box.value)] : [];
-      return [...staged, ...typed];
+      if (!changed && staged.length === 0 && typed.length === 0) return;
+      action.comments = [...saved, ...staged, ...typed];
     },
-    unsaved: () => staged.length > 0 || (box !== null && box.value.trim() !== ""),
+    unsaved: () => changed || staged.length > 0 || (box !== null && box.value.trim() !== ""),
   };
 }
 
@@ -829,7 +992,7 @@ export function openActionDialog(o: ActionDialogOptions): void {
   // A changed link MOVES the action; the within-board card select then
   // has nothing to say and hides.
   let linkRow: HTMLElement | null = null;
-  const linkField: LinkField | null = buildLinkField(
+  const linkField: LinkField | null = o.noLinkField === true ? null : buildLinkField(
     o,
     () => dlg.body,
     () => {
@@ -863,8 +1026,7 @@ export function openActionDialog(o: ActionDialogOptions): void {
     action.confidential = confChk.box.checked ? true : undefined;
     form.apply(action); // after status, so assignee done flags match
     // what was written here, the box's text included
-    const said = comments.added();
-    if (said.length > 0) action.comments = [...action.comments, ...said];
+    comments.apply(action);
     // endorsement: closing on an initiative that asks for it waits for
     // its endorser — unless an endorser is the one closing
     const who = o.viewer ?? actionViewer();
@@ -913,7 +1075,7 @@ export function openActionDialog(o: ActionDialogOptions): void {
     // a comment written and not saved is asked about, never lost quietly
     onClick: () => {
       if (!comments.unsaved()) return dlg.close();
-      confirmBar(dlg.body, "A comment you wrote has not been saved. Leave without it?", "Leave without saving", "Keep editing", () => dlg.close());
+      confirmBar(dlg.body, "A comment you wrote or changed has not been saved. Leave without it?", "Leave without saving", "Keep editing", () => dlg.close());
     },
   });
   buttons.push({
@@ -930,7 +1092,7 @@ export function openActionDialog(o: ActionDialogOptions): void {
   dlg.body.appendChild(fieldRow("Issue", issue));
   if (linkField !== null) dlg.body.appendChild(fieldRow("Linked to", linkField.el));
   if (linkSel !== null) {
-    linkRow = fieldRow("Linked card", linkSel);
+    linkRow = fieldRow(o.linkLabel ?? "Linked card", linkSel);
     dlg.body.appendChild(linkRow);
   }
   dlg.body.appendChild(form.el);
@@ -952,8 +1114,7 @@ export function openActionDialog(o: ActionDialogOptions): void {
       back.addEventListener("click", () =>
         reasonBar(dlg.body, "Send this action back? It reopens for the people assigned.", "What still needs doing", "Send back", (reason) => {
           sendBack(action, who!, new Date().toISOString(), reason);
-          const said = comments.added();
-          if (said.length > 0) action.comments = [...action.comments, ...said];
+          comments.apply(action);
           dlg.close();
           o.onCommit();
         })
@@ -962,8 +1123,7 @@ export function openActionDialog(o: ActionDialogOptions): void {
       ok.type = "button";
       ok.addEventListener("click", () => {
         endorse(action, who!, new Date().toISOString());
-        const said = comments.added();
-        if (said.length > 0) action.comments = [...action.comments, ...said];
+        comments.apply(action);
         dlg.close();
         o.onCommit();
       });

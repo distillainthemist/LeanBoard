@@ -11,7 +11,7 @@ import {
   pdcaDisc, actionRow, completeCircle, openActionDialog, confidentialGlyph, commentGlyph, movedGlyph } from "../../shared/ui/actionUi";
 import { makeInteractive } from "../../shared/interact/drag";
 import { htmlToPng, htmlToSvg, saveSvg, SnapshotScheduler } from "../../shared/export/png";
-import { pdcaOf, ActionStatus, isOverdue, LtkAction, newAction } from "../../shared/schema/actions";
+import { pdcaOf, ActionStatus, isOverdue, LtkAction, newAction, supportLabel } from "../../shared/schema/actions";
 import { applyEndorsementRule } from "../../shared/schema/actionEndorsement";
 import { endorsementFor } from "../../shared/ui/actionLinkProvider";
 import { Person } from "../../shared/schema/people";
@@ -126,8 +126,39 @@ export type GanttRenderer = (
      *  the card repaints (and the Gantt remounts) after every edit */
     window?: GanttWindowState | null;
     onWindow?: (w: GanttWindowState) => void;
+    /** the card filters by assignee itself (its tools row carries the
+     *  select): the Gantt shows what it is handed and no select of its own */
+    hideAssignee?: boolean;
   }
 ) => () => void;
+
+/** Where an action sits when the card shows several homes at once (the
+ *  priority popup: one section per initiative). */
+export interface ActionSection {
+  key: string;
+  label: string;
+}
+
+/** The people a list of actions is assigned to, by name — the options of
+ *  the card's assignee filter. Pure. */
+export function assigneeOptions(actions: LtkAction[]): { whoId: string; who: string }[] {
+  const people = new Map<string, string>();
+  for (const a of actions) for (const x of a.assignees) if (x.whoId !== "") people.set(x.whoId, x.who);
+  return [...people.entries()].map(([whoId, who]) => ({ whoId, who })).sort((a, b) => a.who.localeCompare(b.who));
+}
+
+/** Actions under their sections, in the sections' label order; actions
+ *  with no section last, under "". Pure. */
+export function sectioned(actions: LtkAction[], sectionOf: (a: LtkAction) => ActionSection | null): { key: string; label: string; items: LtkAction[] }[] {
+  const groups = new Map<string, { key: string; label: string; items: LtkAction[] }>();
+  for (const a of actions) {
+    const sec = sectionOf(a) ?? { key: "", label: "" };
+    const g = groups.get(sec.key) ?? { key: sec.key, label: sec.label, items: [] };
+    g.items.push(a);
+    groups.set(sec.key, g);
+  }
+  return [...groups.values()].sort((a, b) => (a.key === "" ? 1 : b.key === "" ? -1 : a.label.localeCompare(b.label)));
+}
 
 /** The card's actions as a view shows them: cancelled never, completed
  *  only when asked (Ben, 2026-10-31: every view hides completed by
@@ -151,6 +182,8 @@ export class ActionBoardEditor {
   private verifyColumn = false;
   /** Where an action raised here lands unless the dialog says otherwise. */
   private defaultLink = "";
+  /** What the link targets are, for the dialog's caption ("" = cards). */
+  private linkLabel = "";
   /** The view the PERSON chose on the card's own switch; null = the
    *  card's configured default (2026-09-30). */
   private userView: BoardView | null = null;
@@ -163,6 +196,12 @@ export class ActionBoardEditor {
   private ganttRenderer: GanttRenderer | null = null;
   private ganttTeardown: (() => void) | null = null;
   private ganttWindowState: GanttWindowState | null = null;
+  /** Sections (the priority popup, 2026-11-16): List rows under a heading
+   *  per section, kanban cards tagged with theirs. null = one flat card. */
+  private sectionOf: ((a: LtkAction) => ActionSection | null) | null = null;
+  /** The tools row carries an assignee filter for every view. */
+  private assigneeFilter = false;
+  private assignee = "";
   /** The signed-in viewer — stamps verifications ("" = unknown). */
   private actor: { whoId: string; who: string } = { whoId: "", who: "" };
   /** Configured "by issue" columns; empty = discovered from the actions. */
@@ -262,6 +301,20 @@ export class ActionBoardEditor {
     this.render();
   }
 
+  /** Show several homes on one card: `sectionOf` names an action's. */
+  setSections(sectionOf: ((a: LtkAction) => ActionSection | null) | null): void {
+    this.sectionOf = sectionOf;
+    this.render();
+  }
+
+  /** Offer "All assignees ▾" in the tools row (every view). */
+  setAssigneeFilter(on: boolean): void {
+    if (this.assigneeFilter === on) return;
+    this.assigneeFilter = on;
+    if (!on) this.assignee = "";
+    this.render();
+  }
+
   /** Hand the Gantt view to the host's own Gantt component. */
   setGanttRenderer(renderer: GanttRenderer | null): void {
     this.ganttRenderer = renderer;
@@ -272,9 +325,10 @@ export class ActionBoardEditor {
     return viewFor(this.narrow, this.userView, this.view, !this.tight);
   }
 
-  setLinkTargets(targets: { key: string; label: string }[], defaultKey = ""): void {
+  setLinkTargets(targets: { key: string; label: string }[], defaultKey = "", label = ""): void {
     this.linkTargets = targets;
     this.defaultLink = defaultKey;
+    this.linkLabel = label;
   }
 
   setActor(actor: { whoId: string; who: string }): void {
@@ -341,7 +395,33 @@ export class ActionBoardEditor {
   // ---- rendering ----
 
   private visible(): LtkAction[] {
-    return visibleActions(this.actions, this.showCompleted);
+    const shown = visibleActions(this.actions, this.showCompleted);
+    return this.assignee === "" ? shown : shown.filter((a) => a.assignees.some((x) => x.whoId === this.assignee));
+  }
+
+  /** "All assignees ▾" — the people the card's actions are assigned to. */
+  private assigneeSelect(): HTMLElement | null {
+    if (!this.assigneeFilter) return null;
+    const people = assigneeOptions(visibleActions(this.actions, this.showCompleted));
+    // someone filtered on whose last action just closed: back to everyone
+    if (this.assignee !== "" && !people.some((p) => p.whoId === this.assignee)) this.assignee = "";
+    if (people.length === 0) return null;
+    const sel = el("select", "ltk-ab-assignee") as HTMLSelectElement;
+    sel.setAttribute("aria-label", "Assigned to");
+    const all = el("option", undefined, "All assignees") as HTMLOptionElement;
+    all.value = "";
+    sel.appendChild(all);
+    for (const p of people) {
+      const o = el("option", undefined, p.who) as HTMLOptionElement;
+      o.value = p.whoId;
+      sel.appendChild(o);
+    }
+    sel.value = this.assignee;
+    sel.addEventListener("change", () => {
+      this.assignee = sel.value;
+      this.render();
+    });
+    return sel;
   }
 
   /** The kebab is pinned over the body (no title bar to hold it). */
@@ -418,6 +498,17 @@ export class ActionBoardEditor {
     this.root.appendChild(body);
 
     const visible = this.visible();
+    if (visible.length === 0 && this.assignee !== "") {
+      // the filter emptied the card: keep the row that undoes it
+      const tools = this.toolsRow();
+      tools.appendChild(this.completedToggle());
+      const sel = this.assigneeSelect();
+      if (sel) tools.appendChild(sel);
+      if (!this.readOnly) tools.appendChild(this.addButton());
+      body.appendChild(tools);
+      body.appendChild(el("div", "ltk-ab-narrownote", "No actions for this person"));
+      return;
+    }
     if (visible.length === 0 && this.hiddenDone() > 0) {
       // every action is complete and hidden: say so, offer the switch
       const tools = this.toolsRow();
@@ -476,6 +567,8 @@ export class ActionBoardEditor {
     const tools = this.toolsRow();
     if (!this.narrow) tools.appendChild(views);
     tools.appendChild(this.completedToggle());
+    const whoSel = this.assigneeSelect();
+    if (whoSel) tools.appendChild(whoSel);
     // the host's Gantt puts its range controls in this slot, so they
     // share the row with Add action instead of sitting under it
     const ganttSlot = view === "gantt" && this.ganttRenderer ? el("div", "ltk-ab-toolslot") : null;
@@ -509,6 +602,7 @@ export class ActionBoardEditor {
           onWindow: (w) => {
             this.ganttWindowState = w;
           },
+          hideAssignee: this.assigneeFilter,
         });
       } else {
         body.appendChild(this.renderGantt(visible));
@@ -532,17 +626,27 @@ export class ActionBoardEditor {
 
   private renderList(visible: LtkAction[]): HTMLElement {
     const list = el("div", "ltk-ab-list");
-    for (const a of this.sorted(visible)) {
-      list.appendChild(
-        actionRow(a, {
-          doneColor: this.doneColor(),
-          showPdca: true,
-          showIssue: true,
-          readOnly: this.readOnly,
-          onChanged: () => this.commit(),
-          onEdit: (act) => this.editAction(act),
-        })
-      );
+    const rows = (items: LtkAction[]) => {
+      for (const a of this.sorted(items)) {
+        list.appendChild(
+          actionRow(a, {
+            doneColor: this.doneColor(),
+            showPdca: true,
+            showIssue: true,
+            readOnly: this.readOnly,
+            onChanged: () => this.commit(),
+            onEdit: (act) => this.editAction(act),
+          })
+        );
+      }
+    };
+    if (this.sectionOf === null) {
+      rows(visible);
+      return list;
+    }
+    for (const g of sectioned(visible, this.sectionOf)) {
+      if (g.label !== "") list.appendChild(el("div", "ltk-ab-section", `${g.label} · ${g.items.length}`));
+      rows(g.items);
     }
     return list;
   }
@@ -670,6 +774,13 @@ export class ActionBoardEditor {
       head.appendChild(el("div", "ltk-ab-card-issue", a.issue));
     }
     card.appendChild(head);
+    // which home it belongs to, when the card shows several
+    const sec = this.sectionOf?.(a) ?? null;
+    if (sec && sec.label !== "") {
+      const tag = el("div", "ltk-ab-card-tag", sec.label);
+      tag.title = sec.label;
+      card.appendChild(tag);
+    }
 
     const desc = el(
       "div",
@@ -681,6 +792,13 @@ export class ActionBoardEditor {
     const meta = el("div", "ltk-ab-card-meta");
     const whoEl = el("span", undefined, a.assignees[0]?.who ?? "Unassigned");
     meta.appendChild(whoEl);
+    // supporters: a count on the card, the names in its tooltip
+    const support = supportLabel(a);
+    if (support !== "") {
+      const sup = el("span", "ltk-ab-support", `＋${(a.supporters ?? []).length}`);
+      sup.title = support;
+      meta.appendChild(sup);
+    }
     if (a.status === "verify") {
       const verify = el("span", "ltk-ab-verify", "◐");
       verify.title = "Awaiting endorsement";
@@ -1064,6 +1182,10 @@ export class ActionBoardEditor {
       isNew: true,
       linkTargets: this.linkTargets,
       linkTarget: this.defaultLink !== "" ? this.defaultLink : undefined,
+      linkLabel: this.linkLabel !== "" ? this.linkLabel : undefined,
+      // several homes on one card: a new action goes to one of THEM —
+      // the select is the whole choice, no free "Linked to" beside it
+      noLinkField: this.sectionOf !== null,
       onCommit: () => {
         this.actions.push(action);
         this.commit();
@@ -1080,7 +1202,10 @@ export class ActionBoardEditor {
       action,
       people: this.people,
       isNew: false,
-      linkTargets: this.linkTargets,
+      // several homes on one card: an existing action moves only through
+      // "Linked to" (applyLink re-stamps what a move changes) — the
+      // card-level select would carry the old home's stamps along
+      linkTargets: this.sectionOf !== null ? undefined : this.linkTargets,
       linkTarget: action.instanceId,
       // who moved it, where the host has no viewer provider of its own
       viewer: this.actor.whoId !== "" ? this.actor : undefined,

@@ -201,6 +201,20 @@ export const LTK_BASE_CSS = `
 
 /* wider-roster assignee search (under the participant chips) */
 .ltk-who-search { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+/* support: chosen people as chips above the search that adds them */
+.ltk-sup { display: flex; flex-direction: column; gap: 6px; }
+.ltk-sup .ltk-who-search { margin-top: 0; }
+.ltk-sup-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.ltk-sup-chip {
+  display: inline-flex; align-items: center; gap: 4px; font-size: 13px; padding: 4px 4px 4px 10px;
+  border: 1px solid var(--ltk-hairline); border-radius: 999px; background: var(--ltk-bg); color: var(--ltk-fg);
+}
+.ltk-sup-x {
+  border: none; background: none; color: var(--ltk-muted); font: inherit; font-size: 11px; line-height: 1;
+  padding: 4px 6px; border-radius: 999px; cursor: pointer; min-width: 24px; min-height: 24px;
+}
+.ltk-sup-x:hover, .ltk-sup-x:focus-visible { color: var(--ltk-accent); background: rgba(0, 0, 0, 0.06); }
+.ltk-action-support { font-size: 11.5px; color: var(--ltk-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
 .ltk-who-results {
   display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px;
 }
@@ -259,7 +273,16 @@ export const LTK_BASE_CSS = `
 .ltk-cmt-none { font-size: 12.5px; color: var(--ltk-muted); }
 .ltk-cmt-row { border: 1px solid var(--ltk-hairline); border-radius: 6px; padding: 6px 10px; background: var(--ltk-bg); }
 .ltk-cmt-fresh { border-style: dashed; border-color: var(--ltk-accent); }
-.ltk-cmt-meta { font-size: 11.5px; color: var(--ltk-muted); }
+.ltk-cmt-meta { font-size: 11.5px; color: var(--ltk-muted); flex: 1; min-width: 0; }
+.ltk-cmt-head { display: flex; align-items: center; gap: 2px; min-height: 22px; }
+.ltk-cmt-edited { font-style: italic; }
+/* the author's two tools — quiet until the row is under the pointer */
+.ltk-cmt-tool {
+  flex: none; border: none; background: none; color: var(--ltk-muted); font: inherit; font-size: 13px;
+  line-height: 1; padding: 4px 6px; border-radius: 4px; cursor: pointer; min-width: 28px; min-height: 28px;
+}
+.ltk-cmt-tool:hover, .ltk-cmt-tool:focus-visible { color: var(--ltk-accent); background: rgba(0, 0, 0, 0.05); }
+.ltk-cmt-row .ltk-confirm-btns { margin-top: 6px; }
 .ltk-cmt-text { font-size: 13.5px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .ltk-cmt-entry { display: flex; gap: 8px; align-items: flex-end; }
 .ltk-cmt-box { flex: 1; min-width: 0; min-height: 44px; }

@@ -27,6 +27,29 @@ function dialogHost(): HTMLElement {
   return host;
 }
 
+/** Open an EXISTING action in the dialog every card uses, from a screen
+ *  that is not a card (the Improvement tab's Gantt — a click on a name
+ *  there could only "Set dates", issue 11, 2026-11-16). `near` are the
+ *  people to offer up front; everyone else is behind the search.
+ *  `onSaved` runs once the write has landed. */
+export async function openActionEditor(action: import("../../../shared/schema/actions").LtkAction, near: { whoId: string; who: string }[], onSaved: () => void): Promise<void> {
+  const roster = await listPeople().catch(() => []);
+  openActionDialog({
+    host: dialogHost(),
+    action,
+    people: assigneePeople(near, roster, "search"),
+    isNew: false,
+    onCommit: () => {
+      void (async () => {
+        await upsertActions([action]);
+        bumpChange("actions");
+        window.dispatchEvent(new CustomEvent(ACTIONS_CHANGED_EVENT));
+        onSaved();
+      })();
+    },
+  });
+}
+
 export async function openQuickAction(): Promise<void> {
   const viewer = currentViewer();
   const whoId = viewer?.objectId ?? "";

@@ -20,7 +20,7 @@
 // select, ±1d/±1w steppers + Set dates… — no drag. Dependencies are out
 // of scope by design.
 
-import { actionBelongsTo, isOnHold } from "../../../shared/schema/actions";
+import { actionBelongsTo, isOnHold, supportLabel } from "../../../shared/schema/actions";
 import { el, clear } from "../../../shared/ui/dom";
 import { LtkAction } from "../../../shared/schema/actions";
 import { dueMove, reasonChoices, recordDueMove } from "../../../shared/schema/reschedule";
@@ -89,6 +89,9 @@ export interface GanttOpts {
   onWindow?: (w: GanttWindowState) => void;
   /** The host already offers a List/Gantt switch — hide the internal one. */
   hideViewSwitch?: boolean;
+  /** The host filters by assignee itself and hands over the result (the
+   *  action card's own select, 2026-11-16): no select here. */
+  hideAssignee?: boolean;
   /** The host owns Show completed (the actions card's own switch,
    *  2026-10-31): the Gantt follows this and shows no toggle. */
   showCompleted?: boolean;
@@ -376,7 +379,7 @@ export function mountGantt(opts: GanttOpts): () => void {
       }
       bar.appendChild(seg);
     }
-    if (scope === "org" || scope === "board") {
+    if ((scope === "org" || scope === "board") && opts.hideAssignee !== true) {
       const people = new Map<string, string>();
       for (const a of opts.actions) for (const x of a.assignees) if (x.whoId !== "") people.set(x.whoId, x.who);
       if (people.size > 0) {
@@ -516,7 +519,7 @@ export function mountGantt(opts: GanttOpts): () => void {
         const main = el("div", "app-gx-listmain");
         main.appendChild(el("div", "app-gx-label-title", titleOf(a).slice(0, 120)));
         const who = a.assignees.map((x) => x.who).filter((x) => x !== "").join(", ");
-        main.appendChild(el("div", "app-gx-label-meta", [issueTag(a), who].filter((x) => x !== "").join(" · ")));
+        main.appendChild(el("div", "app-gx-label-meta", [issueTag(a), who, supportLabel(a)].filter((x) => x !== "").join(" · ")));
         r.appendChild(main);
         const dates = el("div", "app-gx-listdates");
         const dueTxt = a.due !== "" ? dayLabel(a.due) : "no due date";
@@ -658,7 +661,7 @@ export function mountGantt(opts: GanttOpts): () => void {
         label.addEventListener("click", () => opts.onEdit?.(a));
       }
       const who = a.assignees.map((x) => x.who).filter((x) => x !== "").join(", ");
-      label.appendChild(el("div", "app-gx-label-meta", [issueTag(a), who, a.due !== "" ? `due ${dayLabel(a.due)}` : "no due date"].filter((x) => x !== "").join(" · ")));
+      label.appendChild(el("div", "app-gx-label-meta", [issueTag(a), who, supportLabel(a), a.due !== "" ? `due ${dayLabel(a.due)}` : "no due date"].filter((x) => x !== "").join(" · ")));
       r.appendChild(label);
       const tl = timelineCell();
       r.appendChild(tl);
@@ -944,10 +947,10 @@ export function mountGantt(opts: GanttOpts): () => void {
   };
 
   const exportCsv = () => {
-    const rows: string[][] = [["Initiative", "Action", "Issue", "Assignees", "Start", "Due", "State"]];
+    const rows: string[][] = [["Initiative", "Action", "Issue", "Assignees", "Support", "Start", "Due", "State"]];
     for (const a of opts.actions.filter(visibleAction)) {
       const i = initOf(a);
-      rows.push([i?.title ?? "", titleOf(a), issueTag(a), a.assignees.map((x) => x.who).join("; "), a.start, a.due, barState(a, today)]);
+      rows.push([i?.title ?? "", titleOf(a), issueTag(a), a.assignees.map((x) => x.who).join("; "), (a.supporters ?? []).map((x) => x.who).join("; "), a.start, a.due, barState(a, today)]);
     }
     const csv = rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(",")).join("\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));

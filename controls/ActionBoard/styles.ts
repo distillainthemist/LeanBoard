@@ -379,6 +379,16 @@ export const ACTIONBOARD_CSS = `
 /* an untitled card pins its kebab over this corner */
 .ltk-ab-tools-kebab { padding-right: 44px; }
 .ltk-ab-verify { color: var(--ltk-muted); font-style: italic; }
+.ltk-ab-support { color: var(--ltk-muted); font-size: 11.5px; cursor: default; }
+/* several homes on one card (the priority popup): a heading per home in
+   the list, a tag on each kanban card; the assignee filter in the tools row */
+.ltk-ab-section { font-size: 12.5px; font-weight: 700; padding: 10px 4px 2px; }
+.ltk-ab-section:first-child { padding-top: 2px; }
+.ltk-ab-card-tag { font-size: 11px; color: var(--ltk-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ltk-ab-assignee {
+  font: inherit; font-size: 13px; color: var(--ltk-fg); background: var(--ltk-bg); border: 1px solid var(--ltk-hairline);
+  border-radius: 8px; padding: 0 8px; min-height: 36px; max-width: 220px;
+}
 /* a tile has no room for the phrase: the glyph stands, the title says it */
 .ltk-tile .ltk-ab-verify-words { display: none; }
 

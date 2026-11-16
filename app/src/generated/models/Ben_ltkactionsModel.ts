@@ -36,6 +36,7 @@ export interface Ben_ltkactionsBase {
   ben_sourceid?: string;
   ben_start?: string;
   ben_status?: string;
+  ben_supportersjson?: string;
   ben_verifiedat?: string;
   ben_verifiedby?: string;
   ben_visiblejson?: string;

@@ -18,7 +18,7 @@ import { LTK_BASE_CSS } from "../../shared/ui/baseCss";
 import { copyText } from "../../shared/ui/clipboard";
 import { clear, el, ensureStylesheet } from "../../shared/ui/dom";
 import { parsePrompts, Prompts, renderGhost, renderTitleBar } from "../../shared/ui/chrome";
-import { pdcaOf, isOnHold, isOverdue, LtkAction, newAction, settleFromParts } from "../../shared/schema/actions";
+import { pdcaOf, isOnHold, isOverdue, LtkAction, newAction, settleFromParts, isSupporter, supportLabel } from "../../shared/schema/actions";
 import { actionViewer, endorsementFor } from "../../shared/ui/actionLinkProvider";
 import { applyEndorsementRule } from "../../shared/schema/actionEndorsement";
 import { Person } from "../../shared/schema/people";
@@ -976,6 +976,12 @@ export class LeanHubView {
         ? source
         : source.filter((a) => a.assignees.some((x) => x.whoId === who));
     const open = mine.filter((a) => a.status !== "done" && a.status !== "cancelled");
+    // what this person SUPPORTS (issue 7, 2026-11-16): listed apart, under
+    // its own heading — never among their own to-dos, never with a tick
+    const supporting =
+      this.actScope.kind === "org" || who === ""
+        ? []
+        : source.filter((a) => a.status !== "done" && a.status !== "cancelled" && isSupporter(a, who) && !a.assignees.some((x) => x.whoId === who));
     // "done" here = the viewer's part is ticked (whole-action done rows
     // left the open set already) — these collapse under one disclosure
     // instead of littering the list struck-through (Phase 1.6)
@@ -1014,7 +1020,15 @@ export class LeanHubView {
           : this.actionFilter === "today"
             ? active.filter((a) => a.due === todayIso)
             : active;
-    if (visible.length === 0 && (this.actionFilter !== "all" || doneMine.length === 0)) {
+    const supportingShown =
+      this.actionFilter === "done"
+        ? []
+        : this.actionFilter === "overdue"
+          ? supporting.filter((a) => isOverdue(a))
+          : this.actionFilter === "today"
+            ? supporting.filter((a) => a.due === todayIso)
+            : supporting;
+    if (visible.length === 0 && supportingShown.length === 0 && (this.actionFilter !== "all" || doneMine.length === 0)) {
       renderGhost(wrap, [
         this.actionFilter === "all" ? (isMe ? "Nothing on your plate" : "Nothing open") : "Nothing here",
         this.actionFilter === "all"
@@ -1054,6 +1068,14 @@ export class LeanHubView {
       for (const action of group) {
         wrap.appendChild(this.renderActionRow(action));
       }
+    }
+
+    if (supportingShown.length > 0) {
+      const head = el("div", "ltk-lh-group ltk-lh-group-support", `Supporting · ${supportingShown.length}`);
+      head.title = "Actions you are named on in support. Completing them stays with whoever they are assigned to.";
+      wrap.appendChild(head);
+      supportingShown.sort((a, b) => ((a.due || "9999") < (b.due || "9999") ? -1 : 1));
+      for (const action of supportingShown) wrap.appendChild(this.renderActionRow(action));
     }
 
     // ticked-off work waits behind one calm row (Phase 1.6)
@@ -1207,6 +1229,8 @@ export class LeanHubView {
         el("span", "ltk-lh-action-with", `with ${others.map((o) => o.who).join(", ")}`)
       );
     }
+    const support = supportLabel(action);
+    if (support !== "") row.appendChild(el("span", "ltk-lh-action-with", support));
     if (action.due !== "") {
       // humanized pill, ISO in the tooltip (design review Phase 1.2);
       // "T00:00" parses the date-only string as LOCAL midnight — bare

@@ -2943,6 +2943,63 @@
        "changed": "2026-11-12"
       }
      ]
+    },
+    {
+     "title": "Journey 3 — Comments and supporters",
+     "cases": [
+      {
+       "id": "UAT-ACT-005",
+       "title": "A comment's author can put it right for a day",
+       "journey": "Journey 3 — Comments and supporters",
+       "persona": "assignee",
+       "modules": [
+        "shared/ui/actionUi.ts",
+        "shared/schema/actions.ts",
+        "store/actions.ts",
+        "store/dv.ts",
+        "controls/EscalationViewer/editor.ts"
+       ],
+       "preconditions": "an action you can open, carrying a comment from someone else and one of your own written more than a day ago; a second person signed in on another device",
+       "steps": [
+        "Open the action, write a comment with a spelling mistake, press Add, then Save.",
+        "Open the action again. Read the tools on each comment.",
+        "Press ✎ on the new comment, fix the spelling, press Done, read the row, then Save. Open it again.",
+        "The second person opens the same action and leaves it open. You add another comment and Save. The second person then adds their own comment and saves. Both reopen the action.",
+        "Press ✕ on one of your comments from today, confirm, and press Close; answer the question; then delete it again and Save.",
+        "Open the action the next day."
+       ],
+       "expected": "step 2 only your own comment from the last 24 hours shows ✎ and ✕ — not the other person's, not your older one; step 3 the edited row reads \"edited · not saved yet\" with a dashed edge until Save, and afterwards \"· edited\" with the edit date in its tooltip; step 4 both comments are there after both saves — neither save dropped the other's; step 5 Close asks about the unsaved change before leaving, and after Save the comment is gone; step 6 yesterday's comments carry no tools: they are the record",
+       "hash": "a237f37a",
+       "changed": "2026-11-16"
+      },
+      {
+       "id": "UAT-ACT-006",
+       "title": "Supporters: named, seen, never owing a part",
+       "journey": "Journey 3 — Comments and supporters",
+       "persona": "owner",
+       "modules": [
+        "shared/ui/actionUi.ts",
+        "shared/schema/actions.ts",
+        "store/actions.ts",
+        "store/mappers.ts",
+        "controls/LeanHub/editor.ts",
+        "controls/ActionBoard/editor.ts",
+        "improvement/gantt.ts"
+       ],
+       "preconditions": "an action assigned to person A; person B and person C on the roster; B able to sign in",
+       "steps": [
+        "Open the action. Under \"Support (optional)\" type part of B's name, pick B; add C the same way; remove C with its ✕; Save.",
+        "Read the action's row in the list view, its card on the kanban, its line on the Gantt, and the Gantt's CSV export.",
+        "As B, open the hub: read My day, the Actions tab's badge and list, and the group at its foot.",
+        "As B, open the action from \"Supporting\". As A, complete it.",
+        "Make the action confidential. As B, find it again. As B's manager (not otherwise involved), look for it.",
+        "Open the action, pick B as the person it is assigned to, and Save."
+       ],
+       "expected": "step 1 the search offers people not already chosen and each choice becomes a chip; step 2 the list row reads \"support: B\", the kanban card shows ＋1 with B in its tooltip, the Gantt line and the export's Support column name B; step 3 the action is NOT in B's My day, does not count in the Actions badge or the overdue filter of B's own list, and sits under \"Supporting · 1\" with no tick; step 4 B can open and comment; the action closes when A completes it — B owed nothing; step 5 B still sees the confidential action, B's manager does not; step 6 B is now assigned and no longer listed in support (nobody is both)",
+       "hash": "2e1df4b3",
+       "changed": "2026-11-16"
+      }
+     ]
     }
    ]
   },
@@ -3156,6 +3213,39 @@
        "expected": "step 1 the department's matrix shows the department's own priority with the new wording in place of the adopted one; it can be renamed through ⋮ → Edit… and unlinked from the Cascade tab; step 2 the priority leaves the department's matrix; step 3 its sender flags and Cascade tab read \"↓ <department> ✕ declined — “<reason>”\" and History reads \"<department> dropped it — “<reason>”\"",
        "hash": "a8a77819",
        "changed": "2026-11-06"
+      },
+      {
+       "id": "UAT-PRI-006",
+       "title": "The popup's Actions tab is the action card",
+       "journey": "Journey 2 — Who manages an org, pulling from above (issue round 2026-11-06)",
+       "persona": "orgowner",
+       "modules": [
+        "priorities/lifecycle.ts",
+        "priorities/actionsTab.ts",
+        "priorities/actionsTabModel.ts",
+        "controls/ActionBoard/editor.ts",
+        "controls/ActionBoard/styles.ts",
+        "shared/ui/actionUi.ts",
+        "improvement/gantt.ts",
+        "improvement/improvementTab.ts",
+        "actions/quickAdd.ts",
+        "cardRegistry.ts"
+       ],
+       "preconditions": "a priority with two or more linked initiatives that carry actions for different people, one initiative you hold no role on and whose org you do not manage; a completed action among them",
+       "steps": [
+        "Open the priority, then the Actions tab. Read the tools row and the list.",
+        "Click an action's row. Change its description, assignee and PDCA state; add a comment; Save.",
+        "Choose a person in \"All assignees\"; switch to Kanban, then Gantt, then back to List; set it back to All assignees.",
+        "On Kanban, drag a card to Doing. Read the card's small grey line.",
+        "Press ＋ Add action, read the dialog, choose the second initiative, fill it in, and Raise.",
+        "On Gantt, drag a bar later; click an action's name.",
+        "Switch to the Initiatives tab and read the open-action counts; close the popup and read the priority's card.",
+        "As someone who does not manage the priority's org but can open the initiative's board, open the same tab and edit an action.",
+        "Improvement tab → Gantt view → click an action's name."
+       ],
+       "expected": "step 1 List | Kanban | Gantt, Show completed, All assignees and ＋ Add action share one row; the list has a heading per initiative with its count; step 2 the FULL action dialog opens (not \"Set dates\") and the row shows the changes; step 3 every view shows only that person's actions and the choice survives the switch; the Gantt has no second assignee select; step 4 the card moves and stays; each card names its initiative; step 5 the dialog offers an \"Initiative\" select of this priority's initiatives and no \"Linked to\" field; the new action appears under the chosen initiative and on that initiative's own board; step 6 the move follows the due-date rule (UAT-ACT-004) and the name opens the full dialog; step 7 the counts and ratings include what was just changed; step 8 they can edit — the same rights as on the initiative's board; step 9 the full dialog opens there too",
+       "hash": "d0ff2247",
+       "changed": "2026-11-16"
       }
      ]
     }

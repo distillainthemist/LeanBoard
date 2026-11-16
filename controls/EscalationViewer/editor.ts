@@ -13,7 +13,7 @@ import { actionRow, openActionDialog } from "../../shared/ui/actionUi";
 import { parsePrompts, Prompts, renderGhost, renderTitleBar } from "../../shared/ui/chrome";
 import { renderKebab } from "../../shared/ui/menu";
 import { htmlToPng, htmlToSvg, saveSvg, SnapshotScheduler } from "../../shared/export/png";
-import { Acknowledgement, LtkAction } from "../../shared/schema/actions";
+import { Acknowledgement, LtkAction, newComment } from "../../shared/schema/actions";
 import { nowIso, todayIso } from "../../shared/schema/id";
 import { Person } from "../../shared/schema/people";
 import { EscalationGroup, groupEscalations, SourceLabel } from "./types";
@@ -276,12 +276,9 @@ export class EscalationViewerEditor {
           onClick: () => {
             const text = ta.value.trim();
             if (text === "") return;
-            a.comments.push({
-              whoId: this.viewer.whoId,
-              who: this.viewer.who || undefined,
-              when: todayIso(),
-              text,
-            });
+            // through the one constructor: the id and the moment let its
+            // author put it right for a day (2026-11-16)
+            a.comments.push(newComment({ whoId: this.viewer.whoId, who: this.viewer.who ?? "" }, text));
             dlg.close();
             this.emit();
           },

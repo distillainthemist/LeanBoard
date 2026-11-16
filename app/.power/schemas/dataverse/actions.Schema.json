@@ -234,6 +234,14 @@
           "x-ms-schema-name": "ben_status",
           "maxLength": 20
         },
+        "ben_supportersjson": {
+          "type": "string",
+          "title": "Supporters (JSON)",
+          "x-ms-dataverse-attribute": "ben_supportersjson",
+          "x-ms-dataverse-type": "MemoType",
+          "x-ms-schema-name": "ben_supportersjson",
+          "maxLength": 4000
+        },
         "ben_verifiedat": {
           "type": "string",
           "title": "Verified at",

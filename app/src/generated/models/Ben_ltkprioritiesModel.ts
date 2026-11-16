@@ -20,12 +20,14 @@ export interface Ben_ltkprioritiesBase {
   ben_ltkpriorityid: string;
   ben_name?: string;
   ben_notes?: string;
+  ben_objectivesjson?: string;
   ben_order?: number;
   ben_ownerid?: string;
   ben_ownername?: string;
   "ben_ParentPriority@odata.bind"?: string;
   ben_period?: string;
   "ben_Pillar@odata.bind"?: string;
+  ben_placementsjson?: string;
   ben_plannedend?: string;
   ben_primaryinitiativeid?: string;
   ben_priorityid: string;

@@ -112,12 +112,15 @@ export async function upsertWhere<TFields extends object, TRow>(
   },
   filter: string,
   idOf: (row: TRow) => string,
-  fields: TFields
+  fields: TFields,
+  /** Lay the write over the row as it stands NOW (a field several people
+   *  append to — an action's comments). Updates only. */
+  merge?: (existing: TRow, fields: TFields) => TFields
 ): Promise<string> {
   const existing = await firstWhere(service.getAll, filter);
   if (existing) {
     const id = idOf(existing);
-    settle(await service.update(id, fields as never), "update");
+    settle(await service.update(id, (merge ? merge(existing, fields) : fields) as never), "update");
     return id;
   }
   const created = settle(await service.create(fields as never), "create");

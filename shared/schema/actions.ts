@@ -117,11 +117,28 @@ export interface Assignee {
   done: boolean;
 }
 
+/** Someone who SUPPORTS an action (issue 7, 2026-11-16): named on it,
+ *  sees it among their own under "Supporting" and through its
+ *  confidentiality — and owes no part of it. Every rule about parts,
+ *  done flags, overdue and endorsement reads `assignees` alone. */
+export interface Supporter {
+  whoId: string;
+  who: string;
+}
+
 export interface ActionComment {
   whoId: string;
   who?: string;
   when: string; // yyyy-mm-dd
   text: string;
+  /** Stable id (2026-11-16) — what an edit, a delete and the store's
+   *  merge address. Absent on comments written before then. */
+  id?: string;
+  /** The moment it was written (ISO). Absent on older comments, which
+   *  carry the day alone. */
+  at?: string;
+  /** Set when its author changed the wording (ISO). */
+  editedAt?: string;
 }
 
 /** Receiving-board sign-off on an escalated action (EscalationViewer). */
@@ -145,6 +162,8 @@ export interface LtkAction {
   issue: string;
   description: string;
   assignees: Assignee[];
+  /** People supporting the action; absent = none. Never an assignee too. */
+  supporters?: Supporter[];
   start: string; // yyyy-mm-dd, "" = no start date (optional; used by Gantt)
   due: string; // yyyy-mm-dd, "" = no due date
   status: ActionStatus;
@@ -196,6 +215,7 @@ export function actionVisibleTo(a: LtkAction, viewerWhoId: string, isSuperAdmin:
   if (viewerWhoId === "") return false;
   if (a.createdBy === viewerWhoId) return true;
   if (a.assignees.some((x) => x.whoId === viewerWhoId)) return true;
+  if (isSupporter(a, viewerWhoId)) return true;
   return (a.visibleTo ?? []).includes(viewerWhoId);
 }
 
@@ -212,8 +232,41 @@ export function visibleSetFor(a: LtkAction, managerOf: (whoId: string) => string
     add(x.whoId);
     add(managerOf(x.whoId));
   }
+  // supporters see it; their leaders do not — the "leaders" rule is for
+  // the people accountable (Ben, 2026-11-16)
+  for (const x of a.supporters ?? []) add(x.whoId);
   for (const e of extra) add(e);
   return [...out];
+}
+
+/** Is this person supporting the action? */
+export function isSupporter(a: Pick<LtkAction, "supporters">, whoId: string): boolean {
+  return whoId !== "" && (a.supporters ?? []).some((x) => x.whoId === whoId);
+}
+
+/** A tidy supporters list: real people, once each, and never someone
+ *  who is also assigned (assigned wins — they owe the part). */
+export function cleanSupporters(raw: unknown, assignees: Assignee[]): Supporter[] {
+  if (!Array.isArray(raw)) return [];
+  const out: Supporter[] = [];
+  const key = (x: { whoId: string; who: string }) => (x.whoId !== "" ? `id:${x.whoId}` : `n:${x.who.toLowerCase()}`);
+  const taken = new Set(assignees.map(key));
+  for (const x of raw) {
+    if (!x || typeof x !== "object") continue;
+    const o = x as Record<string, unknown>;
+    const p = { whoId: typeof o.whoId === "string" ? o.whoId : "", who: typeof o.who === "string" ? o.who.trim() : "" };
+    if (p.who === "" && p.whoId === "") continue;
+    if (taken.has(key(p))) continue;
+    taken.add(key(p));
+    out.push(p);
+  }
+  return out;
+}
+
+/** "support: A, B" for a row, "" with none. */
+export function supportLabel(a: Pick<LtkAction, "supporters">): string {
+  const names = (a.supporters ?? []).map((x) => x.who).filter((n) => n !== "");
+  return names.length > 0 ? `support: ${names.join("; ")}` : "";
 }
 
 export function newAction(context: ActionContext): LtkAction {
@@ -277,6 +330,7 @@ export function sanitizeAction(a: Partial<LtkAction>): LtkAction {
         }))
         .filter((x) => x.who !== "" || x.whoId !== "")
     : [];
+  const supporters = cleanSupporters(a.supporters, assignees);
   const comments: ActionComment[] = Array.isArray(a.comments)
     ? a.comments
         .filter((c) => c && typeof c === "object")
@@ -285,6 +339,9 @@ export function sanitizeAction(a: Partial<LtkAction>): LtkAction {
           who: typeof c.who === "string" ? c.who : undefined,
           when: typeof c.when === "string" ? c.when : "",
           text: typeof c.text === "string" ? c.text : "",
+          ...(typeof c.id === "string" && c.id !== "" ? { id: c.id } : {}),
+          ...(typeof c.at === "string" && c.at !== "" ? { at: c.at } : {}),
+          ...(typeof c.editedAt === "string" && c.editedAt !== "" ? { editedAt: c.editedAt } : {}),
         }))
         .filter((c) => c.text !== "")
     : [];
@@ -331,6 +388,8 @@ export function sanitizeAction(a: Partial<LtkAction>): LtkAction {
     ...(history ? { history } : {}),
     ...(verified ? { verified } : {}),
     ...(initiativeId ? { initiativeId } : {}),
+    // supporters (2026-11-16) — the whitelist must let them through
+    ...(supporters.length > 0 ? { supporters } : {}),
     // confidential actions (2026-09-16) — the whitelist must let them through
     ...(a.confidential === true ? { confidential: true } : {}),
     ...(typeof a.createdBy === "string" && a.createdBy !== "" ? { createdBy: a.createdBy } : {}),
@@ -374,9 +433,61 @@ export function serializeActions(
 }
 
 /** Overdue is derived: due in the past and the action still open. */
-/** A comment as it is written now (2026-09-30): who, and the day. */
-export function newComment(viewer: { whoId: string; who: string }, text: string, today = todayIso()): ActionComment {
-  return { whoId: viewer.whoId, who: viewer.who !== "" ? viewer.who : undefined, when: today, text: text.trim() };
+/** A comment as it is written now (2026-09-30): who, and the day — and
+ *  since 2026-11-16 an id and the moment, so its author can put it right. */
+export function newComment(viewer: { whoId: string; who: string }, text: string, today = todayIso(), nowIso = new Date().toISOString()): ActionComment {
+  return { whoId: viewer.whoId, who: viewer.who !== "" ? viewer.who : undefined, when: today, text: text.trim(), id: newId("c"), at: nowIso };
+}
+
+/** How long a comment's author may edit or delete it (Ben, 2026-11-16):
+ *  a day to fix a slip, then it is the record. */
+export const COMMENT_EDIT_HOURS = 24;
+
+/** May this viewer change this comment? Its author, inside the window.
+ *  A comment written before comments carried a time has only its day:
+ *  it can be changed on that day. */
+export function canEditComment(c: ActionComment, viewerId: string, nowMs = Date.now(), today = todayIso()): boolean {
+  if (viewerId === "" || c.whoId !== viewerId) return false;
+  if (c.at) {
+    const t = Date.parse(c.at);
+    return Number.isFinite(t) && nowMs - t < COMMENT_EDIT_HOURS * 3600000 && nowMs >= t - 60000;
+  }
+  return c.when === today;
+}
+
+/** The wording changed: stamped, and given an id if it had none. */
+export function editComment(c: ActionComment, text: string, nowIso = new Date().toISOString()): ActionComment {
+  return { ...c, text: text.trim(), id: c.id ?? newId("c"), editedAt: nowIso };
+}
+
+const commentKey = (c: ActionComment): string => c.id ?? `${c.whoId}|${c.when}|${c.text}`;
+
+/** The comments to WRITE: this screen's copy laid over what the row holds
+ *  now. A save used to write its own array whole, so two people saving
+ *  the same action lost one side's comments — and an edit made here must
+ *  not undo someone else's.
+ *  - a comment on both sides: the later edit wins;
+ *  - on the row only: kept, unless it is the viewer's own and still
+ *    inside its edit window (then this screen removed or replaced it);
+ *  - here only: added when the viewer wrote it (anyone else's was
+ *    removed by its author since this screen loaded). */
+export function mergeComments(stored: ActionComment[], mine: ActionComment[], viewerId: string, nowMs = Date.now(), today = todayIso()): ActionComment[] {
+  if (viewerId === "") return mine;
+  const here = new Map(mine.map((c) => [commentKey(c), c]));
+  const matched = new Set<string>();
+  const out: ActionComment[] = [];
+  for (const s of stored) {
+    const k = commentKey(s);
+    const m = here.get(k);
+    if (m) {
+      matched.add(k);
+      out.push((s.editedAt ?? "") > (m.editedAt ?? "") ? s : m);
+    } else if (!canEditComment(s, viewerId, nowMs, today)) {
+      out.push(s);
+    }
+  }
+  for (const m of mine) if (!matched.has(commentKey(m)) && m.whoId === viewerId) out.push(m);
+  return out;
 }
 
 export function isOverdue(a: LtkAction, today = todayIso()): boolean {

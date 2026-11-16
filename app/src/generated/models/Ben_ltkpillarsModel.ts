@@ -24,6 +24,7 @@ export interface Ben_ltkpillarsBase {
   ben_order?: number;
   "ben_ParentPillar@odata.bind"?: string;
   ben_pillarid: string;
+  ben_succeedsid?: string;
   ben_toperiod?: string;
   importsequencenumber?: number;
   overriddencreatedon?: string;

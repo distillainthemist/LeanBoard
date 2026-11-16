@@ -2,7 +2,7 @@
 // cards, boards and the viewer; upsert by action id (the alternate key's
 // purpose, emulated through the generated client).
 
-import { actionBelongsTo, actionVisibleTo, LtkAction, visibleSetFor, settleFromParts } from "../../../shared/schema/actions";
+import { actionBelongsTo, actionVisibleTo, LtkAction, mergeComments, visibleSetFor, settleFromParts } from "../../../shared/schema/actions";
 import { applyEndorsementRule } from "../../../shared/schema/actionEndorsement";
 import { ACTION_RULED_EVENT } from "../../../shared/ui/actionLinkProvider";
 import { homeBoardOf, homeCardOf, homeForStamp } from "../../../shared/schema/actionLinks";
@@ -106,12 +106,15 @@ export async function actionsForInitiatives(): Promise<LtkAction[]> {
   return visible(actions);
 }
 
-/** The viewer's rollup for LeanHub — their whoId appears in assignees. */
+/** The viewer's rollup for LeanHub — their whoId appears in assignees,
+ *  or among the supporters (2026-11-16: the hub lists those apart, under
+ *  "Supporting"; every to-do count still reads assignees alone). */
 export async function actionsForViewer(whoId: string): Promise<LtkAction[]> {
   await whenSettled();
+  const needle = odata(`"whoId":"${whoId}"`);
   const rows = await allWhere(
     Ben_ltkactionsService.getAll,
-    `contains(ben_assigneesjson, '${odata(`"whoId":"${whoId}"`)}')`
+    `contains(ben_assigneesjson, '${needle}') or contains(ben_supportersjson, '${needle}')`
   );
   return visible(rows.map(actionFromRow));
 }
@@ -195,7 +198,14 @@ export async function upsertActions(
       Ben_ltkactionsService,
       eq("ben_actionid", action.id),
       (row) => row.ben_ltkactionid,
-      actionToRow(action, stamped)
+      actionToRow(action, stamped),
+      // comments are everyone's: lay this screen's over the row's own, so
+      // a save never drops what someone else wrote since it loaded
+      (existing, fields) => {
+        const merged = mergeComments(actionFromRow(existing).comments, action.comments, who?.objectId ?? "");
+        action.comments = merged;
+        return { ...fields, ben_commentsjson: JSON.stringify(merged) };
+      }
     );
   }
   bumpChange("actions");
