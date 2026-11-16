@@ -31,11 +31,11 @@ preconditions: Settings → Improvement → Due date changes on "Initiative acti
 steps:
 1. On the initiative's Action plan open the action, set the due date a week later and press Save.
 2. Press Cancel on the question; then press Save again, press Move date without choosing, choose "Other" and press Move date, then type a note and press Move date.
-3. Open the same action again and read "Due date moves"; read the action's card on the kanban and its row on My day.
+3. Open the same action again, press the "Due date moved…" line under the comments and read the list; read the action's card on the kanban and its row on My day.
 4. Open it again, set the due date three days EARLIER and Save.
 5. On the ritual board open its action from the Action card, set the due date a week later and Save. Do the same to an initiative action opened from another card on the initiative board (a 5 Whys or the agenda).
 6. Raise a new action with no due date, save it, open it and give it a due date.
-expected: step 1 the dialog stays open and asks "Why is this moving?" under the comments, showing the old and new dates and a list of the organisation's reasons ending in "Other", with nothing chosen for you; step 2 Cancel closes the question only — the dialog is still open and nothing was saved; Move date with nothing chosen says "Choose a reason."; "Other" with no note says "Say what the reason is."; with the note the dialog closes and the new date shows; step 3 "Due date moves · 1" lists the move with its dates, "Other — <your note>", your name and today's date, and the card and the My day row carry "↷ 1" whose tooltip names the move and the reason; step 4 it saves with no question and the list gains a second line reading "Brought forward" (the ↷ count stays 1); step 5 the ritual's action saves with no question — its move is still listed when reopened, as "No reason recorded", and its card shows ↷ 1 — while the initiative action asks why from the other card exactly as it did from the Action plan; step 6 a first due date asks nothing and records nothing
+expected: step 1 the dialog stays open and asks "Why is this moving?" across the foot of the dialog, showing the old and new dates and a list of the organisation's reasons ending in "Other", with nothing chosen for you; step 2 Cancel closes the question only — the dialog is still open and nothing was saved; Move date with nothing chosen says "Choose a reason."; "Other" with no note says "Say what the reason is."; with the note the dialog closes and the new date shows; step 3 the line reads "Due date moved later once" with the latest move, and opens to a list showing the move with its dates, "Other — <your note>", your name and today's date, and the card and the My day row carry "↷ 1" whose tooltip names the move and the reason; step 4 it saves with no question and the list gains a second line reading "Brought forward" (the ↷ count stays 1); step 5 the ritual's action saves with no question — its move is still listed when reopened, as "No reason recorded", and its card shows ↷ 1 — while the initiative action asks why from the other card exactly as it did from the Action plan; step 6 a first due date asks nothing and records nothing
 
 ### UAT-ACT-004 — The Gantt follows the same rule
 persona: owner
@@ -43,7 +43,7 @@ modules: improvement/gantt.ts shared/schema/reschedule.ts shared/ui/reschedulePr
 preconditions: Settings → Improvement → Due date changes on "Initiative actions only"; an initiative with dated actions; a ritual board whose Action card holds dated actions
 steps:
 1. On the initiative's Gantt drag an action's bar a week to the right. Read the dialog, press Cancel.
-2. Drag it again, choose a reason, add a note and press Move date. Open the action and read "Due date moves".
+2. Drag it again, choose a reason, add a note and press Move date. Open the action and open its "Due date moved…" line.
 3. Drag the same bar a few days to the LEFT. Drag only its left edge.
 4. On the ritual board's Action card, Gantt view, drag a bar a week to the right.
 5. A super admin sets Due date changes to "All actions"; a minute later repeat step 4 and then edit a ritual action's due date later in its dialog.
@@ -69,10 +69,26 @@ persona: owner
 modules: shared/ui/actionUi.ts shared/schema/actions.ts store/actions.ts store/mappers.ts controls/LeanHub/editor.ts controls/ActionBoard/editor.ts improvement/gantt.ts
 preconditions: an action assigned to person A; person B and person C on the roster; B able to sign in
 steps:
-1. Open the action. Under "Support (optional)" type part of B's name, pick B; add C the same way; remove C with its ✕; Save.
+1. Open the action. Press "＋ Add support", type part of B's name, pick B; press "＋ Add" and add C the same way; remove C with its ✕; Save.
 2. Read the action's row in the list view, its card on the kanban, its line on the Gantt, and the Gantt's CSV export.
 3. As B, open the hub: read My day, the Actions tab's badge and list, and the group at its foot.
 4. As B, open the action from "Supporting". As A, complete it.
 5. Make the action confidential. As B, find it again. As B's manager (not otherwise involved), look for it.
 6. Open the action, pick B as the person it is assigned to, and Save.
 expected: step 1 the search offers people not already chosen and each choice becomes a chip; step 2 the list row reads "support: B", the kanban card shows ＋1 with B in its tooltip, the Gantt line and the export's Support column name B; step 3 the action is NOT in B's My day, does not count in the Actions badge or the overdue filter of B's own list, and sits under "Supporting · 1" with no tick; step 4 B can open and comment; the action closes when A completes it — B owed nothing; step 5 B still sees the confidential action, B's manager does not; step 6 B is now assigned and no longer listed in support (nobody is both)
+
+## Journey 4 — The dialog itself
+
+### UAT-ACT-007 — The add / edit action dialog fits its screen
+persona: owner
+modules: shared/ui/actionUi.ts shared/ui/baseCss.ts
+preconditions: a desktop window about 870px high or taller; an initiative with around 15 people in its roles and an action that has comments, a supporter and a moved due date; a phone
+steps:
+1. On the desktop, open the action from the initiative's Action plan. Read the dialog without scrolling.
+2. Read the left side from top to bottom, then the right side.
+3. Tick a different person; type in "Search everyone…" and pick a result; press "＋ Add" beside Support.
+4. Press the "Due date moved…" line. Add three long comments.
+5. Press ＋ Add action and read the new dialog.
+6. Open the same action on the phone.
+7. Open an action from a card that offers no "Linked to" (a 5 Whys in a standalone harness, or any narrow add dialog with "＋ Add action").
+expected: step 1 the whole dialog shows at once — no scrolling inside it — about 900px wide, in two columns; step 2 left: Issue beside Linked to, the Action, "Who" with "Search everyone…" beside the label and the people three across (each box a full-height touch target, the same people as before), Support on one line, Start, Due, Escalated and Confidential on one row, PDCA state as one row of six; right: Comments, then one "Due date moved…" line; the red button reads "Cancel this action…"; step 3 search results list directly under the search box, above the people; Support opens a search only when asked; step 4 the line opens to the full list of moves; with long threads the dialog scrolls as ONE piece — the comment list never scrolls inside it; step 5 a new action uses the same layout with an empty Comments column and Cancel / Raise; step 6 one column: the same order, people two across, PDCA three by two, the flags side by side; step 7 with no "Linked to" the Issue field takes the full row

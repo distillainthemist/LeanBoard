@@ -33,6 +33,8 @@ export interface ActionForm {
   hasContent: () => boolean;
   /** The due date as the form holds it now (yyyy-mm-dd, "" = none). */
   due: () => string;
+  /** The Start / Due row — the dialog sets its two flags beside the dates. */
+  dates: HTMLElement;
   apply: (action: LtkAction) => void;
 }
 
@@ -102,9 +104,12 @@ export function buildActionForm(
   // the wider-roster search: typing filters, picking a match pins the
   // person as a normal (selected) chip above
   let searchWrap: HTMLElement | null = null;
+  let whoQuery: HTMLInputElement | null = null;
   if (secondary.length > 0) {
     searchWrap = el("div", "ltk-who-search");
     const query = textInput("", { placeholder: "Search everyone…" });
+    query.setAttribute("aria-label", "Search everyone");
+    whoQuery = query;
     const results = el("div", "ltk-who-results");
     const renderResults = () => {
       while (results.firstChild) results.removeChild(results.firstChild);
@@ -202,7 +207,9 @@ export function buildActionForm(
       road = r;
       renderDir();
     });
-    searchWrap.append(query, results, dirBox);
+    // the box itself sits beside the "Who" label (2026-11-16 layout);
+    // what it finds lists here, directly under it and above the chips
+    searchWrap.append(results, dirBox);
   }
 
   // support (issue 7, 2026-11-16): people who help without owing a part.
@@ -233,9 +240,11 @@ export function buildActionForm(
       supChips.appendChild(chip);
     }
     supChips.style.display = supporters.length > 0 ? "" : "none";
+    layoutSupport();
   };
   const addSupporter = (p: Supporter) => {
     if (!supporters.some((y) => sameWho(y, p))) supporters = [...supporters, p];
+    supSearching = false;
     supQuery.value = "";
     paintSupportResults();
     paintSupport();
@@ -262,24 +271,49 @@ export function buildActionForm(
     else (supResults.firstChild as HTMLButtonElement | null)?.click();
   });
   supSearch.append(supQuery, supResults);
-  supWrap.append(supChips, supSearch);
+  // one line until it is used (2026-11-16 layout): "＋ Add support" opens
+  // the search; with supporters, their chips and a "＋ Add" beside them
+  const supOpen = el("button", "ltk-sup-open", "＋ Add support") as HTMLButtonElement;
+  supOpen.type = "button";
+  supOpen.title = "People helping with the action. It shows among their actions under Supporting; completing it stays with whoever it is assigned to.";
+  let supSearching = false;
+  const supHead = el("div", "ltk-sup-head");
+  const supLabel = el("span", "ltk-field-label", "Support");
+  const layoutSupport = () => {
+    const any = supporters.length > 0;
+    supLabel.style.display = any ? "" : "none";
+    supOpen.textContent = any ? "＋ Add" : "＋ Add support";
+    supOpen.style.display = supSearching ? "none" : "";
+    supSearch.style.display = supSearching ? "" : "none";
+  };
+  supOpen.addEventListener("click", () => {
+    supSearching = true;
+    layoutSupport();
+    supQuery.focus();
+  });
+  supHead.append(supLabel, supChips, supOpen);
+  supWrap.append(supHead, supSearch);
   paintSupport();
+  layoutSupport();
 
+  wrap.classList.add("ltk-act-form");
   wrap.appendChild(fieldRow("Action", desc));
-  wrap.appendChild(sectionLabel("Who"));
-  wrap.appendChild(whoWrap);
-  if (searchWrap) wrap.appendChild(searchWrap);
-  const supLabel = sectionLabel("Support (optional)");
-  supLabel.title = "People helping with the action. It shows among their actions under Supporting; completing it stays with whoever it is assigned to.";
-  wrap.appendChild(supLabel);
+  // Who: the label with the search beside it, what the search finds, then
+  // the people of the meeting or initiative as before
+  const whoBlock = el("div", "ltk-who");
+  const whoHead = el("div", "ltk-who-head");
+  whoHead.appendChild(el("span", "ltk-field-label", "Who"));
+  if (whoQuery) whoHead.appendChild(whoQuery);
+  whoBlock.appendChild(whoHead);
+  if (searchWrap) whoBlock.appendChild(searchWrap);
+  whoBlock.appendChild(whoWrap);
+  wrap.appendChild(whoBlock);
   wrap.appendChild(supWrap);
-  const dates = el("div");
-  dates.style.display = "flex";
-  dates.style.gap = "12px";
+  const dates = el("div", "ltk-act-when");
   const startRow = fieldRow("Start (optional)", start);
-  startRow.classList.add("ltk-field-half");
+  startRow.classList.add("ltk-act-date");
   const dueRow = fieldRow("Due", due);
-  dueRow.classList.add("ltk-field-half");
+  dueRow.classList.add("ltk-act-date");
   dates.append(startRow, dueRow);
   wrap.appendChild(dates);
 
@@ -288,6 +322,7 @@ export function buildActionForm(
     focus: () => desc.focus(),
     hasContent: () => desc.value.trim() !== "",
     due: () => due.value,
+    dates,
     apply: (action) => {
       action.description = desc.value.trim();
       action.start = start.value;
@@ -678,6 +713,35 @@ function dueMoveList(a: Pick<LtkAction, "history">): HTMLElement {
     list.appendChild(row);
   }
   return list;
+}
+
+/** The due-date record as ONE line — how often it moved later, and the
+ *  latest move — opening to the full list (2026-11-16 layout: the list
+ *  sat open above the comments and pushed them down). */
+function dueMoveSummary(a: Pick<LtkAction, "history">): HTMLElement {
+  const wrap = el("div", "ltk-resched-sum");
+  const moves = dueMoves(a);
+  const last = moves[moves.length - 1];
+  const later = slipCount(a);
+  const head = el("button", "ltk-resched-sumbtn") as HTMLButtonElement;
+  head.type = "button";
+  const caret = el("span", "ltk-resched-caret", "▸");
+  const text = el("span", "ltk-resched-sumtext");
+  const title = later > 0 ? `Due date moved later ${later === 1 ? "once" : later === 2 ? "twice" : `${later} times`}` : `Due date changed ${moves.length === 1 ? "once" : `${moves.length} times`}`;
+  text.appendChild(el("b", undefined, title));
+  text.appendChild(el("span", "ltk-resched-sumdetail", `Latest: ${last.from ?? ""} → ${last.to || "no due date"}${last.reason !== "" ? ` · ${last.reason}` : ""}`));
+  head.append(caret, text);
+  const list = dueMoveList(a);
+  list.style.display = "none";
+  head.setAttribute("aria-expanded", "false");
+  head.addEventListener("click", () => {
+    const open = list.style.display === "none";
+    list.style.display = open ? "" : "none";
+    caret.textContent = open ? "▾" : "▸";
+    head.setAttribute("aria-expanded", String(open));
+  });
+  wrap.append(head, list);
+  return wrap;
 }
 
 /** "💬 3" for an action that carries comments, wherever a row shows one. */
@@ -1127,7 +1191,8 @@ export function openActionDialog(o: ActionDialogOptions): void {
   const buttons = [];
   if (!o.isNew) {
     buttons.push({
-      label: "Cancel action",
+      // worded apart from the "Cancel" a new action's dialog carries
+      label: "Cancel this action…",
       kind: "danger" as const,
       // confirmed first (Ben, 2026-09-29) — one stray click used to
       // cancel the action outright
@@ -1154,20 +1219,46 @@ export function openActionDialog(o: ActionDialogOptions): void {
     onClick: save,
   });
 
+  // the layout (Ben, 2026-11-16: the dialog had grown past two screens):
+  // wide enough for two columns — the action on the left, its
+  // conversation and record on the right — and one column on a phone.
+  // The split follows the dialog's OWN width (a container query on the
+  // body), so it is right wherever the dialog is hosted.
   const dlg = openDialog({
     host: o.host,
     title: o.isNew ? "Raise action" : "Edit action",
     buttons,
+    maxWidth: 900,
   });
-  dlg.body.appendChild(fieldRow("Issue", issue));
-  if (linkField !== null) dlg.body.appendChild(fieldRow("Linked to", linkField.el));
+  dlg.body.classList.add("ltk-act-body");
+  const grid = el("div", "ltk-act-grid");
+  const main = el("div", "ltk-act-main");
+  const side = el("div", "ltk-act-side");
+  grid.append(main, side);
+  dlg.body.appendChild(grid);
+  const top = el("div", "ltk-act-row");
+  const issueRow = fieldRow("Issue", issue);
+  issueRow.classList.add("ltk-act-issue");
+  top.appendChild(issueRow);
+  if (linkField !== null) {
+    const linked = fieldRow("Linked to", linkField.el);
+    linked.classList.add("ltk-act-linked");
+    top.appendChild(linked);
+  }
+  main.appendChild(top);
   if (linkSel !== null) {
     linkRow = fieldRow(o.linkLabel ?? "Linked card", linkSel);
-    dlg.body.appendChild(linkRow);
+    main.appendChild(linkRow);
   }
-  dlg.body.appendChild(form.el);
-  dlg.body.appendChild(sectionLabel("PDCA state"));
-  dlg.body.appendChild(pdcaWrap);
+  main.appendChild(form.el);
+  // the two flags share the dates' row
+  const flags = el("div", "ltk-act-flags");
+  flags.append(escChk.wrap, confChk.wrap);
+  form.dates.appendChild(flags);
+  const state = el("div", "ltk-field");
+  state.append(el("div", "ltk-field-label", "PDCA state"), pdcaWrap);
+  pdcaWrap.classList.add("ltk-act-pdca");
+  main.appendChild(state);
   if (!o.isNew && awaitingEndorsement(action)) {
     // the work is done and waits: say so, and hand the endorser their
     // two steps (off an endorsing initiative anyone may verify, as the
@@ -1202,19 +1293,15 @@ export function openActionDialog(o: ActionDialogOptions): void {
     } else {
       wait.appendChild(el("div", "ltk-endorse-note", "It closes when the initiative's owner, its sponsor or an admin endorses it."));
     }
-    dlg.body.appendChild(wait);
+    main.appendChild(wait);
   } else if (!o.isNew && action.status === "done" && action.verified) {
-    dlg.body.appendChild(el("div", "ltk-endorse-note", `✓ Endorsed${action.verified.who !== "" ? ` by ${action.verified.who}` : ""} · ${action.verified.when.slice(0, 10)}`));
+    main.appendChild(el("div", "ltk-endorse-note", `✓ Endorsed${action.verified.who !== "" ? ` by ${action.verified.who}` : ""} · ${action.verified.when.slice(0, 10)}`));
   }
-  dlg.body.appendChild(escChk.wrap);
-  dlg.body.appendChild(confChk.wrap);
-  if (!o.isNew && dueMoves(action).length > 0) {
-    dlg.body.appendChild(sectionLabel(`Due date moves · ${dueMoves(action).length}`));
-    dlg.body.appendChild(dueMoveList(action));
-  }
+  // the side: the conversation, then the record of its due date
   const count = action.comments.length;
-  dlg.body.appendChild(sectionLabel(count > 0 ? `Comments · ${count}` : "Comments"));
-  dlg.body.appendChild(comments.el);
+  side.appendChild(el("div", "ltk-field-label", count > 0 ? `Comments · ${count}` : "Comments"));
+  side.appendChild(comments.el);
+  if (!o.isNew && dueMoves(action).length > 0) side.appendChild(dueMoveSummary(action));
   form.focus();
 }
 

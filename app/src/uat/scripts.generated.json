@@ -2910,14 +2910,14 @@
        "steps": [
         "On the initiative's Action plan open the action, set the due date a week later and press Save.",
         "Press Cancel on the question; then press Save again, press Move date without choosing, choose \"Other\" and press Move date, then type a note and press Move date.",
-        "Open the same action again and read \"Due date moves\"; read the action's card on the kanban and its row on My day.",
+        "Open the same action again, press the \"Due date moved…\" line under the comments and read the list; read the action's card on the kanban and its row on My day.",
         "Open it again, set the due date three days EARLIER and Save.",
         "On the ritual board open its action from the Action card, set the due date a week later and Save. Do the same to an initiative action opened from another card on the initiative board (a 5 Whys or the agenda).",
         "Raise a new action with no due date, save it, open it and give it a due date."
        ],
-       "expected": "step 1 the dialog stays open and asks \"Why is this moving?\" under the comments, showing the old and new dates and a list of the organisation's reasons ending in \"Other\", with nothing chosen for you; step 2 Cancel closes the question only — the dialog is still open and nothing was saved; Move date with nothing chosen says \"Choose a reason.\"; \"Other\" with no note says \"Say what the reason is.\"; with the note the dialog closes and the new date shows; step 3 \"Due date moves · 1\" lists the move with its dates, \"Other — <your note>\", your name and today's date, and the card and the My day row carry \"↷ 1\" whose tooltip names the move and the reason; step 4 it saves with no question and the list gains a second line reading \"Brought forward\" (the ↷ count stays 1); step 5 the ritual's action saves with no question — its move is still listed when reopened, as \"No reason recorded\", and its card shows ↷ 1 — while the initiative action asks why from the other card exactly as it did from the Action plan; step 6 a first due date asks nothing and records nothing",
-       "hash": "92277fcc",
-       "changed": "2026-11-12"
+       "expected": "step 1 the dialog stays open and asks \"Why is this moving?\" across the foot of the dialog, showing the old and new dates and a list of the organisation's reasons ending in \"Other\", with nothing chosen for you; step 2 Cancel closes the question only — the dialog is still open and nothing was saved; Move date with nothing chosen says \"Choose a reason.\"; \"Other\" with no note says \"Say what the reason is.\"; with the note the dialog closes and the new date shows; step 3 the line reads \"Due date moved later once\" with the latest move, and opens to a list showing the move with its dates, \"Other — <your note>\", your name and today's date, and the card and the My day row carry \"↷ 1\" whose tooltip names the move and the reason; step 4 it saves with no question and the list gains a second line reading \"Brought forward\" (the ↷ count stays 1); step 5 the ritual's action saves with no question — its move is still listed when reopened, as \"No reason recorded\", and its card shows ↷ 1 — while the initiative action asks why from the other card exactly as it did from the Action plan; step 6 a first due date asks nothing and records nothing",
+       "hash": "bf1bd331",
+       "changed": "2026-11-16"
       },
       {
        "id": "UAT-ACT-004",
@@ -2933,14 +2933,14 @@
        "preconditions": "Settings → Improvement → Due date changes on \"Initiative actions only\"; an initiative with dated actions; a ritual board whose Action card holds dated actions",
        "steps": [
         "On the initiative's Gantt drag an action's bar a week to the right. Read the dialog, press Cancel.",
-        "Drag it again, choose a reason, add a note and press Move date. Open the action and read \"Due date moves\".",
+        "Drag it again, choose a reason, add a note and press Move date. Open the action and open its \"Due date moved…\" line.",
         "Drag the same bar a few days to the LEFT. Drag only its left edge.",
         "On the ritual board's Action card, Gantt view, drag a bar a week to the right.",
         "A super admin sets Due date changes to \"All actions\"; a minute later repeat step 4 and then edit a ritual action's due date later in its dialog."
        ],
        "expected": "step 1 \"Move due date to <date>?\" shows the previous date (in red with \"overdue\" when it was), the same reasons as the action's dialog with nothing chosen, and a Note; Cancel snaps the bar back; step 2 the bar stays moved and the list shows the move as \"<reason> — <note>\" with your name; step 3 the earlier date and the start-only move both save with no question, the earlier date listed as \"Brought forward\"; step 4 the ritual's action moves with no question and its move is recorded without a reason; step 5 both the Gantt and the dialog now ask why for the ritual's action",
-       "hash": "41d93d63",
-       "changed": "2026-11-12"
+       "hash": "46e53db8",
+       "changed": "2026-11-16"
       }
      ]
     },
@@ -2988,7 +2988,7 @@
        ],
        "preconditions": "an action assigned to person A; person B and person C on the roster; B able to sign in",
        "steps": [
-        "Open the action. Under \"Support (optional)\" type part of B's name, pick B; add C the same way; remove C with its ✕; Save.",
+        "Open the action. Press \"＋ Add support\", type part of B's name, pick B; press \"＋ Add\" and add C the same way; remove C with its ✕; Save.",
         "Read the action's row in the list view, its card on the kanban, its line on the Gantt, and the Gantt's CSV export.",
         "As B, open the hub: read My day, the Actions tab's badge and list, and the group at its foot.",
         "As B, open the action from \"Supporting\". As A, complete it.",
@@ -2996,7 +2996,35 @@
         "Open the action, pick B as the person it is assigned to, and Save."
        ],
        "expected": "step 1 the search offers people not already chosen and each choice becomes a chip; step 2 the list row reads \"support: B\", the kanban card shows ＋1 with B in its tooltip, the Gantt line and the export's Support column name B; step 3 the action is NOT in B's My day, does not count in the Actions badge or the overdue filter of B's own list, and sits under \"Supporting · 1\" with no tick; step 4 B can open and comment; the action closes when A completes it — B owed nothing; step 5 B still sees the confidential action, B's manager does not; step 6 B is now assigned and no longer listed in support (nobody is both)",
-       "hash": "2e1df4b3",
+       "hash": "fb5dda6b",
+       "changed": "2026-11-16"
+      }
+     ]
+    },
+    {
+     "title": "Journey 4 — The dialog itself",
+     "cases": [
+      {
+       "id": "UAT-ACT-007",
+       "title": "The add / edit action dialog fits its screen",
+       "journey": "Journey 4 — The dialog itself",
+       "persona": "owner",
+       "modules": [
+        "shared/ui/actionUi.ts",
+        "shared/ui/baseCss.ts"
+       ],
+       "preconditions": "a desktop window about 870px high or taller; an initiative with around 15 people in its roles and an action that has comments, a supporter and a moved due date; a phone",
+       "steps": [
+        "On the desktop, open the action from the initiative's Action plan. Read the dialog without scrolling.",
+        "Read the left side from top to bottom, then the right side.",
+        "Tick a different person; type in \"Search everyone…\" and pick a result; press \"＋ Add\" beside Support.",
+        "Press the \"Due date moved…\" line. Add three long comments.",
+        "Press ＋ Add action and read the new dialog.",
+        "Open the same action on the phone.",
+        "Open an action from a card that offers no \"Linked to\" (a 5 Whys in a standalone harness, or any narrow add dialog with \"＋ Add action\")."
+       ],
+       "expected": "step 1 the whole dialog shows at once — no scrolling inside it — about 900px wide, in two columns; step 2 left: Issue beside Linked to, the Action, \"Who\" with \"Search everyone…\" beside the label and the people three across (each box a full-height touch target, the same people as before), Support on one line, Start, Due, Escalated and Confidential on one row, PDCA state as one row of six; right: Comments, then one \"Due date moved…\" line; the red button reads \"Cancel this action…\"; step 3 search results list directly under the search box, above the people; Support opens a search only when asked; step 4 the line opens to the full list of moves; with long threads the dialog scrolls as ONE piece — the comment list never scrolls inside it; step 5 a new action uses the same layout with an empty Comments column and Cancel / Raise; step 6 one column: the same order, people two across, PDCA three by two, the flags side by side; step 7 with no \"Linked to\" the Issue field takes the full row",
+       "hash": "575c5d6b",
        "changed": "2026-11-16"
       }
      ]
@@ -3689,13 +3717,13 @@
         "Open Settings → Improvement and read \"Due date changes\".",
         "Add the reason \"Supplier late\"; drag it to the top; rename \"Scope changed\" to \"Scope grew\"; remove \"Waiting on parts\" and confirm.",
         "Try to add \"supplier late\" and \"Other\".",
-        "Leave Settings, wait a minute, open the initiative action, move its due date later and press Save. Read the reasons, then read \"Due date moves\".",
+        "Leave Settings, wait a minute, open the initiative action, move its due date later and press Save. Read the reasons, then open the \"Due date moved…\" line under the comments.",
         "In Settings → Value drivers change who may edit values (any change that saves), then return to Improvement.",
         "Set \"Ask for a reason on\" to \"All actions\"; a minute later move a ritual action's due date later."
        ],
        "expected": "step 1 the section explains the rule, shows \"Ask for a reason on: Initiative actions only\" and lists Waiting on parts, Resource unavailable, Scope changed, Blocked by another action, then a dashed \"Other — Always offered · needs a note\" with no handle or ×; step 2 each change saves at once (the remove asks first and says past moves keep the reason); step 3 neither is added — a repeat in any capitals and \"Other\" are refused; step 4 the question offers Supplier late first, Scope grew, no Waiting on parts, and Other last; the earlier move still reads \"Scope changed\"; step 5 the reasons and the choice are unchanged by the other tab's save; step 6 the ritual's action now asks why. A site admin does not see the section",
-       "hash": "c07e519b",
-       "changed": "2026-11-12"
+       "hash": "0f5981e6",
+       "changed": "2026-11-16"
       },
       {
        "id": "UAT-SET-013",
