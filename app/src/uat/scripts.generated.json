@@ -3017,14 +3017,14 @@
        "steps": [
         "On the desktop, open the action from the initiative's Action plan. Read the dialog without scrolling.",
         "Read the left side from top to bottom, then the right side.",
-        "Tick a different person; type in \"Search everyone…\" and pick a result; press \"＋ Add\" beside Support.",
+        "Tick a different person. Type two letters of someone's name in \"Search everyone…\", then a third; use ↓ and Enter to pick. Press \"＋ Add\" beside Support.",
         "Press the \"Due date moved…\" line. Add three long comments.",
         "Press ＋ Add action and read the new dialog.",
         "Open the same action on the phone.",
         "Open an action from a card that offers no \"Linked to\" (a 5 Whys in a standalone harness, or any narrow add dialog with \"＋ Add action\")."
        ],
-       "expected": "step 1 the whole dialog shows at once — no scrolling inside it — about 900px wide, in two columns; step 2 left: Issue, the Action, \"Who\" with \"Search everyone…\" at the right of its label and the people three across (each box a full-height touch target, the same people as before), Support on one line, Start and Due side by side, PDCA state as one row of six — every field's edges in line; right: \"Linked to (optional)\" (a chip when linked; a bare search when not, with no \"Personal — not linked\" line), Escalated and Confidential side by side, a rule, then Comments and one \"Due date moved…\" line; the red button reads \"Cancel this action…\"; step 3 search results list directly under the search box, above the people; Support opens a search only when asked; step 4 the line opens to the full list of moves; with long threads the dialog scrolls as ONE piece — the comment list never scrolls inside it; step 5 a new action uses the same layout with an empty Comments column and Cancel / Raise; step 6 one column: the action first (people two across, PDCA three by two), then Linked to and the two flags, then the comments; step 7 with no \"Linked to\" the right side starts at the two flags",
-       "hash": "834bf0bd",
+       "expected": "step 1 the whole dialog shows at once — no scrolling inside it — about 900px wide, in two columns; step 2 left: Issue, the Action, \"Who\" with \"Search everyone…\" at the right of its label and the people three across (each box a full-height touch target, the same people as before), Support on one line, Start, Due, Escalated and Confidential on one row (neither flag's label clipped), PDCA state as one row of six; right: \"Linked to (optional)\" (a chip when linked; a bare search when not, with no \"Personal — not linked\" line), then Comments and one \"Due date moved…\" line; the red \"Cancel this action…\" sits beside Close and Save, at the right; step 3 a list opens under the box as you type, over the form (the people below do not move): people already shown as boxes and the rest of the app's people, narrowing with each letter; Enter ticks the highlighted person and never saves the dialog; Escape clears it; Support opens a search only when asked; step 4 the line opens to the full list of moves; with long threads the dialog scrolls as ONE piece — the comment list never scrolls inside it; step 5 a new action uses the same layout with an empty Comments column and Cancel / Raise; step 6 one column: the action first (people two across, the two flags on a line under the dates, PDCA three by two), then Linked to, then the comments; step 7 with no \"Linked to\" the right side starts at Comments",
+       "hash": "67a330f2",
        "changed": "2026-11-16"
       }
      ]
@@ -3170,12 +3170,12 @@
         "Create an initiative (or Edit details): press ＋ on the Owner role. Read the picker's title. Type the colleague's name, press \"Search the directory…\", and pick them.",
         "On the initiative's charter card press a bound multi-person role, search the directory the same way and tick the person.",
         "Edit a priority at a site-B org and set its owner from the directory with a second new person. Open Settings → Users and find both people.",
-        "Raise an action: in \"Search everyone…\" type a third new name, search the directory and pick them.",
+        "Raise an action: in \"Search everyone…\" type three letters of a third new name, wait a moment, and pick them under \"In the directory\".",
         "Search the directory for the revoked person and pick them.",
         "As the ordinary user, open the same pickers and type a name nobody on the roster matches."
        ],
-       "expected": "step 1 the picker is titled by the role (\"Choose the owner\", \"Choose the sponsor\" …) and the person is added to the app and chosen in one step; step 2 the multi-person picker offers the same road and ticks them; step 3 both new people sit at site A — the admin's own site — whatever org was being edited, with the department only when the org was at site A; step 4 the action is assigned to the new person; step 5 the picker refuses: \"had their access revoked. Restore them in Settings → Users first\" — nobody is silently re-activated; step 6 an ordinary user is offered no directory search anywhere",
-       "hash": "bd55e307",
+       "expected": "step 1 the picker is titled by the role (\"Choose the owner\", \"Choose the sponsor\" …) and the person is added to the app and chosen in one step; step 2 the multi-person picker offers the same road and ticks them; step 3 both new people sit at site A — the admin's own site — whatever org was being edited, with the department only when the org was at site A; step 4 the directory is searched by itself after a short pause — there is no \"Search the directory\" button to press — and the action is assigned to the new person; step 5 the picker refuses: \"had their access revoked. Restore them in Settings → Users first\" — nobody is silently re-activated; step 6 an ordinary user is offered no directory search anywhere",
+       "hash": "9a20c9d6",
        "changed": "2026-11-16"
       }
      ]

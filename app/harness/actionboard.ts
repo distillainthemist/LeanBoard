@@ -5,11 +5,13 @@
 // it moves later (the default asks the one initiative action, number 1);
 // action 2 arrives with two moves on its history; `?edit=1` lets the
 // Gantt's bars be dragged as far as its own prompt. `?links=1` gives the
-// dialog its "Linked to" field (a ritual and an initiative to find).
+// dialog its "Linked to" field (a ritual and an initiative to find);
+// `?dir=1` gives "Search everyone…" a directory to look in (an admin's
+// view): names containing what was typed, after a short wait.
 import "../src/style.css";
 import { ActionBoardEditor } from "../../controls/ActionBoard/editor";
 import { newAction, LtkAction } from "../../shared/schema/actions";
-import { setActionLinkProvider, setActionViewerProvider, setRescheduleProvider } from "../../shared/ui/actionLinkProvider";
+import { setActionDirectoryProvider, setActionLinkProvider, setActionViewerProvider, setRescheduleProvider } from "../../shared/ui/actionLinkProvider";
 import { mountGantt } from "../src/improvement/gantt";
 
 setActionViewerProvider(() => ({ whoId: "u1", who: "Ben O'Brien" }));
@@ -23,6 +25,16 @@ if (query.get("links") === "1") {
       personalWho: "u1",
       openBoardId: null,
       openHome: "",
+    })
+  );
+}
+if (query.get("dir") === "1") {
+  const directory = ["Amelia Hart", "Amir Haddad", "Benedict Shaw", "Hannah Amos", "Priya Raman"];
+  setActionDirectoryProvider(() =>
+    Promise.resolve({
+      search: (q: string) =>
+        new Promise((resolve) => setTimeout(() => resolve(directory.filter((n) => n.toLowerCase().includes(q.toLowerCase())).map((n) => ({ objectId: `dir-${n}`, displayName: n, mail: `${n.toLowerCase().replace(" ", ".")}@example.com` }))), 400)),
+      add: (hit) => new Promise((resolve) => setTimeout(() => resolve({ whoId: hit.objectId, who: hit.displayName }), 300)),
     })
   );
 }

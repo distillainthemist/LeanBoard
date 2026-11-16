@@ -33,6 +33,8 @@ export interface ActionForm {
   hasContent: () => boolean;
   /** The due date as the form holds it now (yyyy-mm-dd, "" = none). */
   due: () => string;
+  /** The Start / Due row — the dialog sets its two flags beside the dates. */
+  dates: HTMLElement;
   apply: (action: LtkAction) => void;
 }
 
@@ -99,115 +101,183 @@ export function buildActionForm(
     whoWrap.appendChild(freeWho);
   }
 
-  // the wider-roster search: typing filters, picking a match pins the
-  // person as a normal (selected) chip above
-  let searchWrap: HTMLElement | null = null;
+  // "Search everyone…" — a type-ahead (Ben, 2026-11-16: typing, then
+  // pressing "Search the directory", then picking, was clunky). One list
+  // opens under the box as you type: the people of the app first — the
+  // chips above included, so a name is found wherever it sits — then,
+  // where the host offers it (admins), the directory, searched by itself
+  // after a short pause. ↑ ↓ move, Enter picks, Escape closes.
   let whoQuery: HTMLInputElement | null = null;
-  if (secondary.length > 0) {
-    searchWrap = el("div", "ltk-who-search");
+  let whoPop: HTMLElement | null = null;
+  if (people.length > 0) {
     const query = textInput("", { placeholder: "Search everyone…" });
     query.setAttribute("aria-label", "Search everyone");
+    query.setAttribute("role", "combobox");
+    query.setAttribute("aria-autocomplete", "list");
+    query.autocomplete = "off";
+    const pop = el("div", "ltk-who-pop");
+    pop.setAttribute("role", "listbox");
+    pop.style.display = "none";
     whoQuery = query;
-    const results = el("div", "ltk-who-results");
-    const renderResults = () => {
-      while (results.firstChild) results.removeChild(results.firstChild);
-      const q = query.value.trim().toLowerCase();
-      if (q === "") return;
-      const pinned = new Set(checks.map((c) => c.person.whoId));
-      const matches = secondary
-        .filter((p) => !pinned.has(p.whoId) && p.who.toLowerCase().includes(q))
-        .slice(0, 8);
-      for (const person of matches) {
-        const hit = el("button", "ltk-check ltk-who-hit", person.who);
-        (hit as HTMLButtonElement).type = "button";
-        hit.addEventListener("click", () => {
-          for (const other of checks) {
-            if (other.box.checked) {
-              other.box.checked = false;
-              other.wrap.classList.remove("ltk-check-on");
-            }
-          }
-          addChip(person, true);
-          query.value = "";
-          renderResults();
-        });
-        results.appendChild(hit);
-      }
-    };
-    // the directory road (issue 12, 2026-11-16): where the host offers it
-    // (admins), a name nobody on the roster matches can be looked up in
-    // the directory and the person added to the app, then assigned
+    whoPop = pop;
     let road: ActionDirectoryRoad | null = null;
-    let dirHits: { objectId: string; displayName: string; mail: string }[] | null = null;
-    const dirBox = el("div", "ltk-who-results ltk-who-dir");
-    const renderDir = () => {
-      while (dirBox.firstChild) dirBox.removeChild(dirBox.firstChild);
+    let dir: { q: string; state: "idle" | "busy" | "done" | "failed"; hits: { objectId: string; displayName: string; mail: string }[] } = { q: "", state: "idle", hits: [] };
+    let dirSeq = 0;
+    let dirTimer: ReturnType<typeof setTimeout> | null = null;
+    let active = 0;
+    let options: { el: HTMLButtonElement; run: () => void }[] = [];
+    const DIR_MIN = 3;
+    const selectOnly = (pick: () => void) => {
+      for (const other of checks) {
+        if (other.box.checked) {
+          other.box.checked = false;
+          other.wrap.classList.remove("ltk-check-on");
+        }
+      }
+      pick();
+      query.value = "";
+      close();
+    };
+    const close = () => {
+      pop.style.display = "none";
+      query.setAttribute("aria-expanded", "false");
+      options = [];
+    };
+    const paintActive = () => {
+      options.forEach((o, n) => {
+        o.el.classList.toggle("ltk-who-opt-on", n === active);
+        o.el.setAttribute("aria-selected", String(n === active));
+      });
+      options[active]?.el.scrollIntoView({ block: "nearest" });
+    };
+    const option = (label: string, sub: string, run: () => void): HTMLButtonElement => {
+      const b = el("button", "ltk-who-opt") as HTMLButtonElement;
+      b.type = "button";
+      b.setAttribute("role", "option");
+      b.appendChild(el("span", "ltk-who-opt-name", label));
+      if (sub !== "") b.appendChild(el("span", "ltk-who-opt-sub", sub));
+      // mousedown, not click: the box keeps its focus and the list its place
+      b.addEventListener("mousedown", (e) => e.preventDefault());
+      b.addEventListener("click", run);
+      options.push({ el: b, run });
+      return b;
+    };
+    const render = () => {
+      while (pop.firstChild) pop.removeChild(pop.firstChild);
+      options = [];
       const q = query.value.trim();
-      if (road === null || q.length < 2) return;
-      if (dirHits === null) {
-        const find = el("button", "ltk-check ltk-who-hit ltk-who-dirfind", `Search the directory for “${q}”`) as HTMLButtonElement;
-        find.type = "button";
-        find.addEventListener("click", () => {
-          find.disabled = true;
-          find.textContent = "Searching the directory…";
-          void road!.search(q).then(
-            (found) => {
-              if (query.value.trim() !== q) return;
-              dirHits = found;
-              renderDir();
-            },
-            () => {
-              find.textContent = "The directory search failed";
-            }
-          );
-        });
-        dirBox.appendChild(find);
-        return;
+      if (q === "") return close();
+      const ql = q.toLowerCase();
+      // the app's people: the chips already shown, then the wider roster
+      const shownIds = new Set(checks.map((c) => c.person.whoId));
+      const among = checks.filter((c) => c.person.who.toLowerCase().includes(ql)).slice(0, 6);
+      const behind = secondary.filter((x) => !shownIds.has(x.whoId) && x.who.toLowerCase().includes(ql)).slice(0, 8);
+      for (const c of among) {
+        pop.appendChild(
+          option(c.person.who, c.box.checked ? "assigned" : "", () =>
+            selectOnly(() => {
+              c.box.checked = true;
+              c.wrap.classList.add("ltk-check-on");
+            })
+          )
+        );
       }
-      const known = new Set([...checks.map((c) => c.person.whoId), ...secondary.map((p) => p.whoId)]);
-      const fresh = dirHits.filter((h) => !known.has(h.objectId)).slice(0, 8);
-      if (fresh.length === 0) dirBox.appendChild(el("div", "ltk-cmt-none", "No one else in the directory matches."));
-      for (const h of fresh) {
-        const hit = el("button", "ltk-check ltk-who-hit", `${h.displayName} · ＋ add to the app and assign`) as HTMLButtonElement;
-        hit.type = "button";
-        hit.title = h.mail;
-        hit.addEventListener("click", () => {
-          hit.disabled = true;
-          hit.textContent = `Adding ${h.displayName}…`;
-          void road!.add(h).then(
-            (p) => {
-              for (const other of checks) {
-                if (other.box.checked) {
-                  other.box.checked = false;
-                  other.wrap.classList.remove("ltk-check-on");
+      for (const person of behind) pop.appendChild(option(person.who, "", () => selectOnly(() => addChip(person, true))));
+      const known = new Set([...shownIds, ...secondary.map((x) => x.whoId)]);
+      if (road !== null) {
+        if (q.length < DIR_MIN) {
+          if (among.length + behind.length === 0) pop.appendChild(el("div", "ltk-who-pop-note", `Keep typing to search the directory (${DIR_MIN} letters).`));
+        } else if (dir.q === q && dir.state === "done") {
+          const fresh = dir.hits.filter((h) => !known.has(h.objectId)).slice(0, 8);
+          if (fresh.length > 0) pop.appendChild(el("div", "ltk-who-pop-h", "In the directory — adds them to the app"));
+          for (const h of fresh) {
+            const b = option(h.displayName, h.mail, () => {
+              b.disabled = true;
+              b.firstElementChild!.textContent = `Adding ${h.displayName}…`;
+              void road!.add(h).then(
+                (added) => selectOnly(() => addChip({ whoId: added.whoId, who: added.who, initials: "" }, true)),
+                (err) => {
+                  b.disabled = false;
+                  b.firstElementChild!.textContent = h.displayName;
+                  const sub = b.querySelector(".ltk-who-opt-sub") ?? b.appendChild(el("span", "ltk-who-opt-sub", ""));
+                  sub.textContent = err instanceof Error ? err.message : "Could not add them";
+                  sub.classList.add("ltk-who-opt-err");
                 }
-              }
-              addChip({ whoId: p.whoId, who: p.who, initials: "" }, true);
-              query.value = "";
-              dirHits = null;
-              renderResults();
-              renderDir();
-            },
-            (err) => {
-              hit.textContent = err instanceof Error ? err.message : "Could not add them";
-            }
-          );
-        });
-        dirBox.appendChild(hit);
+              );
+            });
+            pop.appendChild(b);
+          }
+          if (fresh.length === 0 && among.length + behind.length === 0) pop.appendChild(el("div", "ltk-who-pop-note", "No one matches, in the app or the directory."));
+        } else if (dir.q === q && dir.state === "failed") {
+          pop.appendChild(el("div", "ltk-who-pop-note", "The directory search failed. Check the connection and type again."));
+        } else {
+          pop.appendChild(el("div", "ltk-who-pop-note", "Searching the directory…"));
+        }
+      } else if (among.length + behind.length === 0) {
+        pop.appendChild(el("div", "ltk-who-pop-note", "No one matches."));
       }
+      active = Math.min(active, Math.max(0, options.length - 1));
+      pop.style.display = "";
+      query.setAttribute("aria-expanded", "true");
+      paintActive();
+    };
+    const searchDirectory = () => {
+      if (dirTimer !== null) clearTimeout(dirTimer);
+      const q = query.value.trim();
+      if (road === null || q.length < DIR_MIN) return;
+      if (dir.q === q && dir.state !== "idle") return;
+      dir = { q, state: "busy", hits: [] };
+      // a pause in the typing, then ONE call for what is in the box
+      dirTimer = setTimeout(() => {
+        const seq = ++dirSeq;
+        void road!.search(q).then(
+          (found) => {
+            if (seq !== dirSeq) return;
+            dir = { q, state: "done", hits: found };
+            if (query.value.trim() === q) render();
+          },
+          () => {
+            if (seq !== dirSeq) return;
+            dir = { q, state: "failed", hits: [] };
+            if (query.value.trim() === q) render();
+          }
+        );
+      }, 350);
     };
     query.addEventListener("input", () => {
-      dirHits = null;
-      renderResults();
-      renderDir();
+      active = 0;
+      searchDirectory();
+      render();
     });
+    query.addEventListener("focus", () => {
+      if (query.value.trim() !== "") render();
+    });
+    query.addEventListener("blur", () => setTimeout(() => {
+      if (document.activeElement !== query) close();
+    }, 150));
+    query.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        if (options.length === 0) return;
+        e.preventDefault();
+        active = (active + (e.key === "ArrowDown" ? 1 : options.length - 1)) % options.length;
+        paintActive();
+      } else if (e.key === "Enter") {
+        // never the dialog's Save: Enter picks the highlighted person
+        e.preventDefault();
+        options[active]?.run();
+      } else if (e.key === "Escape" && pop.style.display !== "none") {
+        e.preventDefault();
+        query.value = "";
+        close();
+      }
+    });
+    // with nobody behind the chips and no directory, there is nothing to
+    // search: the box shows only once one of the two exists
+    query.style.display = secondary.length > 0 ? "" : "none";
     void actionDirectory().then((r) => {
       road = r;
-      renderDir();
+      if (r !== null) query.style.display = "";
     });
-    // the box itself sits beside the "Who" label (2026-11-16 layout);
-    // what it finds lists here, directly under it and above the chips
-    searchWrap.append(results, dirBox);
   }
 
   // support (issue 7, 2026-11-16): people who help without owing a part.
@@ -301,9 +371,14 @@ export function buildActionForm(
   const whoBlock = el("div", "ltk-who");
   const whoHead = el("div", "ltk-who-head");
   whoHead.appendChild(el("span", "ltk-field-label", "Who"));
-  if (whoQuery) whoHead.appendChild(whoQuery);
+  if (whoQuery && whoPop) {
+    // the list opens under the box, over the form — it never pushes the
+    // people down
+    const box = el("div", "ltk-who-box");
+    box.append(whoQuery, whoPop);
+    whoHead.appendChild(box);
+  }
   whoBlock.appendChild(whoHead);
-  if (searchWrap) whoBlock.appendChild(searchWrap);
   whoBlock.appendChild(whoWrap);
   wrap.appendChild(whoBlock);
   wrap.appendChild(supWrap);
@@ -320,6 +395,7 @@ export function buildActionForm(
     focus: () => desc.focus(),
     hasContent: () => desc.value.trim() !== "",
     due: () => due.value,
+    dates,
     apply: (action) => {
       action.description = desc.value.trim();
       action.start = start.value;
@@ -1228,7 +1304,8 @@ export function openActionDialog(o: ActionDialogOptions): void {
     host: o.host,
     title: o.isNew ? "Raise action" : "Edit action",
     buttons,
-    maxWidth: 900,
+    // wide enough for Start, Due and the two flags to share a row
+    maxWidth: 940,
   });
   dlg.body.classList.add("ltk-act-body");
   const grid = el("div", "ltk-act-grid");
@@ -1239,10 +1316,15 @@ export function openActionDialog(o: ActionDialogOptions): void {
   // LEFT — the action itself: what, who, when, its state
   main.appendChild(fieldRow("Issue", issue));
   main.appendChild(form.el);
-  // RIGHT — where it shows and who sees it, then the conversation
-  // (Ben, 2026-11-16: "Linked to" beside Issue threw the top row out of
-  // line; it is optional and sits here, as do the two flags that were
-  // squeezed in beside the dates). One column: these follow the action.
+  // the two flags share the dates' row (Ben, 2026-11-16): each as wide
+  // as its words, and onto a line of their own if the row is too tight —
+  // squeezed to equal shares they clipped "Confidential"
+  const flags = el("div", "ltk-act-flags");
+  flags.append(escChk.wrap, confChk.wrap);
+  form.dates.appendChild(flags);
+  // RIGHT — where it is linked, then the conversation (Ben, 2026-11-16:
+  // "Linked to" beside Issue threw the top row out of line; it is
+  // optional and sits here). One column: it follows the action.
   if (linkField !== null) {
     const linked = fieldRow("Linked to (optional)", linkField.el);
     linked.classList.add("ltk-act-linked");
@@ -1252,9 +1334,6 @@ export function openActionDialog(o: ActionDialogOptions): void {
     linkRow = fieldRow(o.linkLabel ?? "Linked card", linkSel);
     side.appendChild(linkRow);
   }
-  const flags = el("div", "ltk-act-flags");
-  flags.append(escChk.wrap, confChk.wrap);
-  side.appendChild(flags);
   const state = el("div", "ltk-field");
   state.append(el("div", "ltk-field-label", "PDCA state"), pdcaWrap);
   pdcaWrap.classList.add("ltk-act-pdca");

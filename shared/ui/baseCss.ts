@@ -267,6 +267,9 @@ export const LTK_BASE_CSS = `
 .ltk-confirm-err { font-size: 12.5px; color: #d13438; }
 .ltk-confirm-err:empty { display: none; }
 
+/* the action dialog's danger button sits WITH Close and Save (Ben,
+   2026-11-16) — elsewhere a destructive action stays far left */
+.ltk-act-body ~ .ltk-dialog-footer .ltk-btn-danger { margin-right: 0; }
 /* ---- the add / edit action dialog (2026-11-16 layout) ----
    One column by default; two — the action, then its conversation and
    record — where the DIALOG is wide enough (a container query on its
@@ -281,21 +284,40 @@ export const LTK_BASE_CSS = `
 .ltk-who { display: flex; flex-direction: column; gap: 6px; }
 .ltk-who-head { display: flex; align-items: center; gap: 10px; min-height: 20px; }
 .ltk-who-head .ltk-input { flex: 1; min-width: 0; min-height: 36px; padding: 4px 10px; font-size: 13px; }
-/* what the search finds lists between the head and the people; with
-   nothing found it takes no room (an empty box doubled the gap) */
-.ltk-who .ltk-who-search { display: contents; }
-.ltk-who .ltk-who-results:empty { display: none; }
+/* "Search everyone…" is a type-ahead: its list opens under the box, over
+   the form, and never pushes the people down */
+.ltk-who-box { position: relative; flex: 1; min-width: 0; display: flex; }
+.ltk-who-box .ltk-input { width: 100%; }
+.ltk-who-pop {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 5;
+  display: flex; flex-direction: column; gap: 2px; padding: 6px;
+  max-height: 290px; overflow-y: auto; scrollbar-width: thin;
+  background: var(--ltk-bg); color: var(--ltk-fg);
+  border: 1px solid var(--ltk-hairline); border-radius: 8px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+.ltk-who-opt {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 1px; text-align: left;
+  border: none; background: none; color: var(--ltk-fg); font: inherit; font-size: 14px;
+  padding: 8px 10px; border-radius: 6px; cursor: pointer; min-height: 40px; justify-content: center;
+}
+.ltk-who-opt:hover, .ltk-who-opt-on { background: var(--ltk-hairline); }
+.ltk-who-opt:disabled { cursor: progress; opacity: 0.7; }
+.ltk-who-opt-sub { font-size: 12px; color: var(--ltk-muted); overflow-wrap: anywhere; }
+.ltk-who-opt-err { color: #d13438; }
+.ltk-who-pop-h { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ltk-muted); padding: 8px 10px 2px; }
+.ltk-who-pop-note { font-size: 12.5px; color: var(--ltk-muted); padding: 8px 10px; }
 /* support: one line until it is used */
 .ltk-sup-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .ltk-sup-open { border: none; background: none; font: inherit; font-size: 13px; color: var(--ltk-accent); cursor: pointer; padding: 4px 0; text-align: left; min-height: 28px; }
 .ltk-sup-open:hover, .ltk-sup-open:focus-visible { text-decoration: underline; }
-/* Start · Due, side by side, each half the row — their edges line up
-   with every field above and below */
-.ltk-act-when { display: flex; gap: 12px; align-items: flex-end; }
-.ltk-act-when > .ltk-act-date { flex: 1 1 0; min-width: 0; }
-/* Escalated · Confidential: two equal boxes, with the link above them */
-.ltk-act-flags { display: flex; gap: 8px; min-width: 0; }
-.ltk-act-flags .ltk-check { flex: 1 1 0; min-width: 0; }
+/* Start · Due, then Escalated · Confidential, on one row. The dates
+   share what the flags leave; each flag is as wide as its words (equal
+   shares clipped "Confidential"), and the pair drops to a line of its
+   own where the row is too tight for all four */
+.ltk-act-when { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+.ltk-act-when > .ltk-act-date { flex: 1 1 128px; min-width: 128px; }
+.ltk-act-flags { display: flex; gap: 8px; flex: 0 0 auto; }
+.ltk-act-flags .ltk-check { flex: 0 0 auto; white-space: nowrap; padding: 8px 10px 8px 8px; gap: 6px; }
 /* the due-date record, one line that opens */
 .ltk-resched-sum { display: flex; flex-direction: column; gap: 6px; }
 .ltk-resched-sumbtn {
@@ -315,12 +337,9 @@ export const LTK_BASE_CSS = `
   .ltk-act-side { border-left: 1px solid var(--ltk-hairline); padding-left: 24px; align-self: stretch; }
   /* "Who" reads as a label like the others; its search is an accessory
      at the row's right end */
-  .ltk-who-head .ltk-input { flex: 0 1 260px; margin-left: auto; }
+  .ltk-who-head .ltk-who-box { flex: 0 1 300px; margin-left: auto; }
   /* the people three across — each box its full 44px (Ben, 2026-11-16) */
   .ltk-act-form .ltk-checklist { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  /* the side's two halves — where it shows, then the conversation — are
-     set apart by a rule, as the columns are */
-  .ltk-act-side > .ltk-act-flags { padding-bottom: 12px; border-bottom: 1px solid var(--ltk-hairline); margin-bottom: 2px; }
   .ltk-pdca-seg.ltk-act-pdca { grid-template-columns: repeat(6, minmax(0, 1fr)); max-width: none; }
   .ltk-pdca-seg.ltk-act-pdca .ltk-pdca-btn { padding: 6px 4px; gap: 5px; }
 }
