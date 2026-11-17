@@ -329,6 +329,15 @@ export const LTK_BASE_CSS = `
 .ltk-shared:empty { display: none; }
 .ltk-shared-extras { align-items: center; }
 .ltk-shared-note { font-size: 12.5px; color: var(--ltk-muted); }
+/* "＋ Cascade to team…" and "＋ Add support" on one line */
+.ltk-act-links { display: flex; flex-wrap: wrap; gap: 4px 22px; align-items: center; }
+/* Closed is off on a shared action with parts still to do */
+.ltk-pdca-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.ltk-pdca-hint { font-size: 12.5px; color: var(--ltk-muted); margin-top: 4px; }
+/* the complete circle on a shared action: my part done (outlined tick),
+   or not mine to tick */
+.ltk-action-circle-part { background: transparent !important; }
+.ltk-action-circle-locked { cursor: default; opacity: 0.45; border-style: dashed; }
 /* a person's part: a small circle on their own box (empty = still to
    do, ticked = done) — colours inline-safe, no theme dependency */
 .ltk-part {

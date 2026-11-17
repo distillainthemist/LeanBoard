@@ -7,7 +7,7 @@
 // action with a part each, 2026-11-17); actions are never hard-deleted (the danger button cancels); Done/Due/
 // Overdue are capitalised; circle colours are set inline (Safari rule).
 
-import { ActionComment, ActionPdca, ACTION_PDCA, assigneesLabel, canEditComment, cleanSupporters, COMMENT_EDIT_HOURS, duplicateAction, editComment, isOverdue, LtkAction, MAX_ASSIGNEES, mergeAssignees, newAction, newComment, partsLabel, partsTitle, settleFromParts, Supporter, supportLabel, PDCA_LABELS, PDCA_QUARTERS, pdcaOf } from "../schema/actions";
+import { ActionComment, ActionPdca, ACTION_PDCA, assigneesLabel, canEditComment, cleanSupporters, COMMENT_EDIT_HOURS, duplicateAction, editComment, holdOpenUntilAllParts, isOverdue, isShared, LtkAction, partsOutstanding, tickPart, MAX_ASSIGNEES, mergeAssignees, newAction, newComment, partsLabel, partsTitle, settleFromParts, Supporter, supportLabel, PDCA_LABELS, PDCA_QUARTERS, pdcaOf } from "../schema/actions";
 import { ActionLink, applyLink, boardOnlyTarget, currentLink, isCardKeyed, linkChanges, linkLabel, LinkTarget, searchLinkTargets } from "../schema/actionLinks";
 import { ACTION_MOVED_EVENT, actionAttachments, actionDirectory, ActionDirectoryRoad, ActionLinkContext, actionLinkProvider, actionMessenger, actionTeam, ActionTeamRoad, actionViewer, endorsementFor } from "./actionLinkProvider";
 import { dueMove, dueMoves, isLaterMove, reasonChoices, recordDueMove, slipCount } from "../schema/reschedule";
@@ -36,6 +36,13 @@ export interface ActionForm {
   /** The Start / Due row — the dialog sets its two flags beside the dates. */
   dates: HTMLElement;
   apply: (action: LtkAction) => void;
+  /** Parts still to do as the form stands — more than 0 on a shared
+   *  action someone has not finished: it cannot be Closed yet. */
+  outstanding: () => number;
+  /** How many people are picked. */
+  pickedCount: () => number;
+  /** The people or their parts changed. */
+  onPeople: (listener: () => void) => void;
 }
 
 /** A small type-ahead over a list of people (the standing search-picker
@@ -148,6 +155,7 @@ export function buildActionForm(
   /** Parts ticked or unticked here, by person (issue 10). */
   const staged = new Map<string, boolean>();
   let refreshShared: () => void = () => undefined;
+  const peopleListeners: (() => void)[] = [];
 
   // WHO (issue 10, 2026-11-17): tick one person or several. Several make
   // ONE shared action — each records their own part and it closes when
@@ -452,7 +460,9 @@ export function buildActionForm(
   let supSearching = false;
   const supHead = el("div", "ltk-sup-head");
   const supLabel = el("span", "ltk-field-label", "Support");
+  let placeSupportOpener: () => void = () => undefined;
   const layoutSupport = () => {
+    placeSupportOpener();
     const any = supporters.length > 0;
     supLabel.style.display = any ? "" : "none";
     supOpen.textContent = any ? "＋ Add" : "＋ Add support";
@@ -555,21 +565,22 @@ export function buildActionForm(
       sharedNote.textContent = `${n} people — more than one action can carry (${MAX_ASSIGNEES}). The first ${MAX_ASSIGNEES} are kept.`;
     } else if (n >= 2 && partsShown()) {
       const done = all.filter(partDone).length;
-      sharedNote.textContent = `${n} people share this action — ${done} of ${n} parts done. Tick the circle beside a name when that person has done theirs; it closes when all have.`;
+      sharedNote.textContent = `${n} people share this action — ${done} of ${n} parts done. Tick the circle beside a name when that person has done theirs. It can only be closed once all have.`;
     } else if (n >= 2) {
-      sharedNote.textContent = `${n} people share this action. Each records their own part, and it closes when all have.`;
+      sharedNote.textContent = `${n} people share this action. Each records their own part, and it can only be closed once all have.`;
     } else {
       sharedNote.textContent = "";
     }
     sharedNote.style.display = n >= 2 ? "" : "none";
+    for (const l of peopleListeners) l();
   };
 
   // "＋ Add a team…" (issue 10): a leader's reports, direct or all the
   // way down, read from the directory. People already in the app are
   // added; the rest are named — adding them stays an admin's act.
-  const teamOpen = el("button", "ltk-sup-open", "＋ Add a team…") as HTMLButtonElement;
+  const teamOpen = el("button", "ltk-sup-open", "＋ Cascade to team…") as HTMLButtonElement;
   teamOpen.type = "button";
-  teamOpen.title = "Assign the action to everyone who reports to a leader";
+  teamOpen.title = "Cascade the action to everyone who reports to a leader — one shared action, a part each";
   teamOpen.style.display = "none";
   const teamPanel = el("div", "ltk-team");
   teamPanel.style.display = "none";
@@ -639,7 +650,7 @@ export function buildActionForm(
     });
     const row = el("div", "ltk-team-row");
     row.append(leaderBox.el, deepSel, incl.wrap, add, done);
-    teamPanel.append(el("div", "ltk-field-label", "Add a team"), row, teamNote);
+    teamPanel.append(el("div", "ltk-field-label", "Cascade to team"), row, teamNote);
     teamOpen.addEventListener("click", () => {
       teamPanel.style.display = "";
       teamOpen.style.display = "none";
@@ -650,8 +661,20 @@ export function buildActionForm(
       if (r !== null) teamOpen.style.display = "";
     });
   }
-  sharedBox.append(extraChips, sharedNote, teamOpen, teamPanel);
+  sharedBox.append(extraChips, sharedNote, teamPanel);
   wrap.appendChild(sharedBox);
+  // "＋ Cascade to team…" and "＋ Add support" share one line (Ben,
+  // 2026-11-17); once there are supporters, "＋ Add" sits with their
+  // chips and the cascade link keeps this line
+  const linksRow = el("div", "ltk-act-links");
+  linksRow.appendChild(teamOpen);
+  wrap.appendChild(linksRow);
+  placeSupportOpener = () => {
+    if (supporters.length > 0) supHead.appendChild(supOpen);
+    else linksRow.appendChild(supOpen);
+    linksRow.style.display = linksRow.childElementCount > 0 ? "" : "none";
+  };
+  placeSupportOpener();
   refreshShared();
   wrap.appendChild(supWrap);
   const dates = el("div", "ltk-act-when");
@@ -668,6 +691,17 @@ export function buildActionForm(
     hasContent: () => desc.value.trim() !== "",
     due: () => due.value,
     dates,
+    // a shared action that is being raised has every part still to do;
+    // one that exists counts the circles as they stand
+    outstanding: () => {
+      const all = freeWho ? [] : picked();
+      if (all.length < 2 || (initialClosed && !fresh)) return 0;
+      return initial === undefined || fresh ? all.length : all.filter((x) => !partDone(x)).length;
+    },
+    pickedCount: () => (freeWho ? (freeWho.value.trim() !== "" ? 1 : 0) : picked().length),
+    onPeople: (listener) => {
+      peopleListeners.push(listener);
+    },
     apply: (action) => {
       action.description = desc.value.trim();
       action.start = start.value;
@@ -814,11 +848,38 @@ export function completeCircle(
 ): HTMLButtonElement {
   const circle = el("button", "ltk-action-circle") as HTMLButtonElement;
   circle.type = "button";
+  /** The viewer's own part of a shared action, or undefined. */
+  const myPart = () => {
+    const who = actionViewer();
+    return who !== null && who.whoId !== "" ? a.assignees.find((x) => x.whoId === who.whoId) : undefined;
+  };
   const paint = () => {
     const waiting = a.status === "verify";
     const done = a.status === "done" || waiting;
+    circle.classList.remove("ltk-action-circle-part", "ltk-action-circle-locked");
+    if (isShared(a) && !done) {
+      // a SHARED action that is still open: the circle is the VIEWER'S
+      // OWN part — outlined once theirs is done, while others are still
+      // to do theirs; someone who is not on the action cannot tick it
+      const mine = myPart();
+      const left = partsOutstanding(a);
+      const of = `${a.assignees.length - left} of ${a.assignees.length} parts done`;
+      circle.textContent = mine?.done ? "✓" : "";
+      circle.style.background = "";
+      circle.style.borderColor = mine?.done ? doneColor : "";
+      circle.style.color = mine?.done ? doneColor : "transparent";
+      if (mine?.done) circle.classList.add("ltk-action-circle-part");
+      if (mine === undefined) circle.classList.add("ltk-action-circle-locked");
+      circle.title =
+        mine === undefined
+          ? `Shared by ${a.assignees.length} people — ${of}. It closes when everyone has done their part.`
+          : mine.done
+            ? `My part is done — ${of}. Tick to undo mine.`
+            : `Mark my part done — ${of}.`;
+      return;
+    }
     circle.textContent = waiting ? "◐" : done ? "✓" : "";
-    circle.title = waiting ? "Awaiting endorsement — tick to reopen" : done ? "Mark not complete" : "Mark complete";
+    circle.title = waiting ? "Awaiting endorsement — tick to reopen" : done ? (isShared(a) ? "Everyone has done their part — tick to undo mine" : "Mark not complete") : "Mark complete";
     circle.style.background = done ? doneColor : "";
     circle.style.borderColor = done ? doneColor : "";
     circle.style.color = done ? textOn(doneColor) : "transparent";
@@ -828,13 +889,23 @@ export function completeCircle(
     circle.addEventListener("click", (e) => {
       e.stopPropagation();
       const prior = a.status;
+      const who = actionViewer();
+      if (isShared(a)) {
+        // one person's tick records THEIR part, nothing more (Ben,
+        // 2026-11-17); the parts settle the whole — all done closes it,
+        // one undone reopens it
+        if (who === null || tickPart(a, who.whoId) === "none") return;
+        if (a.status !== prior) applyEndorsementRule(a, prior, endorsementFor(a), who, new Date().toISOString());
+        paint();
+        onToggled();
+        return;
+      }
       // a tick on a WAITING action reopens it (its work was ticked done;
       // only an endorser closes it — through the dialog)
       const nowDone = a.status !== "done" && a.status !== "verify";
       a.status = nowDone ? "done" : "open";
       a.pdca = nowDone ? "closed" : "do"; // the PDCA disc follows completion
       for (const x of a.assignees) x.done = nowDone;
-      const who = actionViewer();
       if (who !== null) applyEndorsementRule(a, prior, endorsementFor(a), who, new Date().toISOString());
       paint();
       onToggled();
@@ -1547,6 +1618,26 @@ export function openActionDialog(o: ActionDialogOptions): void {
     pdcaWrap.appendChild(b);
   }
   paintPdca();
+  // a SHARED action cannot be Closed until every person has done their
+  // part (Ben, 2026-11-17): Closed is off while parts are outstanding,
+  // and says why; the last circle ticked closes the action by itself
+  const pdcaHint = el("div", "ltk-pdca-hint");
+  const gateClosed = () => {
+    const left = form.outstanding();
+    const closedBtn = pdcaBtns.get("closed");
+    if (closedBtn) {
+      closedBtn.disabled = left > 0;
+      closedBtn.title = left > 0 ? `${left} ${left === 1 ? "person has" : "people have"} not done their part yet — a shared action closes when everyone has` : "";
+    }
+    if (left > 0 && pdca === "closed") {
+      pdca = "do";
+      paintPdca();
+    }
+    pdcaHint.textContent = left > 0 ? `Closed is off: ${left} of ${form.pickedCount()} ${left === 1 ? "part is" : "parts are"} still to do. It closes when everyone has done theirs.` : "";
+    pdcaHint.style.display = left > 0 ? "" : "none";
+  };
+  form.onPeople(gateClosed);
+  gateClosed();
 
   // linked card: which card this action hangs off — re-linkable when the
   // host offers targets (the board's ＋ Action road)
@@ -1603,8 +1694,11 @@ export function openActionDialog(o: ActionDialogOptions): void {
     action.escalated = escChk.box.checked;
     action.confidential = confChk.box.checked ? true : undefined;
     form.apply(action); // after status, so assignee done flags match
-    // parts ticked here that complete a shared action close it (the one
-    // rule, settleFromParts — before the endorsement rule reads the status)
+    // a shared action is never closed over outstanding parts (the rule,
+    // holdOpenUntilAllParts) — and parts ticked here that complete one
+    // close it (settleFromParts) — before the endorsement rule reads
+    // the status
+    holdOpenUntilAllParts(action);
     if (!o.isNew && action.status !== "cancelled") settleFromParts(action, { reopen: false });
     // what was written here, the box's text included
     comments.apply(action);
@@ -1740,7 +1834,7 @@ export function openActionDialog(o: ActionDialogOptions): void {
     side.appendChild(linkRow);
   }
   const state = el("div", "ltk-field");
-  state.append(el("div", "ltk-field-label", "PDCA state"), pdcaWrap);
+  state.append(el("div", "ltk-field-label", "PDCA state"), pdcaWrap, pdcaHint);
   pdcaWrap.classList.add("ltk-act-pdca");
   main.appendChild(state);
   if (!o.isNew && awaitingEndorsement(action)) {

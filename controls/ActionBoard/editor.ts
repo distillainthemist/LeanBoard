@@ -11,7 +11,7 @@ import {
   pdcaDisc, actionRow, completeCircle, openActionDialog, confidentialGlyph, commentGlyph, movedGlyph, partsChip, supportFlag } from "../../shared/ui/actionUi";
 import { makeInteractive } from "../../shared/interact/drag";
 import { htmlToPng, htmlToSvg, saveSvg, SnapshotScheduler } from "../../shared/export/png";
-import { assigneesLabel, pdcaOf, ActionStatus, isOverdue, LtkAction, newAction, partsTitle, RECENT_DONE_DAYS, recentlyDone, supportLabel } from "../../shared/schema/actions";
+import { assigneesLabel, isShared, pdcaOf, ActionStatus, isOverdue, LtkAction, newAction, partsOutstanding, partsTitle, RECENT_DONE_DAYS, recentlyDone, supportLabel } from "../../shared/schema/actions";
 import { todayIso } from "../../shared/schema/id";
 import { applyEndorsementRule } from "../../shared/schema/actionEndorsement";
 import { endorsementFor } from "../../shared/ui/actionLinkProvider";
@@ -390,6 +390,7 @@ export class ActionBoardEditor {
     this.snapshots.cancel();
     this.ganttTeardown?.();
     this.ganttTeardown = null;
+    if (this.noticeTimer !== null) clearTimeout(this.noticeTimer);
     this.root.remove();
   }
 
@@ -595,6 +596,12 @@ export class ActionBoardEditor {
     }
     if (!this.readOnly) tools.appendChild(this.addButton());
     body.appendChild(tools);
+    // something the card has to say (a drop it would not take)
+    if (this.notice !== "") {
+      const note = el("div", "ltk-ab-notice", this.notice);
+      note.setAttribute("role", "status");
+      body.appendChild(note);
+    }
 
     if (view === "kanban") {
       body.appendChild(this.renderKanban(visible));
@@ -1154,11 +1161,24 @@ export class ActionBoardEditor {
     if (this.groupBy === "status") {
       const wasVerify = a.status === "verify";
       const prior = a.status;
+      const wasClosed = prior === "done" || prior === "verify";
+      const closing = key === "done" || key === "verify";
+      // a SHARED action cannot be dropped closed over outstanding parts
+      // (2026-11-17): it goes back where it was, and the card says why
+      if (closing && !wasClosed && partsOutstanding(a) > 0) {
+        const left = partsOutstanding(a);
+        this.say(`That action is shared by ${a.assignees.length} people and ${left} ${left === 1 ? "has" : "have"} not done their part. It closes when everyone has.`);
+        return;
+      }
       a.status = key as ActionStatus;
       // verify = the work is done, awaiting the owner; done from verify
       // stamps who verified (decision 6's endorsement)
       const done = a.status === "done" || a.status === "verify";
-      for (const x of a.assignees) x.done = done;
+      // one person's action: the part follows the column. A shared one
+      // keeps each person's part between open columns, and a drag back
+      // out of Done reopens every part
+      if (!isShared(a)) for (const x of a.assignees) x.done = done;
+      else if (wasClosed && !done) for (const x of a.assignees) x.done = false;
       // the stored PDCA follows the column too (the display derives it,
       // the row should say the same — 2026-10-06)
       if (done) a.pdca = "closed";
@@ -1174,6 +1194,20 @@ export class ActionBoardEditor {
       a.issue = key;
     }
     this.commit();
+  }
+
+  /** A line the card says for a few seconds (a drop it refused). */
+  private notice = "";
+  private noticeTimer: ReturnType<typeof setTimeout> | null = null;
+  private say(text: string): void {
+    this.notice = text;
+    if (this.noticeTimer !== null) clearTimeout(this.noticeTimer);
+    this.noticeTimer = setTimeout(() => {
+      this.notice = "";
+      this.noticeTimer = null;
+      this.render();
+    }, 6000);
+    this.render();
   }
 
   // ---- mutations ----

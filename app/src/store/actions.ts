@@ -2,7 +2,7 @@
 // cards, boards and the viewer; upsert by action id (the alternate key's
 // purpose, emulated through the generated client).
 
-import { actionBelongsTo, actionVisibleTo, Assignee, LtkAction, mergeComments, mergeParts, stampCompletion, visibleSetFor, settleFromParts } from "../../../shared/schema/actions";
+import { actionBelongsTo, actionVisibleTo, Assignee, holdOpenUntilAllParts, LtkAction, mergeComments, mergeParts, stampCompletion, visibleSetFor, settleFromParts } from "../../../shared/schema/actions";
 import { applyEndorsementRule } from "../../../shared/schema/actionEndorsement";
 import { ACTION_RULED_EVENT } from "../../../shared/ui/actionLinkProvider";
 import { homeBoardOf, homeCardOf, homeForStamp } from "../../../shared/schema/actionLinks";
@@ -210,6 +210,10 @@ export async function upsertActions(
       // save never drops what someone else wrote since it loaded
       action.comments = mergeComments(rowNow.comments, action.comments, who?.objectId ?? "");
     }
+    // a shared action closes only when EVERY part is done (2026-11-17),
+    // the BACKSTOP — a road that closed it over outstanding parts is
+    // put back open, against the parts as they stand now
+    holdOpenUntilAllParts(action);
     // every part done = done, the BACKSTOP (2026-10-06) — a road that
     // marks parts without the rule still writes a closed action
     settleFromParts(action, { reopen: false });

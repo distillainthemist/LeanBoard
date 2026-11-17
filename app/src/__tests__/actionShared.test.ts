@@ -4,7 +4,11 @@ import { describe, expect, it } from "vitest";
 import {
   assigneesLabel,
   duplicateAction,
+  holdOpenUntilAllParts,
+  isShared,
   LtkAction,
+  partsOutstanding,
+  tickPart,
   mergeAssignees,
   mergeParts,
   newAction,
@@ -151,6 +155,49 @@ describe("the write lays this screen's parts over the row as it stands", () => {
   });
   it("with no baseline (a new action) my list is the list", () => {
     expect(mergeParts([p("x")], [p("a")], undefined).map((x) => x.whoId)).toEqual(["a"]);
+  });
+});
+
+describe("a shared action closes only when every part is done", () => {
+  it("knows what is shared and what is still to do", () => {
+    expect(isShared(act({ assignees: [p("a")] }))).toBe(false);
+    expect(isShared(act({ assignees: [p("a"), p("b")] }))).toBe(true);
+    expect(partsOutstanding(act({ assignees: [p("a", true), p("b"), p("c")] }))).toBe(2);
+    expect(partsOutstanding(act({ assignees: [p("a")] }))).toBe(0); // not shared: nothing to wait for
+  });
+  it("puts back an action a road closed over outstanding parts", () => {
+    const a = act({ status: "done", pdca: "closed", assignees: [p("a", true), p("b")], verified: { whoId: "o", who: "O", when: NOW } });
+    expect(holdOpenUntilAllParts(a)).toBe(true);
+    expect(a).toMatchObject({ status: "open", pdca: "do" });
+    expect(a.verified).toBeUndefined();
+    const v = act({ status: "verify", pdca: "check", assignees: [p("a"), p("b")] });
+    holdOpenUntilAllParts(v);
+    expect(v).toMatchObject({ status: "open", pdca: "check" });
+  });
+  it("leaves alone one that everyone finished, one person's action, and an open one", () => {
+    expect(holdOpenUntilAllParts(act({ status: "done", assignees: [p("a", true), p("b", true)] }))).toBe(false);
+    expect(holdOpenUntilAllParts(act({ status: "done", assignees: [p("a")] }))).toBe(false);
+    expect(holdOpenUntilAllParts(act({ status: "open", assignees: [p("a"), p("b")] }))).toBe(false);
+  });
+  it("a tick records that person's part only — and the last one closes it", () => {
+    const a = act({ assignees: [p("a"), p("b")] });
+    expect(tickPart(a, "a", NOW)).toBe("done");
+    expect(a.assignees.map((x) => x.done)).toEqual([true, false]);
+    expect(a.assignees[0].doneAt).toBe(NOW);
+    expect(a.status).toBe("open");
+    expect(tickPart(a, "b", NOW)).toBe("done");
+    expect(a).toMatchObject({ status: "done", pdca: "closed" });
+    // undoing one part reopens the action; the other part stands
+    expect(tickPart(a, "a", NOW)).toBe("undone");
+    expect(a.status).toBe("open");
+    expect(a.assignees.map((x) => x.done)).toEqual([false, true]);
+    expect(a.assignees[0].doneAt).toBeUndefined();
+  });
+  it("someone who is not on the action cannot tick it", () => {
+    const a = act({ assignees: [p("a"), p("b")] });
+    expect(tickPart(a, "z", NOW)).toBe("none");
+    expect(tickPart(a, "", NOW)).toBe("none");
+    expect(a.assignees.every((x) => !x.done)).toBe(true);
   });
 });
 

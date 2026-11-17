@@ -84,6 +84,8 @@ export const ACTIONBOARD_CSS = `
 .ltk-ab-viewbtn:hover { color: var(--ltk-fg); }
 .ltk-ab-viewbtn-on, .ltk-ab-viewbtn-on:hover { background: var(--ltk-accent); color: #fff; font-weight: 600; }
 .ltk-tile .ltk-ab-views { display: none; }
+/* a line the card says for a few seconds (a drop it refused) */
+.ltk-ab-notice { margin: 0 0 8px; padding: 8px 12px; border-radius: 6px; background: #fff4ce; color: #5c4400; font-size: 13px; }
 /* the tools row: the view switch and Show completed (every view, 2026-10-31) */
 .ltk-ab-tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; align-self: stretch; }
 .ltk-ab-toggle {

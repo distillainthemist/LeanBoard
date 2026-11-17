@@ -566,6 +566,49 @@ export function partsProgress(a: Pick<LtkAction, "assignees">): { done: number; 
   return { done: a.assignees.filter((x) => x.done).length, total: a.assignees.length };
 }
 
+/** Several people share it — a part each. */
+export function isShared(a: Pick<LtkAction, "assignees">): boolean {
+  return a.assignees.length >= 2;
+}
+
+/** Parts still to do on a shared action; 0 on one that is not shared. */
+export function partsOutstanding(a: Pick<LtkAction, "assignees">): number {
+  return isShared(a) ? a.assignees.filter((x) => !x.done).length : 0;
+}
+
+/**
+ * A shared action closes ONLY when every person has done their part
+ * (Ben, 2026-11-17 — until then Closed, a board's tick or a drop into
+ * Done closed it for everyone). A road that closed it over outstanding
+ * parts is put back: open, in Do. Applied where an action is saved (the
+ * dialog) and at the store's write as the backstop. Returns true when it
+ * reopened the action.
+ */
+export function holdOpenUntilAllParts(a: LtkAction): boolean {
+  if (partsOutstanding(a) === 0) return false;
+  if (a.status !== "done" && a.status !== "verify") return false;
+  a.status = "open";
+  if (a.pdca === undefined || a.pdca === "closed") a.pdca = "do";
+  a.verified = undefined;
+  return true;
+}
+
+/**
+ * The tick on a shared action records ONE person's part — theirs — and
+ * nothing else; the parts then settle the whole (all done closes it, a
+ * part undone reopens it). "none" when `whoId` holds no part: someone
+ * who is not on the action cannot tick it.
+ */
+export function tickPart(a: LtkAction, whoId: string, nowIso = new Date().toISOString()): "none" | "done" | "undone" {
+  const mine = whoId !== "" ? a.assignees.find((x) => x.whoId === whoId) : undefined;
+  if (mine === undefined || a.status === "cancelled") return "none";
+  mine.done = !mine.done;
+  if (mine.done) mine.doneAt = nowIso;
+  else delete mine.doneAt;
+  settleFromParts(a, { reopen: true });
+  return mine.done ? "done" : "undone";
+}
+
 /** "Jukes, Emily +11" — the first name and how many more; "" for nobody. */
 export function assigneesLabel(a: Pick<LtkAction, "assignees">, unassigned = ""): string {
   const names = a.assignees.map((x) => x.who || "Unnamed");
