@@ -5231,8 +5231,16 @@ button.app-link.app-xs-title:hover, button.app-link.app-xs-title:focus-visible {
 .app-xs-metrics .app-ir-metric-state { height: 40px; font-size: 13.5px; }
 .app-xs-tools { display: flex; flex-direction: column; align-items: center; justify-content: space-between; gap: 6px; align-self: stretch; }
 .app-xs-kebab { position: static; min-width: 44px; min-height: 44px; }
-.app-xs-chev { min-width: 44px; min-height: 44px; border: none; background: transparent; font-size: 22px; color: #26241f; cursor: pointer; border-radius: 8px; margin-top: auto; }
-.app-xs-chev:hover, .app-xs-chev:focus-visible { background: #f1ede6; outline: none; }
+button.app-xs-chev {
+  width: 44px; height: 44px; min-height: 0; padding: 0; margin-top: auto; cursor: pointer;
+  border: 1px solid #d9d3c8; border-radius: 50%; background: #fff; color: #57534a;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+button.app-xs-chev svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; transition: transform 0.15s ease; }
+button.app-xs-chev-open svg { transform: rotate(90deg); }
+button.app-xs-chev:hover, button.app-xs-chev:focus-visible { border-color: #26241f; color: #26241f; background: #faf8f4; outline: none; }
+button.app-xs-chev-open { background: #26241f; border-color: #26241f; color: #fff; }
+button.app-xs-chev-open:hover, button.app-xs-chev-open:focus-visible { background: #3b372f; color: #fff; }
 .app-xs-inits { display: flex; flex-direction: column; padding: 0 14px 14px 16px; }
 .app-xs-none { padding: 6px 4px; font-size: 14px; }
 @container (max-width: 1080px) {

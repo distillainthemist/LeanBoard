@@ -828,7 +828,7 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       }
       const walk = el("button", "app-btn app-cp-tvbtn", "▶ Executive summary") as HTMLButtonElement;
       walk.type = "button";
-      walk.title = "Full screen, one pillar at a time: each priority's status, initiatives and key metrics, with a final step for cascades to accept";
+      walk.title = "One pillar at a time: each priority's status, initiatives and key metrics, with a final step for cascades to accept";
       walk.addEventListener("click", () => openWalk(0));
       bar.appendChild(walk);
       // the site's customisation floor gates authoring too (Ben, 2026-08-19):
@@ -1012,12 +1012,9 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       walkOpen = true;
       walkStep = startStep;
       rememberWalk();
-      // presenting: take the browser full screen where the host allows it
-      // (the hosted player's iframe may refuse — presenting works either
-      // way, so the promise rejection is deliberately swallowed)
-      if (!card && document.fullscreenElement === null) {
-        void document.documentElement.requestFullscreen?.().catch(() => {});
-      }
+      // the summary no longer takes the browser full screen by itself
+      // (Ben, 2026-11-17) — it fills the app's window; full screen is the
+      // person's own choice (the browser's key)
       render();
     };
     const renderWalk = () => {
@@ -1049,7 +1046,6 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
         onExit: () => {
           walkOpen = false;
           rememberWalk();
-          if (document.fullscreenElement !== null) void document.exitFullscreen().catch(() => {});
           closeWalk?.();
           closeWalk = null;
           render();

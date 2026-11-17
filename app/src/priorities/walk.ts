@@ -292,7 +292,17 @@ export function mountWalk(o: WalkOpts): () => void {
       });
       tools.appendChild(kebab);
     }
-    const chev = btn(open ? "▼" : "◀", "app-xs-chev");
+    // a chevron in a round button: pointing right when closed, turned
+    // down when open (Ben, 2026-11-17: the bare ◀ / ▼ glyphs read as
+    // stray arrows)
+    const chev = btn("", "app-xs-chev" + (open ? " app-xs-chev-open" : ""));
+    const chevSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    chevSvg.setAttribute("viewBox", "0 0 24 24");
+    chevSvg.setAttribute("aria-hidden", "true");
+    const chevPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    chevPath.setAttribute("d", "M9 5l7 7-7 7");
+    chevSvg.appendChild(chevPath);
+    chev.appendChild(chevSvg);
     chev.setAttribute("aria-expanded", String(open));
     chev.setAttribute("aria-label", open ? "Close this priority" : "Open this priority to its initiatives");
     chev.title = open ? "Close" : "Show its initiatives";
