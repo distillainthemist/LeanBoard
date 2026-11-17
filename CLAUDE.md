@@ -59,7 +59,10 @@ commit shipped with 5 red tests that way, 2026-08-14). Same trap with
 pipes: `tsc | tail` reports TAIL's exit code, so a failed typecheck
 lets the chain continue — `set -o pipefail` first (a red root
 typecheck slid past that way, 2026-08-15; the errors were visible but
-the chain ran on).
+the chain ran on). Chain gates with `&&`, never `;` — a red root
+typecheck slid past a `;` chain into a commit and a push (2026-11-17)
+— and under pipefail do not pipe into `head` (exit 141 stops the
+chain).
 
 The chunk report's `cardRegistry` ceiling is a LEAK detector, not a
 budget to re-baseline past: when a mounter needs a pure helper that
@@ -513,6 +516,21 @@ Version lives in the tag alone — nothing is stamped into files.
   review's summary tiles and the task banner heading removed) is
   SOLUTION-CARRYING for the Utilities app only: prod imports the managed
   solution; the LeanBoard app is unchanged. No schema change.
+  v0.95.0 (2026-11-17: the executive summary scope and the 2026-11-17
+  issue export — `docs/issues-plan-2026-11-17.md`; the status rule
+  `improvement/status.ts` — on track / off track / "⚑ Support needed" —
+  in place of the RAG ratio rule; the executive summary; ONE initiative
+  row `improvement/initiativeRow.ts` for the summary, the register and
+  the popup; shared actions with a part per person that close only when
+  every part is done, Cascade to team, Duplicate, a message from the
+  dialog, recently completed; attachments and links; document filter
+  order, featured terms and the tree) is SOLUTION-CARRYING: the
+  `ben_ltkattachment` table, `ben_doneat` and a widened
+  `ben_assigneesjson` on `ben_ltkaction`, `ben_lastupdateat` on
+  `ben_ltkinitiative`. Prod imports the managed solution FIRST, then —
+  once the new build is running — "Lock every older build": an older
+  bundle saves an action's people without the parts merge and can close
+  a shared action early.
   v0.94.0 (2026-11-16: the 2026-11-16 issue tranche —
   `docs/issues-plan-2026-11-16.md`; due-date moves under one rule with
   an organisation-wide reasons list; initiative boards always live;

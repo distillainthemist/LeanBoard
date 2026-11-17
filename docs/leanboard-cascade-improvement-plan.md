@@ -1455,6 +1455,62 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-11-17 — released as v0.95.0** (SOLUTION-CARRYING: the new
+  `ben_ltkattachment` table; `ben_doneat` and a widened
+  `ben_assigneesjson` (10 000 → 100 000) on `ben_ltkaction`;
+  `ben_lastupdateat` on `ben_ltkinitiative`; prod imports the managed
+  solution before the app package). The executive summary scope and
+  the 2026-11-17 issue export, 11 issues — built in one day in five
+  tranches, then reshaped by Ben's walkthrough the same day;
+  `docs/issues-plan-2026-11-17.md` holds his decisions, "As built" and
+  "Changes from Ben's walkthrough". AFTER the release reaches an
+  environment: Settings → the release policy → "Lock every older
+  build" — an older bundle saves an action's people without the parts
+  merge and can close a shared action before every part is done.
+  **The status rule** (`improvement/status.ts`, pure): an initiative
+  is on track, off track or flagged ("⚑ Support needed"); off track =
+  a late action, no actions, any metric short of plan or outside its
+  limits, or no status update for the recency window (35 days, set in
+  Settings → Priorities → Status with the three colours); a new
+  initiative has a grace for no actions and no update; a priority
+  reads flagged > off track > on track. It replaces the RAG ratio rule
+  and the strict / ratio toggle everywhere. ONE flag (the second level
+  "escalated" reads as flagged); the recency clock is
+  `ben_lastupdateat`, stamped as a status update is written and
+  backfilled 25 rows a load.
+  **The executive summary** (`priorities/walk.ts` rebuilt): pillars,
+  priorities and initiatives with status, action circles, metric tiles
+  and sparklines; remembered for the session; no automatic full screen.
+  **ONE initiative row** (`improvement/initiativeRow.ts`) for the
+  summary, the Improvement register and the priority popup: status in
+  small caps above the name with its reasons behind an ⓘ, the PDCA
+  stage pill, action circles under captions, the primary a heavy
+  border and a star, ordered primary, support needed, off track, on
+  track.
+  **Shared actions** (`shared/schema/actions.ts`): up to 500 people on
+  one action, each with a part and its own done date; "Cascade to
+  team…" adds a leader's reports through a provider; a saved shared
+  action lists its people as sign-off boxes; it closes ONLY when every
+  part is done (`holdOpenUntilAllParts`, `tickPart` — the dialog, the
+  boards' tick, a drop into Done and the store's write hold the same
+  line; this reverses the plan's "anyone who can edit may close for
+  all"); two savers' parts merge at the write (`mergeParts`);
+  Duplicate…; a message about an action from the dialog; "Recently
+  completed" (7 days, `ben_doneat`) with "Show all completed".
+  **The action dialog**: "⚑ Flag for support" in the title row,
+  Message / Duplicate / Cancel behind a ⋮ menu, Confidential on the
+  dates' row, a right side that folds to a rail.
+  **Attachments & links** on initiatives and actions (one table,
+  files to 30 MB or a link; the register's type chips).
+  **Document filters**: Status, Document type, Process area first;
+  featured terms per department with a site fallback (★ in Settings →
+  Documents); a tree for a deep vocabulary.
+  UAT: PRI-012/013, IMP-007 → 009, SET-015, ACT-008 → 010, DOC-093
+  added; PRI-001/002/006, IMP-003, RIT-009, ACT-007 reworded. 1192 app
+  tests. Ben walked 12 checks on dev: nine passed; owners in the popup,
+  Cascade to team against a real reporting line and the document
+  filters were skipped and are still his to check. The Documents filter
+  tree and the ★ editor were never seen in a browser.
 - **2026-11-16 — released as v0.94.0** (SOLUTION-CARRYING: four
   additive columns — `ben_supportersjson` on `ben_ltkaction`,
   `ben_objectivesjson` and `ben_placementsjson` on `ben_ltkpriority`,

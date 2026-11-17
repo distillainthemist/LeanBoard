@@ -9,8 +9,8 @@ was reproduced in the player. Decisions are Ben's, taken one by one on
 
 Status: BUILT on dev 2026-11-17 in five tranches after Ben's "Good to
 proceed" (643d1f9 schema, 895b074 tranches 1 and 2, 09ce3c8 tranche 3,
-76dd17c tranche 4, 977ce0d tranche 5); schema deployed to dev. NOT
-RELEASED. See "As built" at the foot for where the build differs from
+76dd17c tranche 4, 977ce0d tranche 5); schema deployed to dev.
+RELEASED as v0.95.0 on 2026-11-17 (solution-carrying). See "As built" at the foot for where the build differs from
 the plan below.
 
 ## Decisions of record

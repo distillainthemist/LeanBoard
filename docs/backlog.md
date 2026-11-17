@@ -5,21 +5,20 @@ its decision date and enough context to pick it up cold. The phase plans
 (`leanboard-phase5-plan.md`, `leanboard-standard-documents-plan.md`)
 stay the design detail; this is the queue.
 
-## Current state (2026-11-16, after v0.94.0)
+## Current state (2026-11-17, after v0.95.0)
 
-Released through v0.94.0 (ledger: `leanboard-cascade-improvement-plan.md`;
+Released through v0.95.0 (ledger: `leanboard-cascade-improvement-plan.md`;
 release paragraphs: `../CLAUDE.md`). Production took v0.88.1 and the
 v0.89.0/v0.90.0 managed solution; v0.91.0 and v0.93.0 are app-only,
 v0.92.0 carries the Utilities app in the managed solution, and v0.94.0
-is SOLUTION-CARRYING (four columns) — import the solution first, then
+and v0.95.0 are SOLUTION-CARRYING — import the solution first, then
 lock older builds from Settings once the new one runs.
 
-**In flight (2026-11-17), built on dev, NOT released:** the executive
-summary scope and the 2026-11-17 issue export — plan, decisions and
-the as-built record in `issues-plan-2026-11-17.md`. It is
-SOLUTION-CARRYING (`ben_lastupdateat` on `ben_ltkinitiative`,
-`ben_doneat` and a widened `ben_assigneesjson` on `ben_ltkaction`, the
-new `ben_ltkattachment` table). Owed from it:
+**v0.95.0 (2026-11-17):** the executive summary scope and the
+2026-11-17 issue export — plan, decisions and the as-built record in
+`issues-plan-2026-11-17.md`. It carries `ben_lastupdateat` on
+`ben_ltkinitiative`, `ben_doneat` and a widened `ben_assigneesjson` on
+`ben_ltkaction`, and the new `ben_ltkattachment` table. Owed from it:
 
 - **Duplicate… on the other action-raising cards** (5 Whys, Agenda,
   Fishbone…): the dialog offers it only where the host passes
@@ -41,6 +40,9 @@ new `ben_ltkattachment` table). Owed from it:
   "Support needed" — Ben has not asked for the counts to be renamed.
 - **Not yet walked by Ben** (2026-11-17): owners in the popup, Cascade
   to team against a real reporting line, the document filters.
+- **Any editor can press another person's sign-off box** in the
+  action dialog (a board's tick records only the viewer's own part).
+  Left as built; Ben has not asked for it to be limited.
 - **A status preview before a release** was considered and not built:
   release day reads mostly off track under the new rule. Tell leaders
   first.
