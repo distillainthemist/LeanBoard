@@ -329,8 +329,17 @@ export const LTK_BASE_CSS = `
 .ltk-shared:empty { display: none; }
 .ltk-shared-extras { align-items: center; }
 .ltk-shared-note { font-size: 12.5px; color: var(--ltk-muted); }
-.ltk-shared-parts { display: flex; flex-direction: column; gap: 6px; }
-.ltk-shared-partshead { font-weight: 600; }
+/* a person's part: a small circle on their own box (empty = still to
+   do, ticked = done) — colours inline-safe, no theme dependency */
+.ltk-part {
+  margin-left: auto; flex: 0 0 auto; width: 24px; height: 24px; padding: 0; border-radius: 50%;
+  border: 2px solid var(--ltk-muted); background: var(--ltk-bg); color: transparent;
+  font: inherit; font-size: 13px; font-weight: 700; line-height: 1; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.ltk-part:hover, .ltk-part:focus-visible { border-color: #107c10; outline: none; }
+.ltk-part-done { background: #107c10; border-color: #107c10; color: #fff; }
+.ltk-sup-chip .ltk-part { width: 18px; height: 18px; font-size: 10.5px; margin-left: 6px; border-width: 1.5px; }
 .ltk-team { display: flex; flex-direction: column; gap: 6px; padding: 10px; border: 1px solid var(--ltk-hairline); border-radius: 8px; }
 .ltk-team-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .ltk-team-row .ltk-who-box { flex: 1 1 200px; min-width: 180px; }

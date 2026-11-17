@@ -162,7 +162,24 @@ export function buildActionForm(
   // closeness (self · crew · site …), so the cap keeps the near circle.
   const { upFront: primary, behindSearch: secondary } = splitWho(people);
   const whoWrap = people.length > 0 ? checklist() : el("div");
-  const checks: { box: HTMLInputElement; wrap: HTMLElement; person: Person }[] = [];
+  const checks: { box: HTMLInputElement; wrap: HTMLElement; person: Person; part: HTMLButtonElement }[] = [];
+  /** A person's PART, as a small circle on their own box (Ben,
+   *  2026-11-17 — it was a second list of the same names under the
+   *  first): empty = still to do, ticked = done. Shown only on a shared
+   *  action that exists and is open (`paintPart`). */
+  const partButton = (person: { whoId: string; who: string }): HTMLButtonElement => {
+    const b = el("button", "ltk-part") as HTMLButtonElement;
+    b.type = "button";
+    b.style.display = "none";
+    b.addEventListener("click", (e) => {
+      // inside the person's label: the click is the part's, not the tick's
+      e.preventDefault();
+      e.stopPropagation();
+      staged.set(keyOf(person), !partDone(person));
+      refreshShared();
+    });
+    return b;
+  };
   let freeWho: HTMLInputElement | null = null;
   const isCurrent = (person: { whoId: string; who: string }) =>
     initialAssignees.some((x) => (x.whoId !== "" && x.whoId === person.whoId) || x.who === person.who);
@@ -173,8 +190,10 @@ export function buildActionForm(
       item.wrap.classList.add("ltk-check-on");
     }
     item.box.addEventListener("change", () => refreshShared());
+    const part = partButton(person);
+    item.wrap.appendChild(part);
     whoWrap.appendChild(item.wrap);
-    checks.push({ box: item.box, wrap: item.wrap, person });
+    checks.push({ box: item.box, wrap: item.wrap, person, part });
   };
   if (people.length > 0) {
     for (const person of primary) addChip(person, isCurrent(person));
@@ -461,19 +480,41 @@ export function buildActionForm(
   wrap.appendChild(whoBlock);
 
   // ---- several people: the shared action (issue 10) -----------------------
+  /** A part as the dialog holds it: ticked here, else as it arrived. */
+  const partDone = (person: { whoId: string; who: string }): boolean => {
+    const st = staged.get(keyOf(person));
+    if (st !== undefined) return st;
+    return initialAssignees.find((x) => (x.whoId !== "" && x.whoId === person.whoId) || x.who === person.who)?.done ?? false;
+  };
+  /** Parts are recorded on a SHARED action that exists and is still
+   *  open: a new one has none yet, and Closed closes them all. */
+  const partsShown = (): boolean => initial !== undefined && !fresh && !initialClosed && picked().length >= 2;
+  const paintPart = (b: HTMLButtonElement, person: { whoId: string; who: string }, on: boolean): void => {
+    const show = on && partsShown();
+    b.style.display = show ? "" : "none";
+    if (!show) return;
+    const done = partDone(person);
+    b.classList.toggle("ltk-part-done", done);
+    b.textContent = done ? "✓" : "";
+    b.setAttribute("aria-pressed", String(done));
+    b.title = done ? `${person.who} has done their part — click to undo` : `Mark ${person.who}'s part done`;
+    b.setAttribute("aria-label", b.title);
+  };
   const picked = (): { whoId: string; who: string }[] => [...checks.filter((c) => c.box.checked).map((c) => ({ whoId: c.person.whoId, who: c.person.who })), ...extras];
   const sharedBox = el("div", "ltk-shared");
   const extraChips = el("div", "ltk-sup-chips ltk-shared-extras");
   const sharedNote = el("div", "ltk-shared-note");
-  const partsBox = el("div", "ltk-shared-parts");
   let extrasOpen = false;
-  let partsOpen = false;
   const EXTRAS_SHOWN = 12;
   const paintExtras = () => {
     while (extraChips.firstChild) extraChips.removeChild(extraChips.firstChild);
     const list = extrasOpen ? extras : extras.slice(0, EXTRAS_SHOWN);
     for (const person of list) {
       const chip = el("span", "ltk-sup-chip", person.who);
+      // their part, on their chip — the same circle the boxes above carry
+      const part = partButton(person);
+      paintPart(part, person, true);
+      chip.appendChild(part);
       const x = el("button", "ltk-sup-x", "✕") as HTMLButtonElement;
       x.type = "button";
       x.title = `Take ${person.who} off this action`;
@@ -505,54 +546,22 @@ export function buildActionForm(
     }
     extraChips.style.display = extras.length > 0 ? "" : "none";
   };
-  /** A part as the dialog holds it: ticked here, else as it arrived. */
-  const partDone = (person: { whoId: string; who: string }): boolean => {
-    const s = staged.get(keyOf(person));
-    if (s !== undefined) return s;
-    return initialAssignees.find((x) => (x.whoId !== "" && x.whoId === person.whoId) || x.who === person.who)?.done ?? false;
-  };
-  const paintParts = () => {
-    while (partsBox.firstChild) partsBox.removeChild(partsBox.firstChild);
-    const all = picked();
-    // parts are recorded on an action that exists and is still open
-    if (initial === undefined || fresh || all.length < 2 || initialClosed) {
-      partsBox.style.display = "none";
-      return;
-    }
-    partsBox.style.display = "";
-    const doneCount = all.filter(partDone).length;
-    const head = el("button", "ltk-sup-open ltk-shared-partshead", `${partsOpen ? "▾" : "▸"} Parts — ${doneCount} of ${all.length} done`) as HTMLButtonElement;
-    head.type = "button";
-    head.setAttribute("aria-expanded", String(partsOpen));
-    head.title = "Each person's own part. Tick one for someone who has done it; the action closes when every part is done.";
-    head.addEventListener("click", () => {
-      partsOpen = !partsOpen;
-      paintParts();
-    });
-    partsBox.appendChild(head);
-    if (!partsOpen) return;
-    const grid = checklist();
-    grid.classList.add("ltk-shared-partsgrid");
-    for (const person of all) {
-      const item = checkItem(person.who);
-      item.box.checked = partDone(person);
-      item.wrap.classList.toggle("ltk-check-on", item.box.checked);
-      item.wrap.title = item.box.checked ? `${person.who} has done their part` : `${person.who} has not done their part yet`;
-      item.box.addEventListener("change", () => {
-        staged.set(keyOf(person), item.box.checked);
-        paintParts();
-      });
-      grid.appendChild(item.wrap);
-    }
-    partsBox.appendChild(grid);
-  };
   refreshShared = () => {
     paintExtras();
-    const n = picked().length;
-    sharedNote.textContent = n >= 2 ? `${n} people share this action. Each records their own part, and it closes when all have.` : "";
+    const all = picked();
+    const n = all.length;
+    for (const c of checks) paintPart(c.part, c.person, c.box.checked);
+    if (n > MAX_ASSIGNEES) {
+      sharedNote.textContent = `${n} people — more than one action can carry (${MAX_ASSIGNEES}). The first ${MAX_ASSIGNEES} are kept.`;
+    } else if (n >= 2 && partsShown()) {
+      const done = all.filter(partDone).length;
+      sharedNote.textContent = `${n} people share this action — ${done} of ${n} parts done. Tick the circle beside a name when that person has done theirs; it closes when all have.`;
+    } else if (n >= 2) {
+      sharedNote.textContent = `${n} people share this action. Each records their own part, and it closes when all have.`;
+    } else {
+      sharedNote.textContent = "";
+    }
     sharedNote.style.display = n >= 2 ? "" : "none";
-    if (n > MAX_ASSIGNEES) sharedNote.textContent = `${n} people — more than one action can carry (${MAX_ASSIGNEES}). The first ${MAX_ASSIGNEES} are kept.`;
-    paintParts();
   };
 
   // "＋ Add a team…" (issue 10): a leader's reports, direct or all the
@@ -641,7 +650,7 @@ export function buildActionForm(
       if (r !== null) teamOpen.style.display = "";
     });
   }
-  sharedBox.append(extraChips, sharedNote, partsBox, teamOpen, teamPanel);
+  sharedBox.append(extraChips, sharedNote, teamOpen, teamPanel);
   wrap.appendChild(sharedBox);
   refreshShared();
   wrap.appendChild(supWrap);
