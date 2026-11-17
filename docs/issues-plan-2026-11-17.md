@@ -503,11 +503,13 @@ Ben walked the build check by check; these came out of it and are built.
 - "Add a team" is "Cascade to team".
 
 **The action dialog**
-- "⚑ Flag for support" is a button in the title row, beside Message
+- "⚑ Flag for support" is a button in the title row
   (faint in the flag's colour, full once flagged); the tick is gone.
 - Confidential shares the dates' row.
 - The right side's headings read alike, and the side folds to a rail
   (remembered in the browser).
+- Message, Duplicate and Cancel sit behind a ⋮ menu at the right of the
+  title row, on a saved action only; the footer keeps Close and Save.
 
 **Attachments**
 - The document register's type chips (PDF, DOCX…; LINK for a link);

@@ -1809,39 +1809,27 @@ export function openActionDialog(o: ActionDialogOptions): void {
     if (moves && !o.isNew) window.dispatchEvent(new CustomEvent(ACTION_MOVED_EVENT, { detail: { id: action.id } }));
   };
 
+  // the footer is Close and Save alone (Ben, 2026-11-17): Message,
+  // Duplicate and Cancel this action are the title row's ⋮ menu
   const buttons = [];
-  if (!o.isNew) {
-    buttons.push({
-      // worded apart from the "Cancel" a new action's dialog carries
-      label: "Cancel this action…",
-      kind: "danger" as const,
-      // confirmed first (Ben, 2026-09-29) — one stray click used to
-      // cancel the action outright
-      onClick: () =>
-        confirmBar(dlg.body, "Cancel this action? It is marked cancelled and leaves the open lists.", "Yes, cancel it", "Keep the action", () => {
-          action.status = "cancelled";
-          dlg.close();
-          o.onCommit();
-        }),
+  const cancelAction = () =>
+    // confirmed first (Ben, 2026-09-29) — one stray click used to
+    // cancel the action outright
+    confirmBar(dlg.body, "Cancel this action? It is marked cancelled and leaves the open lists.", "Yes, cancel it", "Keep the action", () => {
+      action.status = "cancelled";
+      dlg.close();
+      o.onCommit();
     });
-  }
-  if (!o.isNew && o.onDuplicate !== undefined) {
-    const dup = o.onDuplicate;
-    buttons.push({
-      label: "Duplicate…",
-      kind: "secondary" as const,
-      // the copy is of the action AS SAVED; what is typed here and not
-      // saved stays here — asked about, like Close
-      onClick: () => {
-        const go = () => {
-          dlg.close();
-          dup(duplicateAction(action));
-        };
-        if (!comments.unsaved()) return go();
-        confirmBar(dlg.body, "A comment you wrote or changed has not been saved. Duplicate without it?", "Duplicate anyway", "Keep editing", go);
-      },
-    });
-  }
+  const duplicate = (dup: (copy: LtkAction) => void) => {
+    // the copy is of the action AS SAVED; what is typed here and not
+    // saved stays here — asked about, like Close
+    const go = () => {
+      dlg.close();
+      dup(duplicateAction(action));
+    };
+    if (!comments.unsaved()) return go();
+    confirmBar(dlg.body, "A comment you wrote or changed has not been saved. Duplicate without it?", "Duplicate anyway", "Keep editing", go);
+  };
   buttons.push({
     label: o.isNew ? "Cancel" : "Close",
     kind: "secondary" as const,
@@ -1881,15 +1869,54 @@ export function openActionDialog(o: ActionDialogOptions): void {
     titleEl.classList.add("ltk-dialog-title-row");
     titleEl.appendChild(el("span", undefined, text));
     const tools = el("span", "ltk-act-titletools");
-    const messenger = o.isNew ? null : actionMessenger();
-    if (messenger !== null) {
-      const msg = el("button", "ltk-btn ltk-btn-secondary ltk-act-msgbtn", "✉ Message") as HTMLButtonElement;
-      msg.type = "button";
-      msg.title = "Message someone about this action by Teams or email";
-      msg.addEventListener("click", () => messenger({ host: o.host, action, onSent: (c) => comments.adopt(c) }));
-      tools.appendChild(msg);
-    }
     tools.appendChild(flagBtn);
+    // ⋮ — the things done ABOUT a saved action rather than to its
+    // fields: message someone, duplicate it, cancel it
+    const items: { label: string; danger?: boolean; run: () => void }[] = [];
+    const messenger = o.isNew ? null : actionMessenger();
+    if (messenger !== null) items.push({ label: "✉ Message about this action…", run: () => messenger({ host: o.host, action, onSent: (c) => comments.adopt(c) }) });
+    if (!o.isNew && o.onDuplicate !== undefined) {
+      const dup = o.onDuplicate;
+      items.push({ label: "Duplicate…", run: () => duplicate(dup) });
+    }
+    if (!o.isNew) items.push({ label: "Cancel this action…", danger: true, run: cancelAction });
+    if (items.length > 0) {
+      const wrap = el("span", "ltk-kebab ltk-kebab-inbar ltk-act-kebab");
+      const kebab = el("button", "ltk-kebab-btn", "⋮") as HTMLButtonElement;
+      kebab.type = "button";
+      kebab.title = "Message · Duplicate · Cancel this action";
+      kebab.setAttribute("aria-label", "More about this action");
+      kebab.setAttribute("aria-haspopup", "menu");
+      const menu = el("div", "ltk-kebab-menu");
+      menu.setAttribute("role", "menu");
+      menu.style.display = "none";
+      const shut = () => {
+        menu.style.display = "none";
+        kebab.setAttribute("aria-expanded", "false");
+      };
+      for (const item of items) {
+        const mi = el("button", "ltk-kebab-item" + (item.danger === true ? " ltk-kebab-item-danger" : ""), item.label) as HTMLButtonElement;
+        mi.type = "button";
+        mi.setAttribute("role", "menuitem");
+        mi.addEventListener("click", () => {
+          shut();
+          item.run();
+        });
+        menu.appendChild(mi);
+      }
+      kebab.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const open = menu.style.display === "none";
+        menu.style.display = open ? "block" : "none";
+        kebab.setAttribute("aria-expanded", String(open));
+      });
+      // a press anywhere else in the dialog closes the menu
+      dlg.root.addEventListener("pointerdown", (e) => {
+        if (!wrap.contains(e.target as Node)) shut();
+      });
+      wrap.append(kebab, menu);
+      tools.appendChild(wrap);
+    }
     titleEl.appendChild(tools);
   }
   const grid = el("div", "ltk-act-grid");

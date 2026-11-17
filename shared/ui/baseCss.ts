@@ -369,6 +369,11 @@ export const LTK_BASE_CSS = `
 /* the title row's tools, and "Flag for support": faint in the flag's
    colour until pressed, the full colour once flagged */
 .ltk-act-titletools { display: inline-flex; align-items: center; gap: 8px; }
+/* the dialog's ⋮: Message, Duplicate, Cancel this action */
+.ltk-act-kebab { display: inline-flex; }
+.ltk-act-kebab .ltk-kebab-btn { width: 36px; height: 36px; min-width: 36px; min-height: 36px; border: 1px solid var(--ltk-hairline); border-radius: 6px; color: var(--ltk-fg); }
+.ltk-act-kebab .ltk-kebab-menu { right: 0; left: auto; top: calc(100% + 4px); min-width: 230px; font-weight: 400; font-size: 14px; }
+.ltk-kebab-item-danger { color: #d13438; }
 .ltk-btn.ltk-flagbtn {
   font-size: 13px; font-weight: 600; min-height: 36px; padding: 4px 12px;
   color: var(--ltk-flag, #7b3fa0);
