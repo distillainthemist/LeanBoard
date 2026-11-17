@@ -601,7 +601,18 @@ initiative health check (`healthQuestions`, `__health`) was removed.
   with its status edge, three counts and its objectives as sparklines
   (`improvement/sparkline.ts` — geometry pure, one SVG builder);
   expanded, one row per initiative. The count circles and the state
-  chip are `improvement/statusUi.ts`. Open cards and the step are the
+  chip are `improvement/statusUi.ts`.
+- **One initiative row** (`improvement/initiativeRow.ts`, 2026-11-17):
+  the priority popup's Initiatives tab, the Improvement list and the
+  executive summary draw the SAME header and the SAME row — Initiative
+  (a small-caps tag line: "Primary initiative ·" then the status,
+  "⚑ Support needed" / "Off track" / "On track", with an i for the
+  reasons — `statusTag`, `whyLines`) · Stage (the PDCA pill, a disc
+  leading it) · Actions (three circles in a fixed column, captions in
+  the header) · Key metrics (sparkline tiles). A screen adds only its
+  own: Org and Your role(s) on the list, ★ and ⋮ in the popup, Support
+  needed and a larger size in the summary. `rowRank` orders rows under
+  a priority: primary, support needed, off track, on track. Open cards and the step are the
   session's (`sessionView.ts` `summaryView`), so an initiative opened
   from a row comes Back to the summary as it was left.
 

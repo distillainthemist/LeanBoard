@@ -221,6 +221,27 @@ export function initiativeStatus(input: StatusInput, settings: StatusSettings, t
   };
 }
 
+/** The status as ONE short tag above an initiative's name (Ben,
+ *  2026-11-17): "Support needed" for a flagged one — said plainly, with
+ *  a flag beside it — else "Off track" / "On track". What lies under a
+ *  flag, and the reasons, are a tap away (`whyLines`). */
+export function statusTag(s: Pick<StatusResult, "state">): string {
+  return s.state === "flagged" ? "Support needed" : STATE_LABELS[s.state];
+}
+
+/** Why an initiative is where it is, a line each — behind the small i
+ *  beside its status. A flagged one says what was asked for, then what
+ *  lies under the flag; an off-track one lists its reasons; an on-track
+ *  one has nothing to explain. */
+export function whyLines(s: Pick<StatusResult, "state" | "health" | "reasons">, flagNote = ""): string[] {
+  const reasons = s.reasons.map((r) => r.text);
+  if (s.state === "flagged") {
+    const ask = flagNote.trim() !== "" ? `Support needed: ${flagNote.trim()}` : "Support needed — no note written";
+    return s.health === "bad" ? [ask, "Recovery needed — it is also off track:", ...reasons] : [ask, "Otherwise on track"];
+  }
+  return reasons;
+}
+
 /** "Flagged · recovery needed" / "Off track" — the words beside a name. */
 export function statusWords(s: Pick<StatusResult, "label" | "sub">): string {
   return s.sub !== "" ? `${s.label} · ${s.sub.toLowerCase()}` : s.label;

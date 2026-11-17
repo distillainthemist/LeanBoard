@@ -15,8 +15,11 @@ import {
   spanWords,
   statusColour,
   StatusInput,
+  statusTag,
   statusWords,
+  whyLines,
 } from "../improvement/status";
+import { rowRank } from "../improvement/initiativeRow";
 
 const S = DEFAULT_STATUS_SETTINGS;
 const TODAY = "2026-11-17";
@@ -96,6 +99,25 @@ describe("an initiative's status", () => {
   it("caps a long reasons line", () => {
     const s = st({ metrics: ["A", "B", "C", "D", "E", "F"].map((name) => ({ name, rag: "amber" as const })) });
     expect(reasonsLine(s, 2)).toBe("A short of plan · B short of plan · +4 more");
+  });
+});
+
+describe("the tag above an initiative's name, and why", () => {
+  it("says Support needed for a flagged one — plainly — else on or off track", () => {
+    expect(statusTag(st({ flagged: true }))).toBe("Support needed");
+    expect(statusTag(st({ flagged: true, actions: { total: 1, done: 0, future: 0, late: 1, support: 0 } }))).toBe("Support needed");
+    expect(statusTag(st({}))).toBe("On track");
+    expect(statusTag(st({ actions: NO_ACTIONS }))).toBe("Off track");
+  });
+  it("keeps what lies under a flag, and the reasons, a tap away", () => {
+    expect(whyLines(st({}))).toEqual([]);
+    expect(whyLines(st({ actions: { total: 4, done: 0, future: 1, late: 3, support: 0 } }))).toEqual(["3 late actions"]);
+    expect(whyLines(st({ flagged: true }), " Two fitters ")).toEqual(["Support needed: Two fitters", "Otherwise on track"]);
+    expect(whyLines(st({ flagged: true, actions: { total: 4, done: 0, future: 1, late: 3, support: 0 } }), "")).toEqual(["Support needed — no note written", "Recovery needed — it is also off track:", "3 late actions"]);
+  });
+  it("orders rows: the primary, then support needed, off track, on track", () => {
+    const rows: ["good" | "flagged" | "bad", boolean][] = [["good", false], ["bad", false], ["good", true], ["flagged", false]];
+    expect([...rows].sort((a, b) => rowRank(a[0], a[1]) - rowRank(b[0], b[1]))).toEqual([["good", true], ["flagged", false], ["bad", false], ["good", false]]);
   });
 });
 

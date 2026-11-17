@@ -201,7 +201,7 @@ export function mountInitiativePane(o: InitiativePaneOpts): InitiativePaneHandle
       if (i.flag !== "") {
         // one flag (2026-11-17), in the Flagged state's colour, saying
         // what is asked for on hover
-        const chip = el("span", "app-im-chip app-im-chip-flag", "⚐ Flagged");
+        const chip = el("span", "app-im-chip app-im-chip-flag", "⚑ Support needed");
         const c = statusColour("flagged", statusSettings, statePalette);
         chip.style.border = `1px solid ${c}`;
         chip.style.color = c;

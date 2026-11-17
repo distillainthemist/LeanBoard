@@ -27,7 +27,8 @@ import { listBoards } from "../store/boards";
 import { rowsForInitiativeBoards } from "../store/cards";
 import { buildMetricState, loadMetricLasts, statusMetricsOf } from "./metricValues";
 import { actionCountsFor, PriorityState, statusColour, StatusResult } from "./status";
-import { actionCircles, actionLegend, statusChip } from "./statusUi";
+import { actionCircles, statusChip } from "./statusUi";
+import { initiativeRow, InitiativeRowData, initiativeRowHead } from "./initiativeRow";
 import { actionBelongsTo, newAction } from "../../../shared/schema/actions";
 import { promptConfirm } from "../prompts";
 import { parseOrgTree } from "../../../shared/schema/meeting";
@@ -36,7 +37,7 @@ import { paletteMap } from "../../../shared/palette";
 import { appPalettes } from "../store/config";
 import { todayIso } from "../../../shared/schema/id";
 import { ImprovementViewer, Initiative, adminScopeFor, groupInitiatives, myRoles, nextGateFor, orgKeyOf, orgsOf, statusOf, validateNewInitiative,
-  ownersLabel,
+  ownersLabel, ownersTitle,
 } from "./initiativeModel";
 import { fieldInput } from "./fieldInput";
 import { isFieldEmpty } from "./fieldCodec";
@@ -333,15 +334,6 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
       return h;
     };
 
-    /** The Actions column's head: its name over the key to its three
-     *  circles (Ben, 2026-11-17 — the register carries the executive
-     *  summary's done / future / late circles). */
-    const actionsHead = (): HTMLElement => {
-      const h = el("span", "app-im-actionshead");
-      h.appendChild(el("span", undefined, "Actions"));
-      h.appendChild(actionLegend(stateHex));
-      return h;
-    };
     /** Done / future / late for one initiative — the same circles the
      *  executive summary and the priority popup draw. */
     const actionCountsCell = (i: Initiative, cls: string): HTMLElement => {
@@ -356,20 +348,10 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
       return cell;
     };
 
-    /** The Documents-tab column header row — same labels as the spec. */
-    const columnHead = (): HTMLElement => {
-      const h = el("div", "app-im-row app-im-colhead");
-      h.append(
-        el("span", undefined, "Initiative"),
-        el("span", undefined, "Org"),
-        el("span", undefined, "Your role(s)"),
-        el("span", undefined, "Stage"),
-        el("span", undefined, "Primary metric"),
-        actionsHead(),
-        el("span", undefined, "")
-      );
-      return h;
-    };
+    /** The list's header — the shared initiative row's own (the same
+     *  columns as the priority popup and the executive summary, plus Org
+     *  and Your role(s)). */
+    const columnHead = (): HTMLElement => initiativeRowHead("register", ["Org", "Your role(s)"], 1);
     const note = (text: string): HTMLElement => el("div", "app-settings-note app-im-note", text);
 
     /** The Documents-tab header standard: title + scope subtitle + count
@@ -645,103 +627,69 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
       return chip;
     };
 
+    /** What the shared row and its metric tiles paint with. */
+    const rowPaint = { colour: stateHex, metricColour: (rag: "green" | "amber" | "red") => ragColor(rag) };
+    /** A list row — the ONE initiative row (initiativeRow.ts; Ben,
+     *  2026-11-17: the popup, this list and the executive summary each
+     *  drew an initiative their own way). This screen adds Org and Your
+     *  role(s): the list spans organisations. */
     const rowFor = (i: Initiative): HTMLElement => {
-      const row = el("div", "app-im-row");
-      // status edge = the initiative's status (the one rule, status.ts)
-      row.style.borderLeftColor = edgeOf(i);
-      const main = el("div", "app-im-main");
-      const titleLine = el("div", "app-im-title");
-      titleLine.appendChild(el("span", "app-im-title-text", i.title));
-      const tplChip = templateChip(i);
-      if (tplChip) titleLine.appendChild(tplChip);
-      const rowChip = stateChip(i);
-      if (rowChip) titleLine.appendChild(rowChip);
-      if (i.confidential) titleLine.appendChild(el("span", "app-im-chip app-im-chip-conf", "◈ Confidential"));
-      main.appendChild(titleLine);
-      // meta = priority statement · owner (org and roles are columns now)
+      // the grey line = owner · priority statement · process · template
       const primary = i.priorities.find((p) => p.primary) ?? i.priorities[0] ?? null;
       const priorityText = primary ? (priorityStatement.get(primary.priorityId) ?? "Linked priority") : "Other";
-      const owner = ownersLabel(i, 3);
-      main.appendChild(el("div", "app-im-meta", [priorityText, owner, processText(i)].filter((x) => x !== "").join(" · ")));
-      row.appendChild(main);
+      const tpl = templateChip(i);
+      const sub = [ownersLabel(i, 3), priorityText, processText(i), tpl?.textContent ?? ""].filter((x) => x !== "").join(" · ");
       // org column: department (or site), full chain on hover
       const also = i.alsoOrgs ?? [];
       const orgCell = el("div", "app-im-cell", (i.org.department || i.org.site) + (also.length > 0 ? ` +${also.length}` : ""));
       orgCell.title = [[i.org.company, i.org.site, i.org.department, i.org.area].filter((x) => x !== "").join(" › "), ...also.map((o) => `also: ${[o.site, o.department, o.area].filter((x) => x !== "").join(" › ")}`)].join("\n");
-      row.appendChild(orgCell);
       // your role(s) on this initiative
       const roleKeys = myRoles(i, viewer.whoId);
       const rolesCell = el("div", "app-im-cell" + (roleKeys.length === 0 ? " app-cp-muted" : ""));
       rolesCell.textContent = roleKeys.length > 0 ? roleKeys.map((k) => i.snapshot.roleLabels[k] ?? k).join(", ") : "—";
-      row.appendChild(rolesCell);
-      // stage column: the current stage — or, when a gate request is open,
-      // who the approval waits on (Ben, 2026-08-26: replaces "Next gate")
+      // under the stage: who an open gate waits on, else the next gate's
+      // date (Ben, 2026-08-26: replaces "Next gate")
       const stage = i.snapshot.stages.find((s) => s.id === i.stageId) ?? null;
-      const stageCell = el("div", "app-im-cell app-im-stagecell");
-      if (i.status !== "active") stageCell.appendChild(el("span", "app-cp-muted", i.status));
-      else if (i.singleAction) stageCell.appendChild(el("span", "app-cp-muted", "single action"));
-      else if (stage) {
-        const chip = el("span", "app-im-stagechip", stage.name);
-        chip.style.color = PDCA_TOKENS[stage.pdca].fg;
-        chip.style.background = PDCA_TOKENS[stage.pdca].bg;
-        stageCell.appendChild(chip);
+      let stageNote: InitiativeRowData["stageNote"];
+      if (i.status === "active" && !i.singleAction && stage) {
         const pending = i.gate;
         if (pending) {
           const openRoles = pending.approverRoles.filter((r) => !pending.decisions[r]);
           const mine = openRoles.filter((r) => actorsForRole(i, r).some((p) => p.whoId === viewer.whoId));
-          if (mine.length > 0) stageCell.appendChild(el("div", "app-im-awaiting", "awaiting you"));
-          else if (openRoles.length > 0) {
-            const who = el("div", "app-cp-muted app-im-stagesub", `awaiting ${openRoles.map((r) => i.snapshot.roleLabels[r] ?? r).join(", ")}`);
-            who.title = "A gate approval has been requested";
-            stageCell.appendChild(who);
-          }
+          if (mine.length > 0) stageNote = { text: "awaiting you", tone: "mine" };
+          else if (openRoles.length > 0) stageNote = { text: `awaiting ${openRoles.map((r) => i.snapshot.roleLabels[r] ?? r).join(", ")}`, tone: "muted", title: "A gate approval has been requested" };
         } else {
           const ng = nextGateFor(i);
-          if (ng !== null && ng.target !== "") {
-            const when = el("div", "", dayLabel(ng.target));
-            if (ng.target < todayIso()) {
-              when.style.color = ragColor("red");
-              when.style.fontWeight = "600";
-            } else when.classList.add("app-cp-muted");
-            stageCell.appendChild(when);
-          }
+          if (ng !== null && ng.target !== "") stageNote = { text: dayLabel(ng.target), tone: ng.target < todayIso() ? "late" : "muted", title: "The stage's target date" };
         }
       }
-      row.appendChild(stageCell);
-      // primary metric — values arrive with P6's metric cards
-      const metricCell = el("div", "app-im-cell");
-      const mv = (metricState.get(i.id)?.values ?? [])[0] ?? null;
-      if (mv && mv.display !== "") {
-        // value + / target — the value takes the state colour only when
-        // off-target (design 1.2)
-        const v = el("span", undefined, mv.display);
-        if (mv.rag === "amber" || mv.rag === "red") v.style.color = ragColor(mv.rag);
-        if (mv.rag !== "green" && mv.rag !== null) v.style.fontWeight = "700";
-        metricCell.appendChild(el("span", "app-cp-muted", `${mv.name}${primaryMetric(i.metrics)?.driverId ? " · VDT" : ""} `));
-        metricCell.appendChild(v);
-        if (mv.target !== null) metricCell.appendChild(el("span", "app-cp-muted", ` / ${mv.target}${mv.unit}`));
-      } else {
-        metricCell.classList.add("app-cp-muted");
-        metricCell.textContent =
-          primaryMetric(i.metrics)
-            ? `${primaryMetric(i.metrics)!.name}${primaryMetric(i.metrics)!.driverId ? " · VDT" : ""}${primaryMetric(i.metrics)!.target !== null ? ` → ${primaryMetric(i.metrics)!.target}${primaryMetric(i.metrics)!.unit}` : ""}`
-            : "No metric set";
-        metricCell.title = i.metrics.length > 0 ? "Chart values on the initiative board's KPI card" : "";
-      }
-      row.appendChild(metricCell);
-      // actions column: the underlying position (Ben, 2026-08-26)
-      row.appendChild(actionCountsCell(i, "app-im-cell"));
-      // (the per-row health column left with the old initiative health
-      // check — health checks are their own feature now, 2026-10-21)
-      // kebab
+      const kebabCell = el("span", "app-ir-kebabcell");
       const kebab = btn("⋮", "app-cp-kebab app-im-kebab");
       kebab.addEventListener("click", (e) => {
         e.stopPropagation();
         openRowMenu(kebab, i);
       });
-      row.appendChild(kebab);
-      row.addEventListener("click", () => openInitiative(i));
-      return row;
+      kebabCell.appendChild(kebab);
+      const active = i.status === "active";
+      return initiativeRow(
+        {
+          title: i.title,
+          sub,
+          subTitle: [ownersTitle(i) !== "" ? `Owner: ${ownersTitle(i)}` : "", tpl?.title ?? ""].filter((x) => x !== "").join("\n"),
+          status: active ? statusOfInitiative(i) : null,
+          statusText: active ? "" : i.status,
+          flagNote: i.flagNote,
+          // primary belongs to a priority; this list spans priorities
+          primary: false,
+          tags: i.confidential ? ["◈ Confidential"] : [],
+          stageName: i.singleAction ? "single action" : (stage?.name ?? ""),
+          stagePdca: active && !i.singleAction && stage ? stage.pdca : "",
+          stageNote,
+          counts: active ? actionCountsFor(i, initActions, todayIso()) : null,
+          metrics: metricState.get(i.id)?.values ?? [],
+        },
+        { layout: "register", ...rowPaint, extra: [orgCell, rolesCell], tools: [kebabCell], onOpen: () => openInitiative(i) }
+      );
     };
 
     // (the working folder is NOT a shortcut on the list or tiles — Ben,

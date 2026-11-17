@@ -25,8 +25,7 @@ import { addModeToggle, modal, field, OrgTree, childOrgs, priorityDialog, cascad
 import { rememberBoardOrigin } from "../improvement/boardOrigin";
 import { popupTabFor, rememberPopupTab } from "../sessionView";
 import { promptConfirm } from "../prompts";
-import { reasonsLine, STATE_LABELS, STATE_ORDER } from "../improvement/status";
-import { actionCircles, actionLegend } from "../improvement/statusUi";
+import { initiativeRow, initiativeRowHead, rowRank } from "../improvement/initiativeRow";
 import {
   CLOSE_REASONS,
   CloseReason,
@@ -1206,50 +1205,26 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
       if (shown.length === 0 && rows.length === 0) {
         body.appendChild(el("div", "app-cp-muted", "No initiatives linked yet — Add initiative, or link one from the Improvement tab."));
       }
-      // grouped by RAG (Ben, 2026-08-24: the groups replace the rail's
-      // tally chips; empty groups are omitted)
-      // …by STATUS since 2026-11-17: flagged first (someone asked), then
-      // off track, then on track
-      const GROUPS = STATE_ORDER.map((st) => [st, STATE_LABELS[st]] as const);
+      // ONE row, the one the Improvement list and the executive summary
+      // draw (improvement/initiativeRow.ts — Ben, 2026-11-17): no group
+      // headings, the cards in order — primary, support needed, off
+      // track, on track — under a header whose captions sit over the
+      // action circles. The ★ and the ⋮ have fixed cells.
       const buildRow = (r: (typeof shown)[number]): HTMLElement => {
-        const rowEl = el("div", "app-cp-ov-init");
-        rowEl.style.borderLeftColor = ctx.stateColour(r.status.state);
-        const main = el("div", "app-cp-ov-init-main");
-        const t = el("div", "app-cp-ov-init-title");
-        if (r.inheritedFrom !== "") t.appendChild(el("span", "app-cp-muted", `↓ ${r.inheritedFrom} `));
-        t.appendChild(el("span", undefined, r.title));
-        main.appendChild(t);
-        // (its actions are the three circles to the right — Ben,
-        // 2026-11-17: the popup carries the executive summary's circles,
-        // not "n open · n late" in words)
-        const meta = el("div", "app-cp-ov-init-meta", [r.orgName, r.ownerName].filter((x) => x !== "").join(" · "));
-        if (r.ownerTitle !== "") meta.title = `Owner: ${r.ownerTitle}`;
-        main.appendChild(meta);
-        // why it is where it is: a flagged one says what lies under the
-        // flag and what was asked for; an off-track one lists its reasons
-        const why = reasonsLine(r.status);
-        if (r.status.state === "flagged") {
-          const line = el("div", "app-cp-ov-init-why");
-          line.appendChild(el("span", "app-cp-ov-init-sub", r.status.sub));
-          if (r.flagNote !== "") line.appendChild(el("span", undefined, ` · Support needed: ${r.flagNote}`));
-          if (why !== "") line.appendChild(el("span", "app-cp-muted", ` · ${why}`));
-          line.style.color = ctx.stateColour("flagged");
-          main.appendChild(line);
-        } else if (why !== "") {
-          const line = el("div", "app-cp-ov-init-why", why);
-          line.style.color = ctx.stateColour("bad");
-          main.appendChild(line);
-        }
-        rowEl.appendChild(main);
-        // done / future / late — the same circles as the executive summary
-        if (r.counts.total > 0) rowEl.appendChild(actionCircles(r.counts, ctx.stateColour, "s", false));
-        else rowEl.appendChild(el("span", "app-cp-muted app-cp-ov-init-noacts", "no actions"));
+        const isPrimary = primary?.id === r.id;
+        const openBoard = () => {
+          rememberBoardOrigin("#/priorities", live.id);
+          close();
+          window.location.hash = `#/board/${r.boardId}`;
+        };
         // ★ the priority's PRIMARY initiative (its charter + metrics on the
-        // Charter tab) — a direct link only, set by whoever manages the org
+        // Charter tab) — a direct link only, set by whoever manages the
+        // org. The star alone: the row's tag and heavy border say "primary".
+        const starCell = el("span", "app-ir-starcell");
         if (r.inheritedFrom === "") {
-          const isPrimary = primary?.id === r.id;
-          const star = btn(isPrimary ? "★ Primary" : "☆", "app-link app-cp-ov-star" + (isPrimary ? " app-cp-ov-star-on" : ""));
-          star.title = isPrimary ? "The primary initiative — its charter and metrics headline this priority" : "Make this the primary initiative";
+          const star = btn(isPrimary ? "★" : "☆", "app-link app-cp-ov-star" + (isPrimary ? " app-cp-ov-star-on" : ""));
+          star.title = isPrimary ? "The primary initiative — its charter and metrics headline this priority. Click to clear." : "Make this the primary initiative";
+          star.setAttribute("aria-label", star.title);
           star.disabled = !ctx.canManage(live.org);
           star.addEventListener("click", (e) => {
             e.stopPropagation();
@@ -1268,28 +1243,14 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
               if (scrim.isConnected) paint();
             })();
           });
-          rowEl.appendChild(star);
-        }
-        if (r.stageName !== "") {
-          const chip = el("span", "app-im-stagechip", r.stageName);
-          chip.style.color = r.pdcaFg;
-          chip.style.background = r.pdcaBg;
-          rowEl.appendChild(chip);
-        }
-        const openBoard = () => {
-          rememberBoardOrigin("#/priorities", live.id);
-          close();
-          window.location.hash = `#/board/${r.boardId}`;
-        };
-        if (r.boardId !== "") {
-          rowEl.classList.add("app-cp-ov-link");
-          rowEl.addEventListener("click", openBoard);
+          starCell.appendChild(star);
         }
         // the same ⋮ as the Improvement tab's rows (issue 32)
+        const kebabCell = el("span", "app-ir-kebabcell");
         const init = ctx.initiativeById(r.id);
         if (init) {
           const kebab = btn("⋮", "app-cp-kebab app-im-kebab");
-          kebab.title = "Open · Edit details · Flag · Escalate · Archive";
+          kebab.title = "Open · Edit details · Flag · Archive";
           kebab.addEventListener("click", (e) => {
             e.stopPropagation();
             void import("../improvement/rowMenu").then(({ openInitiativeRowMenu }) => {
@@ -1308,9 +1269,30 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
               });
             });
           });
-          rowEl.appendChild(kebab);
+          kebabCell.appendChild(kebab);
         }
-        return rowEl;
+        return initiativeRow(
+          {
+            title: r.title,
+            sub: [r.ownerName !== "" ? r.ownerName : "No owner", r.inheritedFrom !== "" ? `↓ ${r.inheritedFrom}` : r.orgName].filter((x) => x !== "").join(" · "),
+            subTitle: r.ownerTitle !== "" ? `Owner: ${r.ownerTitle}` : undefined,
+            status: r.status,
+            flagNote: r.flagNote,
+            primary: isPrimary,
+            stageName: r.stageName,
+            stagePdca: r.stagePdca,
+            counts: r.counts,
+            metrics: r.metrics,
+          },
+          {
+            layout: "popup",
+            colour: ctx.stateColour,
+            metricColour: (rag) => ctx.palette[ragPaletteKey(rag)] ?? "#9a948a",
+            tools: [starCell, kebabCell],
+            onOpen: r.boardId !== "" ? openBoard : undefined,
+            openTitle: "Open the initiative board",
+          }
+        );
       };
       // a primary that is not in the list below still has to be said, and
       // be clearable: a COMPLETED one keeps headlining but only active
@@ -1328,8 +1310,6 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
         });
         return b;
       };
-      // the key to the rows' action circles, once, above the list
-      if (shown.length > 0) body.appendChild(actionLegend(ctx.stateColour, { lead: "Actions" }));
       const stale = ctx.stalePrimaryOf(live);
       if (stale !== null) {
         const note = el("div", "app-cp-ov-primarynote");
@@ -1353,27 +1333,15 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
         if (ctx.canManage(live.org)) note.appendChild(clearPrimary("Clear"));
         body.appendChild(note);
       }
-      // ★ the primary initiative always leads (Ben, 2026-09-23), set apart
-      const primaryRow = primary !== null ? (shown.find((r) => r.id === primary.id) ?? null) : null;
-      if (primaryRow) {
-        const h = el("div", "app-cp-ov-group app-cp-ov-group-primary");
-        h.append(el("span", "app-cp-ov-star-on", "★"), el("span", undefined, "Primary initiative"));
-        body.appendChild(h);
-        const row = buildRow(primaryRow);
-        row.classList.add("app-cp-ov-init-primary");
-        body.appendChild(row);
-      }
-      const rest = primaryRow ? shown.filter((r) => r.id !== primaryRow.id) : shown;
-      const grouped = GROUPS.map(([state, label]) => ({ state, label, rows: rest.filter((r) => r.status.state === state) })).filter((g) => g.rows.length > 0);
-      for (const g of grouped) {
-        const h = el("div", "app-cp-ov-group");
-        const dot = el("span", "app-cp-ov-group-dot");
-        dot.style.background = ctx.stateColour(g.state);
-        h.append(dot, el("span", undefined, `${g.label} · ${g.rows.length}`));
-        body.appendChild(h);
-        for (const r of g.rows) {
-          body.appendChild(buildRow(r));
-        }
+      // the list: one header, then the cards — the primary first, then
+      // support needed, off track, on track
+      const primaryId = primary?.id ?? "";
+      const ordered = shown.map((r, i) => ({ r, i })).sort((a, b) => rowRank(a.r.status.state, a.r.id === primaryId) - rowRank(b.r.status.state, b.r.id === primaryId) || a.i - b.i);
+      if (ordered.length > 0) {
+        const list = el("div", "app-ir-list");
+        list.appendChild(initiativeRowHead("popup", [], 2));
+        for (const { r } of ordered) list.appendChild(buildRow(r));
+        body.appendChild(list);
       }
       const hidden = rows.length - shown.length;
       if (hidden > 0) body.appendChild(el("div", "app-cp-muted", `+ ${hidden} confidential initiative${hidden === 1 ? "" : "s"}`));

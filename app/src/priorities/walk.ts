@@ -18,20 +18,16 @@
 // (§8: opens at step 1); the phone mounts it inline as the page.
 
 import { el, clear } from "../../../shared/ui/dom";
-import { pdcaQuadrant } from "../../../shared/ui/actionUi";
 import { rememberBoardOrigin } from "../improvement/boardOrigin";
 import type { MetricValue } from "../improvement/metricValues";
-import { sparklineSvg } from "../improvement/sparkline";
-import { priorityStatus, reasonsLine, STATE_ORDER, statusWords } from "../improvement/status";
-import { actionCircles, priorityCounts } from "../improvement/statusUi";
+import { initiativeRow, initiativeRowHead, metricTiles, rowRank } from "../improvement/initiativeRow";
+import { priorityStatus } from "../improvement/status";
+import { priorityCounts } from "../improvement/statusUi";
 import { LifecycleCtx, renderReviewList } from "./lifecycle";
 import { OrgRef, orgName, parentClosed, pendingCascades, Pillar, Priority, ragPaletteKey } from "./model";
 
 /** How many metric tiles a card or a row shows before "+n". */
 export const SUMMARY_METRIC_CAP = 4;
-
-const PDCA_INDEX: Record<string, number> = { plan: 0, do: 1, check: 2, act: 3 };
-const PDCA_WORD: Record<string, string> = { plan: "Plan", do: "Do", check: "Check", act: "Act" };
 
 export interface WalkOpts {
   host: HTMLElement;
@@ -200,110 +196,46 @@ export function mountWalk(o: WalkOpts): () => void {
     root.appendChild(foot);
   };
 
-  const lineColour = "#26241f";
-  const sparkColours = () => ({ good: o.ctx.stateColour("good"), bad: o.ctx.stateColour("bad"), line: lineColour });
-
-  /** One metric as a tile: its name, the sparkline over its good band
-   *  (or its state, for a good / bad or picklist metric), the reading. */
-  const metricTile = (mv: MetricValue): HTMLElement => {
-    const tile = el("div", "app-xs-metric");
-    const name = el("div", "app-xs-metric-name", mv.name);
-    name.title = mv.objective !== "" ? `${mv.name}: ${mv.objective}` : mv.name;
-    tile.appendChild(name);
-    const reading = mv.display !== "" ? mv.display : "No data";
-    const plan = mv.target !== null ? ` · plan ${mv.target}${mv.unit}` : "";
-    if (mv.tail.length > 0) {
-      tile.appendChild(sparklineSvg(mv.tail, { target: mv.target, usl: mv.usl, lsl: mv.lsl, direction: mv.direction }, sparkColours(), 120, 40, `${mv.name}: ${reading}${plan}`));
-    } else {
-      const chip = el("div", "app-xs-metric-state" + (mv.display === "" ? " app-xs-metric-none" : ""), reading);
-      if (mv.rag) chip.style.background = o.ctx.palette[ragPaletteKey(mv.rag)] ?? "";
-      if (mv.rag) chip.classList.add("app-xs-metric-state-on");
-      tile.appendChild(chip);
-    }
-    const num = el("div", "app-xs-metric-num", mv.tail.length > 0 ? `${reading}${plan}` : plan.replace(/^ · /, ""));
-    if (mv.rag === "red" || mv.rag === "amber") num.style.color = o.ctx.stateColour("bad");
-    tile.appendChild(num);
-    return tile;
-  };
-
-  const metricTiles = (list: MetricValue[]): HTMLElement => {
-    const box = el("div", "app-xs-metrics");
-    for (const mv of list.slice(0, SUMMARY_METRIC_CAP)) box.appendChild(metricTile(mv));
-    if (list.length > SUMMARY_METRIC_CAP) {
-      const more = el("div", "app-xs-metric-more", `+${list.length - SUMMARY_METRIC_CAP}`);
-      more.title = list.slice(SUMMARY_METRIC_CAP).map((m) => m.name).join("\n");
-      box.appendChild(more);
-    }
-    return box;
+  /** What the shared row and the metric tiles paint with. */
+  const paint0 = {
+    colour: o.ctx.stateColour,
+    metricColour: (rag: "green" | "amber" | "red") => o.ctx.palette[ragPaletteKey(rag)] ?? "#9a948a",
   };
 
   type InitRow = ReturnType<LifecycleCtx["initiativesFor"]>[number];
 
-  /** One initiative under an open priority. */
-  const initiativeRow = (r: InitRow, isPrimary: boolean, p: Priority): HTMLElement => {
-    const row = el("div", "app-xs-init");
-    row.style.borderLeftColor = o.ctx.stateColour(r.status.state);
-    const who = el("div", "app-xs-init-who");
-    if (isPrimary) who.appendChild(el("div", "app-xs-tag", "Primary initiative"));
-    const title = el("div", "app-xs-init-title");
-    if (r.inheritedFrom !== "") title.appendChild(el("span", "app-cp-muted", `↓ ${r.inheritedFrom} `));
-    title.appendChild(el("span", undefined, r.title));
-    who.appendChild(title);
-    const owner = el("div", "app-xs-owner", r.ownerName !== "" ? r.ownerName : "No owner");
-    if (r.ownerTitle !== "") owner.title = `Owner: ${r.ownerTitle}`;
-    who.appendChild(owner);
-    // the status in words, and why — a colour alone is not an answer
-    const words = el("div", "app-xs-init-status", (r.status.state === "flagged" ? "⚐ " : "") + statusWords(r.status));
-    words.style.color = o.ctx.stateColour(r.status.state);
-    who.appendChild(words);
-    const why = reasonsLine(r.status);
-    if (why !== "") who.appendChild(el("div", "app-xs-init-why", why));
-    row.appendChild(who);
-
-    const stage = el("div", "app-xs-stage");
-    if (r.stagePdca !== "") {
-      stage.appendChild(el("div", "app-xs-collabel", r.stageName));
-      stage.appendChild(pdcaQuadrant(PDCA_INDEX[r.stagePdca] ?? 0, 44, lineColour, `${r.stageName} — ${PDCA_WORD[r.stagePdca] ?? ""}`));
-    } else if (r.stageName !== "") {
-      stage.appendChild(el("div", "app-xs-collabel", r.stageName));
-    }
-    row.appendChild(stage);
-
-    const acts = el("div", "app-xs-actions");
-    acts.appendChild(el("div", "app-xs-collabel", "Actions"));
-    acts.appendChild(actionCircles(r.counts, o.ctx.stateColour, "m", true));
-    if (r.counts.support > 0) acts.appendChild(el("div", "app-xs-support-count", `⚑ ${r.counts.support} need${r.counts.support === 1 ? "s" : ""} support`));
-    row.appendChild(acts);
-
-    row.appendChild(metricTiles(r.metrics));
-
-    const support = el("div", "app-xs-support");
-    if (r.status.state === "flagged") {
-      support.appendChild(el("div", "app-xs-collabel app-xs-collabel-caps", "Support needed"));
-      support.appendChild(el("div", "app-xs-support-text", r.flagNote !== "" ? r.flagNote : "Flagged — no note written"));
-    }
-    row.appendChild(support);
-
-    if (r.boardId !== "") {
-      row.classList.add("app-xs-init-link");
-      row.tabIndex = 0;
-      row.setAttribute("role", "link");
-      row.title = "Open the initiative board";
-      const open = () => {
-        // Back returns to the summary where it was left (the screen
-        // remembers the step and the open cards)
-        o.onView?.();
-        rememberBoardOrigin("#/priorities");
-        window.location.hash = `#/board/${r.boardId}`;
-      };
-      row.addEventListener("click", open);
-      row.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") open();
-      });
-    }
-    void p;
-    return row;
-  };
+  /** One initiative under an open priority — the ONE row every screen
+   *  draws (improvement/initiativeRow.ts), at presentation size. */
+  const initiativeRowFor = (r: InitRow, isPrimary: boolean): HTMLElement =>
+    initiativeRow(
+      {
+        title: r.title,
+        sub: [r.ownerName !== "" ? r.ownerName : "No owner", r.inheritedFrom !== "" ? `↓ ${r.inheritedFrom}` : ""].filter((x) => x !== "").join(" · "),
+        subTitle: r.ownerTitle !== "" ? `Owner: ${r.ownerTitle}` : undefined,
+        status: r.status,
+        flagNote: r.flagNote,
+        primary: isPrimary,
+        stageName: r.stageName,
+        stagePdca: r.stagePdca,
+        counts: r.counts,
+        metrics: r.metrics,
+      },
+      {
+        layout: "summary",
+        ...paint0,
+        openTitle: "Open the initiative board",
+        onOpen:
+          r.boardId !== ""
+            ? () => {
+                // Back returns to the summary where it was left (the screen
+                // remembers the step and the open cards)
+                o.onView?.();
+                rememberBoardOrigin("#/priorities");
+                window.location.hash = `#/board/${r.boardId}`;
+              }
+            : undefined,
+      }
+    );
 
   /** A priority: its status edge, counts and key metrics; open, its
    *  initiatives. */
@@ -346,7 +278,9 @@ export function mountWalk(o: WalkOpts): () => void {
 
     // the priority's key metrics — shown while it is closed; open, each
     // initiative carries its own and these would only repeat them
-    head.appendChild(open ? el("div", "app-xs-metrics") : metricTiles(o.objectives(p)));
+    const keys = open ? el("div", "app-ir-metrics") : metricTiles(o.objectives(p), SUMMARY_METRIC_CAP, paint0, 40);
+    keys.classList.add("app-xs-metrics");
+    head.appendChild(keys);
 
     const tools = el("div", "app-xs-tools");
     if (o.onMenu && (o.canMenu?.(p) ?? false) && !o.adoptedIds.has(p.id)) {
@@ -375,10 +309,12 @@ export function mountWalk(o: WalkOpts): () => void {
       const rows = o.ctx.initiativesFor(p);
       const shown = rows.filter((r) => !r.confidentialHidden);
       const primaryId = o.ctx.primaryOf(p)?.id ?? "";
-      // the primary leads; then attention first — flagged, off track, on track
-      const rank = (r: InitRow): number => (r.id === primaryId ? -1 : STATE_ORDER.indexOf(r.status.state));
-      const ordered = shown.map((r, i) => ({ r, i })).sort((a, b) => rank(a.r) - rank(b.r) || a.i - b.i);
-      for (const { r } of ordered) list.appendChild(initiativeRow(r, r.id === primaryId, p));
+      // the primary leads; then attention first — support needed, off
+      // track, on track (the popup's order too)
+      const ordered = shown.map((r, i) => ({ r, i })).sort((a, b) => rowRank(a.r.status.state, a.r.id === primaryId) - rowRank(b.r.status.state, b.r.id === primaryId) || a.i - b.i);
+      // the same header the popup and the Improvement list carry
+      if (ordered.length > 0) list.appendChild(initiativeRowHead("summary"));
+      for (const { r } of ordered) list.appendChild(initiativeRowFor(r, r.id === primaryId));
       if (rows.length === 0) list.appendChild(el("div", "app-cp-muted app-xs-none", "No initiatives are linked to this priority yet."));
       const hidden = rows.length - shown.length;
       if (hidden > 0) list.appendChild(el("div", "app-cp-muted app-xs-none", `${hidden} confidential initiative${hidden === 1 ? "" : "s"} not shown`));
