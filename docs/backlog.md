@@ -12,8 +12,32 @@ release paragraphs: `../CLAUDE.md`). Production took v0.88.1 and the
 v0.89.0/v0.90.0 managed solution; v0.91.0 and v0.93.0 are app-only,
 v0.92.0 carries the Utilities app in the managed solution, and v0.94.0
 is SOLUTION-CARRYING (four columns) — import the solution first, then
-lock older builds from Settings once the new one runs. Recent
-decisions of record:
+lock older builds from Settings once the new one runs.
+
+**In flight (2026-11-17), built on dev, NOT released:** the executive
+summary scope and the 2026-11-17 issue export — plan, decisions and
+the as-built record in `issues-plan-2026-11-17.md`. It is
+SOLUTION-CARRYING (`ben_lastupdateat` on `ben_ltkinitiative`,
+`ben_doneat` and a widened `ben_assigneesjson` on `ben_ltkaction`, the
+new `ben_ltkattachment` table). Owed from it:
+
+- **Duplicate… on the other action-raising cards** (5 Whys, Agenda,
+  Fishbone…): the dialog offers it only where the host passes
+  `onDuplicate` — the Action card, My day and the Improvement Gantt's
+  editor do.
+- **Attachment captions cannot be edited**, and a file is added with
+  none (remove and add again). No preview.
+- **Escape in the message panel's search** does not close its list —
+  the action dialog underneath swallows the key.
+- **The Filters tree and the ★ featured-terms editor were not seen in a
+  browser** (the Documents screen needs SharePoint): UAT-DOC-093.
+- **Ellen's seven document types** may not be terms in the Document
+  type set; add them in the term manager before featuring them.
+- **A status preview before a release** was considered and not built:
+  release day reads mostly off track under the new rule. Tell leaders
+  first.
+
+Recent decisions of record:
 
 - **Search pickers: where the type-ahead pattern is still owed**
   (survey 2026-11-16, read from the code; the pattern is
