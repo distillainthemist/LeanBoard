@@ -276,7 +276,29 @@ export const LTK_BASE_CSS = `
    body, so the split is right wherever it is hosted). */
 .ltk-dialog-body.ltk-act-body { container-type: inline-size; }
 .ltk-act-grid { display: flex; flex-direction: column; gap: 12px; }
-.ltk-act-main, .ltk-act-side { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.ltk-act-main, .ltk-act-sidebody { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+/* the right side folds away: a round button on the divider hides it, a
+   slim rail with the counts brings it back */
+.ltk-act-side { position: relative; min-width: 0; border-top: 1px solid var(--ltk-hairline); padding-top: 14px; }
+.ltk-act-sidehide {
+  position: absolute; top: -13px; right: 0; width: 26px; height: 26px; padding: 0; border-radius: 50%;
+  border: 1px solid var(--ltk-hairline); background: var(--ltk-bg); color: var(--ltk-muted);
+  font: inherit; font-size: 15px; line-height: 1; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transform: rotate(90deg);
+}
+.ltk-act-sidehide:hover, .ltk-act-sidehide:focus-visible, .ltk-act-rail:hover, .ltk-act-rail:focus-visible { border-color: var(--ltk-accent); color: var(--ltk-accent); outline: none; }
+.ltk-act-rail {
+  display: none; align-items: center; gap: 10px; width: 100%; min-height: 40px; padding: 6px 10px; cursor: pointer;
+  border: 1px solid var(--ltk-hairline); border-radius: 8px; background: var(--ltk-bg); color: var(--ltk-muted); font: inherit; font-size: 12.5px;
+}
+.ltk-act-rail-chev { font-size: 16px; line-height: 1; transform: rotate(-90deg); }
+.ltk-act-rail-badge { white-space: nowrap; font-weight: 600; }
+.ltk-act-rail-label { white-space: nowrap; }
+.ltk-act-grid-folded .ltk-act-sidebody, .ltk-act-grid-folded .ltk-act-sidehide { display: none; }
+.ltk-act-grid-folded .ltk-act-rail { display: flex; }
+.ltk-act-grid-folded .ltk-act-side { border-top: none; padding-top: 0; }
+/* the three sections of the side read alike: one heading style */
+.ltk-act-attach .app-att-title { font-size: 12px; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--ltk-muted); }
+.ltk-act-attach .app-att { gap: 4px; }
 .ltk-act-form { gap: 10px !important; }
 .ltk-act-linked .ltk-link-chip { min-height: 44px; box-sizing: border-box; }
 /* "Linked to" is a type-ahead too: what it finds opens under the box,
@@ -329,11 +351,32 @@ export const LTK_BASE_CSS = `
 .ltk-shared:empty { display: none; }
 .ltk-shared-extras { align-items: center; }
 .ltk-shared-note { font-size: 12.5px; color: var(--ltk-muted); }
-/* "＋ Cascade to team…" and "＋ Add support" on one line */
+/* "＋ Cascade to team…" and "＋ Add support" on one line; "x / y people
+   completed" at its right end */
 .ltk-act-links { display: flex; flex-wrap: wrap; gap: 4px 22px; align-items: center; }
+.ltk-parts-count { margin-left: auto; font-size: 13px; font-weight: 600; color: var(--ltk-muted); white-space: nowrap; }
 /* Closed is off on a shared action with parts still to do */
 .ltk-pdca-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-.ltk-pdca-hint { font-size: 12.5px; color: var(--ltk-muted); margin-top: 4px; }
+/* a SAVED shared action's people are sign-off boxes: the whole box
+   records the part; ✕ takes the person off (a tick box here unticked
+   people by accident) */
+.ltk-signoff { cursor: pointer; user-select: none; }
+.ltk-signoff .ltk-part { margin-left: 0; }
+.ltk-signoff-name { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.ltk-signoff-done { border-color: #107c10; }
+.ltk-signoff-x { flex: 0 0 auto; width: 24px; height: 24px; padding: 0; border: none; border-radius: 4px; background: none; color: var(--ltk-muted); font: inherit; font-size: 12px; cursor: pointer; opacity: 0.55; }
+.ltk-signoff-x:hover, .ltk-signoff-x:focus-visible { opacity: 1; background: var(--ltk-bg); color: #d13438; outline: none; }
+/* the title row's tools, and "Flag for support": faint in the flag's
+   colour until pressed, the full colour once flagged */
+.ltk-act-titletools { display: inline-flex; align-items: center; gap: 8px; }
+.ltk-btn.ltk-flagbtn {
+  font-size: 13px; font-weight: 600; min-height: 36px; padding: 4px 12px;
+  color: var(--ltk-flag, #7b3fa0);
+  background: color-mix(in srgb, var(--ltk-flag, #7b3fa0) 10%, var(--ltk-bg));
+  border: 1px solid color-mix(in srgb, var(--ltk-flag, #7b3fa0) 35%, var(--ltk-bg));
+}
+.ltk-btn.ltk-flagbtn:hover, .ltk-btn.ltk-flagbtn:focus-visible { border-color: var(--ltk-flag, #7b3fa0); outline: none; }
+.ltk-btn.ltk-flagbtn-on { background: var(--ltk-flag, #7b3fa0); border-color: var(--ltk-flag, #7b3fa0); color: #fff; }
 /* the complete circle on a shared action: my part done (outlined tick),
    or not mine to tick */
 .ltk-action-circle-part { background: transparent !important; }
@@ -390,7 +433,15 @@ export const LTK_BASE_CSS = `
 .ltk-act-side .ltk-cmt-list { max-height: none; overflow: visible; }
 @container (min-width: 720px) {
   .ltk-act-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; column-gap: 24px; align-items: start; padding: 4px 4px 0; }
-  .ltk-act-side { border-left: 1px solid var(--ltk-hairline); padding-left: 24px; align-self: stretch; }
+  .ltk-act-side { border-top: none; padding-top: 0; border-left: 1px solid var(--ltk-hairline); padding-left: 24px; align-self: stretch; }
+  .ltk-act-sidehide { top: 0; right: auto; left: -13px; transform: none; }
+  /* folded: the side is a slim rail down the right edge */
+  .ltk-act-grid.ltk-act-grid-folded { grid-template-columns: minmax(0, 1fr) 40px; column-gap: 16px; }
+  .ltk-act-grid-folded .ltk-act-side { border-left: none; padding-left: 0; }
+  .ltk-act-grid-folded .ltk-act-rail { flex-direction: column; justify-content: flex-start; width: 40px; height: 100%; min-height: 160px; padding: 10px 0; gap: 12px; }
+  .ltk-act-grid-folded .ltk-act-rail-chev { transform: none; }
+  .ltk-act-grid-folded .ltk-act-rail-badge { font-size: 11.5px; display: flex; flex-direction: column; align-items: center; line-height: 1.2; }
+  .ltk-act-grid-folded .ltk-act-rail-label { writing-mode: vertical-rl; margin-top: 4px; }
   /* the people three across — each box its full 44px (Ben, 2026-11-16) */
   .ltk-act-form .ltk-checklist { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .ltk-pdca-seg.ltk-act-pdca { grid-template-columns: repeat(6, minmax(0, 1fr)); max-width: none; }

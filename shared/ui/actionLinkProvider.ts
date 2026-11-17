@@ -168,13 +168,14 @@ export function actionMessenger(): ((req: ActionMessageRequest) => void) | null 
 /** An action's attachments & links (issue 5, 2026-11-17): the host
  *  mounts its list into `host` — the dialog only gives it room. Returns
  *  a teardown. null = no host. */
-let attachmentsProvider: ((host: HTMLElement, action: LtkAction) => () => void) | null = null;
+export type ActionAttachmentsMount = (host: HTMLElement, action: LtkAction, onCount?: (n: number) => void) => () => void;
+let attachmentsProvider: ActionAttachmentsMount | null = null;
 
-export function setActionAttachmentsProvider(p: ((host: HTMLElement, action: LtkAction) => () => void) | null): void {
+export function setActionAttachmentsProvider(p: ActionAttachmentsMount | null): void {
   attachmentsProvider = p;
 }
 
-export function actionAttachments(): ((host: HTMLElement, action: LtkAction) => () => void) | null {
+export function actionAttachments(): ActionAttachmentsMount | null {
   return attachmentsProvider;
 }
 

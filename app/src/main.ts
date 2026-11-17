@@ -36,11 +36,11 @@ let viewerNow: (() => { objectId: string; name: string } | null) | null = null;
 const currentViewer = (): { objectId: string; name: string } | null => (viewerNow ? viewerNow() : null);
 // an action's attachments & links (2026-11-17): the dialog gives the
 // list room; the list itself loads on first use
-setActionAttachmentsProvider((host, action) => {
+setActionAttachmentsProvider((host, action, onCount) => {
   let stop: () => void = () => undefined;
   let gone = false;
   void import("./attachments/actionSlot").then((m) => {
-    if (!gone) stop = m.mountActionAttachments(host, action, currentViewer());
+    if (!gone) stop = m.mountActionAttachments(host, action, currentViewer(), onCount);
   });
   return () => {
     gone = true;

@@ -6,7 +6,7 @@
 import type { LtkAction } from "../../../shared/schema/actions";
 import { mountAttachments } from "./list";
 
-export function mountActionAttachments(host: HTMLElement, action: LtkAction, viewer: { objectId: string; name: string } | null): () => void {
+export function mountActionAttachments(host: HTMLElement, action: LtkAction, viewer: { objectId: string; name: string } | null, onCount?: (n: number) => void): () => void {
   const whoId = viewer?.objectId ?? "";
   return mountAttachments({
     host,
@@ -15,5 +15,6 @@ export function mountActionAttachments(host: HTMLElement, action: LtkAction, vie
     canAdd: whoId !== "",
     managesParent: whoId !== "" && (action.createdBy === whoId || action.assignees.some((x) => x.whoId === whoId)),
     heading: "Attachments & links",
+    onCount,
   }).teardown;
 }

@@ -15,7 +15,8 @@
 import "../src/style.css";
 import { ActionBoardEditor } from "../../controls/ActionBoard/editor";
 import { newAction, newComment, LtkAction } from "../../shared/schema/actions";
-import { setActionDirectoryProvider, setActionLinkProvider, setActionMessageProvider, setActionTeamProvider, setActionViewerProvider, setRescheduleProvider } from "../../shared/ui/actionLinkProvider";
+import { setActionAttachmentsProvider, setActionDirectoryProvider, setActionLinkProvider, setActionMessageProvider, setActionTeamProvider, setActionViewerProvider, setRescheduleProvider } from "../../shared/ui/actionLinkProvider";
+import { mountAttachments } from "../src/attachments/list";
 import { mountGantt } from "../src/improvement/gantt";
 
 setActionViewerProvider(() => ({ whoId: "u1", who: "Ben O'Brien" }));
@@ -82,6 +83,8 @@ if (shared) {
         ),
     })
   );
+  // the action dialog's attachments block (the store is the harness stub)
+  setActionAttachmentsProvider((host, _action, onCount) => mountAttachments({ host, parent: { kind: "initiative", id: "I1" }, actor: { whoId: "u1", who: "Ben O'Brien" }, canAdd: true, managesParent: true, onCount }).teardown);
   setActionMessageProvider((req) => {
     const c = newComment({ whoId: "u1", who: "Ben O'Brien" }, "Messaged Jane Smith by Teams");
     req.action.comments = [...req.action.comments, c];
@@ -146,3 +149,13 @@ for (const [label, fn] of cases) {
   b.addEventListener("click", fn);
   bar.appendChild(b);
 }
+// `?open=a2` opens that action's dialog straight away; `&fold=1` folds
+// the dialog's right side first (headless screenshots)
+const openId = query.get("open");
+if (openId !== null) {
+  if (query.get("fold") === "1") window.localStorage.setItem("ltk.actionSide", "closed");
+  else window.localStorage.removeItem("ltk.actionSide");
+  const target = many.find((a) => a.id === openId);
+  if (target) setTimeout(() => (ed as unknown as { editAction: (a: LtkAction) => void }).editAction(target), 300);
+}
+

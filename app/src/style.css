@@ -5437,7 +5437,7 @@ button.app-link.app-att-x { flex: 0 0 auto; min-width: 32px; min-height: 32px; c
 .app-ib-attach { padding: 12px 0 4px; border-top: 1px solid #ece8e0; margin-top: 12px; }
 button.app-ib-attachchip { border: 1px solid #d9d3c8; background: #fff; cursor: pointer; font: inherit; font-size: 12px; }
 button.app-ib-attachchip:hover, button.app-ib-attachchip:focus-visible { border-color: var(--app-accent); outline: none; }
-.ltk-act-attach { border-top: 1px solid var(--ltk-hairline, #e4dfd6); padding-top: 10px; margin-top: 4px; }
+.ltk-act-attach { margin-top: 2px; }
 
 /* ---- the Filters pane's tree (docs/filterModel.ts, issue 8): a deep
    vocabulary is drilled into and ticked at any level ---- */

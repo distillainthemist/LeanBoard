@@ -174,6 +174,8 @@ export function buildActionForm(
   // else in the meeting buried them). Everyone else is behind the
   // search, which still adds people.
   const savedShared = initial !== undefined && initialAssignees.length >= 2;
+  /** Its people are SIGN-OFF boxes, not tick boxes (see addChip). */
+  const signOff = savedShared && !fresh;
   const onAction = (person: { whoId: string; who: string }): boolean => initialAssignees.some((x) => (x.whoId !== "" && x.whoId === person.whoId) || x.who === person.who);
   const primary = savedShared ? split.upFront.filter(onAction) : split.upFront;
   const secondary = savedShared ? [...split.upFront.filter((x) => !onAction(x)), ...split.behindSearch] : split.behindSearch;
@@ -200,6 +202,50 @@ export function buildActionForm(
   const isCurrent = (person: { whoId: string; who: string }) =>
     initialAssignees.some((x) => (x.whoId !== "" && x.whoId === person.whoId) || x.who === person.who);
   const addChip = (person: Person, checked: boolean) => {
+    if (signOff) {
+      // a SAVED shared action (Ben, 2026-11-17): the box IS the person's
+      // sign-off — a press anywhere on it records their part — and taking
+      // them off the action is a small ✕ of its own. As a tick box, a
+      // press meant for the part unticked the person instead.
+      const wrap = el("div", "ltk-check ltk-check-on ltk-signoff");
+      wrap.setAttribute("role", "button");
+      wrap.tabIndex = 0;
+      // the tick's state only (never shown): on the action until ✕
+      const box = el("input") as HTMLInputElement;
+      box.type = "checkbox";
+      box.checked = true;
+      box.hidden = true;
+      const part = partButton(person);
+      const x = el("button", "ltk-signoff-x", "✕") as HTMLButtonElement;
+      x.type = "button";
+      x.title = `Take ${person.who} off this action`;
+      x.setAttribute("aria-label", x.title);
+      x.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const at = checks.findIndex((c) => c.wrap === wrap);
+        if (at >= 0) checks.splice(at, 1);
+        wrap.remove();
+        staged.delete(keyOf(person));
+        // back behind the search, where they can be found and added again
+        if (!secondary.some((y) => keyOf(y) === keyOf(person))) secondary.push(person);
+        refreshShared();
+      });
+      const toggle = () => {
+        if (!partsShown()) return;
+        staged.set(keyOf(person), !partDone(person));
+        refreshShared();
+      };
+      wrap.addEventListener("click", toggle);
+      wrap.addEventListener("keydown", (e) => {
+        if (e.target !== wrap || (e.key !== "Enter" && e.key !== " ")) return;
+        e.preventDefault();
+        toggle();
+      });
+      wrap.append(box, part, el("span", "ltk-signoff-name", person.who), x);
+      whoWrap.appendChild(wrap);
+      checks.push({ box, wrap, person, part });
+      return;
+    }
     const item = checkItem(person.who);
     if (checked) {
       item.box.checked = true;
@@ -517,9 +563,21 @@ export function buildActionForm(
     b.setAttribute("aria-pressed", String(done));
     b.title = done ? `${person.who} has done their part — click to undo` : `Mark ${person.who}'s part done`;
     b.setAttribute("aria-label", b.title);
+    // on a sign-off box the whole box is the control: it says the same
+    const host = b.parentElement;
+    if (host?.classList.contains("ltk-signoff")) {
+      host.title = b.title;
+      host.setAttribute("aria-pressed", String(done));
+      host.classList.toggle("ltk-signoff-done", done);
+    }
   };
   const picked = (): { whoId: string; who: string }[] => [...checks.filter((c) => c.box.checked).map((c) => ({ whoId: c.person.whoId, who: c.person.who })), ...extras];
   const sharedBox = el("div", "ltk-shared");
+  /** "1 / 2 people completed" — at the right of the Cascade / Add
+   *  support line (Ben, 2026-11-17: in place of a sentence under the
+   *  PDCA row). */
+  const partsCount = el("span", "ltk-parts-count");
+  partsCount.style.display = "none";
   const extraChips = el("div", "ltk-sup-chips ltk-shared-extras");
   const sharedNote = el("div", "ltk-shared-note");
   let extrasOpen = false;
@@ -574,6 +632,11 @@ export function buildActionForm(
     // is held. The line speaks only when the list is too long to keep.
     sharedNote.textContent = n > MAX_ASSIGNEES ? `${n} people — more than one action can carry (${MAX_ASSIGNEES}). The first ${MAX_ASSIGNEES} are kept.` : "";
     sharedNote.style.display = n > MAX_ASSIGNEES ? "" : "none";
+    const counting = partsShown();
+    partsCount.textContent = counting ? `${all.filter(partDone).length} / ${n} people completed` : "";
+    partsCount.title = counting ? "The action can be closed once everyone has completed their part" : "";
+    partsCount.style.display = counting ? "" : "none";
+    placeSupportOpener();
     for (const l of peopleListeners) l();
   };
 
@@ -669,12 +732,14 @@ export function buildActionForm(
   // 2026-11-17); once there are supporters, "＋ Add" sits with their
   // chips and the cascade link keeps this line
   const linksRow = el("div", "ltk-act-links");
-  linksRow.appendChild(teamOpen);
+  linksRow.append(teamOpen, partsCount);
   wrap.appendChild(linksRow);
   placeSupportOpener = () => {
     if (supporters.length > 0) supHead.appendChild(supOpen);
-    else linksRow.appendChild(supOpen);
-    linksRow.style.display = linksRow.childElementCount > 0 ? "" : "none";
+    else linksRow.insertBefore(supOpen, partsCount);
+    // the line shows while it has anything to show
+    const any = [...linksRow.children].some((c) => (c as HTMLElement).style.display !== "none");
+    linksRow.style.display = any ? "" : "none";
   };
   placeSupportOpener();
   refreshShared();
@@ -1204,6 +1269,8 @@ interface CommentField {
    *  from the title row): it joins the saved ones, so this dialog's Save
    *  keeps it. */
   adopt: (c: ActionComment) => void;
+  /** How many comments the dialog holds, saved and not yet saved. */
+  count: () => number;
 }
 
 /** Comments on an action (2026-09-30): everything said so far, newest
@@ -1353,6 +1420,7 @@ function buildCommentField(o: ActionDialogOptions): CommentField {
       if (!saved.includes(c)) saved = [...saved, c];
       paint();
     },
+    count: () => saved.length + staged.length,
   };
 }
 
@@ -1574,13 +1642,26 @@ export function openActionDialog(o: ActionDialogOptions): void {
   const issue = textInput(action.issue, { placeholder: "Issue" });
   const form = buildActionForm(o.people, o.isNew && o.prefill !== true ? undefined : action, o.isNew);
 
-  // "Support required" (issue 4, 2026-11-17 — the tick read "Escalated"):
-  // the same flag and the same road to the escalation viewer of the board
-  // above; the words say what it is for
-  const escChk = checkItem("⚑ Support required");
-  escChk.box.checked = action.escalated;
-  escChk.wrap.classList.toggle("ltk-check-on", action.escalated);
-  escChk.wrap.title = "This action needs support. It is flagged ⚑ wherever it is listed and raised to the board above.";
+  // "Flag for support" (issue 4, 2026-11-17 — the tick that read
+  // "Escalated", then "Support required"): a button in the title row,
+  // beside Message — faint in the flag's colour until pressed, the full
+  // colour once the action is flagged. The same field and the same road
+  // to the escalation viewer of the board above; saved with the dialog.
+  let flagged = action.escalated;
+  const flagBtn = el("button", "ltk-btn ltk-flagbtn", "⚑ Flag for support") as HTMLButtonElement;
+  flagBtn.type = "button";
+  const paintFlag = () => {
+    flagBtn.classList.toggle("ltk-flagbtn-on", flagged);
+    flagBtn.setAttribute("aria-pressed", String(flagged));
+    flagBtn.title = flagged
+      ? "This action is flagged: it needs support. It shows ⚑ wherever it is listed and is raised to the board above. Press to take the flag off."
+      : "Flag this action as needing support. It shows ⚑ wherever it is listed and is raised to the board above.";
+  };
+  flagBtn.addEventListener("click", () => {
+    flagged = !flagged;
+    paintFlag();
+  });
+  paintFlag();
   // confidential (2026-09-16): creator, assignees, their leaders and super
   // admins only — the row helps say who
   const confChk = checkItem("Confidential");
@@ -1623,20 +1704,17 @@ export function openActionDialog(o: ActionDialogOptions): void {
   // a SHARED action cannot be Closed until every person has done their
   // part (Ben, 2026-11-17): Closed is off while parts are outstanding,
   // and says why; the last circle ticked closes the action by itself
-  const pdcaHint = el("div", "ltk-pdca-hint");
   const gateClosed = () => {
     const left = form.outstanding();
     const closedBtn = pdcaBtns.get("closed");
     if (closedBtn) {
       closedBtn.disabled = left > 0;
-      closedBtn.title = left > 0 ? `${left} ${left === 1 ? "person has" : "people have"} not done their part yet — a shared action closes when everyone has` : "";
+      closedBtn.title = left > 0 ? `${left} ${left === 1 ? "person has" : "people have"} not completed their part yet — a shared action can be closed once everyone has` : "";
     }
     if (left > 0 && pdca === "closed") {
       pdca = "do";
       paintPdca();
     }
-    pdcaHint.textContent = left > 0 ? `Closed is off: ${left} of ${form.pickedCount()} ${left === 1 ? "part is" : "parts are"} still to do. It closes when everyone has done theirs.` : "";
-    pdcaHint.style.display = left > 0 ? "" : "none";
   };
   form.onPeople(gateClosed);
   gateClosed();
@@ -1693,7 +1771,7 @@ export function openActionDialog(o: ActionDialogOptions): void {
     // keeps the status (awaiting endorsement / in-progress survive).
     if (pdca === "closed" && !wasClosed && action.status !== "cancelled") action.status = "done";
     else if (pdca !== "closed" && wasClosed) action.status = "open";
-    action.escalated = escChk.box.checked;
+    action.escalated = flagged;
     action.confidential = confChk.box.checked ? true : undefined;
     form.apply(action); // after status, so assignee done flags match
     // a shared action is never closed over outstanding parts (the rule,
@@ -1792,36 +1870,87 @@ export function openActionDialog(o: ActionDialogOptions): void {
     maxWidth: 940,
   });
   dlg.body.classList.add("ltk-act-body");
-  // "Message" in the title row (issue 6, 2026-11-17): tell someone about
-  // this action by Teams or email — the host's own notify panel
-  const messenger = o.isNew ? null : actionMessenger();
-  if (messenger !== null) {
-    const titleEl = dlg.root.querySelector<HTMLElement>(".ltk-dialog-title");
-    if (titleEl) {
-      const text = titleEl.textContent ?? "";
-      titleEl.textContent = "";
-      titleEl.classList.add("ltk-dialog-title-row");
-      titleEl.appendChild(el("span", undefined, text));
+  // the title row's tools: "✉ Message" on a saved action (issue 6 — tell
+  // someone about it by Teams or email, the host's own notify panel),
+  // then "⚑ Flag for support"
+  const boxEl = dlg.root.querySelector<HTMLElement>(".ltk-dialog");
+  const titleEl = dlg.root.querySelector<HTMLElement>(".ltk-dialog-title");
+  if (titleEl) {
+    const text = titleEl.textContent ?? "";
+    titleEl.textContent = "";
+    titleEl.classList.add("ltk-dialog-title-row");
+    titleEl.appendChild(el("span", undefined, text));
+    const tools = el("span", "ltk-act-titletools");
+    const messenger = o.isNew ? null : actionMessenger();
+    if (messenger !== null) {
       const msg = el("button", "ltk-btn ltk-btn-secondary ltk-act-msgbtn", "✉ Message") as HTMLButtonElement;
       msg.type = "button";
       msg.title = "Message someone about this action by Teams or email";
       msg.addEventListener("click", () => messenger({ host: o.host, action, onSent: (c) => comments.adopt(c) }));
-      titleEl.appendChild(msg);
+      tools.appendChild(msg);
     }
+    tools.appendChild(flagBtn);
+    titleEl.appendChild(tools);
   }
   const grid = el("div", "ltk-act-grid");
   const main = el("div", "ltk-act-main");
-  const side = el("div", "ltk-act-side");
-  grid.append(main, side);
+  // the RIGHT side — the link, the conversation, the attachments — can
+  // be folded away (Ben, 2026-11-17): a round button on the divider
+  // hides it; a slim rail with the counts brings it back. The choice is
+  // the person's, kept in this browser.
+  const sideWrap = el("div", "ltk-act-side");
+  const side = el("div", "ltk-act-sidebody");
+  const hideSide = el("button", "ltk-act-sidehide", "›") as HTMLButtonElement;
+  hideSide.type = "button";
+  hideSide.title = "Hide the link, comments and attachments";
+  hideSide.setAttribute("aria-label", hideSide.title);
+  const rail = el("button", "ltk-act-rail") as HTMLButtonElement;
+  rail.type = "button";
+  rail.title = "Show the link, comments and attachments";
+  rail.setAttribute("aria-label", rail.title);
+  sideWrap.append(hideSide, side, rail);
+  grid.append(main, sideWrap);
   dlg.body.appendChild(grid);
+  let attachmentCount = 0;
+  const SIDE_KEY = "ltk.actionSide";
+  let sideClosed = false;
+  try {
+    sideClosed = window.localStorage.getItem(SIDE_KEY) === "closed";
+  } catch {
+    sideClosed = false;
+  }
+  const paintSide = () => {
+    grid.classList.toggle("ltk-act-grid-folded", sideClosed);
+    hideSide.setAttribute("aria-expanded", String(!sideClosed));
+    // a folded dialog is as wide as its one column needs
+    // (still wide enough for the form's own wide layout — the people
+    // three across, the PDCA row in one line — with the rail beside it)
+    if (boxEl) boxEl.style.width = `min(${sideClosed ? 800 : 940}px, calc(100% - 32px))`;
+    while (rail.firstChild) rail.removeChild(rail.firstChild);
+    rail.appendChild(el("span", "ltk-act-rail-chev", "‹"));
+    const said = comments.count();
+    if (said > 0) rail.appendChild(el("span", "ltk-act-rail-badge", `💬 ${said}`));
+    if (attachmentCount > 0) rail.appendChild(el("span", "ltk-act-rail-badge", `📎 ${attachmentCount}`));
+    rail.appendChild(el("span", "ltk-act-rail-label", o.isNew ? "Link · Comments" : "Link · Comments · Attachments"));
+  };
+  const setSide = (closed: boolean) => {
+    sideClosed = closed;
+    try {
+      window.localStorage.setItem(SIDE_KEY, closed ? "closed" : "open");
+    } catch {
+      /* the choice lasts for this dialog only */
+    }
+    paintSide();
+  };
+  hideSide.addEventListener("click", () => setSide(true));
+  rail.addEventListener("click", () => setSide(false));
   // LEFT — the action itself: what, who, when, its state
   main.appendChild(fieldRow("Issue", issue));
   main.appendChild(form.el);
-  // the two flags share the dates' row (Ben, 2026-11-16): each as wide
-  // as its words, and onto a line of their own if the row is too tight —
-  // squeezed to equal shares they clipped "Confidential"
+  // Confidential shares the dates' row (Ben, 2026-11-17: with the
+  // support flag gone to the title row it fits beside Start and Due)
   const flags = el("div", "ltk-act-flags");
-  flags.append(escChk.wrap, confChk.wrap);
+  flags.append(confChk.wrap);
   form.dates.appendChild(flags);
   // RIGHT — where it is linked, then the conversation (Ben, 2026-11-16:
   // "Linked to" beside Issue threw the top row out of line; it is
@@ -1836,7 +1965,7 @@ export function openActionDialog(o: ActionDialogOptions): void {
     side.appendChild(linkRow);
   }
   const state = el("div", "ltk-field");
-  state.append(el("div", "ltk-field-label", "PDCA state"), pdcaWrap, pdcaHint);
+  state.append(el("div", "ltk-field-label", "PDCA state"), pdcaWrap);
   pdcaWrap.classList.add("ltk-act-pdca");
   main.appendChild(state);
   if (!o.isNew && awaitingEndorsement(action)) {
@@ -1888,7 +2017,10 @@ export function openActionDialog(o: ActionDialogOptions): void {
   if (attach !== null) {
     const slot = el("div", "ltk-act-attach");
     side.appendChild(slot);
-    const stop = attach(slot, action);
+    const stop = attach(slot, action, (n) => {
+      attachmentCount = n;
+      paintSide();
+    });
     // the list goes when the dialog does, however it is closed
     const gone = new MutationObserver(() => {
       if (dlg.root.isConnected) return;
@@ -1897,6 +2029,7 @@ export function openActionDialog(o: ActionDialogOptions): void {
     });
     if (dlg.root.parentNode) gone.observe(dlg.root.parentNode, { childList: true });
   }
+  paintSide();
   form.focus();
 }
 
