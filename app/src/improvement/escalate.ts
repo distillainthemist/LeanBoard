@@ -88,7 +88,7 @@ export function openFlagDialog(o: FlagDialogOpts): void {
 
   const msg = el("textarea", "app-input") as HTMLTextAreaElement;
   msg.rows = 3;
-  msg.placeholder = "e.g. two fitters for one shift";
+  msg.placeholder = "e.g. a decision";
   const msgField = el("div", "app-field");
   msgField.append(el("span", "app-field-label", "What you need"), msg);
   box.appendChild(msgField);
