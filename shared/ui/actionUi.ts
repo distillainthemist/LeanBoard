@@ -738,7 +738,7 @@ export function buildActionForm(
     if (supporters.length > 0) supHead.appendChild(supOpen);
     else linksRow.insertBefore(supOpen, partsCount);
     // the line shows while it has anything to show
-    const any = [...linksRow.children].some((c) => (c as HTMLElement).style.display !== "none");
+    const any = Array.from(linksRow.children).some((c) => (c as HTMLElement).style.display !== "none");
     linksRow.style.display = any ? "" : "none";
   };
   placeSupportOpener();
