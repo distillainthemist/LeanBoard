@@ -1,6 +1,6 @@
 // Attachments & links (issue 5, 2026-11-17) — the pure rules.
 import { describe, expect, it } from "vitest";
-import { attachmentMeta, attachmentTitle, cleanUrl, fileProblem, mayRemoveAttachment, mimeFor, sizeLabel, sortAttachments } from "../attachments/model";
+import { attachmentMeta, attachmentTitle, cleanUrl, fileExt, fileProblem, mayRemoveAttachment, mimeFor, sizeLabel, sortAttachments } from "../attachments/model";
 
 describe("a link's address", () => {
   it("keeps a web address, adding https:// when none was typed", () => {
@@ -31,6 +31,14 @@ describe("a file", () => {
     expect(sizeLabel(840)).toBe("840 KB");
     expect(sizeLabel(2458)).toBe("2.4 MB");
     expect(sizeLabel(20480)).toBe("20 MB");
+  });
+  it("reads the extension its type chip is keyed by", () => {
+    expect(fileExt("Pechey-Star-Serves-Recipe-Cards.pdf")).toBe("pdf");
+    expect(fileExt("Plan.v2.DOCX")).toBe("docx");
+    expect(fileExt("noext")).toBe("");
+    expect(fileExt(".hidden")).toBe("");
+    expect(fileExt("trailing.")).toBe("");
+    expect(fileExt("odd.na me")).toBe("");
   });
   it("names a type a download opens with", () => {
     expect(mimeFor("Report.PDF")).toBe("application/pdf");

@@ -5416,6 +5416,9 @@ button.app-ta-opt:hover, button.app-ta-opt.app-ta-opt-on { background: #f1ede6; 
 .app-att { display: flex; flex-direction: column; gap: 6px; border-radius: 8px; }
 .app-att-over { outline: 2px dashed var(--app-accent); outline-offset: 4px; }
 .app-att-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.app-att-adds { display: flex; align-items: center; gap: 4px 18px; flex-wrap: wrap; }
+.app-att-adds button.app-link { padding-left: 0; padding-right: 0; }
+.app-att-chip { flex: 0 0 auto; margin-top: 1px; min-width: 38px; }
 .app-att-title { font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #6d675c; }
 .app-att-status { font-size: 12.5px; color: #57534a; }
 .app-att-status-err { color: #b3261e; }
@@ -5425,7 +5428,6 @@ button.app-ta-opt:hover, button.app-ta-opt.app-ta-opt-on { background: #f1ede6; 
 .app-att-rows { display: flex; flex-direction: column; gap: 2px; }
 .app-att-row { display: flex; align-items: flex-start; gap: 8px; padding: 6px 4px; border-radius: 6px; }
 .app-att-row:hover { background: #faf8f4; }
-.app-att-icon { flex: 0 0 auto; font-size: 15px; line-height: 20px; }
 .app-att-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .app-att-name, button.app-link.app-att-name { font-size: 13.5px; font-weight: 600; text-align: left; padding: 0; overflow-wrap: anywhere; white-space: normal; color: var(--app-accent); text-decoration: none; }
 .app-att-name:hover { text-decoration: underline; }

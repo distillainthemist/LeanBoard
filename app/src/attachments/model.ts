@@ -88,6 +88,16 @@ export function sortAttachments<T extends Pick<Attachment, "at">>(list: T[]): T[
   return [...list].sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
 }
 
+/** A file name's extension, lower-case, no dot ("pdf"); "" when it has
+ *  none — what the document register's type chip is keyed by. */
+export function fileExt(fileName: string): string {
+  const name = fileName.trim();
+  const dot = name.lastIndexOf(".");
+  if (dot <= 0 || dot === name.length - 1) return "";
+  const ext = name.slice(dot + 1).toLowerCase();
+  return /^[a-z0-9]{1,8}$/.test(ext) ? ext : "";
+}
+
 /** A browser's type for a file name — enough for a download to open in
  *  the right app. */
 export function mimeFor(fileName: string): string {

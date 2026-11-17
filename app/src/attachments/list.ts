@@ -5,7 +5,8 @@
 
 import { el, clear } from "../../../shared/ui/dom";
 import { confirmRemoval } from "../prompts";
-import { Attachment, AttachmentParent, attachmentMeta, attachmentTitle, cleanUrl, fileProblem, MAX_ATTACHMENT_MB, MAX_CAPTION, mayRemoveAttachment } from "./model";
+import { fileTypeChip } from "../../../shared/ui/format";
+import { Attachment, AttachmentParent, attachmentMeta, attachmentTitle, cleanUrl, fileExt, fileProblem, MAX_ATTACHMENT_MB, MAX_CAPTION, mayRemoveAttachment } from "./model";
 
 export interface AttachmentsOpts {
   host: HTMLElement;
@@ -44,7 +45,9 @@ export function mountAttachments(o: AttachmentsOpts): AttachmentsHandle {
   const head = el("div", "app-att-head");
   const title = el("span", "app-att-title", o.heading ?? "Attachments & links");
   head.appendChild(title);
-  head.appendChild(el("span", "app-bar-gap"));
+  // "＋ Add file" and "＋ Add link" sit together on one line UNDER the
+  // heading (Ben, 2026-11-17: beside it, the second wrapped away alone)
+  const adds = el("div", "app-att-adds");
   const picker = el("input") as HTMLInputElement;
   picker.type = "file";
   picker.multiple = true;
@@ -58,11 +61,12 @@ export function mountAttachments(o: AttachmentsOpts): AttachmentsHandle {
     linkOpen = true;
     paint();
   });
-  if (o.canAdd) head.append(addFile, addLink, picker);
+  if (o.canAdd) adds.append(addFile, addLink, picker);
   const status = el("div", "app-att-status");
   const linkForm = el("div", "app-att-linkform");
   const rows = el("div", "app-att-rows");
-  wrap.append(head, status, linkForm, rows);
+  wrap.append(head, adds, status, linkForm, rows);
+  if (!o.canAdd) adds.style.display = "none";
 
   const load = async () => {
     try {
@@ -198,7 +202,11 @@ export function mountAttachments(o: AttachmentsOpts): AttachmentsHandle {
     }
     for (const a of list) {
       const row = el("div", "app-att-row");
-      row.appendChild(el("span", "app-att-icon", a.kind === "file" ? "📄" : "🔗"));
+      // the document register's own type chip (PDF, DOCX, XLSX…), and
+      // LINK for a link — never a generic page icon (Ben, 2026-11-17)
+      const chip = fileTypeChip(a.kind === "file" ? fileExt(a.fileName) : "link");
+      chip.classList.add("app-att-chip");
+      row.appendChild(chip);
       const main = el("div", "app-att-main");
       if (a.kind === "link") {
         const link = el("a", "app-att-name", attachmentTitle(a)) as HTMLAnchorElement;
