@@ -7,7 +7,11 @@ v0.94.0). Analysis read from the code at 6f8c219 (v0.94.0); nothing here
 was reproduced in the player. Decisions are Ben's, taken one by one on
 2026-11-17.
 
-Status: PLAN ONLY. Nothing is built, no schema is deployed.
+Status: BUILT on dev 2026-11-17 in five tranches after Ben's "Good to
+proceed" (643d1f9 schema, 895b074 tranches 1 and 2, 09ce3c8 tranche 3,
+76dd17c tranche 4, 977ce0d tranche 5); schema deployed to dev. NOT
+RELEASED. See "As built" at the foot for where the build differs from
+the plan below.
 
 ## Decisions of record
 
@@ -361,3 +365,102 @@ tree), settings (status colours and recency, featured terms).
   today, and at what level?
 - A word to leaders about release day: the portfolio will read mostly
   off track, with the reasons listed.
+
+## As built (2026-11-17)
+
+Everything in the plan is built. Where the build differs, or settled
+something the plan left open:
+
+**Schema**
+- The widen WORKS: `deploy-schema.mjs` gained `widenMemo` (a column
+  marked `widen: true` is raised, never lowered; the PUT must name the
+  attribute's type or Dataverse refuses it). `ben_assigneesjson` is
+  100 000 on dev, so a shared action holds 500 people — no fallback cap.
+- The token for the deploy came from yesterday's sign-in, refreshed
+  with `exchange-token.mjs` against the same resource. No new sign-in.
+- `ben_ltkattachment` also carries `ben_at` (when it was added).
+
+**The status rule**
+- A state missing from the site's palette paints with a FIXED default
+  (purple for Flagged), not the Info colour the plan named: a flag must
+  never look like an information chip. The starter palette gained
+  "Flagged"; a site with its own stored palette picks or adds an entry
+  in Settings → Priorities → Status.
+- The stamp on the row has three readings: an ISO moment, "-" (known,
+  none yet) and empty (a row from before the stamp). Empty rows are
+  filled from one read of the comment events and written back 25 a
+  load, once per session each.
+- The strict / ratio toggle is gone from the ⋮ menu; a stored
+  preference or a view link that carries one is read and ignored.
+- The Improvement register shows a chip for flagged AND off track (its
+  reasons on hover); on track shows none.
+- The Gantt ritual card now reads metric states too (it used to colour
+  from flags and actions only), through `statusLoad.ts`.
+
+**The executive summary**
+- The head reads "Executive summary · <org>" over "Pillar : Sub-pillar",
+  with the year as a pill. The step counter no longer wraps.
+- Metric tiles: four, then "+n". A good / bad or picklist metric shows
+  its state as a block instead of a line.
+- An initiative row also says its status in words and lists its
+  reasons; the mock-up showed colour alone.
+- The ⋮ on a card is offered to whoever manages the org, on priorities
+  that are the org's own.
+
+**Actions**
+- Shared-action writes are MERGED at the store (not in the plan): the
+  write reads the row and lays only the parts this screen changed over
+  it. Without it, two people ticking their own parts from their own
+  screens undid each other. This is the one change that touches every
+  action save — it now always reads the row first (it did so already
+  for the comment merge).
+- Ticking a second person no longer unticks the first. Reassigning is
+  untick one, tick the other.
+- People who are not a tick box in the grid (a team, assignees from
+  outside the meeting) sit as chips under it — twelve, then "+n more".
+- "Duplicate…" is in the dialog's footer on the Action card, My day and
+  the Improvement Gantt's editor. It is NOT on a row ⋮ (the rows have
+  none) and not on the other cards that raise actions (5 Whys, Agenda…)
+  — their dialogs do not offer it yet.
+- "✉ Message": the panel is the host's, opened over the dialog; the
+  dialog's focus trap now yields to a second modal. Escape inside the
+  panel's search does not close its list (the dialog swallows Escape);
+  a click elsewhere does.
+- The flags' row: "⚑ Support required" is wider than "Escalated", so
+  the two flags more often take a line of their own under the dates.
+
+**Attachments**
+- A file uploads as soon as it is picked or dropped, with no caption
+  (its name shows); a link takes a caption. Captions cannot be edited
+  afterwards — remove and add again.
+- On an action the list shows for a SAVED action only.
+- No preview: a file downloads, a link opens in a new tab.
+
+**Document filters**
+- The organisation group, when a site shows it, now sits FOURTH (after
+  status, type and process area) — it used to lead.
+- Featured terms live on the column in the site's dictionary
+  (`SiteColumn.featured`: scope → term ids), set from a ★ in the Filter
+  cell. A tree replaces the pills only for a vocabulary that is three
+  or more levels deep AND past 14 terms; Document type becomes a tree
+  on a site where it is that deep, with the featured pills above it.
+- NOT verified in a browser: the Documents screen needs SharePoint, so
+  the tree and the ★ editor were built against the tests alone. Ben's
+  check: UAT-DOC-093.
+
+**Verified here**
+- 1183 tests, both typechecks, the import, dialog and chunk gates, the
+  build.
+- In the harness: the executive summary at TV, laptop and phone widths
+  (`walk.html?open=P1`); the action card and dialog — shared action,
+  parts, add a team, message, duplicate, recently completed
+  (`actionboard.html?shared=1`); the attachments list (`attach.html`).
+- Everything hosted is Ben's: UAT-PRI-012, PRI-013, IMP-007, IMP-008,
+  IMP-009, SET-015, ACT-008, ACT-009, ACT-010, RIT-009, DOC-093.
+
+**Open**
+- Ellen's seven document types: are they terms in the Document type
+  set? If not, they are added in the term manager before they can be
+  featured.
+- Release day reads mostly off track. Leaders should hear first.
+

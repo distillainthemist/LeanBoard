@@ -135,7 +135,9 @@ model section) — the canvas/PCF sections there are historical.
   per-period `spec:*` plan / forecast / limit points — §3.3);
   `ben_ltkaction` is the central actions register (§3.4;
   `ben_supportersjson` = people who support an action without owing a
-  part of it, 2026-11-16);
+  part of it, 2026-11-16; `ben_doneat` = when it was completed, and
+  `ben_assigneesjson` widened to 100 000 characters for a shared action
+  with a part per person, 2026-11-17);
   `ben_ltkpeoples` is the app's user record (role user / siteadmin /
   superadmin, site / department / area / crew); `ben_ltksitesettings`
   and `ben_ltkuserprefs` hold settings — the site row carries
@@ -145,7 +147,8 @@ model section) — the canvas/PCF sections there are historical.
   `ben_isarchived` and `ben_siteorder`; the APP_ROW carries the
   improvement settings (methods · standard roles with per-site fillers
   · standard fields · the value-driver editor role) and the priorities
-  settings (period definition, RAG ratio).
+  settings (period definition, the status rule's recency days and
+  state colours — §3.3a).
   **Cascaded priorities:** `ben_ltkpillar` (with `ben_fromperiod` /
   `ben_toperiod` = the span it is in force, and `ben_succeedsid` = the
   row it follows when a pillar was renamed or moved "from a year",
@@ -167,8 +170,13 @@ model section) — the canvas/PCF sections there are historical.
   board), `ben_ltkinitiative` (header + snapshot / roles / priority
   links / metrics / gate / stage-target JSON columns;
   `ben_alsoorgsjson` = further departments it is listed under;
-  `ben_toperiod` = the period it completed in),
-  `ben_ltkinitiativeevent`, `ben_ltkactionfile`.
+  `ben_toperiod` = the period it completed in; `ben_lastupdateat` =
+  the latest status update's moment, the status rule's recency clock,
+  2026-11-17),
+  `ben_ltkinitiativeevent`, `ben_ltkattachment` (files and links
+  attached to an initiative or an action, 2026-11-17 — a file in the
+  row's file column or a link; it supersedes `ben_ltkactionfile`, which
+  no screen ever wrote to and which stays in the solution unused).
   **Value drivers:** `ben_ltkvaluedriver` (per-site tree nodes:
   formula, cadence, aggregate, format incl. grid rows, `ben_sourceurl`,
   `ben_trackingjson` = numeric | good/bad | picklist) and
@@ -551,7 +559,78 @@ org), and the Documents kebab for controllers with the org picker.
 No notifications, no calendar or Improvement-list score. The old
 initiative health check (`healthQuestions`, `__health`) was removed.
 
+### 3.3a The status rule and the executive summary (2026-11-17)
+
+- **One rule** — `app/src/improvement/status.ts`, pure — gives every
+  active initiative a status and every priority a roll-up; every surface
+  that colours either calls it (the executive summary, the Priorities
+  tab and popup, the Improvement register, tiles and Gantt, the Gantt
+  ritual card, the A3 poster). It replaced the four-colour
+  `initiativeRag` and the strict / ratio `rollup` (plan and decisions:
+  [issues-plan-2026-11-17.md](issues-plan-2026-11-17.md)).
+  - An initiative is **on track**, **off track** or **flagged**. Off
+    track = a late action or no actions at all (all done is fine), ANY
+    metric outside its limits or short of plan (no reading is ignored),
+    or no status update inside the recency window. A new initiative has
+    the window as grace for "no actions" and "no update". Flagged is its
+    own PRIMARY state — its people asked for support — and carries what
+    lies under it ("at risk" / "recovery needed").
+  - A priority: flagged if any initiative is, else off track if any is,
+    else on track; none counted = no status.
+  - Every status carries its **reasons**; surfaces show them.
+  - Settings → Priorities → Status holds the recency days (35) and one
+    state-palette key per state (`PrioritySettings.status`). The board
+    band's stale notice uses the same days.
+- **Inputs.** `statusOf(initiative, actions, metrics, settings, today)`
+  (`initiativeModel.ts`). The recency clock is `ben_lastupdateat`,
+  stamped by `appendInitiativeEvent` when the event is a comment — never
+  by `saveInitiative` (its merge drops the field, so a stale copy cannot
+  turn the clock back). Rows from before the stamp are filled from ONE
+  read of the comment events and written back a few per load
+  (`fillUpdateStamps`); `"-"` on the row means "known, none yet".
+  Metric states come from `buildMetricState` (`statusMetricsOf`); a
+  surface that holds only initiatives and actions loads them through
+  `statusLoad.ts` behind a dynamic import.
+- **One flag.** "Needs support" and "Escalate to sponsor" merged:
+  `FlagLevel` is `"" | "flag"` (a stored `escalated` reads as flagged);
+  `escalate.ts` is the one Flag dialog with an optional "Notify the
+  sponsor"; the Add update dialog raises, refreshes or clears the flag
+  (`flagAfterUpdate`, pure, in `commentaryModel.ts`).
+- **The executive summary** is the priorities walk rebuilt in place
+  (`priorities/walk.ts`): one sub-pillar per step; each priority a card
+  with its status edge, three counts and its objectives as sparklines
+  (`improvement/sparkline.ts` — geometry pure, one SVG builder);
+  expanded, one row per initiative. The count circles and the state
+  chip are `improvement/statusUi.ts`. Open cards and the step are the
+  session's (`sessionView.ts` `summaryView`), so an initiative opened
+  from a row comes Back to the summary as it was left.
+
 ### 3.4 Actions
+
+- **Shared actions (2026-11-17).** Several assignees make ONE action
+  with a part each (`Assignee.done` / `doneAt`); `settleFromParts`
+  closes it when all are done. The dialog's Who is tick-several and an
+  edit keeps each person's part (`mergeAssignees`). The store's write
+  reads the row first and lays only the parts THIS screen changed over
+  it (`mergeParts` against the parts as read, `partsAsRead` in
+  `store/actions.ts`), so two people ticking their own parts from their
+  own screens never undo each other; the same read feeds the comment
+  merge and the endorsement backstop (`writeKnown` in `store/dv.ts`).
+  `stampCompletion` keeps `doneAt` (action and parts) at the one write
+  path. "＋ Add a team…" reads a leader's reporting line through the
+  directory walk and adds only people already in the app
+  (`actions/team.ts`, `teamModel.ts`).
+- **Providers the shared dialog asks the host for**
+  (`shared/ui/actionLinkProvider.ts`, registered in `main.ts`, each
+  loaded on first use): link targets, the viewer, endorsement,
+  reschedule settings, the directory road, and since 2026-11-17 the
+  **team** road, the **message** panel (`actions/message.ts` — the
+  notify senders of `docs/notify` behind a dynamic import; a sent
+  message is recorded as a comment through the one write path) and the
+  **attachments** list (`attachments/`).
+- **Recently completed.** A completed action stays in view on the
+  Action card for the card's "Show completed for (days)" (default 7,
+  `recentlyDone`); the switch is "Show all completed".
 
 - One central table on the standard channel: every card raises actions
   keyed by `instanceId` = `board:card`; the hub's personal list uses
