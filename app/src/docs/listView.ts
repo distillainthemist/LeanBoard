@@ -132,6 +132,17 @@ export function mountDocList<T>(host: HTMLElement, opts: DocListOptions<T>): Doc
     { root: bodyWrap, rootMargin: "300px" }
   );
   observer.observe(sentinel);
+  // An observer reports a CHANGE. On a window tall enough that a page
+  // of rows does not push the sentinel out of range it stays "in view",
+  // nothing changes, and no further page is ever asked for — the list
+  // sat at its first 20 rows until the view was switched (Ben's
+  // production screen, 2026-11-18). Watching it afresh makes the
+  // observer report where the sentinel is NOW; the caller's own guards
+  // (one loader, done) end the chain.
+  const recheck = () => {
+    observer.unobserve(sentinel);
+    observer.observe(sentinel);
+  };
 
   empty();
   return {
@@ -164,6 +175,8 @@ export function mountDocList<T>(host: HTMLElement, opts: DocListOptions<T>): Doc
         for (const s of skel) s.remove();
         empty();
       }
+      // a load has just ended: is the end still in range?
+      if (!on) recheck();
     },
     count: () => n,
     rows: () => held,

@@ -14,6 +14,14 @@ v0.92.0 carries the Utilities app in the managed solution, and v0.94.0
 and v0.95.0 are SOLUTION-CARRYING — import the solution first, then
 lock older builds from Settings once the new one runs.
 
+**On dev, NOT released (2026-11-18):** the Documents register stopped
+at its first 20 documents on a tall window (production, Ben's screen) —
+the near-end observer only reports a change, and 20 rows never pushed
+the sentinel out of range. `listView.ts` and `docsTiles.ts` watch the
+sentinel afresh as each load ends (UAT-DOC-094; harness
+`doclist.html`). App-only. In the code since the small first page of
+2026-08-14.
+
 **v0.95.0 (2026-11-17):** the executive summary scope and the
 2026-11-17 issue export — plan, decisions and the as-built record in
 `issues-plan-2026-11-17.md`. It carries `ben_lastupdateat` on

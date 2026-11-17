@@ -908,3 +908,13 @@ steps:
 5. [Controller] Settings → Documents: untick Filter on a column and read its ★; reopen ★ on Document type and remove every term for Casting; Done; Save.
 expected: step 1 the groups read Status (or "Showing approved documents only" with its button), then Document type, then Process area, then the rest — Importance / risk is below Process area; the phone's selects are unchanged; step 2 the ★ opens "Featured terms — Document type" with a "For" list of Everyone, each site and each department; the list under the box narrows as you type, shows each term's path, and Enter adds without closing; the ★ turns on once a list exists; nothing is saved until the settings' Save; step 3 R1 sees Casting's three terms leading the pills in the order set; R2 sees the two set for everyone; a term at any depth can be featured; picked terms that are not featured stay in sight ahead of them; step 4 Process area is a tree, opened at the reader's own site and department with other branches closed; ticks at any level add to the filter chips and the register follows; a ticked parent shows everything under it ticked and greyed ("included by the level above") and matches documents on any of them; the search shows the matching terms with the path down to each; the "compare across sites" picker is still above it; step 5 ★ is disabled on a column that is not a filter; with Casting's list emptied R1 falls back to the list for everyone
 
+### UAT-DOC-094 — A tall window loads past the first 20 documents
+persona: reader
+modules: docs/listView.ts docs/docsTiles.ts docs/docsScreen.ts
+preconditions: a library (or libraries) with more than 70 documents; a large monitor, the browser window maximised so the first 20 rows leave empty space below them
+steps:
+1. Open Documents in the list view and wait for the rows. Do not scroll and do not change the view.
+2. Scroll to the end of the list; keep scrolling.
+3. Reload; switch to Tiles; repeat steps 1 and 2.
+expected: step 1 the list goes on past its first 20 documents by itself until the rows fill the window and more — the line under the title counts up ("70 documents of 111 matching") without a click; step 2 every scroll to the end brings the next documents until the count reaches the total; step 3 the tiles behave the same
+

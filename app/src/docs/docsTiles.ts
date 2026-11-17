@@ -159,6 +159,12 @@ export function mountDocTiles(host: HTMLElement, opts: DocTilesOptions): DocList
     { root: wrap, rootMargin: "300px" }
   );
   observer.observe(sentinel);
+  // an observer reports a CHANGE — a sentinel still in range after a
+  // page lands would never ask for the next (see listView.ts)
+  const recheck = () => {
+    observer.unobserve(sentinel);
+    observer.observe(sentinel);
+  };
 
   empty();
   return {
@@ -174,6 +180,7 @@ export function mountDocTiles(host: HTMLElement, opts: DocTilesOptions): DocList
     append: appendRows,
     setLoading: (on) => {
       tail.textContent = on ? "Loading…" : "";
+      if (!on) recheck();
     },
     count: () => held.length,
     rows: () => held,
