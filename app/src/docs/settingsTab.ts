@@ -459,7 +459,7 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
         el("span", "app-docs-colhead", "SharePoint column"),
         el("span", "app-docs-colhead", "Display as"),
         el("span", "app-docs-colhead", "Role"),
-        headCell("Filter", "Offered in the register's Filters pane"),
+        headCell("Filter", "Offered in the register's Filters pane. ★ sets its featured terms — the ones that lead its pills, for everyone, a site or a department"),
         headCell("Std", "Controlled standards — revision libraries mirror this cell"),
         headCell("Rec", "Controlled records"),
         headCell("Wrk", "Working documents"),
@@ -586,11 +586,51 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
         filt.title = canFilter
           ? "Offered in the register's Filters pane"
           : "Only managed-metadata and date columns can filter";
+        // featured terms (issue 7, 2026-11-17): which terms lead this
+        // filter's pills, for everyone / a site / a department. In the
+        // filter cell, so the header and the rows keep one grid.
+        const feat = el("button", "app-docs-featbtn", "★") as HTMLButtonElement;
+        feat.type = "button";
+        const paintFeat = () => {
+          const lists = Object.keys(col.featured ?? {}).length;
+          feat.classList.toggle("app-docs-featbtn-on", lists > 0);
+          feat.disabled = col.termSetId === "" || !filt.checked;
+          feat.title =
+            col.termSetId === ""
+              ? "Featured terms need a managed-metadata column"
+              : !filt.checked
+                ? "Tick the filter first — featured terms lead its pills"
+                : lists > 0
+                  ? `Featured terms — ${lists} list${lists === 1 ? "" : "s"} set. Click to edit.`
+                  : "Featured terms: choose the terms that lead this filter's pills — for everyone, a site or a department";
+          feat.setAttribute("aria-label", `Featured terms for ${live?.title ?? col.internal}`);
+        };
+        feat.addEventListener("click", () => {
+          void import("./featuredEditor").then(({ openFeaturedEditor }) =>
+            openFeaturedEditor({
+              columnLabel: col.label !== "" ? col.label : (live?.title ?? col.internal),
+              siteUrl: app.siteUrl,
+              termSetId: col.termSetId,
+              featured: col.featured,
+              onDone: (next) => {
+                if (JSON.stringify(next ?? {}) === JSON.stringify(col.featured ?? {})) return;
+                if (next === undefined) delete col.featured;
+                else col.featured = next;
+                ctx.markDirty();
+                paintFeat();
+              },
+            })
+          );
+        });
         filt.addEventListener("change", () => {
           col.filterable = filt.checked;
           ctx.markDirty();
+          paintFeat();
         });
-        row.appendChild(filt);
+        paintFeat();
+        const filtCell = el("span", "app-docs-filtcell");
+        filtCell.append(filt, feat);
+        row.appendChild(filtCell);
         // the merged three-state cell (Part II): hidden — · available ✓
         // · in the default view ★, cycled by click
         const typeCell = (t: ConfigurableLibType, titleName: string) => {

@@ -895,3 +895,16 @@ steps:
 1. [Controller] On A: ⋯ → Supersede…; pick B as "Superseded by"; confirm.
 2. [Reader] Open A; follow its "Superseded by" link; read B's pane.
 expected: A carries the Superseded status and a "Superseded by" link to B; B's pane lists A under "Supersedes" (derived); A leaves the approved-only register and shows with "Show only approved" unticked; the reader reaches B from A's link and "‹ Back to A" returns
+
+### UAT-DOC-093 — The Filters pane: its order, featured terms and the tree
+persona: controller
+modules: docs/filterModel.ts docs/docsScreen.ts docs/featuredEditor.ts docs/settingsTab.ts docs/model.ts
+preconditions: a site whose Document type and Process area columns are filterable; the Process area set is three or more levels deep with more than 14 terms; two readers whose profiles name different departments of one site (R1 in Casting, R2 elsewhere); a controller or admin who can save Settings → Documents
+steps:
+1. [Reader] Documents → Filters: read the groups from the top.
+2. [Controller] Settings → Documents → the column list: on the Document type row press ★ in the Filter cell. Leave "For" on Everyone; add two terms by typing part of each name; choose the Casting department in "For" and add three deeper terms in a chosen order (use ↑ ↓); Done; Save the settings.
+3. [R1, then R2] Documents → Filters → Document type.
+4. [Reader] Filters → Process area: open a branch with ▸; tick a term three levels down and a second term in another branch; tick a parent; type part of a deep term's name in the search box.
+5. [Controller] Settings → Documents: untick Filter on a column and read its ★; reopen ★ on Document type and remove every term for Casting; Done; Save.
+expected: step 1 the groups read Status (or "Showing approved documents only" with its button), then Document type, then Process area, then the rest — Importance / risk is below Process area; the phone's selects are unchanged; step 2 the ★ opens "Featured terms — Document type" with a "For" list of Everyone, each site and each department; the list under the box narrows as you type, shows each term's path, and Enter adds without closing; the ★ turns on once a list exists; nothing is saved until the settings' Save; step 3 R1 sees Casting's three terms leading the pills in the order set; R2 sees the two set for everyone; a term at any depth can be featured; picked terms that are not featured stay in sight ahead of them; step 4 Process area is a tree, opened at the reader's own site and department with other branches closed; ticks at any level add to the filter chips and the register follows; a ticked parent shows everything under it ticked and greyed ("included by the level above") and matches documents on any of them; the search shows the matching terms with the path down to each; the "compare across sites" picker is still above it; step 5 ★ is disabled on a column that is not a filter; with Casting's list emptied R1 falls back to the list for everyone
+

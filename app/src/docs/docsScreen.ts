@@ -86,6 +86,7 @@ import {
 import { openDialog } from "../../../shared/ui/dialog";
 import { currentViewer } from "../runtime";
 import { viewerPerson } from "../store/people";
+import { featuredFor, leadTerms, openBranches, orderFilterColumns, termTree, TermTreeNode, TREE_FILTER_MIN_DEPTH, treeSearch, vocabularyDepth } from "./filterModel";
 import {
   docLinkUrl,
   docLinkUrlMobile,
@@ -563,10 +564,15 @@ export function mountDocs(
     /** The timing readout on the status line is a diagnostic for super
      *  admins (Ben, 2026-10-12) — everyone else reads the plain count. */
     let meIsSuper = false;
+    /** The viewer's own site and department (their profile): which
+     *  featured terms lead a filter and where a vocabulary's tree opens
+     *  (issues 7 and 8, 2026-11-17). */
+    let myProfile = { site: "", department: "" };
     if (whoId !== "") {
       void viewerPerson(whoId).then(
         (p) => {
           meIsSuper = p?.role === "superadmin";
+          myProfile = { site: p?.site ?? "", department: p?.department ?? "" };
         },
         () => {}
       );
@@ -3136,7 +3142,9 @@ export function mountDocs(
       // while "Show only approved" holds, the status column is not a
       // filter — the toggle IS the status filter (issue 22)
       cols.push(...[...taxCols.keys()].filter((c) => filterable.has(c) && !(onlyApproved && c === statusInternal)));
-      return cols;
+      // status, document type and process area lead (issue 9, 2026-11-17:
+      // importance sat above process area); the rest keep their places
+      return orderFilterColumns(cols, (c) => (c === "" ? "orgUnit" : (dictBy.get(c)?.role ?? "")));
     };
     const phoneFilters = el("div", "app-docs-phonefilters");
     main.appendChild(phoneFilters);
@@ -3432,14 +3440,76 @@ export function mountDocs(
                 })
               ).catch(() => undefined);
             }
-            // top two levels as pills; deeper active picks still show
-            const shallow = nodes.filter((n) => n.labels.length <= 2);
+            // WHICH terms lead (issue 7, 2026-11-17): the column's featured
+            // terms for this person — their department's list, else their
+            // site's, else everyone's (Settings → Documents) — and, with
+            // none set, the top two levels as before
+            const lead = leadTerms(nodes, featuredFor(dictBy.get(col)?.featured, myProfile));
+            const hasFeatured = featuredFor(dictBy.get(col)?.featured, myProfile).some((id) => nodes.some((n) => n.id.toLowerCase() === id.toLowerCase()));
             const CAP = 14;
             // a big vocabulary (tags, or any set past the cap) is SEARCHED,
             // not scrolled (Ben, 2026-10-06): the picked terms stay as
             // pills, the typed text narrows what else shows
             const isTags = dictBy.get(col)?.role === "tags";
             const searched = isTags || nodes.length > CAP;
+            // a DEEP vocabulary past the cap is a TREE (issue 8,
+            // 2026-11-17): drill into a branch, tick at any level, several
+            // at once — a ticked parent matches everything under it. The
+            // pills above it are then only the quick picks: what is picked
+            // and what is featured.
+            const asTree = !isTags && nodes.length > CAP && vocabularyDepth(nodes) >= TREE_FILTER_MIN_DEPTH;
+            const treeBox = el("div", "app-docs-ftree");
+            const open = asTree ? openBranches(nodes, myProfile, (filterFor(col)?.nodes ?? []).map((n) => n.id)) : new Set<string>();
+            const paintTree = () => {
+              clear(treeBox);
+              if (!asTree) return;
+              const active = filterFor(col);
+              const picked = new Set((active?.nodes ?? []).map((n) => n.id));
+              const included = new Set(active?.ids ?? []);
+              const show = treeSearch(nodes, termQuery.get(col) ?? "");
+              const walk = (list: TermTreeNode<TermNode>[], depth: number, host: HTMLElement) => {
+                for (const t of list) {
+                  if (show !== null && !show.has(t.node.id)) continue;
+                  const kids = show === null ? t.children : t.children.filter((c) => show.has(c.node.id));
+                  const isOpen = show !== null || open.has(t.node.id);
+                  const row = el("div", "app-docs-ftree-row");
+                  row.style.paddingLeft = `${depth * 16}px`;
+                  const caret = el("button", "app-docs-ftree-caret", kids.length === 0 ? "" : isOpen ? "▾" : "▸") as HTMLButtonElement;
+                  caret.type = "button";
+                  if (kids.length === 0) {
+                    caret.disabled = true;
+                    caret.setAttribute("aria-hidden", "true");
+                  } else {
+                    caret.setAttribute("aria-expanded", String(isOpen));
+                    caret.setAttribute("aria-label", `${isOpen ? "Close" : "Open"} ${t.node.labels[t.node.labels.length - 1]}`);
+                    caret.addEventListener("click", () => {
+                      if (open.has(t.node.id)) open.delete(t.node.id);
+                      else open.add(t.node.id);
+                      paintTree();
+                    });
+                  }
+                  const on = picked.has(t.node.id);
+                  // under a ticked parent: matched already — shown ticked, not its own pick
+                  const under = !on && included.has(t.node.id);
+                  const lab = el("label", "app-docs-ftree-item" + (on ? " app-docs-ftree-on" : "") + (under ? " app-docs-ftree-under" : ""));
+                  const box = el("input") as HTMLInputElement;
+                  box.type = "checkbox";
+                  box.checked = on || under;
+                  box.disabled = under;
+                  box.addEventListener("change", () => {
+                    toggleFilter(col, t.node, nodes);
+                    paintPills();
+                  });
+                  lab.append(box, el("span", undefined, t.node.labels[t.node.labels.length - 1]));
+                  lab.title = `${t.node.description ? `${t.node.description}\n` : ""}${t.node.labels.join(" › ")}${under ? " — included by the level above" : kids.length > 0 ? " — ticking it matches everything under it" : ""}`;
+                  row.append(caret, lab);
+                  host.appendChild(row);
+                  if (isOpen && kids.length > 0) walk(kids, depth + 1, host);
+                }
+              };
+              walk(termTree(nodes), 0, treeBox);
+              if (treeBox.childElementCount === 0) treeBox.appendChild(el("span", "app-field-hint", "No term matches."));
+            };
             // ONLY this column's pills repaint on a keystroke or a pick —
             // the whole-popover repaint destroyed the search box under
             // the typist's cursor (issue 35, 2026-10-18 round)
@@ -3447,13 +3517,17 @@ export function mountDocs(
               clear(pills);
               const active = filterFor(col);
               const q = (termQuery.get(col) ?? "").trim().toLowerCase();
-              const deepPick = (active?.nodes ?? []).filter((p) => !shallow.some((n) => n.id === p.id));
+              const leadIds = new Set(lead.map((n) => n.id));
+              // picks that are not among the leading terms stay in sight, first
+              const offLead = (active?.nodes ?? []).filter((p) => !leadIds.has(p.id));
               const pickedIds = new Set((active?.nodes ?? []).map((n) => n.id));
-              const matches = (n: TermNode) => q === "" || n.labels.some((l) => l.toLowerCase().includes(q));
-              let shown =
-                q !== "" || searched
-                  ? [...(active?.nodes ?? []), ...nodes.filter((n) => !pickedIds.has(n.id) && (q !== "" ? matches(n) : n.labels.length <= 2))]
-                  : [...deepPick, ...shallow];
+              const matches = (n: TermNode) => n.labels.some((l) => l.toLowerCase().includes(q));
+              let shown = asTree
+                ? // the tree carries the vocabulary: pills are the picks and the featured
+                  [...offLead, ...(hasFeatured ? lead : lead.filter((n) => pickedIds.has(n.id)))]
+                : q !== ""
+                  ? [...(active?.nodes ?? []), ...nodes.filter((n) => !pickedIds.has(n.id) && matches(n))]
+                  : [...offLead, ...lead];
               const capped = shown.length > CAP;
               if (capped) shown = shown.slice(0, CAP);
               for (const n of shown) {
@@ -3472,7 +3546,9 @@ export function mountDocs(
                 });
                 pills.appendChild(pb);
               }
-              if (capped) pills.appendChild(el("span", "app-field-hint", "Type to find the rest"));
+              if (capped && !asTree) pills.appendChild(el("span", "app-field-hint", "Type to find the rest"));
+              pills.style.display = shown.length > 0 ? "" : "none";
+              paintTree();
             };
             if (searched) {
               const find = el("input", "app-input app-docs-fsearch") as HTMLInputElement;
@@ -3486,6 +3562,7 @@ export function mountDocs(
               });
               pills.before(find);
             }
+            if (asTree) pills.after(treeBox);
             paintPills();
           });
         }

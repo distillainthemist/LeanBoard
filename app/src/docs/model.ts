@@ -7,6 +7,8 @@
 // Nothing here is authoritative about a document — SharePoint columns
 // are the record; this model only says how LeanBoard presents them.
 
+import { FeaturedMap, parseFeatured } from "./filterModel";
+
 export type LibraryType = "standard" | "record" | "working" | "revision" | "template" | "ingestion";
 
 export const LIBRARY_TYPES: { key: LibraryType; label: string }[] = [
@@ -175,6 +177,11 @@ export interface SiteColumn {
    *  configs before resolving; the resolution helpers below expect a
    *  DERIVED dictionary. */
   types?: TypeStates;
+  /** The terms that LEAD this column's filter pills (issue 7,
+   *  2026-11-17), by scope — everyone, a site, a department of a site
+   *  (docs/filterModel.ts). Term ids, in the order they show; absent =
+   *  the vocabulary's top two levels lead, as before. */
+  featured?: FeaturedMap;
 }
 
 /**
@@ -1147,6 +1154,7 @@ function parseSiteDictionary(o: Record<string, unknown>): SiteDictionary {
         filterable: col.filterable !== false,
         group: asStr(col.group),
         ...(types !== undefined ? { types } : {}),
+        ...(parseFeatured(col.featured) !== undefined ? { featured: parseFeatured(col.featured) } : {}),
       });
     }
   };
@@ -1223,6 +1231,8 @@ function serializeSiteDictionary(dict: SiteDictionary): Record<string, unknown> 
     if (!c.filterable) col.filterable = false;
     if (c.group !== "") col.group = c.group;
     if (c.types !== undefined && Object.keys(c.types).length > 0) col.types = c.types;
+    const featured = parseFeatured(c.featured);
+    if (featured !== undefined) col.featured = featured;
     return col;
   };
   const cols = dict.columns.map(columnOut);
