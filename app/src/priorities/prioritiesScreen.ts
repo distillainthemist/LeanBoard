@@ -71,7 +71,7 @@ import { decodePrioritiesView, encodePrioritiesView } from "./viewLink";
 import { cascadeDialog, cascadeReview, closeDialog, closePriority, LifecycleCtx, moveBackToProposed, openPriorityOverlay, pullFromAbove, reopenPriority, sendCascade } from "./lifecycle";
 import { Initiative, adminScopeFor, initiativesByPriority, ownersLabel, ownersTitle, statusOf } from "../improvement/initiativeModel";
 import { actionCountsFor, PriorityState, priorityStatus, PriorityStatus, statusColour, StatusResult } from "../improvement/status";
-import { priorityCounts } from "../improvement/statusUi";
+import { priorityCounts, statusLegend } from "../improvement/statusUi";
 import { REOPEN_PRIORITY_KEY } from "../improvement/boardOrigin";
 import { PDCA_TOKENS } from "../improvement/templateModel";
 import { buildMetricState, loadMetricLasts, statusMetricsOf } from "../improvement/metricValues";
@@ -1478,7 +1478,15 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       }
 
       // row 3: Priorities
-      grid.appendChild(el("div", "app-cp-label", "Priorities"));
+      // the row's label carries the key to the cards' three circles (Ben,
+      // 2026-11-17: the circles had no legend) — in the rail, beside the
+      // cards it explains, where it costs the matrix no room
+      const prLabel = el("div", "app-cp-label");
+      prLabel.appendChild(el("div", undefined, "Priorities"));
+      const key = statusLegend(stateHex, { stack: true });
+      key.title = "Each priority's initiatives: on track, flagged (support asked for), off track";
+      prLabel.appendChild(key);
+      grid.appendChild(prLabel);
       for (const col of columns) {
         const cell = el("div", "app-cp-cell");
         cell.addEventListener("click", () => {
@@ -1608,8 +1616,9 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       body.appendChild(owner);
       // tallies + total, lineage, flags — same as the matrix card
       const meta = el("div", "app-cp-tallies");
+      // the three circles ARE the count — no "· n initiatives" beside
+      // them (Ben, 2026-11-17: the total repeated their sum)
       meta.appendChild(priorityCounts(ps, stateHex, "s", false));
-      meta.appendChild(el("span", "app-cp-total", `· ${ps.total} initiative${ps.total === 1 ? "" : "s"}`));
       body.appendChild(meta);
       if (p.status !== "active") body.appendChild(el("div", "app-cp-flag", p.status === "completed" ? "✓ Completed" : p.status === "archived" ? "▣ Archived" : "▣ Retired"));
       if (parentClosed(p, data.priorities)) body.appendChild(el("div", "app-cp-flag app-cp-flag-amber", "▲ Parent completed — decide"));
@@ -1642,10 +1651,9 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       // on track / flagged / off track — the three counts every surface
       // carries (the status rule, 2026-11-17)
       const meta = el("div", "app-cp-tallies");
+      // …and they ARE the count: no "· n" beside them (Ben, 2026-11-17 —
+      // the total only repeated their sum)
       meta.appendChild(priorityCounts(ps, stateHex, density === "compact" ? "xs" : "s", false));
-      meta.appendChild(
-        el("span", "app-cp-total", density === "compact" ? `·${ps.total}` : `· ${ps.total} initiative${ps.total === 1 ? "" : "s"}`)
-      );
       card.appendChild(meta);
       // cascade lineage and sender flags live in the detail overlay, not
       // on the card (Ben, 2026-08-19)

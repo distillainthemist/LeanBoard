@@ -59,6 +59,43 @@ export function actionCircles(c: ActionCounts, colour: (s: PriorityState) => str
   );
 }
 
+/** What the circles mean — a small key beside them: a dot and its word
+ *  for each (Ben, 2026-11-17: the wall's circles had no legend). `stack`
+ *  lays them one under another (the wall's row label); otherwise one
+ *  line. `lead`: a word before the key ("Actions"). */
+export function countLegend(cells: { label: string; colour: string }[], opts: { stack?: boolean; lead?: string } = {}): HTMLElement {
+  const box = el("div", "app-st-legend" + (opts.stack === true ? " app-st-legend-stack" : ""));
+  if (opts.lead) box.appendChild(el("span", "app-st-legend-lead", opts.lead));
+  for (const c of cells) {
+    const item = el("span", "app-st-legend-item");
+    const dot = el("span", "app-st-legend-dot");
+    dot.style.background = c.colour;
+    item.append(dot, el("span", undefined, c.label));
+    box.appendChild(item);
+  }
+  return box;
+}
+
+/** The key to a priority's three circles: On track · Flagged · Off track. */
+export function statusLegend(colour: (s: PriorityState) => string, opts: { stack?: boolean; lead?: string } = {}): HTMLElement {
+  return countLegend(
+    COUNT_ORDER.map((s) => ({ label: STATE_LABELS[s], colour: colour(s) })),
+    opts
+  );
+}
+
+/** The key to an initiative's action circles: Done · Future · Late. */
+export function actionLegend(colour: (s: PriorityState) => string, opts: { stack?: boolean; lead?: string } = {}): HTMLElement {
+  return countLegend(
+    [
+      { label: "Done", colour: colour("good") },
+      { label: "Future", colour: colour("none") },
+      { label: "Late", colour: colour("bad") },
+    ],
+    opts
+  );
+}
+
 /** "Flagged · recovery needed" as a chip in its state's colour. */
 export function statusChip(s: StatusResult, colour: (st: PriorityState) => string): HTMLElement {
   const chip = el("span", `app-st-chip app-st-chip-${s.state}`, (s.state === "flagged" ? "⚐ " : "") + statusWords(s));

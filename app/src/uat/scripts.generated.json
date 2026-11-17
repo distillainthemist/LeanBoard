@@ -3329,8 +3329,8 @@
         "Open the ritual board's Actions Gantt card.",
         "Open initiative D's board; read the status band."
        ],
-       "expected": "step 1 every active row's edge is its status colour — the same state the Priorities popup gives it; a flagged row carries \"⚐ Flagged · at risk\" or \"· recovery needed\", an off-track row \"Off track\", each with its reasons on hover (and what was asked for, on a flag); an on-track row carries no chip; the completed initiative's edge is neutral; tiles carry the colour on top and a ⚐ or ✕ glyph; the Gantt's group rows carry the same edge; the Actions column says \"n late\", not \"overdue\"; step 2 the card's group edges match the tab's; step 3 the band says \"No update for n days\" only once the recency window (Settings → Priorities → Status, 35 days unless changed) has passed — not at 14 days",
-       "hash": "086fb96b",
+       "expected": "step 1 every active row's edge is its status colour — the same state the Priorities popup gives it; a flagged row carries \"⚐ Flagged · at risk\" or \"· recovery needed\", an off-track row \"Off track\", each with its reasons on hover (and what was asked for, on a flag); an on-track row carries no chip; the completed initiative's edge is neutral; tiles carry the colour on top and a ⚐ or ✕ glyph; the Gantt's group rows carry the same edge; the Actions column shows three circles — done, future, late — the same as the executive summary's, with the words on hover, \"no actions\" where there are none, and the key under the column's name; tiles carry the same circles; step 2 the card's group edges match the tab's; step 3 the band says \"No update for n days\" only once the recency window (Settings → Priorities → Status, 35 days unless changed) has passed — not at 14 days",
+       "hash": "121548fc",
        "changed": "2026-11-17"
       },
       {
@@ -3650,13 +3650,13 @@
        ],
        "preconditions": "a priority with at least four linked initiatives: A with open actions none late, metrics on plan and a status update in the last five weeks; B the same but with one action a day late; C flagged; D created over five weeks ago with no actions and no status update; a second priority whose initiatives are all like A; a third with no initiative",
        "steps": [
-        "Priorities tab: read the left edge and the three small circles on each of the three priority cards; hover the circles.",
+        "Priorities tab: read the left edge and the three small circles on each of the three priority cards; hover the circles; read the key under the \"Priorities\" row label.",
         "Open the first priority → Initiatives tab: read the groups, and the line under B, C and D.",
         "Give B's late action a later due date (or close it); return to the wall.",
         "Create a new initiative under the second priority and add nothing to it; return to the wall."
        ],
-       "expected": "step 1 the first priority's edge is the Flagged colour (flagged wins over off track) and its circles read on track 1 · flagged 1 · off track 2 with the words on hover; the second is the on-track colour with every initiative in the first circle; the third is neutral with three faint zeros and \"0 initiatives\"; step 2 the groups are Flagged, Off track, On track in that order, each row's edge in its state's colour; B's row says \"1 late action\", D's \"No actions defined · No status update yet\", C's says \"At risk\" or \"Recovery needed\" with what was asked for, and a row with several owners names them all; no row reads \"At risk\" amber or \"No signal\" grey; step 3 B moves to On track and the priority's circles follow; step 4 the new initiative is ON TRACK (a new initiative has the recency window as grace) and the second priority stays on track",
-       "hash": "5dd52fb8",
+       "expected": "step 1 the first priority's edge is the Flagged colour (flagged wins over off track) and its circles read on track 1 · flagged 1 · off track 2 with the words on hover; the second is the on-track colour with every initiative in the first circle; the third is neutral with three faint zeros; no card carries a \"· n initiatives\" total beside its circles (they are the count); under the row label \"Priorities\" a small key reads On track, Flagged, Off track, each with its colour; step 2 the groups are Flagged, Off track, On track in that order, each row's edge in its state's colour; B's row says \"1 late action\", D's \"No actions defined · No status update yet\", C's says \"At risk\" or \"Recovery needed\" with what was asked for, and a row with several owners names them all; each row carries three action circles — done, future, late — with the words on hover (or \"no actions\"), and one key line \"Actions: Done, Future, Late\" sits above the list; the row no longer says \"n open actions\" in words; no row reads \"At risk\" amber or \"No signal\" grey; step 3 B moves to On track and the priority's circles follow; step 4 the new initiative is ON TRACK (a new initiative has the recency window as grace) and the second priority stays on track",
+       "hash": "8fa080f5",
        "changed": "2026-11-17"
       },
       {

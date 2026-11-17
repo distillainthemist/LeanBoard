@@ -26,6 +26,7 @@ import { rememberBoardOrigin } from "../improvement/boardOrigin";
 import { popupTabFor, rememberPopupTab } from "../sessionView";
 import { promptConfirm } from "../prompts";
 import { reasonsLine, STATE_LABELS, STATE_ORDER } from "../improvement/status";
+import { actionCircles, actionLegend } from "../improvement/statusUi";
 import {
   CLOSE_REASONS,
   CloseReason,
@@ -1218,7 +1219,10 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
         if (r.inheritedFrom !== "") t.appendChild(el("span", "app-cp-muted", `↓ ${r.inheritedFrom} `));
         t.appendChild(el("span", undefined, r.title));
         main.appendChild(t);
-        const meta = el("div", "app-cp-ov-init-meta", [r.orgName, r.ownerName, `${r.open} open action${r.open === 1 ? "" : "s"}`, r.overdue > 0 ? `${r.overdue} late` : ""].filter((x) => x !== "").join(" · "));
+        // (its actions are the three circles to the right — Ben,
+        // 2026-11-17: the popup carries the executive summary's circles,
+        // not "n open · n late" in words)
+        const meta = el("div", "app-cp-ov-init-meta", [r.orgName, r.ownerName].filter((x) => x !== "").join(" · "));
         if (r.ownerTitle !== "") meta.title = `Owner: ${r.ownerTitle}`;
         main.appendChild(meta);
         // why it is where it is: a flagged one says what lies under the
@@ -1237,6 +1241,9 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
           main.appendChild(line);
         }
         rowEl.appendChild(main);
+        // done / future / late — the same circles as the executive summary
+        if (r.counts.total > 0) rowEl.appendChild(actionCircles(r.counts, ctx.stateColour, "s", false));
+        else rowEl.appendChild(el("span", "app-cp-muted app-cp-ov-init-noacts", "no actions"));
         // ★ the priority's PRIMARY initiative (its charter + metrics on the
         // Charter tab) — a direct link only, set by whoever manages the org
         if (r.inheritedFrom === "") {
@@ -1321,6 +1328,8 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
         });
         return b;
       };
+      // the key to the rows' action circles, once, above the list
+      if (shown.length > 0) body.appendChild(actionLegend(ctx.stateColour, { lead: "Actions" }));
       const stale = ctx.stalePrimaryOf(live);
       if (stale !== null) {
         const note = el("div", "app-cp-ov-primarynote");

@@ -27,7 +27,7 @@ import { listBoards } from "../store/boards";
 import { rowsForInitiativeBoards } from "../store/cards";
 import { buildMetricState, loadMetricLasts, statusMetricsOf } from "./metricValues";
 import { actionCountsFor, PriorityState, statusColour, StatusResult } from "./status";
-import { statusChip } from "./statusUi";
+import { actionCircles, actionLegend, statusChip } from "./statusUi";
 import { actionBelongsTo, newAction } from "../../../shared/schema/actions";
 import { promptConfirm } from "../prompts";
 import { parseOrgTree } from "../../../shared/schema/meeting";
@@ -333,6 +333,29 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
       return h;
     };
 
+    /** The Actions column's head: its name over the key to its three
+     *  circles (Ben, 2026-11-17 — the register carries the executive
+     *  summary's done / future / late circles). */
+    const actionsHead = (): HTMLElement => {
+      const h = el("span", "app-im-actionshead");
+      h.appendChild(el("span", undefined, "Actions"));
+      h.appendChild(actionLegend(stateHex));
+      return h;
+    };
+    /** Done / future / late for one initiative — the same circles the
+     *  executive summary and the priority popup draw. */
+    const actionCountsCell = (i: Initiative, cls: string): HTMLElement => {
+      const cell = el("div", cls);
+      const counts = actionCountsFor(i, initActions, todayIso());
+      if (counts.total === 0) {
+        cell.classList.add("app-cp-muted");
+        cell.textContent = "no actions";
+      } else {
+        cell.appendChild(actionCircles(counts, stateHex, "s", false));
+      }
+      return cell;
+    };
+
     /** The Documents-tab column header row — same labels as the spec. */
     const columnHead = (): HTMLElement => {
       const h = el("div", "app-im-row app-im-colhead");
@@ -342,7 +365,7 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
         el("span", undefined, "Your role(s)"),
         el("span", undefined, "Stage"),
         el("span", undefined, "Primary metric"),
-        el("span", undefined, "Actions"),
+        actionsHead(),
         el("span", undefined, "")
       );
       return h;
@@ -707,22 +730,7 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
       }
       row.appendChild(metricCell);
       // actions column: the underlying position (Ben, 2026-08-26)
-      const actCell = el("div", "app-im-cell");
-      const counts = actionCountsFor(i, initActions, todayIso());
-      const openCount = counts.future + counts.late;
-      if (openCount === 0) {
-        actCell.classList.add("app-cp-muted");
-        actCell.textContent = "none open";
-      } else {
-        actCell.appendChild(el("span", undefined, `${openCount} open`));
-        if (counts.late > 0) {
-          const od = el("span", undefined, ` · ${counts.late} late`);
-          od.style.color = stateHex("bad");
-          od.style.fontWeight = "600";
-          actCell.appendChild(od);
-        }
-      }
-      row.appendChild(actCell);
+      row.appendChild(actionCountsCell(i, "app-im-cell"));
       // (the per-row health column left with the old initiative health
       // check — health checks are their own feature now, 2026-10-21)
       // kebab
@@ -761,6 +769,8 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
         el("div", "app-im-tile-metric" + (mv && mv.display !== "" ? "" : " app-cp-muted"), mv && mv.display !== "" ? `${mv.name} ${mv.display}${mv.target !== null ? ` / ${mv.target}${mv.unit}` : ""}` : "No metric value")
       );
       tile.appendChild(el("div", "app-im-tile-owner", [ownersLabel(i) || "no owner", i.org.department || i.org.site, processText(i)].filter((x) => x !== "").join(" · ")));
+      // the same action circles as the list's column
+      if (i.status === "active") tile.appendChild(actionCountsCell(i, "app-im-tile-actions"));
       tile.addEventListener("click", () => openInitiative(i));
       return tile;
     };
