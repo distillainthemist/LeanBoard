@@ -165,6 +165,19 @@ export function actionMessenger(): ((req: ActionMessageRequest) => void) | null 
   return messageProvider;
 }
 
+/** An action's attachments & links (issue 5, 2026-11-17): the host
+ *  mounts its list into `host` — the dialog only gives it room. Returns
+ *  a teardown. null = no host. */
+let attachmentsProvider: ((host: HTMLElement, action: LtkAction) => () => void) | null = null;
+
+export function setActionAttachmentsProvider(p: ((host: HTMLElement, action: LtkAction) => () => void) | null): void {
+  attachmentsProvider = p;
+}
+
+export function actionAttachments(): ((host: HTMLElement, action: LtkAction) => () => void) | null {
+  return attachmentsProvider;
+}
+
 /** Fired when the endorsement rule changed an action at the write (a
  *  closing road that could not apply it itself) — open lists refresh. */
 export const ACTION_RULED_EVENT = "ltk-action-ruled";

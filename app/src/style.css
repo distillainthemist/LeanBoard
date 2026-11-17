@@ -5294,3 +5294,29 @@ button.app-ta-opt:hover, button.app-ta-opt.app-ta-opt-on { background: #f1ede6; 
 .app-ta-note { font-size: 12.5px; color: #6d675c; padding: 8px 10px; }
 /* the message panel sits over the action dialog */
 .app-act-msg { z-index: 10500; }
+
+/* ---- attachments & links (attachments/list.ts): an initiative's
+   details pane and the action dialog ---- */
+.app-att { display: flex; flex-direction: column; gap: 6px; border-radius: 8px; }
+.app-att-over { outline: 2px dashed var(--app-accent); outline-offset: 4px; }
+.app-att-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.app-att-title { font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #6d675c; }
+.app-att-status { font-size: 12.5px; color: #57534a; }
+.app-att-status-err { color: #b3261e; }
+.app-att-linkform { display: flex; flex-direction: column; gap: 4px; }
+.app-att-linkrow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.app-att-linkrow .app-input { flex: 1 1 180px; min-width: 0; }
+.app-att-rows { display: flex; flex-direction: column; gap: 2px; }
+.app-att-row { display: flex; align-items: flex-start; gap: 8px; padding: 6px 4px; border-radius: 6px; }
+.app-att-row:hover { background: #faf8f4; }
+.app-att-icon { flex: 0 0 auto; font-size: 15px; line-height: 20px; }
+.app-att-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.app-att-name, button.app-link.app-att-name { font-size: 13.5px; font-weight: 600; text-align: left; padding: 0; overflow-wrap: anywhere; white-space: normal; color: var(--app-accent); text-decoration: none; }
+.app-att-name:hover { text-decoration: underline; }
+.app-att-meta { font-size: 11.5px; color: #6d675c; overflow-wrap: anywhere; }
+button.app-link.app-att-x { flex: 0 0 auto; min-width: 32px; min-height: 32px; color: #6d675c; }
+.app-att-none { font-size: 12.5px; padding: 4px; }
+.app-ib-attach { padding: 12px 0 4px; border-top: 1px solid #ece8e0; margin-top: 12px; }
+button.app-ib-attachchip { border: 1px solid #d9d3c8; background: #fff; cursor: pointer; font: inherit; font-size: 12px; }
+button.app-ib-attachchip:hover, button.app-ib-attachchip:focus-visible { border-color: var(--app-accent); outline: none; }
+.ltk-act-attach { border-top: 1px solid var(--ltk-hairline, #e4dfd6); padding-top: 10px; margin-top: 4px; }

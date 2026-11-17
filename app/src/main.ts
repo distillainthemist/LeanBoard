@@ -3,7 +3,7 @@
 // from the typed Dataverse store inside Power Apps, demo data on a bare
 // dev server.
 
-import { setActionDirectoryProvider, setActionLinkProvider, setActionMessageProvider, setActionTeamProvider, setActionViewerProvider, setEndorsementLookup, setRescheduleProvider } from "../../shared/ui/actionLinkProvider";
+import { setActionAttachmentsProvider, setActionDirectoryProvider, setActionLinkProvider, setActionMessageProvider, setActionTeamProvider, setActionViewerProvider, setEndorsementLookup, setRescheduleProvider } from "../../shared/ui/actionLinkProvider";
 import { el, clear } from "../../shared/ui/dom";
 import { boardOrigin, REOPEN_PRIORITY_KEY } from "./improvement/boardOrigin";
 import { getLeaveGuard, setLeaveGuard } from "./navGuard";
@@ -34,6 +34,19 @@ setActionMessageProvider((req) => void import("./actions/message").then((m) => m
 // nobody is signed in as far as these providers know
 let viewerNow: (() => { objectId: string; name: string } | null) | null = null;
 const currentViewer = (): { objectId: string; name: string } | null => (viewerNow ? viewerNow() : null);
+// an action's attachments & links (2026-11-17): the dialog gives the
+// list room; the list itself loads on first use
+setActionAttachmentsProvider((host, action) => {
+  let stop: () => void = () => undefined;
+  let gone = false;
+  void import("./attachments/actionSlot").then((m) => {
+    if (!gone) stop = m.mountActionAttachments(host, action, currentViewer());
+  });
+  return () => {
+    gone = true;
+    stop();
+  };
+});
 let endorsementNow: ((a: { initiativeId?: string; instanceId: string }) => { on: boolean; mine: boolean } | null) | null = null;
 let endorsementAsked = false;
 setEndorsementLookup((a) => {

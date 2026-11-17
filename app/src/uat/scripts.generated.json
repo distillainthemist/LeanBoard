@@ -3308,6 +3308,33 @@
        "expected": "step 1 every active row's edge is its status colour — the same state the Priorities popup gives it; a flagged row carries \"⚐ Flagged · at risk\" or \"· recovery needed\", an off-track row \"Off track\", each with its reasons on hover (and what was asked for, on a flag); an on-track row carries no chip; the completed initiative's edge is neutral; tiles carry the colour on top and a ⚐ or ✕ glyph; the Gantt's group rows carry the same edge; the Actions column says \"n late\", not \"overdue\"; step 2 the card's group edges match the tab's; step 3 the band says \"No update for n days\" only once the recency window (Settings → Priorities → Status, 35 days unless changed) has passed — not at 14 days",
        "hash": "086fb96b",
        "changed": "2026-11-17"
+      },
+      {
+       "id": "UAT-IMP-009",
+       "title": "Attachments & links on an initiative and on an action",
+       "journey": "Journey 2 — Initiatives",
+       "persona": "member",
+       "modules": [
+        "attachments/list.ts",
+        "attachments/model.ts",
+        "attachments/actionSlot.ts",
+        "store/attachments.ts",
+        "improvement/boardHeader.ts",
+        "shared/ui/actionUi.ts"
+       ],
+       "preconditions": "an active initiative you hold a role on, with an Action card holding a saved action; a PDF of a few MB, a file over 30 MB, and a web link to hand; a second account that can see the initiative but holds no role on it",
+       "steps": [
+        "Open the initiative board → the details pane → \"Attachments & links\". Press ＋ Add file and pick the PDF; then drag two files onto the block together.",
+        "Pick the file over 30 MB.",
+        "Press ＋ Add link; type \"notes\" and Add link; then paste a full web address with a caption and press Enter.",
+        "Read the header beside the title; press the 📎 chip. Click the PDF's name, then the link's.",
+        "Open the action from the Action card: add a file under Comments; close the dialog with Close (not Save) and open it again.",
+        "As the second account, open the same pane and the same action.",
+        "As yourself, remove the PDF with ✕."
+       ],
+       "expected": "step 1 \"Uploading <name>…\" shows, then the file is listed newest first with who added it, the date and its size, and the heading counts it; two dropped files upload one after the other (\"Uploading 1 of 2…\"); step 2 nothing uploads and the line says the file's size, the 30 MB limit, and to put large files in the working folder and add a link; step 3 \"notes\" is refused as not a web address; the full address is added by Enter without closing or saving anything around it, listed by its caption, and https:// is added when it was left off; step 4 a \"📎 n\" chip sits with the title's chips and opens the details pane at the attachments; the PDF downloads under its own name; the link opens in a new tab; step 5 the action's file is there on reopening — an attachment is saved when it is added, not with the dialog's Save — and a NEW action (Raise) shows no attachments block until it exists; step 6 the second account sees and opens everything, has no ＋ Add file / ＋ Add link on the initiative, and no ✕ on rows it did not add; step 7 a confirmation names the file and says it is deleted for everyone; after it the row and the count are gone",
+       "hash": "1e9d0ecd",
+       "changed": "2026-11-17"
       }
      ]
     }

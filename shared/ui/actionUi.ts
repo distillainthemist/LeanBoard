@@ -9,7 +9,7 @@
 
 import { ActionComment, ActionPdca, ACTION_PDCA, assigneesLabel, canEditComment, cleanSupporters, COMMENT_EDIT_HOURS, duplicateAction, editComment, isOverdue, LtkAction, MAX_ASSIGNEES, mergeAssignees, newAction, newComment, partsLabel, partsTitle, settleFromParts, Supporter, supportLabel, PDCA_LABELS, PDCA_QUARTERS, pdcaOf } from "../schema/actions";
 import { ActionLink, applyLink, boardOnlyTarget, currentLink, isCardKeyed, linkChanges, linkLabel, LinkTarget, searchLinkTargets } from "../schema/actionLinks";
-import { ACTION_MOVED_EVENT, actionDirectory, ActionDirectoryRoad, ActionLinkContext, actionLinkProvider, actionMessenger, actionTeam, ActionTeamRoad, actionViewer, endorsementFor } from "./actionLinkProvider";
+import { ACTION_MOVED_EVENT, actionAttachments, actionDirectory, ActionDirectoryRoad, ActionLinkContext, actionLinkProvider, actionMessenger, actionTeam, ActionTeamRoad, actionViewer, endorsementFor } from "./actionLinkProvider";
 import { dueMove, dueMoves, isLaterMove, reasonChoices, recordDueMove, slipCount } from "../schema/reschedule";
 import { currentRescheduleSettings, rescheduleFields } from "./reschedulePrompt";
 import { applyEndorsementRule, awaitingEndorsement, endorse, sendBack } from "../schema/actionEndorsement";
@@ -1777,6 +1777,21 @@ export function openActionDialog(o: ActionDialogOptions): void {
   side.appendChild(el("div", "ltk-field-label", count > 0 ? `Comments · ${count}` : "Comments"));
   side.appendChild(comments.el);
   if (!o.isNew && dueMoves(action).length > 0) side.appendChild(dueMoveSummary(action));
+  // attachments & links (issue 5, 2026-11-17): evidence on the action —
+  // the host's list, on an action that exists (it hangs off its id)
+  const attach = o.isNew ? null : actionAttachments();
+  if (attach !== null) {
+    const slot = el("div", "ltk-act-attach");
+    side.appendChild(slot);
+    const stop = attach(slot, action);
+    // the list goes when the dialog does, however it is closed
+    const gone = new MutationObserver(() => {
+      if (dlg.root.isConnected) return;
+      gone.disconnect();
+      stop();
+    });
+    if (dlg.root.parentNode) gone.observe(dlg.root.parentNode, { childList: true });
+  }
   form.focus();
 }
 

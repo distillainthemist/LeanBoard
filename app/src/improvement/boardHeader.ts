@@ -241,6 +241,48 @@ export function mountInitiativePane(o: InitiativePaneOpts): InitiativePaneHandle
       pane.appendChild(renderKeyDetails());
       pane.appendChild(renderStageRail());
       pane.appendChild(renderCommentary());
+      pane.appendChild(renderAttachments());
+    };
+
+    // ---- attachments & links (issue 5, 2026-11-17) ---------------------------------
+    // Evidence that lives with the initiative: files and links, in the
+    // details pane, with a count chip in the header that opens it there.
+    // The initiative's people and its admins add; they and whoever added
+    // one remove. Seen by whoever sees the initiative.
+    let attachmentsEl: HTMLElement | null = null;
+    let attachmentsTeardown: (() => void) | null = null;
+    let attachmentCount = 0;
+    let attachmentChip: HTMLButtonElement | null = null;
+    const paintAttachmentChip = () => {
+      if (attachmentChip === null) return;
+      attachmentChip.textContent = `📎 ${attachmentCount}`;
+      attachmentChip.title = `${attachmentCount} attachment${attachmentCount === 1 ? "" : "s"} and links — open the details`;
+      attachmentChip.style.display = attachmentCount > 0 ? "" : "none";
+    };
+    const renderAttachments = (): HTMLElement => {
+      attachmentsTeardown?.();
+      const box = el("div", "app-ib-attach");
+      attachmentsEl = box;
+      // the chip sits with the title's other chips; a render rebuilt them
+      attachmentChip = btn("", "app-im-chip app-ib-attachchip");
+      attachmentChip.addEventListener("click", () => openPaneAt(() => attachmentsEl?.scrollIntoView({ block: "start", behavior: "smooth" })));
+      o.titleHost.appendChild(attachmentChip);
+      paintAttachmentChip();
+      void import("../attachments/list").then(({ mountAttachments }) => {
+        if (dead || !box.isConnected) return;
+        attachmentsTeardown = mountAttachments({
+          host: box,
+          parent: { kind: "initiative", id: i.id },
+          actor: actor(),
+          canAdd: mine() && i.status !== "archived",
+          managesParent: mine(),
+          onCount: (n) => {
+            attachmentCount = n;
+            paintAttachmentChip();
+          },
+        }).teardown;
+      });
+      return box;
     };
 
     // ---- key details (pane top) --------------------------------------------------
