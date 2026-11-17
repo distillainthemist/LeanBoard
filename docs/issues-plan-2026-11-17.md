@@ -464,3 +464,61 @@ something the plan left open:
   featured.
 - Release day reads mostly off track. Leaders should hear first.
 
+## Changes from Ben's walkthrough (2026-11-17, on dev at cc4fe17)
+
+Ben walked the build check by check; these came out of it and are built.
+
+**Status and the summary**
+- The wall's circles gained a KEY under the "Priorities" row label; the
+  grey "· n" total beside them went (it repeated their sum).
+- ONE initiative row (`improvement/initiativeRow.ts`): the priority
+  popup, the Improvement list and the executive summary draw the same
+  header and row. Status in small caps above the title — "⚑ SUPPORT
+  NEEDED" (not "Flagged · recovery needed"), "OFF TRACK", "ON TRACK" —
+  with a small i for the reasons (hover; press on a wall screen). Stage
+  = the PDCA pill with a small disc. Actions = three circles in a fixed
+  column, Done / Future / Late in the header over them. Primary = a
+  heavy border and the star alone. The popup lost its group headings:
+  primary, support needed, off track, on track. The Improvement list's
+  status pill and template chip went (the template is in the grey
+  line); "Primary metric" became sparkline tiles.
+- The board header's chip reads "⚑ Support needed".
+- The summary's open / close control is a round chevron button; the
+  summary no longer takes the browser full screen.
+- The Flag dialog's suggestion reads "e.g. a decision".
+
+**Shared actions**
+- A person's part is recorded ON their own box; the separate Parts list
+  and every explanatory sentence went. On a SAVED shared action the
+  people are sign-off boxes (press = that person's part; a small ✕
+  takes them off) and only the people on the action are listed —
+  everyone else is behind the search. "n / n people completed" sits at
+  the right of the "＋ Cascade to team…" / "＋ Add support" line.
+- A shared action closes ONLY when every part is done
+  (`holdOpenUntilAllParts`, `tickPart`): Closed is greyed until then, a
+  board's tick records the viewer's own part, a drop into Done is
+  refused, and the store holds the same line. This REVERSES the plan's
+  "anyone who can edit may close for all". Anyone who can edit may
+  still press another person's box in the dialog.
+- "Add a team" is "Cascade to team".
+
+**The action dialog**
+- "⚑ Flag for support" is a button in the title row, beside Message
+  (faint in the flag's colour, full once flagged); the tick is gone.
+- Confidential shares the dates' row.
+- The right side's headings read alike, and the side folds to a rail
+  (remembered in the browser).
+
+**Attachments**
+- The document register's type chips (PDF, DOCX…; LINK for a link);
+  Add file and Add link together under the heading.
+
+**Not yet checked by Ben:** owners in the popup (1), Cascade to team
+against a real reporting line (9), the document filters (12).
+
+**Open**
+- "Flagged" survives as the middle count's label and in the wall's
+  key; only an initiative's status says "Support needed".
+- The dialog's flag button uses the default purple, not the Settings
+  colour for Flagged.
+

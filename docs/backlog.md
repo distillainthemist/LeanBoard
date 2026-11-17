@@ -33,6 +33,14 @@ new `ben_ltkattachment` table). Owed from it:
   browser** (the Documents screen needs SharePoint): UAT-DOC-093.
 - **Ellen's seven document types** may not be terms in the Document
   type set; add them in the term manager before featuring them.
+- **The action dialog's "Flag for support" button paints the default
+  purple**, not the Flagged colour chosen in Settings → Priorities →
+  Status (the shared dialog has no road to the app's settings yet).
+- **"Flagged" is still the middle count's label** (the priority
+  circles, the wall's key) while an initiative's own status reads
+  "Support needed" — Ben has not asked for the counts to be renamed.
+- **Not yet walked by Ben** (2026-11-17): owners in the popup, Cascade
+  to team against a real reporting line, the document filters.
 - **A status preview before a release** was considered and not built:
   release day reads mostly off track under the new rule. Tell leaders
   first.
