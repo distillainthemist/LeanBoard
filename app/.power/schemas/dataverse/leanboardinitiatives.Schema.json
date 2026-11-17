@@ -161,6 +161,14 @@
           "required": true,
           "maxLength": 40
         },
+        "ben_lastupdateat": {
+          "type": "string",
+          "title": "Last update at (ISO)",
+          "x-ms-dataverse-attribute": "ben_lastupdateat",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "ben_lastupdateat",
+          "maxLength": 30
+        },
         "ben_ltkinitiativeid": {
           "type": "string",
           "title": "LeanBoard Initiative",

@@ -33,7 +33,7 @@
           "x-ms-dataverse-attribute": "ben_assigneesjson",
           "x-ms-dataverse-type": "MemoType",
           "x-ms-schema-name": "ben_assigneesjson",
-          "maxLength": 10000
+          "maxLength": 100000
         },
         "ben_boardid": {
           "type": "string",
@@ -97,6 +97,13 @@
           "x-ms-dataverse-type": "MemoType",
           "x-ms-schema-name": "ben_description",
           "maxLength": 4000
+        },
+        "ben_doneat": {
+          "type": "string",
+          "title": "Done at",
+          "x-ms-dataverse-attribute": "ben_doneat",
+          "x-ms-dataverse-type": "DateTimeType",
+          "x-ms-schema-name": "ben_doneat"
         },
         "ben_due": {
           "type": "string",

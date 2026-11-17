@@ -205,6 +205,10 @@
         "people": {
           "entitySetName": "ben_ltkpeoples",
           "logicalName": "ben_ltkpeople"
+        },
+        "leanboardattachments": {
+          "entitySetName": "ben_ltkattachments",
+          "logicalName": "ben_ltkattachment"
         }
       },
       "environmentVariableName": ""

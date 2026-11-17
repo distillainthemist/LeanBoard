@@ -22,6 +22,7 @@ export interface Ben_ltkactionsBase {
   ben_confidential?: boolean;
   ben_createdby?: string;
   ben_description?: string;
+  ben_doneat?: string;
   ben_due?: string;
   ben_escalated?: boolean;
   ben_hint?: string;

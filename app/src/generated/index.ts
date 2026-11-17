@@ -6,6 +6,7 @@
 // Models
 export * as Ben_ltkactionfilesModel from './models/Ben_ltkactionfilesModel';
 export * as Ben_ltkactionsModel from './models/Ben_ltkactionsModel';
+export * as Ben_ltkattachmentsModel from './models/Ben_ltkattachmentsModel';
 export * as Ben_ltkboardinstancesModel from './models/Ben_ltkboardinstancesModel';
 export * as Ben_ltkboardsModel from './models/Ben_ltkboardsModel';
 export * as Ben_ltkcardcatalogsModel from './models/Ben_ltkcardcatalogsModel';
@@ -46,6 +47,7 @@ export * as Office365UsersModel from './models/Office365UsersModel';
 // Services
 export * from './services/Ben_ltkactionfilesService';
 export * from './services/Ben_ltkactionsService';
+export * from './services/Ben_ltkattachmentsService';
 export * from './services/Ben_ltkboardinstancesService';
 export * from './services/Ben_ltkboardsService';
 export * from './services/Ben_ltkcardcatalogsService';

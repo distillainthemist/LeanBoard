@@ -27,6 +27,7 @@ export interface Ben_ltkinitiativesBase {
   ben_flagnote?: string;
   ben_gatejson?: string;
   ben_initiativeid: string;
+  ben_lastupdateat?: string;
   ben_ltkinitiativeid: string;
   ben_method?: string;
   ben_metricsjson?: string;

@@ -198,12 +198,44 @@ async function ensureTable(t) {
   console.log(`table ${t.logical} created`);
 }
 
+/**
+ * Raise an EXISTING memo column's MaxLength to the schema's (2026-11-17:
+ * a shared action's assignees outgrew 10 000 characters). Never lowers:
+ * a column already as long or longer is left alone. The Web API updates
+ * an attribute by PUT of its whole typed definition, so the current one
+ * is read, its length changed, and put back with the labels merged.
+ */
+async function widenMemo(t, logical, def) {
+  const path = `EntityDefinitions(LogicalName='${t.logical}')/Attributes(LogicalName='${logical}')`;
+  const current = await call("GET", `${path}/Microsoft.Dynamics.CRM.MemoAttributeMetadata`);
+  if (current.notFound) throw new Error(`${t.logical}.${logical} is not a memo column — cannot widen`);
+  if ((current.MaxLength ?? 0) >= def.max) {
+    console.log(`  column ${t.logical}.${logical} already ${current.MaxLength} long`);
+    return;
+  }
+  const was = current.MaxLength;
+  // the read comes back with its context, not its type — without the
+  // type the server reads the body as a bare AttributeMetadata and
+  // refuses the memo's own properties ("Invalid property 'Format'")
+  const { "@odata.context": _context, ...definition } = current;
+  await call(
+    "PUT",
+    path,
+    { ...definition, "@odata.type": "Microsoft.Dynamics.CRM.MemoAttributeMetadata", MaxLength: def.max },
+    { ...inSolution, "MSCRM.MergeLabels": "true" }
+  );
+  console.log(`  column ${t.logical}.${logical} widened ${was} → ${def.max}`);
+}
+
 async function ensureColumn(t, logical, def) {
   const existing = await call(
     "GET",
     `EntityDefinitions(LogicalName='${t.logical}')/Attributes(LogicalName='${logical}')?$select=LogicalName`
   );
-  if (!existing.notFound) return false;
+  if (!existing.notFound) {
+    if (def.widen === true && def.kind === "memo") await widenMemo(t, logical, def);
+    return false;
+  }
   await call(
     "POST",
     `EntityDefinitions(LogicalName='${t.logical}')/Attributes`,

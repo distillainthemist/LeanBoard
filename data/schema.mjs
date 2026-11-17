@@ -114,7 +114,10 @@ export const TABLES = [
       ben_boardid: { ...text(80), display: "Board Id" },
       ben_issue: { ...text(400), display: "Issue" },
       ben_description: { ...memo(4000), display: "Description" },
-      ben_assigneesjson: { ...memo(10000), display: "Assignees (JSON)" },
+      // widened 10000 → 100000 (2026-11-17, issue 10): a shared action for
+      // a whole department carries a part per person. `widen` lets the
+      // deploy raise an EXISTING column's length (never lowers it).
+      ben_assigneesjson: { ...memo(100000), widen: true, display: "Assignees (JSON)" },
       // people who support the action without owing a part of it
       // (2026-11-16, issue 7): [{whoId, who}]
       ben_supportersjson: { ...memo(4000), display: "Supporters (JSON)" },
@@ -143,6 +146,9 @@ export const TABLES = [
       // PDCA progression (Ben, 2026-08-31): plan|do|check|act|closed —
       // closed mirrors status done; display = the four-quadrant disc
       ben_pdca: { ...text(10), display: "PDCA" },
+      // the moment the action reached done / verify (2026-11-17, issue 2:
+      // "recently completed"); cleared on a reopen. Older rows carry none.
+      ben_doneat: { kind: "datetime", display: "Done at" },
     },
     key: ["ben_actionid"],
   },
@@ -780,6 +786,31 @@ export const TABLES = [
     },
     role: { delete: true },
   },
+  {
+    // Attachments & links (2026-11-17, issue 5): evidence that lives with
+    // an initiative or an action — a FILE (ben_file, the issue-file road)
+    // or a LINK (ben_url), never both. Visibility follows the parent
+    // (app-level, like confidentiality). Supersedes ben_ltkactionfile,
+    // which no screen ever wrote to and which stays in the solution.
+    schema: "ben_LTKAttachment",
+    logical: "ben_ltkattachment",
+    display: "LeanBoard Attachment",
+    plural: "LeanBoard Attachments",
+    primaryNameMax: 300,
+    columns: {
+      ben_parentkind: { ...text(20), display: "Parent kind" }, // initiative | action
+      ben_parentid: { ...text(80), display: "Parent Id" },
+      ben_file: { kind: "file", maxKB: 32768, display: "File" },
+      ben_url: { ...text(2000), display: "Link" },
+      ben_caption: { ...text(300), display: "Caption" },
+      ben_filename: { ...text(300), display: "File name" },
+      ben_sizekb: { kind: "int", min: 0, max: 2147483647, display: "Size (KB)" },
+      ben_uploadedbyid: { ...text(120), display: "Uploaded by (whoId)" },
+      ben_uploadedbyname: { ...text(200), display: "Uploaded by (name)" },
+      ben_at: { ...text(30), display: "At (ISO)" },
+    },
+    role: { delete: true },
+  },
   // ---- Improvement (P7 templates builder, 2026-08-19; design review 11a) ---
   {
     // An initiative template: method, stages (each mapped to PDCA, with an
@@ -849,6 +880,10 @@ export const TABLES = [
       ben_stagetargetsjson: { ...memo(2000), display: "Stage target dates (JSON)" },
       ben_alsoorgsjson: { ...memo(4000), display: "Also shown in (orgs JSON)" }, // further departments an initiative is listed under (2026-09-17)
       ben_processnodeid: { ...text(40), display: "Process (node id)" }, // optional, term-store-proposal §6
+      // the latest status update's moment (ISO), stamped as the comment
+      // event is written (2026-11-17, the status rule's recency clock —
+      // the Priorities screen must not read every event trail)
+      ben_lastupdateat: { ...text(30), display: "Last update at (ISO)" },
     },
     key: ["ben_initiativeid"],
     role: { delete: true },
