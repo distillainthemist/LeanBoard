@@ -47,6 +47,24 @@ export async function openActionEditor(action: import("../../../shared/schema/ac
         onSaved();
       })();
     },
+    // "Duplicate…" (issue 11, 2026-11-17): the copy is raised as a new
+    // action with the source's home
+    onDuplicate: (copy) =>
+      openActionDialog({
+        host: dialogHost(),
+        action: copy,
+        people: assigneePeople(near, roster, "search"),
+        isNew: true,
+        prefill: true,
+        onCommit: () => {
+          void (async () => {
+            await upsertActions([copy]);
+            bumpChange("actions");
+            window.dispatchEvent(new CustomEvent(ACTIONS_CHANGED_EVENT));
+            onSaved();
+          })();
+        },
+      }),
   });
 }
 

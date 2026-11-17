@@ -8,10 +8,11 @@ import { clear, el, ensureStylesheet } from "../../shared/ui/dom";
 import { parsePrompts, Prompts, renderGhost, renderTitleBar } from "../../shared/ui/chrome";
 import { renderKebab } from "../../shared/ui/menu";
 import {
-  pdcaDisc, actionRow, completeCircle, openActionDialog, confidentialGlyph, commentGlyph, movedGlyph } from "../../shared/ui/actionUi";
+  pdcaDisc, actionRow, completeCircle, openActionDialog, confidentialGlyph, commentGlyph, movedGlyph, partsChip, supportFlag } from "../../shared/ui/actionUi";
 import { makeInteractive } from "../../shared/interact/drag";
 import { htmlToPng, htmlToSvg, saveSvg, SnapshotScheduler } from "../../shared/export/png";
-import { pdcaOf, ActionStatus, isOverdue, LtkAction, newAction, supportLabel } from "../../shared/schema/actions";
+import { assigneesLabel, pdcaOf, ActionStatus, isOverdue, LtkAction, newAction, partsTitle, RECENT_DONE_DAYS, recentlyDone, supportLabel } from "../../shared/schema/actions";
+import { todayIso } from "../../shared/schema/id";
 import { applyEndorsementRule } from "../../shared/schema/actionEndorsement";
 import { endorsementFor } from "../../shared/ui/actionLinkProvider";
 import { Person } from "../../shared/schema/people";
@@ -160,11 +161,12 @@ export function sectioned(actions: LtkAction[], sectionOf: (a: LtkAction) => Act
   return [...groups.values()].sort((a, b) => (a.key === "" ? 1 : b.key === "" ? -1 : a.label.localeCompare(b.label)));
 }
 
-/** The card's actions as a view shows them: cancelled never, completed
- *  only when asked (Ben, 2026-10-31: every view hides completed by
- *  default). "verify" is still open work — awaiting its endorser. */
-export function visibleActions(actions: LtkAction[], showCompleted: boolean): LtkAction[] {
-  return actions.filter((a) => a.status !== "cancelled" && (showCompleted || a.status !== "done"));
+/** The card's actions as a view shows them: cancelled never; completed
+ *  for `recentDays` after they close (issue 2, 2026-11-17 — until then
+ *  every view hid them at once, Ben 2026-10-31), and ALL of them when
+ *  asked. "verify" is still open work — awaiting its endorser. */
+export function visibleActions(actions: LtkAction[], showAllCompleted: boolean, recentDays = 0, today = todayIso()): LtkAction[] {
+  return actions.filter((a) => a.status !== "cancelled" && (a.status !== "done" || showAllCompleted || recentlyDone(a, recentDays, today)));
 }
 
 export class ActionBoardEditor {
@@ -187,9 +189,13 @@ export class ActionBoardEditor {
   /** The view the PERSON chose on the card's own switch; null = the
    *  card's configured default (2026-09-30). */
   private userView: BoardView | null = null;
-  /** Show completed — off on every view until the person switches it
-   *  (per card, for the session). */
+  /** Show ALL completed — off on every view until the person switches
+   *  it (per card, for the session). Off, the recently completed still
+   *  show (`recentDays`). */
   private showCompleted = false;
+  /** How many days a completed action stays in view (the card's
+   *  setting; 0 = it leaves at once). */
+  private recentDays = RECENT_DONE_DAYS;
   private onViewChosen: ((view: BoardView) => void) | null = null;
   /** The host's Gantt (the app's — one Gantt everywhere); absent, the
    *  card draws its own. */
@@ -370,6 +376,15 @@ export class ActionBoardEditor {
     this.render();
   }
 
+  /** How many days a completed action stays in view before it needs
+   *  "Show all completed" (the card's setting; 0 = none stay). */
+  setRecentDays(days: number): void {
+    const d = Number.isFinite(days) ? Math.max(0, Math.min(365, Math.round(days))) : RECENT_DONE_DAYS;
+    if (d === this.recentDays) return;
+    this.recentDays = d;
+    this.render();
+  }
+
   destroy(): void {
     this.resizeObserver?.disconnect();
     this.snapshots.cancel();
@@ -395,14 +410,14 @@ export class ActionBoardEditor {
   // ---- rendering ----
 
   private visible(): LtkAction[] {
-    const shown = visibleActions(this.actions, this.showCompleted);
+    const shown = visibleActions(this.actions, this.showCompleted, this.recentDays);
     return this.assignee === "" ? shown : shown.filter((a) => a.assignees.some((x) => x.whoId === this.assignee));
   }
 
   /** "All assignees ▾" — the people the card's actions are assigned to. */
   private assigneeSelect(): HTMLElement | null {
     if (!this.assigneeFilter) return null;
-    const people = assigneeOptions(visibleActions(this.actions, this.showCompleted));
+    const people = assigneeOptions(visibleActions(this.actions, this.showCompleted, this.recentDays));
     // someone filtered on whose last action just closed: back to everyone
     if (this.assignee !== "" && !people.some((p) => p.whoId === this.assignee)) this.assignee = "";
     if (people.length === 0) return null;
@@ -427,20 +442,22 @@ export class ActionBoardEditor {
   /** The kebab is pinned over the body (no title bar to hold it). */
   private kebabFloats = false;
 
-  /** Completed actions the toggle is hiding. */
+  /** Completed actions NOT in view: the older ones, while the switch is off. */
   private hiddenDone(): number {
-    return this.showCompleted ? 0 : this.actions.filter((a) => a.status === "done").length;
+    return this.showCompleted ? 0 : this.actions.filter((a) => a.status === "done" && !recentlyDone(a, this.recentDays)).length;
   }
 
-  /** The Show completed switch (every view, Ben 2026-10-31). */
+  /** The "Show all completed" switch (every view). The recently
+   *  completed show without it (issue 2, 2026-11-17). */
   private completedToggle(): HTMLElement {
     const hidden = this.hiddenDone();
     const b = el("button", "ltk-ab-toggle" + (this.showCompleted ? " ltk-ab-toggle-on" : "")) as HTMLButtonElement;
     b.type = "button";
     b.setAttribute("role", "switch");
     b.setAttribute("aria-checked", String(this.showCompleted));
-    b.title = this.showCompleted ? "Hide completed actions" : "Show completed actions too";
-    b.append(el("span", "ltk-ab-toggle-knob"), el("span", "ltk-ab-toggle-label", `Show completed${hidden > 0 ? ` (${hidden})` : ""}`));
+    const window = this.recentDays > 0 ? `Actions completed in the last ${this.recentDays} day${this.recentDays === 1 ? "" : "s"} show without this.` : "Completed actions show only with this on.";
+    b.title = this.showCompleted ? `Show only the recently completed again. ${window}` : `Show every completed action, however old. ${window}`;
+    b.append(el("span", "ltk-ab-toggle-knob"), el("span", "ltk-ab-toggle-label", `Show all completed${hidden > 0 ? ` (${hidden})` : ""}`));
     b.addEventListener("click", () => {
       this.showCompleted = !this.showCompleted;
       this.render();
@@ -594,7 +611,9 @@ export class ActionBoardEditor {
           // the host's Gantt writes a date change itself — nothing to
           // re-send; the shared objects already carry the new dates
           onChanged: () => undefined,
-          showCompleted: this.showCompleted,
+          // the card has already chosen what shows (the recently
+          // completed included) — the Gantt must not hide them again
+          showCompleted: this.showCompleted || visible.some((a) => a.status === "done"),
           onEdit: this.readOnly ? undefined : (a) => this.editAction(a),
           groups,
           toolbar: ganttSlot ?? undefined,
@@ -729,11 +748,12 @@ export class ActionBoardEditor {
       for (const a of this.sorted(col.items)) {
         cards.appendChild(this.renderKanbanCard(a));
       }
-      if (this.groupBy === "status" && col.key === "done" && col.items.length === 0 && this.hiddenDone() > 0) {
-        // the column stays as the drop target; the note says what it holds
-        const note = el("button", "ltk-ab-col-hidden", `${this.hiddenDone()} completed hidden`) as HTMLButtonElement;
+      if (this.groupBy === "status" && col.key === "done" && this.hiddenDone() > 0) {
+        // the column stays as the drop target; the note says what it
+        // holds beyond the recently completed
+        const note = el("button", "ltk-ab-col-hidden", `${this.hiddenDone()} older completed hidden`) as HTMLButtonElement;
         note.type = "button";
-        note.title = "Show completed actions";
+        note.title = "Show all completed actions";
         note.addEventListener("click", () => {
           this.showCompleted = true;
           this.render();
@@ -790,8 +810,11 @@ export class ActionBoardEditor {
     card.appendChild(desc);
 
     const meta = el("div", "ltk-ab-card-meta");
-    const whoEl = el("span", undefined, a.assignees[0]?.who ?? "Unassigned");
+    const whoEl = el("span", undefined, assigneesLabel(a, "Unassigned"));
     meta.appendChild(whoEl);
+    // a shared action: how many parts are done, who is still to do it
+    const parts = partsChip(a);
+    if (parts) meta.appendChild(parts);
     // supporters: a count on the card, the names in its tooltip
     const support = supportLabel(a);
     if (support !== "") {
@@ -809,11 +832,11 @@ export class ActionBoardEditor {
       const dueEl = el("span", undefined, `Due ${a.due}`);
       if (isOverdue(a)) dueEl.style.color = this.overdueColor();
       if (a.escalated) {
-        dueEl.appendChild(el("span", "ltk-action-flag", " ⚑"));
+        dueEl.appendChild(supportFlag());
       }
       meta.appendChild(dueEl);
     } else if (a.escalated) {
-      whoEl.appendChild(el("span", "ltk-action-flag", " ⚑"));
+      whoEl.appendChild(supportFlag());
     }
     card.appendChild(meta);
 
@@ -913,7 +936,8 @@ export class ActionBoardEditor {
             a.description || a.issue
           )
         );
-        const c2 = el("div", "ltk-ab-g-c2", a.assignees[0]?.who ?? "—");
+        const c2 = el("div", "ltk-ab-g-c2", assigneesLabel(a, "—"));
+        if (a.assignees.length > 1) c2.title = partsTitle(a);
         const c3 = el("div", "ltk-ab-g-c3");
         const range =
           (a.start !== "" ? dayLabel(dayNum(a.start)) + " → " : "") +
@@ -923,7 +947,7 @@ export class ActionBoardEditor {
           rangeEl.classList.add("ltk-action-overdue");
         }
         c3.appendChild(rangeEl);
-        if (a.escalated) c3.appendChild(el("span", "ltk-action-flag", " ⚑"));
+        if (a.escalated) c3.appendChild(supportFlag());
         lrow.append(c0, c1, c2, c3);
         if (!this.readOnly) {
           lrow.addEventListener("click", () => this.editAction(a));
@@ -1210,6 +1234,28 @@ export class ActionBoardEditor {
       // who moved it, where the host has no viewer provider of its own
       viewer: this.actor.whoId !== "" ? this.actor : undefined,
       onCommit: () => this.commit(),
+      // "Duplicate…" (issue 11): the copy opens as a new action of this card
+      onDuplicate: (copy) => this.raiseCopy(copy),
+    });
+  }
+
+  /** A duplicate: the Raise dialog, filled from the copy; raised, it
+   *  joins the card like any new action. */
+  private raiseCopy(action: LtkAction): void {
+    openActionDialog({
+      host: this.root,
+      action,
+      people: this.people,
+      isNew: true,
+      prefill: true,
+      linkTargets: this.sectionOf !== null ? undefined : this.linkTargets,
+      linkTarget: action.instanceId !== "" ? action.instanceId : this.defaultLink !== "" ? this.defaultLink : undefined,
+      linkLabel: this.linkLabel !== "" ? this.linkLabel : undefined,
+      viewer: this.actor.whoId !== "" ? this.actor : undefined,
+      onCommit: () => {
+        this.actions.push(action);
+        this.commit();
+      },
     });
   }
 

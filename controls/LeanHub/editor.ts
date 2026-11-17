@@ -1212,6 +1212,23 @@ export class LeanHubView {
             this.emitFor(action);
             this.render();
           },
+          // "Duplicate…" (issue 11, 2026-11-17): the copy opens as a new
+          // action; raised, it is written on its own — it keeps the
+          // source's home, and joins this list if it is the viewer's
+          onDuplicate: (copy) =>
+            openActionDialog({
+              host: this.root,
+              action: copy,
+              people: this.people,
+              isNew: true,
+              prefill: true,
+              onCommit: () => {
+                const who = this.viewerId;
+                if (this.actions.includes(action) && (who === "" || copy.assignees.some((x) => x.whoId === who))) this.actions.push(copy);
+                this.cb.onActions([copy]);
+                this.render();
+              },
+            }),
         });
       });
     }
@@ -1244,7 +1261,7 @@ export class LeanHubView {
       pill.title = action.due;
       row.appendChild(pill);
     }
-    if (action.escalated) row.appendChild(el("span", "ltk-lh-esc", "⚑ Escalated"));
+    if (action.escalated) row.appendChild(el("span", "ltk-lh-esc", "⚑ Support required"));
     return row;
   }
 

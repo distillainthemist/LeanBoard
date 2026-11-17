@@ -2753,7 +2753,7 @@
      "cases": [
       {
        "id": "UAT-RIT-009",
-       "title": "Show completed, edit from the Gantt, Gantt lanes follow the kanban columns",
+       "title": "Recently completed and Show all completed, edit from the Gantt, Gantt lanes follow the kanban columns",
        "journey": "Journey 2 — The Action card's views",
        "persona": "participant",
        "modules": [
@@ -2761,17 +2761,17 @@
         "improvement/gantt.ts",
         "cardRegistry.ts"
        ],
-       "preconditions": "a board whose Action card has two or more completed actions and some open ones; a second Action card configured with custom kanban columns (grouped by issue, e.g. Safety · Quality · Delivery) with actions in at least two columns",
+       "preconditions": "a board whose Action card has an action completed today, two completed more than a week ago (or before this release) and some open ones; a second Action card configured with custom kanban columns (grouped by issue, e.g. Safety · Quality · Delivery) with actions in at least two columns",
        "steps": [
-        "Open the first card. On the List view read the \"Show completed\" switch and find ＋ Add action; switch to Kanban, then Gantt, reading both each time.",
+        "Open the first card. On the List view read the \"Show all completed\" switch and find ＋ Add action; switch to Kanban, then Gantt, reading both each time. In the card's settings set \"Show completed for (days)\" to 0, look, then clear it again.",
         "Switch it on, then off again; look at the Kanban's Done column while it is off.",
         "Mark every action complete, then look at the card.",
         "On the Gantt, click an action's name; change its description; save. Then drag a bar.",
         "Open the second card on the Gantt."
        ],
-       "expected": "step 1 the switch is present on all three views and OFF, with the hidden count in brackets, and completed actions appear on none of them; ＋ Add action sits at the right-hand end of the same row on every view, in sight without scrolling however long the list, and nothing sits under the list any more; step 2 on, completed actions show on the list, in Done and as grey bars; off again, the Done column stays as a drop target reading \"n completed hidden\", and clicking that line switches completed on; step 3 the card reads \"All n actions are complete\" with the switch and ＋ Add action on the row above it, not the empty-card prompt; step 4 the action's dialog opens from its name and the saved change shows; the bar still drags its dates; step 5 the Gantt shows a lane per kanban column in the kanban's order with a count, each folding to one summary bar on click, and the list view inside the Gantt groups the same way",
-       "hash": "f0effa5d",
-       "changed": "2026-11-11"
+       "expected": "step 1 the switch reads \"Show all completed\" on all three views and is OFF, with the count of OLDER completed actions in brackets; the action completed today shows on every view without it — struck through on the list, in Done, a grey bar on the Gantt — and stays for 7 days; the older ones show on none; with the setting at 0 no completed action shows until the switch is on, and with it cleared the week is back; ＋ Add action sits at the right-hand end of the same row on every view, in sight without scrolling however long the list, and nothing sits under the list any more; step 2 on, every completed action shows on the list, in Done and as grey bars; off again, the Done column keeps the recent one and reads \"n older completed hidden\" under it, and clicking that line switches all completed on; step 3 the card reads \"All n actions are complete\" with the switch and ＋ Add action on the row above it, not the empty-card prompt; step 4 the action's dialog opens from its name and the saved change shows; the bar still drags its dates; step 5 the Gantt shows a lane per kanban column in the kanban's order with a count, each folding to one summary bar on click, and the list view inside the Gantt groups the same way",
+       "hash": "99bcad5b",
+       "changed": "2026-11-17"
       },
       {
        "id": "UAT-RIT-010",
@@ -3027,9 +3027,86 @@
         "Open the same action on the phone.",
         "Open an action from a card that offers no \"Linked to\" (a 5 Whys in a standalone harness, or any narrow add dialog with \"＋ Add action\")."
        ],
-       "expected": "step 1 the whole dialog shows at once — no scrolling inside it — about 900px wide, in two columns; step 2 left: Issue, the Action, \"Who\" as a label over the people grid — \"Search everyone…\" its first box, the size of a person's, then the people three across (each a full-height touch target, the same people as before), Support on one line, Start, Due, Escalated and Confidential on one row (neither flag's label clipped), PDCA state as one row of six; right: \"Linked to (optional)\" (a chip when linked; a bare search when not, with no \"Personal — not linked\" line), then Comments and one \"Due date moved…\" line; the red \"Cancel this action…\" sits beside Close and Save, at the right; step 3 a list opens under the search box as you type, wider than the box and over the grid (the people do not move): people already shown as boxes and the rest of the app's people, narrowing with each letter; Enter ticks the highlighted person and never saves the dialog; Escape clears it; Support opens a search only when asked; step 4 the line opens to the full list of moves; with long threads the dialog scrolls as ONE piece — the comment list never scrolls inside it; the link search opens a list under its box that scrolls by itself — the dialog does not grow and the comments do not move — and Enter links the highlighted one; step 5 a new action uses the same layout with an empty Comments column and Cancel / Raise; step 6 one column: the action first (people two across, the two flags on a line under the dates, PDCA three by two), then Linked to, then the comments; step 7 with no \"Linked to\" the right side starts at Comments",
-       "hash": "64627a48",
-       "changed": "2026-11-16"
+       "expected": "step 1 the whole dialog shows at once — no scrolling inside it — about 900px wide, in two columns; step 2 left: Issue, the Action, \"Who\" as a label over the people grid — \"Search everyone…\" its first box, the size of a person's, then the people three across (each a full-height touch target, the same people as before), Support on one line, Start, Due, then \"⚑ Support required\" and Confidential — on the dates' row where there is room, else a line of their own (neither flag's label clipped), PDCA state as one row of six; right: \"Linked to (optional)\" (a chip when linked; a bare search when not, with no \"Personal — not linked\" line), then Comments and one \"Due date moved…\" line; the red \"Cancel this action…\" sits beside Close and Save, at the right; step 3 a list opens under the search box as you type, wider than the box and over the grid (the people do not move): people already shown as boxes and the rest of the app's people, narrowing with each letter; Enter ticks the highlighted person and never saves the dialog; Escape clears it; Support opens a search only when asked; step 4 the line opens to the full list of moves; with long threads the dialog scrolls as ONE piece — the comment list never scrolls inside it; the link search opens a list under its box that scrolls by itself — the dialog does not grow and the comments do not move — and Enter links the highlighted one; step 5 a new action uses the same layout with an empty Comments column and Cancel / Raise; step 6 one column: the action first (people two across, the two flags on a line under the dates, PDCA three by two), then Linked to, then the comments; step 7 with no \"Linked to\" the right side starts at Comments",
+       "hash": "832a285e",
+       "changed": "2026-11-17"
+      }
+     ]
+    },
+    {
+     "title": "Journey 4 — Shared actions, support, duplicate and message (2026-11-17)",
+     "cases": [
+      {
+       "id": "UAT-ACT-008",
+       "title": "One action for several people, a part each",
+       "journey": "Journey 4 — Shared actions, support, duplicate and message (2026-11-17)",
+       "persona": "owner",
+       "modules": [
+        "shared/ui/actionUi.ts",
+        "shared/schema/actions.ts",
+        "store/actions.ts",
+        "controls/ActionBoard/editor.ts",
+        "controls/LeanHub/editor.ts",
+        "improvement/gantt.ts"
+       ],
+       "preconditions": "TWO accounts, A and B, both on an initiative with an Action card; a third person C on it; nobody else editing",
+       "steps": [
+        "As A: ＋ Add action; tick A, B and C in Who; read the line under the people; Raise. Read the card on List, Kanban and Gantt.",
+        "As B: My day → find the action → tick \"my part\". As A, WITHOUT reloading: open My day and tick A's own part.",
+        "As A: open the action from the card; open \"Parts\"; tick C's part; Save.",
+        "As A: open it again, set PDCA to Do, Save. Then set it to Closed, Save.",
+        "As A: open an action that has several people, untick one of them, Save."
+       ],
+       "expected": "step 1 ticking a second person does NOT untick the first; the line reads \"3 people share this action. Each records their own part, and it closes when all have.\"; the card names the first person \"+2\" with a \"0 / 3 done\" chip (who is still to do it on hover) on every view; step 2 B's tick shows \"1 / 3 done\" for everyone; A's tick from a screen that had not seen B's does not undo it — the action reads \"2 / 3 done\"; step 3 the Parts line reads \"2 of 3 done\" and opens to a tick per person; ticking C closes the action (Closed, struck through; on an initiative that asks for endorsement it waits for its endorser instead); step 4 reopening reopens every part (\"0 / 3 done\"); Closed closes every part; step 5 the other people stay on the action with their parts as they were — only the unticked person leaves (before this release a save from the dialog kept one person)",
+       "hash": "be7c6d90",
+       "changed": "2026-11-17"
+      },
+      {
+       "id": "UAT-ACT-009",
+       "title": "Add a leader's team to an action",
+       "journey": "Journey 4 — Shared actions, support, duplicate and message (2026-11-17)",
+       "persona": "owner",
+       "modules": [
+        "shared/ui/actionUi.ts",
+        "actions/team.ts",
+        "actions/teamModel.ts",
+        "store/directoryWalk.ts",
+        "shared/ui/actionLinkProvider.ts"
+       ],
+       "preconditions": "a leader in LeanBoard whose direct reports include at least two LeanBoard users and one person who is NOT a LeanBoard user; one of those reports has reports of their own",
+       "steps": [
+        "＋ Add action → \"＋ Add a team…\"; type part of the leader's name and pick them with ↓ and Enter; leave \"Direct reports\"; press Add them.",
+        "Change to \"Everyone below\"; tick \"Include the leader\"; press Add them again.",
+        "Remove one person with their ✕; press \"Remove all\"; add the team again and Raise."
+       ],
+       "expected": "step 1 the list under the box narrows as you type and Enter picks without saving the dialog; after a moment the direct reports who are in LeanBoard are on the action — ticked in the grid where they have a box there, as removable chips under it otherwise — and the note says how many were added and NAMES the ones not in the app (\"ask an admin to add them\"); nobody is added to LeanBoard; step 2 the people further down the line and the leader are added, anyone already on the action is not added twice, and past twelve chips the rest sit behind \"+n more\"; step 3 a ✕ takes one person off, \"Remove all\" clears the chips (ticked boxes stay), and the raised action carries everyone shown, each with their own part; a directory that cannot be read says so and adds nobody",
+       "hash": "5c9734a7",
+       "changed": "2026-11-17"
+      },
+      {
+       "id": "UAT-ACT-010",
+       "title": "Support required, Duplicate, and Message about this action",
+       "journey": "Journey 4 — Shared actions, support, duplicate and message (2026-11-17)",
+       "persona": "assignee",
+       "modules": [
+        "shared/ui/actionUi.ts",
+        "shared/schema/actions.ts",
+        "actions/message.ts",
+        "actions/messageModel.ts",
+        "shared/ui/focusTrap.ts",
+        "controls/LeanHub/editor.ts",
+        "actions/quickAdd.ts"
+       ],
+       "preconditions": "an action assigned to someone else who has an email, on an initiative board; Teams or Outlook available to the sender",
+       "steps": [
+        "Open the action; tick \"⚑ Support required\"; Save. Read the card, My day and the Gantt.",
+        "Open it again → \"Duplicate…\"; change the Who and the due date; Raise.",
+        "Open the original → \"✉ Message\" in the title row; read To and the message; add a person by typing three letters of a name that is not a LeanBoard user; remove them; Send by Teams.",
+        "Close the action dialog WITHOUT Save and open the action again."
+       ],
+       "expected": "step 1 the tick that read \"Escalated\" reads \"⚑ Support required\"; the action carries ⚑ on the card and the Gantt and \"⚑ Support required\" in My day, and still reaches the Escalation viewer of the board above; step 2 a Raise action dialog opens already filled — issue, action, people, supporters, dates, link, Support required, Confidential — with no comments, no history and no parts done; raised, it is a NEW action beside the original, which is unchanged; a closed action duplicates as Do; step 3 the panel opens over the dialog addressed to the action's assignees (never yourself), with a message naming the action and its due date that you can edit; the list under \"Add a person…\" shows LeanBoard people first and, after three letters and a pause, the directory; Tab and typing stay inside the panel; after sending it reports \"✓ Sent by Teams…\" (a failure says why and sends nothing) and the action's comments gain \"Messaged <name> by Teams\"; step 4 the comment line is still there — it was saved when the message went",
+       "hash": "2f97e49f",
+       "changed": "2026-11-17"
       }
      ]
     }
@@ -3374,9 +3451,9 @@
         "As someone who does not manage the priority's org but can open the initiative's board, open the same tab and edit an action.",
         "Improvement tab → Gantt view → click an action's name."
        ],
-       "expected": "step 1 List | Kanban | Gantt, Show completed, All assignees and ＋ Add action share one row; the list has a heading per initiative with its count; step 2 the FULL action dialog opens (not \"Set dates\") and the row shows the changes; step 3 every view shows only that person's actions and the choice survives the switch; the Gantt has no second assignee select; step 4 the card moves and stays; each card names its initiative; step 5 the dialog offers an \"Initiative\" select of this priority's initiatives and no \"Linked to\" field; the new action appears under the chosen initiative and on that initiative's own board; step 6 the move follows the due-date rule (UAT-ACT-004) and the name opens the full dialog; step 7 the counts and ratings include what was just changed; step 8 they can edit — the same rights as on the initiative's board; step 9 the full dialog opens there too",
-       "hash": "d0ff2247",
-       "changed": "2026-11-16"
+       "expected": "step 1 List | Kanban | Gantt, Show all completed, All assignees and ＋ Add action share one row; the list has a heading per initiative with its count; step 2 the FULL action dialog opens (not \"Set dates\") and the row shows the changes; step 3 every view shows only that person's actions and the choice survives the switch; the Gantt has no second assignee select; step 4 the card moves and stays; each card names its initiative; step 5 the dialog offers an \"Initiative\" select of this priority's initiatives and no \"Linked to\" field; the new action appears under the chosen initiative and on that initiative's own board; step 6 the move follows the due-date rule (UAT-ACT-004) and the name opens the full dialog; step 7 the counts and ratings include what was just changed; step 8 they can edit — the same rights as on the initiative's board; step 9 the full dialog opens there too",
+       "hash": "22a09444",
+       "changed": "2026-11-17"
       },
       {
        "id": "UAT-PRI-007",

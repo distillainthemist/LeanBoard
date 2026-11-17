@@ -306,6 +306,15 @@ export const CARDS: CardSpec[] = [
           "Name the columns yourself, in the order you want them. They always show, even when empty, and dragging a card into one files it under that name. Empty = build the columns from whatever the actions are already tagged with. Grouped by issue only.",
         placeholder: "Safety, Quality, Delivery",
       },
+      {
+        key: "recentDoneDays",
+        label: "Show completed for (days)",
+        kind: "number",
+        heading: "Completed actions",
+        help:
+          "A completed action stays in view this many days after it closes, struck through, on every view. Older ones show with the card's “Show all completed” switch. Empty = 7 days; 0 = completed actions leave the views at once.",
+        placeholder: "7",
+      },
     ],
     appBound: ["instanceId", "peopleJSON"],
   },

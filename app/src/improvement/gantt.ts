@@ -20,7 +20,7 @@
 // select, ±1d/±1w steppers + Set dates… — no drag. Dependencies are out
 // of scope by design.
 
-import { actionBelongsTo, isOnHold, supportLabel } from "../../../shared/schema/actions";
+import { actionBelongsTo, assigneesLabel, isOnHold, partsLabel, supportLabel } from "../../../shared/schema/actions";
 import { el, clear } from "../../../shared/ui/dom";
 import { LtkAction } from "../../../shared/schema/actions";
 import { dueMove, reasonChoices, recordDueMove } from "../../../shared/schema/reschedule";
@@ -519,8 +519,10 @@ export function mountGantt(opts: GanttOpts): () => void {
         const r = el("div", "app-gx-listrow");
         const main = el("div", "app-gx-listmain");
         main.appendChild(el("div", "app-gx-label-title", titleOf(a).slice(0, 120)));
-        const who = a.assignees.map((x) => x.who).filter((x) => x !== "").join(", ");
-        main.appendChild(el("div", "app-gx-label-meta", [issueTag(a), who, supportLabel(a)].filter((x) => x !== "").join(" · ")));
+        // one name, or the first and how many more — and how many parts
+        // of a shared action are done (issue 10)
+        const who = [assigneesLabel(a), partsLabel(a)].filter((x) => x !== "").join(" · ");
+        main.appendChild(el("div", "app-gx-label-meta", [issueTag(a), who, supportLabel(a), a.escalated ? "⚑ support required" : ""].filter((x) => x !== "").join(" · ")));
         r.appendChild(main);
         const dates = el("div", "app-gx-listdates");
         const dueTxt = a.due !== "" ? dayLabel(a.due) : "no due date";
@@ -661,8 +663,8 @@ export function mountGantt(opts: GanttOpts): () => void {
         label.title = "Open this action";
         label.addEventListener("click", () => opts.onEdit?.(a));
       }
-      const who = a.assignees.map((x) => x.who).filter((x) => x !== "").join(", ");
-      label.appendChild(el("div", "app-gx-label-meta", [issueTag(a), who, supportLabel(a), a.due !== "" ? `due ${dayLabel(a.due)}` : "no due date"].filter((x) => x !== "").join(" · ")));
+      const who = [assigneesLabel(a), partsLabel(a)].filter((x) => x !== "").join(" · ");
+      label.appendChild(el("div", "app-gx-label-meta", [issueTag(a), who, supportLabel(a), a.escalated ? "⚑ support required" : "", a.due !== "" ? `due ${dayLabel(a.due)}` : "no due date"].filter((x) => x !== "").join(" · ")));
       r.appendChild(label);
       const tl = timelineCell();
       r.appendChild(tl);

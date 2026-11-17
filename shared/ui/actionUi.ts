@@ -3,13 +3,13 @@
 // action-capable control uses these, so raising, editing, completing and
 // cancelling an action looks and behaves identically toolkit-wide.
 //
-// Conventions carried here: single assignee (chips act as a radio group);
-// actions are never hard-deleted (the danger button cancels); Done/Due/
+// Conventions carried here: one assignee or several (several = ONE shared
+// action with a part each, 2026-11-17); actions are never hard-deleted (the danger button cancels); Done/Due/
 // Overdue are capitalised; circle colours are set inline (Safari rule).
 
-import { ActionComment, ActionPdca, ACTION_PDCA, canEditComment, cleanSupporters, COMMENT_EDIT_HOURS, editComment, isOverdue, LtkAction, newAction, newComment, Supporter, supportLabel, PDCA_LABELS, PDCA_QUARTERS, pdcaOf } from "../schema/actions";
+import { ActionComment, ActionPdca, ACTION_PDCA, assigneesLabel, canEditComment, cleanSupporters, COMMENT_EDIT_HOURS, duplicateAction, editComment, isOverdue, LtkAction, MAX_ASSIGNEES, mergeAssignees, newAction, newComment, partsLabel, partsTitle, settleFromParts, Supporter, supportLabel, PDCA_LABELS, PDCA_QUARTERS, pdcaOf } from "../schema/actions";
 import { ActionLink, applyLink, boardOnlyTarget, currentLink, isCardKeyed, linkChanges, linkLabel, LinkTarget, searchLinkTargets } from "../schema/actionLinks";
-import { ACTION_MOVED_EVENT, actionDirectory, ActionDirectoryRoad, ActionLinkContext, actionLinkProvider, actionViewer, endorsementFor } from "./actionLinkProvider";
+import { ACTION_MOVED_EVENT, actionDirectory, ActionDirectoryRoad, ActionLinkContext, actionLinkProvider, actionMessenger, actionTeam, ActionTeamRoad, actionViewer, endorsementFor } from "./actionLinkProvider";
 import { dueMove, dueMoves, isLaterMove, reasonChoices, recordDueMove, slipCount } from "../schema/reschedule";
 import { currentRescheduleSettings, rescheduleFields } from "./reschedulePrompt";
 import { applyEndorsementRule, awaitingEndorsement, endorse, sendBack } from "../schema/actionEndorsement";
@@ -38,10 +38,91 @@ export interface ActionForm {
   apply: (action: LtkAction) => void;
 }
 
-/** The action fields: description, single assignee, due date. */
+/** A small type-ahead over a list of people (the standing search-picker
+ *  pattern, docs/ui-standard.md §2.x): the list floats under the box with
+ *  its own scroll, ↑ ↓ move, Enter picks (never the dialog's Save),
+ *  Escape closes. */
+function personTypeAhead(placeholder: string, find: (q: string) => Person[], onPick: (p: Person) => void): { el: HTMLElement; input: HTMLInputElement } {
+  const input = textInput("", { placeholder });
+  input.setAttribute("aria-label", placeholder);
+  input.setAttribute("role", "combobox");
+  input.setAttribute("aria-autocomplete", "list");
+  input.autocomplete = "off";
+  const pop = el("div", "ltk-who-pop");
+  pop.setAttribute("role", "listbox");
+  pop.style.display = "none";
+  const box = el("div", "ltk-who-box");
+  box.append(input, pop);
+  let options: { el: HTMLButtonElement; run: () => void }[] = [];
+  let active = 0;
+  const close = () => {
+    pop.style.display = "none";
+    input.setAttribute("aria-expanded", "false");
+    options = [];
+  };
+  const paintActive = () => {
+    options.forEach((o, n) => {
+      o.el.classList.toggle("ltk-who-opt-on", n === active);
+      o.el.setAttribute("aria-selected", String(n === active));
+    });
+    options[active]?.el.scrollIntoView({ block: "nearest" });
+  };
+  const render = () => {
+    while (pop.firstChild) pop.removeChild(pop.firstChild);
+    options = [];
+    const q = input.value.trim().toLowerCase();
+    if (q === "") return close();
+    for (const person of find(q)) {
+      const b = el("button", "ltk-who-opt") as HTMLButtonElement;
+      b.type = "button";
+      b.setAttribute("role", "option");
+      b.appendChild(el("span", "ltk-who-opt-name", person.who));
+      const run = () => {
+        onPick(person);
+        close();
+      };
+      b.addEventListener("mousedown", (e) => e.preventDefault());
+      b.addEventListener("click", run);
+      options.push({ el: b, run });
+      pop.appendChild(b);
+    }
+    if (options.length === 0) pop.appendChild(el("div", "ltk-who-pop-note", "No one matches."));
+    active = 0;
+    pop.style.display = "";
+    input.setAttribute("aria-expanded", "true");
+    paintActive();
+  };
+  input.addEventListener("input", render);
+  input.addEventListener("focus", () => {
+    if (input.value.trim() !== "" && options.length === 0) render();
+  });
+  input.addEventListener("blur", () => setTimeout(() => {
+    if (document.activeElement !== input) close();
+  }, 150));
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      if (options.length === 0) return;
+      e.preventDefault();
+      active = (active + (e.key === "ArrowDown" ? 1 : options.length - 1)) % options.length;
+      paintActive();
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      options[active]?.run();
+    } else if (e.key === "Escape" && pop.style.display !== "none") {
+      e.preventDefault();
+      close();
+    }
+  });
+  return { el: box, input };
+}
+
+/** The action fields: description, who (one person or several — a
+ *  shared action, a part each), support, the dates. */
 export function buildActionForm(
   people: Person[],
-  initial?: LtkAction
+  initial?: LtkAction,
+  /** `initial` fills a NEW action (a duplicate): nothing has a part yet. */
+  fresh = false
 ): ActionForm {
   const wrap = el("div");
   wrap.style.display = "flex";
@@ -55,9 +136,24 @@ export function buildActionForm(
   const start = textInput(initial?.start ?? "", { type: "date" });
   const due = textInput(initial?.due ?? "", { type: "date" });
   const currentWho = initial?.assignees[0];
+  const initialAssignees = initial?.assignees ?? [];
+  // closed when the dialog opened: closing closes every part, reopening
+  // reopens every part (mergeAssignees)
+  const initialClosed = initial !== undefined && (initial.status === "done" || initial.status === "verify");
+  const keyOf = (p: { whoId: string; who: string }): string => (p.whoId !== "" ? p.whoId : `name:${p.who.toLowerCase()}`);
+  /** People assigned who are NOT a tick box in the grid (a team added in
+   *  one go, assignees from outside the meeting): removable chips under
+   *  it — a hundred tick boxes would bury the form. */
+  let extras: { whoId: string; who: string }[] = [];
+  /** Parts ticked or unticked here, by person (issue 10). */
+  const staged = new Map<string, boolean>();
+  let refreshShared: () => void = () => undefined;
 
-  // single assignee: chips act as a radio group when a people list is
-  // supplied, one free-text name otherwise. People flagged `secondary`
+  // WHO (issue 10, 2026-11-17): tick one person or several. Several make
+  // ONE shared action — each records their own part and it closes when
+  // all have. (Until then the ticks were a radio group and a save kept
+  // one person, dropping the rest.) One free-text name where no people
+  // list is supplied. People flagged `secondary`
   // (the wider roster behind a meeting's own participants) stay off the
   // chip grid until found through the search box below it. A large
   // primary set is CAPPED (Ben, 2026-09-01: a 500-person site must not
@@ -68,34 +164,25 @@ export function buildActionForm(
   const whoWrap = people.length > 0 ? checklist() : el("div");
   const checks: { box: HTMLInputElement; wrap: HTMLElement; person: Person }[] = [];
   let freeWho: HTMLInputElement | null = null;
-  const isCurrent = (person: Person) =>
-    currentWho !== undefined &&
-    (currentWho.whoId === person.whoId || currentWho.who === person.who);
+  const isCurrent = (person: { whoId: string; who: string }) =>
+    initialAssignees.some((x) => (x.whoId !== "" && x.whoId === person.whoId) || x.who === person.who);
   const addChip = (person: Person, checked: boolean) => {
     const item = checkItem(person.who);
     if (checked) {
       item.box.checked = true;
       item.wrap.classList.add("ltk-check-on");
     }
-    item.box.addEventListener("change", () => {
-      if (!item.box.checked) return;
-      for (const other of checks) {
-        if (other.box !== item.box && other.box.checked) {
-          other.box.checked = false;
-          other.wrap.classList.remove("ltk-check-on");
-        }
-      }
-    });
+    item.box.addEventListener("change", () => refreshShared());
     whoWrap.appendChild(item.wrap);
     checks.push({ box: item.box, wrap: item.wrap, person });
   };
   if (people.length > 0) {
     for (const person of primary) addChip(person, isCurrent(person));
-    // an existing assignee from the wider roster starts pinned + selected
-    if (!checks.some((c) => c.box.checked)) {
-      const held = secondary.find(isCurrent);
-      if (held) addChip(held, true);
-    }
+    // assignees who are not among the chips: one alone is pinned as a
+    // ticked chip (as before); several sit as removable chips below
+    const outside = initialAssignees.filter((x) => !checks.some((c) => c.box.checked && ((x.whoId !== "" && c.person.whoId === x.whoId) || c.person.who === x.who)));
+    if (outside.length === 1) addChip({ whoId: outside[0].whoId, who: outside[0].who, initials: "" }, true);
+    else extras = outside.map((x) => ({ whoId: x.whoId, who: x.who }));
   } else {
     freeWho = textInput(currentWho?.who ?? "", { placeholder: "Who" });
     whoWrap.appendChild(freeWho);
@@ -130,16 +217,12 @@ export function buildActionForm(
     let active = 0;
     let options: { el: HTMLButtonElement; run: () => void }[] = [];
     const DIR_MIN = 3;
+    // a pick ADDS (several people may share the action); the box clears
     const selectOnly = (pick: () => void) => {
-      for (const other of checks) {
-        if (other.box.checked) {
-          other.box.checked = false;
-          other.wrap.classList.remove("ltk-check-on");
-        }
-      }
       pick();
       query.value = "";
       close();
+      refreshShared();
     };
     const close = () => {
       pop.style.display = "none";
@@ -376,6 +459,191 @@ export function buildActionForm(
   if (whoBox) whoWrap.insertBefore(whoBox, whoWrap.firstChild);
   whoBlock.appendChild(whoWrap);
   wrap.appendChild(whoBlock);
+
+  // ---- several people: the shared action (issue 10) -----------------------
+  const picked = (): { whoId: string; who: string }[] => [...checks.filter((c) => c.box.checked).map((c) => ({ whoId: c.person.whoId, who: c.person.who })), ...extras];
+  const sharedBox = el("div", "ltk-shared");
+  const extraChips = el("div", "ltk-sup-chips ltk-shared-extras");
+  const sharedNote = el("div", "ltk-shared-note");
+  const partsBox = el("div", "ltk-shared-parts");
+  let extrasOpen = false;
+  let partsOpen = false;
+  const EXTRAS_SHOWN = 12;
+  const paintExtras = () => {
+    while (extraChips.firstChild) extraChips.removeChild(extraChips.firstChild);
+    const list = extrasOpen ? extras : extras.slice(0, EXTRAS_SHOWN);
+    for (const person of list) {
+      const chip = el("span", "ltk-sup-chip", person.who);
+      const x = el("button", "ltk-sup-x", "✕") as HTMLButtonElement;
+      x.type = "button";
+      x.title = `Take ${person.who} off this action`;
+      x.setAttribute("aria-label", x.title);
+      x.addEventListener("click", () => {
+        extras = extras.filter((y) => y !== person);
+        refreshShared();
+      });
+      chip.appendChild(x);
+      extraChips.appendChild(chip);
+    }
+    if (extras.length > EXTRAS_SHOWN) {
+      const more = el("button", "ltk-sup-open", extrasOpen ? "Show fewer" : `+${extras.length - EXTRAS_SHOWN} more`) as HTMLButtonElement;
+      more.type = "button";
+      more.addEventListener("click", () => {
+        extrasOpen = !extrasOpen;
+        paintExtras();
+      });
+      extraChips.appendChild(more);
+    }
+    if (extras.length > 1) {
+      const none = el("button", "ltk-sup-open", "Remove all") as HTMLButtonElement;
+      none.type = "button";
+      none.addEventListener("click", () => {
+        extras = [];
+        refreshShared();
+      });
+      extraChips.appendChild(none);
+    }
+    extraChips.style.display = extras.length > 0 ? "" : "none";
+  };
+  /** A part as the dialog holds it: ticked here, else as it arrived. */
+  const partDone = (person: { whoId: string; who: string }): boolean => {
+    const s = staged.get(keyOf(person));
+    if (s !== undefined) return s;
+    return initialAssignees.find((x) => (x.whoId !== "" && x.whoId === person.whoId) || x.who === person.who)?.done ?? false;
+  };
+  const paintParts = () => {
+    while (partsBox.firstChild) partsBox.removeChild(partsBox.firstChild);
+    const all = picked();
+    // parts are recorded on an action that exists and is still open
+    if (initial === undefined || fresh || all.length < 2 || initialClosed) {
+      partsBox.style.display = "none";
+      return;
+    }
+    partsBox.style.display = "";
+    const doneCount = all.filter(partDone).length;
+    const head = el("button", "ltk-sup-open ltk-shared-partshead", `${partsOpen ? "▾" : "▸"} Parts — ${doneCount} of ${all.length} done`) as HTMLButtonElement;
+    head.type = "button";
+    head.setAttribute("aria-expanded", String(partsOpen));
+    head.title = "Each person's own part. Tick one for someone who has done it; the action closes when every part is done.";
+    head.addEventListener("click", () => {
+      partsOpen = !partsOpen;
+      paintParts();
+    });
+    partsBox.appendChild(head);
+    if (!partsOpen) return;
+    const grid = checklist();
+    grid.classList.add("ltk-shared-partsgrid");
+    for (const person of all) {
+      const item = checkItem(person.who);
+      item.box.checked = partDone(person);
+      item.wrap.classList.toggle("ltk-check-on", item.box.checked);
+      item.wrap.title = item.box.checked ? `${person.who} has done their part` : `${person.who} has not done their part yet`;
+      item.box.addEventListener("change", () => {
+        staged.set(keyOf(person), item.box.checked);
+        paintParts();
+      });
+      grid.appendChild(item.wrap);
+    }
+    partsBox.appendChild(grid);
+  };
+  refreshShared = () => {
+    paintExtras();
+    const n = picked().length;
+    sharedNote.textContent = n >= 2 ? `${n} people share this action. Each records their own part, and it closes when all have.` : "";
+    sharedNote.style.display = n >= 2 ? "" : "none";
+    if (n > MAX_ASSIGNEES) sharedNote.textContent = `${n} people — more than one action can carry (${MAX_ASSIGNEES}). The first ${MAX_ASSIGNEES} are kept.`;
+    paintParts();
+  };
+
+  // "＋ Add a team…" (issue 10): a leader's reports, direct or all the
+  // way down, read from the directory. People already in the app are
+  // added; the rest are named — adding them stays an admin's act.
+  const teamOpen = el("button", "ltk-sup-open", "＋ Add a team…") as HTMLButtonElement;
+  teamOpen.type = "button";
+  teamOpen.title = "Assign the action to everyone who reports to a leader";
+  teamOpen.style.display = "none";
+  const teamPanel = el("div", "ltk-team");
+  teamPanel.style.display = "none";
+  if (people.length > 0) {
+    let road: ActionTeamRoad | null = null;
+    let leader: Person | null = null;
+    const leaderBox = personTypeAhead("Leader — type a name…", (q) => people.filter((x) => x.who.toLowerCase().includes(q)).slice(0, 10), (person) => {
+      leader = person;
+      leaderBox.input.value = person.who;
+      teamNote.textContent = "";
+    });
+    const deepSel = selectInput("direct", [
+      { value: "direct", label: "Direct reports" },
+      { value: "all", label: "Everyone below" },
+    ]);
+    deepSel.setAttribute("aria-label", "Which reports");
+    const incl = checkItem("Include the leader");
+    const teamNote = el("div", "ltk-team-note");
+    const add = el("button", "ltk-btn ltk-btn-secondary", "Add them") as HTMLButtonElement;
+    add.type = "button";
+    const done = el("button", "ltk-sup-open", "Close") as HTMLButtonElement;
+    done.type = "button";
+    done.addEventListener("click", () => {
+      teamPanel.style.display = "none";
+      teamOpen.style.display = "";
+    });
+    add.addEventListener("click", () => {
+      if (road === null) return;
+      if (leader === null || leaderBox.input.value.trim() !== leader.who) {
+        teamNote.textContent = "Pick the leader from the list first.";
+        leaderBox.input.focus();
+        return;
+      }
+      const who = leader;
+      add.disabled = true;
+      teamNote.textContent = `Reading ${who.who}'s reporting line…`;
+      void road.reports(who.whoId, deepSel.value === "all").then(
+        (r) => {
+          add.disabled = false;
+          const list = incl.box.checked ? [{ whoId: who.whoId, who: who.who }, ...r.people] : r.people;
+          let added = 0;
+          for (const person of list) {
+            if (picked().some((x) => keyOf(x) === keyOf(person))) continue;
+            const chip = checks.find((c) => c.person.whoId === person.whoId);
+            if (chip) {
+              chip.box.checked = true;
+              chip.wrap.classList.add("ltk-check-on");
+            } else {
+              extras = [...extras, person];
+            }
+            added++;
+          }
+          const parts = [added === 0 ? (list.length === 0 ? "Nobody in the app reports to them." : "They are all on the action already.") : `Added ${added} ${added === 1 ? "person" : "people"}.`];
+          if (r.skipped.length > 0) {
+            const names = r.skipped.length > 8 ? `${r.skipped.slice(0, 8).join("; ")}; +${r.skipped.length - 8} more` : r.skipped.join("; ");
+            parts.push(`Not in the app, so not added (ask an admin to add them): ${names}.`);
+          }
+          if (r.partial) parts.push("The directory answered only in part — some reports may be missing.");
+          teamNote.textContent = parts.join(" ");
+          refreshShared();
+        },
+        () => {
+          add.disabled = false;
+          teamNote.textContent = "The directory could not be read. Check the connection and try again.";
+        }
+      );
+    });
+    const row = el("div", "ltk-team-row");
+    row.append(leaderBox.el, deepSel, incl.wrap, add, done);
+    teamPanel.append(el("div", "ltk-field-label", "Add a team"), row, teamNote);
+    teamOpen.addEventListener("click", () => {
+      teamPanel.style.display = "";
+      teamOpen.style.display = "none";
+      leaderBox.input.focus();
+    });
+    void actionTeam().then((r) => {
+      road = r;
+      if (r !== null) teamOpen.style.display = "";
+    });
+  }
+  sharedBox.append(extraChips, sharedNote, partsBox, teamOpen, teamPanel);
+  wrap.appendChild(sharedBox);
+  refreshShared();
   wrap.appendChild(supWrap);
   const dates = el("div", "ltk-act-when");
   const startRow = fieldRow("Start (optional)", start);
@@ -395,18 +663,12 @@ export function buildActionForm(
       action.description = desc.value.trim();
       action.start = start.value;
       action.due = due.value;
-      // waiting for an endorser = the work IS done (the part stays ticked)
-      const done = action.status === "done" || action.status === "verify";
-      const picked = checks.find((c) => c.box.checked);
-      if (picked) {
-        action.assignees = [
-          { whoId: picked.person.whoId, who: picked.person.who, done },
-        ];
-      } else if (freeWho && freeWho.value.trim() !== "") {
-        action.assignees = [{ whoId: "", who: freeWho.value.trim(), done }];
-      } else {
-        action.assignees = [];
-      }
+      // waiting for an endorser = the work IS done (every part stays
+      // ticked). Everyone picked stays on the action with the part they
+      // had; a part ticked here is taken; closing closes them all.
+      const closed = action.status === "done" || action.status === "verify";
+      const who = freeWho ? (freeWho.value.trim() !== "" ? [{ whoId: "", who: freeWho.value.trim() }] : []) : picked();
+      action.assignees = mergeAssignees(initialAssignees, who, { closed, wasClosed: initialClosed, staged: (p) => staged.get(keyOf(p)) });
       // assigned wins: nobody is both (cleanSupporters drops the overlap)
       const sup = cleanSupporters(supporters, action.assignees);
       if (sup.length > 0) action.supporters = sup;
@@ -609,19 +871,20 @@ export function actionRow(a: LtkAction, opts: ActionRowOptions): HTMLElement {
   // trails the date line
   const right = el("div", "ltk-action-right");
   const whoEl = el("div", "ltk-action-who");
-  whoEl.appendChild(
-    document.createTextNode(a.assignees[0]?.who ?? "Unassigned")
-  );
+  // one name, or the first and how many more share it (issue 10)
+  whoEl.appendChild(document.createTextNode(assigneesLabel(a, "Unassigned")));
   right.appendChild(whoEl);
+  const parts = partsChip(a);
+  if (parts) right.appendChild(parts);
   const dateText =
     a.due !== "" ? `Due ${a.due}` : a.start !== "" ? `From ${a.start}` : "";
   if (dateText !== "") {
     const dueEl = el("div", "ltk-action-due", dateText);
     if (a.due !== "" && isOverdue(a)) dueEl.classList.add("ltk-action-overdue");
-    if (a.escalated) dueEl.appendChild(el("span", "ltk-action-flag", " ⚑"));
+    if (a.escalated) dueEl.appendChild(supportFlag());
     right.appendChild(dueEl);
   } else if (a.escalated) {
-    whoEl.appendChild(el("span", "ltk-action-flag", " ⚑"));
+    whoEl.appendChild(supportFlag());
   }
   const support = supportLabel(a);
   if (support !== "") right.appendChild(el("div", "ltk-action-support", support));
@@ -680,6 +943,32 @@ export interface ActionDialogOptions {
   /** Who is commenting. Omitted: the host's registered viewer answers;
    *  neither: comments show, and none can be added. */
   viewer?: { whoId: string; who: string };
+  /** A NEW action that arrives already filled (a duplicate): the form
+   *  shows what it carries instead of starting empty. */
+  prefill?: boolean;
+  /** Offer "Duplicate…" (issue 11, 2026-11-17): the host opens a Raise
+   *  dialog on the copy (`prefill`) and adds it where it adds any new
+   *  action. Omitted: not offered. */
+  onDuplicate?: (copy: LtkAction) => void;
+}
+
+/** "⚑" on an action that needs support (issue 4, 2026-11-17 — the mark
+ *  that read "escalated"), wherever a row or card shows one. */
+export function supportFlag(): HTMLElement {
+  const f = el("span", "ltk-action-flag", " ⚑");
+  f.title = "Support required";
+  f.setAttribute("aria-label", "Support required");
+  return f;
+}
+
+/** "3 / 12 done" on a shared action (issue 10), who is still to do it on
+ *  hover; null on an action one person owns. */
+export function partsChip(a: Pick<LtkAction, "assignees">): HTMLElement | null {
+  const label = partsLabel(a);
+  if (label === "") return null;
+  const chip = el("span", "ltk-action-parts", label);
+  chip.title = partsTitle(a);
+  return chip;
 }
 
 /** "◐ Awaiting endorsement" for an action whose work is done and waits
@@ -829,6 +1118,10 @@ interface CommentField {
   apply: (action: LtkAction) => void;
   /** Something written or changed that a plain Close would lose. */
   unsaved: () => boolean;
+  /** A comment the HOST has already saved on the action (a message sent
+   *  from the title row): it joins the saved ones, so this dialog's Save
+   *  keeps it. */
+  adopt: (c: ActionComment) => void;
 }
 
 /** Comments on an action (2026-09-30): everything said so far, newest
@@ -974,6 +1267,10 @@ function buildCommentField(o: ActionDialogOptions): CommentField {
       action.comments = [...saved, ...staged, ...typed];
     },
     unsaved: () => changed || staged.length > 0 || (box !== null && box.value.trim() !== ""),
+    adopt: (c) => {
+      if (!saved.includes(c)) saved = [...saved, c];
+      paint();
+    },
   };
 }
 
@@ -1193,11 +1490,15 @@ export function confidentialGlyph(a: LtkAction): HTMLElement | null {
 export function openActionDialog(o: ActionDialogOptions): void {
   const action = o.action;
   const issue = textInput(action.issue, { placeholder: "Issue" });
-  const form = buildActionForm(o.people, o.isNew ? undefined : action);
+  const form = buildActionForm(o.people, o.isNew && o.prefill !== true ? undefined : action, o.isNew);
 
-  const escChk = checkItem("Escalated");
+  // "Support required" (issue 4, 2026-11-17 — the tick read "Escalated"):
+  // the same flag and the same road to the escalation viewer of the board
+  // above; the words say what it is for
+  const escChk = checkItem("⚑ Support required");
   escChk.box.checked = action.escalated;
   escChk.wrap.classList.toggle("ltk-check-on", action.escalated);
+  escChk.wrap.title = "This action needs support. It is flagged ⚑ wherever it is listed and raised to the board above.";
   // confidential (2026-09-16): creator, assignees, their leaders and super
   // admins only — the row helps say who
   const confChk = checkItem("Confidential");
@@ -1293,6 +1594,9 @@ export function openActionDialog(o: ActionDialogOptions): void {
     action.escalated = escChk.box.checked;
     action.confidential = confChk.box.checked ? true : undefined;
     form.apply(action); // after status, so assignee done flags match
+    // parts ticked here that complete a shared action close it (the one
+    // rule, settleFromParts — before the endorsement rule reads the status)
+    if (!o.isNew && action.status !== "cancelled") settleFromParts(action, { reopen: false });
     // what was written here, the box's text included
     comments.apply(action);
     // endorsement: closing on an initiative that asks for it waits for
@@ -1338,6 +1642,23 @@ export function openActionDialog(o: ActionDialogOptions): void {
         }),
     });
   }
+  if (!o.isNew && o.onDuplicate !== undefined) {
+    const dup = o.onDuplicate;
+    buttons.push({
+      label: "Duplicate…",
+      kind: "secondary" as const,
+      // the copy is of the action AS SAVED; what is typed here and not
+      // saved stays here — asked about, like Close
+      onClick: () => {
+        const go = () => {
+          dlg.close();
+          dup(duplicateAction(action));
+        };
+        if (!comments.unsaved()) return go();
+        confirmBar(dlg.body, "A comment you wrote or changed has not been saved. Duplicate without it?", "Duplicate anyway", "Keep editing", go);
+      },
+    });
+  }
   buttons.push({
     label: o.isNew ? "Cancel" : "Close",
     kind: "secondary" as const,
@@ -1366,6 +1687,23 @@ export function openActionDialog(o: ActionDialogOptions): void {
     maxWidth: 940,
   });
   dlg.body.classList.add("ltk-act-body");
+  // "Message" in the title row (issue 6, 2026-11-17): tell someone about
+  // this action by Teams or email — the host's own notify panel
+  const messenger = o.isNew ? null : actionMessenger();
+  if (messenger !== null) {
+    const titleEl = dlg.root.querySelector<HTMLElement>(".ltk-dialog-title");
+    if (titleEl) {
+      const text = titleEl.textContent ?? "";
+      titleEl.textContent = "";
+      titleEl.classList.add("ltk-dialog-title-row");
+      titleEl.appendChild(el("span", undefined, text));
+      const msg = el("button", "ltk-btn ltk-btn-secondary ltk-act-msgbtn", "✉ Message") as HTMLButtonElement;
+      msg.type = "button";
+      msg.title = "Message someone about this action by Teams or email";
+      msg.addEventListener("click", () => messenger({ host: o.host, action, onSent: (c) => comments.adopt(c) }));
+      titleEl.appendChild(msg);
+    }
+  }
   const grid = el("div", "ltk-act-grid");
   const main = el("div", "ltk-act-main");
   const side = el("div", "ltk-act-side");

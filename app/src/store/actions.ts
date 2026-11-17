@@ -2,15 +2,33 @@
 // cards, boards and the viewer; upsert by action id (the alternate key's
 // purpose, emulated through the generated client).
 
-import { actionBelongsTo, actionVisibleTo, LtkAction, mergeComments, visibleSetFor, settleFromParts } from "../../../shared/schema/actions";
+import { actionBelongsTo, actionVisibleTo, Assignee, LtkAction, mergeComments, mergeParts, stampCompletion, visibleSetFor, settleFromParts } from "../../../shared/schema/actions";
 import { applyEndorsementRule } from "../../../shared/schema/actionEndorsement";
 import { ACTION_RULED_EVENT } from "../../../shared/ui/actionLinkProvider";
 import { homeBoardOf, homeCardOf, homeForStamp } from "../../../shared/schema/actionLinks";
 import { bumpChange } from "./changes";
 import { whenSettled } from "./inflight";
 import { Ben_ltkactionsService } from "../generated/services/Ben_ltkactionsService";
-import { allWhere, eq, firstWhere, odata, upsertWhere } from "./dv";
-import { actionFromRow, actionToRow, parseManifest } from "./mappers";
+import { allWhere, eq, firstWhere, odata, upsertWhere, writeKnown } from "./dv";
+import { actionFromRow as mapActionRow, actionToRow, parseManifest } from "./mappers";
+import type { Ben_ltkactions } from "../generated/models/Ben_ltkactionsModel";
+
+/** The parts each action was READ with (shared actions, 2026-11-17): the
+ *  write lays only what this screen changed over the row as it stands,
+ *  so two people ticking their own parts never undo each other
+ *  (`mergeParts`). Every read below goes through `actionFromRow`. */
+const partsAsRead = new Map<string, Assignee[]>();
+function actionFromRow(row: Ben_ltkactions): LtkAction {
+  const a = mapActionRow(row);
+  partsAsRead.set(a.id, a.assignees.map((x) => ({ ...x })));
+  return a;
+}
+
+/** Run `work` over `items`, `size` at a time (a confidential shared
+ *  action asks the directory for every assignee's manager). */
+async function inBatches<T>(items: T[], size: number, work: (item: T) => Promise<void>): Promise<void> {
+  for (let i = 0; i < items.length; i += size) await Promise.all(items.slice(i, i + size).map(work));
+}
 import { currentViewer } from "../runtime";
 import { memoRead } from "./changes";
 import { parseMeetingInfo } from "../../../shared/schema/meeting";
@@ -155,7 +173,9 @@ async function stampVisibility(action: LtkAction, boardId?: string): Promise<voi
   }
   const { managerOf } = await import("./people");
   const managers = new Map<string, string>();
-  await Promise.all(action.assignees.map(async (x) => managers.set(x.whoId, await managerOf(x.whoId).catch(() => ""))));
+  await inBatches(action.assignees, 4, async (x) => {
+    managers.set(x.whoId, await managerOf(x.whoId).catch(() => ""));
+  });
   const extra = action.escalated ? await escalationTargetOwners(boardId ?? "").catch(() => []) : [];
   action.visibleTo = visibleSetFor(action, (id) => managers.get(id) ?? "", extra);
 }
@@ -177,36 +197,41 @@ export async function upsertActions(
     // the key decides when it names a channel (a link made in the dialog
     // moved the action — even from a card editor that passes ITS board)
     const stamped = stampedBoard(action.instanceId, boardId);
+    // the row as it stands NOW — read once: what others wrote since
+    // this screen loaded is merged in (comments since 2026-11-16, parts
+    // since 2026-11-17), and the endorsement backstop needs its status
+    const existing = await firstWhere(Ben_ltkactionsService.getAll, eq("ben_actionid", action.id));
+    const rowNow = existing ? mapActionRow(existing) : null;
+    if (rowNow) {
+      // shared actions: lay only the parts THIS screen changed over the
+      // row's — two people ticking their own parts must not undo each other
+      action.assignees = mergeParts(rowNow.assignees, action.assignees, partsAsRead.get(action.id));
+      // comments are everyone's: this screen's over the row's own, so a
+      // save never drops what someone else wrote since it loaded
+      action.comments = mergeComments(rowNow.comments, action.comments, who?.objectId ?? "");
+    }
     // every part done = done, the BACKSTOP (2026-10-06) — a road that
     // marks parts without the rule still writes a closed action
     settleFromParts(action, { reopen: false });
     // endorsement, the BACKSTOP (2026-09-30): the dialog and the tick
     // apply the rule themselves; a road that could not (a kanban drop, a
-    // screen opened before the rule was known) is put right here, against
-    // the status the row actually holds
+    // screen opened before the rule was known, the last part of a shared
+    // action ticked from a stale screen) is put right here, against the
+    // status the row actually holds
     if (who && who.objectId !== "" && (action.status === "done" || action.verified !== undefined)) {
       const { endorsementAtWrite } = await import("../actions/endorsement");
       const ctx = await endorsementAtWrite(action);
       if (ctx?.on) {
-        const existing = await firstWhere(Ben_ltkactionsService.getAll, eq("ben_actionid", action.id)).catch(() => null);
-        const prior = existing ? ((existing.ben_status as LtkAction["status"]) ?? "open") : null;
+        const prior = rowNow ? rowNow.status : null;
         if (applyEndorsementRule(action, prior, ctx, { whoId: who.objectId, who: who.name }, new Date().toISOString())) ruled = true;
       }
     }
+    // when it was completed, and each part (issues 2 and 10): stamped at
+    // the ONE write path, cleared on a reopen
+    stampCompletion(action);
     await stampVisibility(action, stamped);
-    await upsertWhere(
-      Ben_ltkactionsService,
-      eq("ben_actionid", action.id),
-      (row) => row.ben_ltkactionid,
-      actionToRow(action, stamped),
-      // comments are everyone's: lay this screen's over the row's own, so
-      // a save never drops what someone else wrote since it loaded
-      (existing, fields) => {
-        const merged = mergeComments(actionFromRow(existing).comments, action.comments, who?.objectId ?? "");
-        action.comments = merged;
-        return { ...fields, ben_commentsjson: JSON.stringify(merged) };
-      }
-    );
+    await writeKnown(Ben_ltkactionsService, existing, (row) => row.ben_ltkactionid, actionToRow(action, stamped));
+    partsAsRead.set(action.id, action.assignees.map((x) => ({ ...x })));
   }
   bumpChange("actions");
   // the rule changed what the screen believes: open lists refresh
@@ -224,6 +249,7 @@ export async function closeAwaitingEndorsement(i: { id: string; boardId: string 
     a.status = "done";
     a.pdca = "closed";
     for (const x of a.assignees) x.done = true;
+    stampCompletion(a);
     await upsertWhere(Ben_ltkactionsService, eq("ben_actionid", a.id), (row) => row.ben_ltkactionid, actionToRow(a, undefined));
   }
   if (waiting.length > 0) bumpChange("actions");

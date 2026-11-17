@@ -98,6 +98,31 @@ export async function allWhere<T>(
 }
 
 /**
+ * The write half of an upsert when the caller has ALREADY read the row
+ * (an action's save reads it to merge what others wrote, 2026-11-17) —
+ * update it, or create when there is none. Returns the row's GUID.
+ */
+export async function writeKnown<TFields extends object, TRow>(
+  service: {
+    create: (record: never) => Promise<OneResult<TRow>>;
+    update: (id: string, fields: never) => Promise<OneResult<TRow>>;
+  },
+  existing: TRow | null,
+  idOf: (row: TRow) => string,
+  fields: TFields
+): Promise<string> {
+  if (existing) {
+    const id = idOf(existing);
+    settle(await service.update(id, fields as never), "update");
+    return id;
+  }
+  const created = settle(await service.create(fields as never), "create");
+  const row = created.data;
+  if (!row) throw new Error("create returned no row");
+  return idOf(row);
+}
+
+/**
  * Upsert emulation: find by filter; update the matched row's GUID or
  * create. Returns the row's GUID.
  */

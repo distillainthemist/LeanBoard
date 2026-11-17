@@ -322,6 +322,28 @@ export const LTK_BASE_CSS = `
 .ltk-who-opt-err { color: #d13438; }
 .ltk-who-pop-h { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ltk-muted); padding: 8px 10px 2px; }
 .ltk-who-pop-note { font-size: 12.5px; color: var(--ltk-muted); padding: 8px 10px; }
+/* several people on one action (2026-11-17): the people who are not a
+   tick box above sit as chips; one line says it is shared; the parts
+   open on demand; a leader's team is added from a small panel */
+.ltk-shared { display: flex; flex-direction: column; gap: 6px; }
+.ltk-shared:empty { display: none; }
+.ltk-shared-extras { align-items: center; }
+.ltk-shared-note { font-size: 12.5px; color: var(--ltk-muted); }
+.ltk-shared-parts { display: flex; flex-direction: column; gap: 6px; }
+.ltk-shared-partshead { font-weight: 600; }
+.ltk-team { display: flex; flex-direction: column; gap: 6px; padding: 10px; border: 1px solid var(--ltk-hairline); border-radius: 8px; }
+.ltk-team-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.ltk-team-row .ltk-who-box { flex: 1 1 200px; min-width: 180px; }
+.ltk-team-row .ltk-input { min-height: 40px; }
+.ltk-team-row select.ltk-input { flex: 0 0 auto; width: auto; }
+.ltk-team-row .ltk-check { flex: 0 0 auto; white-space: nowrap; }
+.ltk-team-note { font-size: 12.5px; color: var(--ltk-muted); overflow-wrap: anywhere; }
+.ltk-team-note:empty { display: none; }
+/* "3 / 12 done" on a shared action */
+.ltk-action-parts { display: inline-block; font-size: 11.5px; font-weight: 600; color: var(--ltk-muted); border: 1px solid var(--ltk-hairline); border-radius: 999px; padding: 0 7px; white-space: nowrap; }
+/* the dialog's title row when it carries a tool (Message) */
+.ltk-dialog-title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.ltk-act-msgbtn { font-size: 13px; font-weight: 400; min-height: 36px; padding: 4px 12px; }
 /* support: one line until it is used */
 .ltk-sup-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .ltk-sup-open { border: none; background: none; font: inherit; font-size: 13px; color: var(--ltk-accent); cursor: pointer; padding: 4px 0; text-align: left; min-height: 28px; }

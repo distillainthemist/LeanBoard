@@ -43,6 +43,10 @@ export function trapFocus(container: HTMLElement): () => void {
     const last = items[items.length - 1];
     const active = document.activeElement;
     const outside = !container.contains(active);
+    // a second modal opened OVER this one (the message panel over the
+    // action dialog, 2026-11-17) owns the keyboard while it is up — this
+    // trap must not pull Tab back underneath it
+    if (outside && active instanceof Element && active.closest('[aria-modal="true"]') !== null) return;
     if (e.shiftKey && (active === first || outside)) {
       e.preventDefault();
       last.focus();

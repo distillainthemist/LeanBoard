@@ -221,6 +221,9 @@ export function actionFromRow(row: Ben_ltkactions): LtkAction {
       row.ben_verifiedat && row.ben_verifiedat !== ""
         ? { whoId: row.ben_verifiedby ?? "", who: "", when: row.ben_verifiedat }
         : undefined,
+    // the completion moment (2026-11-17). A row closed before the stamp
+    // existed stands on its endorsement, else on when it was last written
+    doneAt: row.ben_doneat || (row.ben_status === "done" || row.ben_status === "verify" ? row.ben_verifiedat || row.modifiedon || undefined : undefined),
     initiativeId: row.ben_initiativeid || undefined,
     confidential: row.ben_confidential === true ? true : undefined,
     createdBy: row.ben_createdby || undefined,
@@ -260,6 +263,8 @@ export function actionToRow(
     ben_createdby: action.createdBy ?? "",
     ben_visiblejson: action.confidential === true ? JSON.stringify(action.visibleTo ?? []) : "",
     ben_pdca: action.pdca ?? "",
+    // null CLEARS it (a reopen); undefined would leave the old moment
+    ben_doneat: (action.doneAt ?? null) as unknown as string | undefined,
   };
 }
 

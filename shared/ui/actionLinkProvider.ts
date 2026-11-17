@@ -5,6 +5,7 @@
 // standalone control): the dialog shows no link field. Tiny on purpose —
 // the shell imports it without pulling the dialog in.
 
+import type { ActionComment, LtkAction } from "../schema/actions";
 import { LinkTarget } from "../schema/actionLinks";
 import type { EndorseContext } from "../schema/actionEndorsement";
 import type { RescheduleSettings } from "../schema/reschedule";
@@ -110,6 +111,58 @@ export async function actionDirectory(): Promise<ActionDirectoryRoad | null> {
   } catch {
     return null;
   }
+}
+
+/** A leader's team, for a shared action (issue 10, 2026-11-17): the
+ *  people who report to someone — directly, or all the way down — read
+ *  from the directory. Only people ALREADY in the app come back as
+ *  assignable; the rest are named so the raiser can ask an admin to add
+ *  them (adding from the directory stays an admin's act). null = no
+ *  host. */
+export interface ActionTeamResult {
+  people: { whoId: string; who: string }[];
+  /** Names in the reporting line who are not in the app. */
+  skipped: string[];
+  /** The walk stopped at its cap, or a branch could not be read. */
+  partial: boolean;
+}
+export interface ActionTeamRoad {
+  reports: (leaderWhoId: string, deep: boolean) => Promise<ActionTeamResult>;
+}
+let teamProvider: (() => Promise<ActionTeamRoad | null>) | null = null;
+
+export function setActionTeamProvider(p: (() => Promise<ActionTeamRoad | null>) | null): void {
+  teamProvider = p;
+}
+
+export async function actionTeam(): Promise<ActionTeamRoad | null> {
+  try {
+    return teamProvider ? await teamProvider() : null;
+  } catch {
+    return null;
+  }
+}
+
+/** "Message about this action" (issue 6, 2026-11-17): the host opens its
+ *  notify panel — recipients, an editable message, Teams or email. The
+ *  dialog is shared with the controls and must not import the host's
+ *  messaging code; it asks for this instead. `onSent` hands back one
+ *  line for the action's comment trail. null = no host. */
+export interface ActionMessageRequest {
+  host: HTMLElement;
+  /** The action as it is STORED (the dialog has not written its edits). */
+  action: LtkAction;
+  /** A message went: the comment the host recorded on the action. */
+  onSent: (comment: ActionComment) => void;
+}
+let messageProvider: ((req: ActionMessageRequest) => void) | null = null;
+
+export function setActionMessageProvider(p: ((req: ActionMessageRequest) => void) | null): void {
+  messageProvider = p;
+}
+
+export function actionMessenger(): ((req: ActionMessageRequest) => void) | null {
+  return messageProvider;
 }
 
 /** Fired when the endorsement rule changed an action at the write (a

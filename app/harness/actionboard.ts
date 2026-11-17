@@ -8,10 +8,14 @@
 // dialog its "Linked to" field (a ritual and an initiative to find);
 // `?dir=1` gives "Search everyone…" a directory to look in (an admin's
 // view): names containing what was typed, after a short wait.
+// `?shared=1` (2026-11-17): eight people; action 3 is SHARED by four of
+// them with one part done; "＋ Add a team…" and "✉ Message" answer from
+// stubs; one action closed today and one long ago (the recently
+// completed window).
 import "../src/style.css";
 import { ActionBoardEditor } from "../../controls/ActionBoard/editor";
-import { newAction, LtkAction } from "../../shared/schema/actions";
-import { setActionDirectoryProvider, setActionLinkProvider, setActionViewerProvider, setRescheduleProvider } from "../../shared/ui/actionLinkProvider";
+import { newAction, newComment, LtkAction } from "../../shared/schema/actions";
+import { setActionDirectoryProvider, setActionLinkProvider, setActionMessageProvider, setActionTeamProvider, setActionViewerProvider, setRescheduleProvider } from "../../shared/ui/actionLinkProvider";
 import { mountGantt } from "../src/improvement/gantt";
 
 setActionViewerProvider(() => ({ whoId: "u1", who: "Ben O'Brien" }));
@@ -49,6 +53,41 @@ if (query.get("dir") === "1") {
     })
   );
 }
+const shared = query.get("shared") === "1";
+const crew = [
+  { whoId: "u1", who: "Ben O'Brien", initials: "BO" },
+  { whoId: "u2", who: "Jane Smith", initials: "JS" },
+  { whoId: "u3", who: "Clegg, Tammy", initials: "TC" },
+  { whoId: "u4", who: "Bird, Dylan", initials: "DB" },
+  { whoId: "u5", who: "Keough, Travis", initials: "TK" },
+  { whoId: "u6", who: "Remedio, Lacey", initials: "LR" },
+  { whoId: "u7", who: "Jukes, Emily", initials: "EJ" },
+  { whoId: "u8", who: "McDermid, Dai", initials: "DM" },
+];
+if (shared) {
+  // Jane's team: three in the app, two who are not
+  setActionTeamProvider(() =>
+    Promise.resolve({
+      reports: (leader: string, deep: boolean) =>
+        new Promise((resolve) =>
+          setTimeout(
+            () =>
+              resolve({
+                people: Array.from({ length: deep ? 18 : 3 }, (_, n) => (n < 3 ? { whoId: `u${n + 3}`, who: crew[n + 2].who } : { whoId: `t${n}`, who: `Team member ${n}, ${leader}` })),
+                skipped: ["Forsyth, Hayden", "Munro, Alister"],
+                partial: false,
+              }),
+            400
+          )
+        ),
+    })
+  );
+  setActionMessageProvider((req) => {
+    const c = newComment({ whoId: "u1", who: "Ben O'Brien" }, "Messaged Jane Smith by Teams");
+    req.action.comments = [...req.action.comments, c];
+    req.onSent(c);
+  });
+}
 const day = (n: number) => new Date(Date.UTC(2026, 8, 30) + n * 86400000).toISOString().slice(0, 10);
 const make = (n: number, status: LtkAction["status"]): LtkAction => {
   const a = newAction({ source: "actionboard", sourceId: "" });
@@ -62,6 +101,16 @@ const make = (n: number, status: LtkAction["status"]): LtkAction => {
   a.assignees = [{ whoId: n % 2 ? "u2" : "u1", who: n % 2 ? "Jane Smith" : "Ben O'Brien", done: status === "done" }];
   a.instanceId = "B1:board";
   if (n === 0) a.initiativeId = "init-1";
+  if (shared && n === 2) {
+    a.assignees = [
+      { whoId: "u1", who: "Ben O'Brien", done: false },
+      { whoId: "u2", who: "Jane Smith", done: true, doneAt: "2026-11-10T02:00:00.000Z" },
+      { whoId: "u3", who: "Clegg, Tammy", done: false },
+      { whoId: "u4", who: "Bird, Dylan", done: false },
+    ];
+    a.escalated = true;
+  }
+  if (shared && status === "done") a.doneAt = n === 30 ? new Date().toISOString() : "2026-01-05T02:00:00.000Z";
   if (n === 1) {
     a.history = [
       { kind: "rescheduled", whoId: "u2", who: "Jane Smith", when: "2026-09-20T02:00:00.000Z", from: day(-9), to: day(-4), reason: "Waiting on parts" },
@@ -70,13 +119,13 @@ const make = (n: number, status: LtkAction["status"]): LtkAction => {
   }
   return a;
 };
-const many = [...Array.from({ length: 11 }, (_, n) => make(n, "open")), ...Array.from({ length: 2 }, (_, n) => make(20 + n, "in-progress")), make(30, "done")];
+const many = [...Array.from({ length: 11 }, (_, n) => make(n, "open")), ...Array.from({ length: 2 }, (_, n) => make(20 + n, "in-progress")), make(30, "done"), ...(shared ? [make(31, "done"), make(32, "done")] : [])];
 const log: string[] = [];
 (window as unknown as { log: string[] }).log = log;
 const ed = new ActionBoardEditor(document.getElementById("b")!, { onChange: (acts) => log.push(`change ${acts.length} last=${acts[acts.length - 1].status}/${acts[acts.length - 1].issue}`) });
 (window as unknown as { ed: ActionBoardEditor }).ed = ed;
 ed.setActor({ whoId: "u1", who: "Ben O'Brien" });
-ed.setPeople([{ whoId: "u1", who: "Ben O'Brien", initials: "BO" }, { whoId: "u2", who: "Jane Smith", initials: "JS" }]);
+ed.setPeople(shared ? crew : crew.slice(0, 2));
 ed.setOptions({ view: "kanban", groupBy: "status", verifyColumn: true });
 ed.setUserView(null, (v) => log.push(`view ${v}`));
 ed.setGanttRenderer((host, g) =>

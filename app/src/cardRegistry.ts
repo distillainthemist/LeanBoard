@@ -1413,6 +1413,10 @@ const REGISTRY: Record<string, CardMounter> = {
       columns: parseKanbanColumns(cfgRaw(opts, "kanbanColumns")),
       verifyColumn: config(opts).verifyColumn === true,
     });
+    // how long a completed action stays in view (the card's setting;
+    // unset = the default week)
+    const recent = config(opts).recentDoneDays;
+    if (typeof recent === "number" || (typeof recent === "string" && recent.trim() !== "")) editor.setRecentDays(Number(recent));
     editor.setActor(opts.viewer);
     // an action raised HERE belongs to the board as a whole unless someone
     // says otherwise (2026-09-30: it used to attach, silently, to whichever

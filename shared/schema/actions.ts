@@ -115,6 +115,10 @@ export interface Assignee {
   whoId: string;
   who: string;
   done: boolean;
+  /** When this person's part was done (ISO) — a shared action shows who
+   *  finished and who has not (2026-11-17, issue 10). Absent while open
+   *  and on parts done before then. */
+  doneAt?: string;
 }
 
 /** Someone who SUPPORTS an action (issue 7, 2026-11-16): named on it,
@@ -178,6 +182,10 @@ export interface LtkAction {
   history?: ActionHistoryEntry[];
   /** The owner's endorsement once status left "verify" for "done". */
   verified?: Verification;
+  /** The moment the action reached done or verify (ISO) — "recently
+   *  completed" reads it (2026-11-17, issue 2). Stamped by
+   *  `stampCompletion` at the write; cleared on a reopen. */
+  doneAt?: string;
   /** The improvement initiative this action belongs to ("" = none). */
   initiativeId?: string;
   /** Confidential (2026-09-16): seen only by its creator, its assignees,
@@ -327,6 +335,7 @@ export function sanitizeAction(a: Partial<LtkAction>): LtkAction {
           whoId: typeof x.whoId === "string" ? x.whoId : "",
           who: typeof x.who === "string" ? x.who : "",
           done: x.done === true,
+          ...(x.done === true && typeof x.doneAt === "string" && x.doneAt !== "" ? { doneAt: x.doneAt } : {}),
         }))
         .filter((x) => x.who !== "" || x.whoId !== "")
     : [];
@@ -387,6 +396,7 @@ export function sanitizeAction(a: Partial<LtkAction>): LtkAction {
     },
     ...(history ? { history } : {}),
     ...(verified ? { verified } : {}),
+    ...(typeof a.doneAt === "string" && a.doneAt !== "" ? { doneAt: a.doneAt } : {}),
     ...(initiativeId ? { initiativeId } : {}),
     // supporters (2026-11-16) — the whitelist must let them through
     ...(supporters.length > 0 ? { supporters } : {}),
@@ -488,6 +498,180 @@ export function mergeComments(stored: ActionComment[], mine: ActionComment[], vi
   }
   for (const m of mine) if (!matched.has(commentKey(m)) && m.whoId === viewerId) out.push(m);
   return out;
+}
+
+// ---- completion stamps, and "recently completed" (2026-11-17) -------------------
+
+/** Keep the completion moments honest — called at the write (one write
+ *  path): a done / verify action carries when it got there, each done
+ *  part when it was ticked; an open action or part carries none. Returns
+ *  true when anything changed. Pure but for `nowIso`. */
+export function stampCompletion(a: LtkAction, nowIso = new Date().toISOString()): boolean {
+  let changed = false;
+  const closed = a.status === "done" || a.status === "verify";
+  if (closed && (a.doneAt ?? "") === "") {
+    a.doneAt = nowIso;
+    changed = true;
+  } else if (!closed && a.doneAt !== undefined) {
+    delete a.doneAt;
+    changed = true;
+  }
+  for (const x of a.assignees) {
+    if (x.done && (x.doneAt ?? "") === "") {
+      x.doneAt = nowIso;
+      changed = true;
+    } else if (!x.done && x.doneAt !== undefined) {
+      delete x.doneAt;
+      changed = true;
+    }
+  }
+  return changed;
+}
+
+const dayNumber = (iso: string): number => {
+  const t = Date.parse(`${iso.slice(0, 10)}T00:00:00Z`);
+  return Number.isFinite(t) ? Math.round(t / 86_400_000) : NaN;
+};
+
+/** The local calendar day of an ISO moment (yyyy-mm-dd). */
+function localDay(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso.slice(0, 10);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+/** Completed within the last `days` days (today counts as day 0)? An
+ *  action with no completion moment is not recent — it predates the
+ *  stamp. `days` ≤ 0 = nothing is recent. */
+export function recentlyDone(a: Pick<LtkAction, "status" | "doneAt">, days: number, today = todayIso()): boolean {
+  if (a.status !== "done" || days <= 0 || (a.doneAt ?? "") === "") return false;
+  const at = /T/.test(a.doneAt as string) ? localDay(a.doneAt as string) : (a.doneAt as string);
+  const diff = dayNumber(today) - dayNumber(at);
+  return Number.isFinite(diff) && diff >= 0 && diff < days;
+}
+
+/** How long a completed action stays in view by default. */
+export const RECENT_DONE_DAYS = 7;
+
+// ---- shared actions: several people, a part each (issue 10) ---------------------
+
+/** The most people one shared action carries. */
+export const MAX_ASSIGNEES = 500;
+
+/** Parts done out of parts owed; null for an action that is not shared
+ *  (nobody or one person). */
+export function partsProgress(a: Pick<LtkAction, "assignees">): { done: number; total: number } | null {
+  if (a.assignees.length < 2) return null;
+  return { done: a.assignees.filter((x) => x.done).length, total: a.assignees.length };
+}
+
+/** "Jukes, Emily +11" — the first name and how many more; "" for nobody. */
+export function assigneesLabel(a: Pick<LtkAction, "assignees">, unassigned = ""): string {
+  const names = a.assignees.map((x) => x.who || "Unnamed");
+  if (names.length === 0) return unassigned;
+  return names.length === 1 ? names[0] : `${names[0]} +${names.length - 1}`;
+}
+
+/** "3 / 12 done" for a shared action; "" otherwise. */
+export function partsLabel(a: Pick<LtkAction, "assignees">): string {
+  const p = partsProgress(a);
+  return p === null ? "" : `${p.done} / ${p.total} done`;
+}
+
+/** Who has done their part and who has not — a tooltip's two lines. */
+export function partsTitle(a: Pick<LtkAction, "assignees">): string {
+  const done = a.assignees.filter((x) => x.done).map((x) => x.who || "Unnamed");
+  const todo = a.assignees.filter((x) => !x.done).map((x) => x.who || "Unnamed");
+  const cap = (list: string[]) => (list.length > 12 ? `${list.slice(0, 12).join("; ")}; +${list.length - 12} more` : list.join("; "));
+  return [todo.length > 0 ? `Still to do: ${cap(todo)}` : "", done.length > 0 ? `Done: ${cap(done)}` : ""].filter((l) => l !== "").join("\n");
+}
+
+const samePerson = (a: { whoId: string; who: string }, b: { whoId: string; who: string }): boolean =>
+  a.whoId !== "" && b.whoId !== "" ? a.whoId === b.whoId : a.who.toLowerCase() === b.who.toLowerCase();
+
+/**
+ * The assignees an edit leaves (issue 10): the people picked, each
+ * keeping the part they had — the dialog used to replace the list with
+ * ONE person and drop the rest. `closed`: the action is done / waiting
+ * now → every part is done; `wasClosed` and no longer → every part
+ * reopens; otherwise a part is what `staged` says, else what it was,
+ * else not done. Order: as they were, newcomers after. Pure.
+ */
+export function mergeAssignees(
+  previous: Assignee[],
+  picked: { whoId: string; who: string }[],
+  opts: { closed: boolean; wasClosed: boolean; staged?: (p: { whoId: string; who: string }) => boolean | undefined; nowIso?: string }
+): Assignee[] {
+  const seen: { whoId: string; who: string }[] = [];
+  const unique = picked.filter((p) => {
+    if (seen.some((q) => samePerson(q, p))) return false;
+    seen.push(p);
+    return true;
+  });
+  const kept = previous.filter((x) => unique.some((p) => samePerson(p, x)));
+  const added = unique.filter((p) => !previous.some((x) => samePerson(p, x)));
+  const now = opts.nowIso ?? new Date().toISOString();
+  const part = (p: { whoId: string; who: string }, was: Assignee | undefined): Assignee => {
+    const done = opts.closed ? true : opts.wasClosed ? false : (opts.staged?.(p) ?? was?.done ?? false);
+    const doneAt = done ? (was?.done === true && was.doneAt ? was.doneAt : now) : undefined;
+    return { whoId: p.whoId, who: p.who, done, ...(doneAt ? { doneAt } : {}) };
+  };
+  return [...kept.map((x) => part(unique.find((p) => samePerson(p, x)) ?? x, x)), ...added.map((p) => part(p, undefined))].slice(0, MAX_ASSIGNEES);
+}
+
+/**
+ * Lay this screen's parts over the row AS IT STANDS NOW (the store's
+ * write, issue 10): on a shared action several people tick their own
+ * part from their own screens, and each save used to write the whole
+ * list — the last one in un-ticked everyone who had ticked since it
+ * loaded. `baseline` is the list this screen was handed; a part or a
+ * membership this screen did not change takes the row's value.
+ *   · a person here whose part is as it was loaded → the row's part
+ *   · a person here whose part this screen changed, or added → this one
+ *   · a person this screen removed → gone
+ *   · a person someone else added since → kept
+ * No baseline (a new action, a row never read here) → this screen's list.
+ */
+export function mergeParts(rowNow: Assignee[], mine: Assignee[], baseline: Assignee[] | undefined): Assignee[] {
+  if (baseline === undefined) return mine;
+  const find = (list: Assignee[], p: Assignee) => list.find((x) => samePerson(x, p));
+  const out: Assignee[] = [];
+  for (const m of mine) {
+    const base = find(baseline, m);
+    const now = find(rowNow, m);
+    out.push(base !== undefined && base.done === m.done && now !== undefined ? { ...now } : m);
+  }
+  for (const n of rowNow) {
+    if (find(baseline, n) === undefined && find(mine, n) === undefined) out.push({ ...n });
+  }
+  return out;
+}
+
+// ---- duplicate (issue 11) ---------------------------------------------------------
+
+/** A new action made from an existing one: what it is, who, when and
+ *  where it is linked — not its life (comments, history, parts done,
+ *  endorsement, completion). A closed source duplicates as Do. */
+export function duplicateAction(src: LtkAction): LtkAction {
+  const open = src.pdca !== undefined && src.pdca !== "closed" && src.status !== "done" && src.status !== "verify" && src.status !== "cancelled";
+  return {
+    id: newId("a"),
+    instanceId: src.instanceId,
+    issue: src.issue,
+    description: src.description,
+    assignees: src.assignees.map((x) => ({ whoId: x.whoId, who: x.who, done: false })),
+    ...(src.supporters && src.supporters.length > 0 ? { supporters: src.supporters.map((x) => ({ ...x })) } : {}),
+    start: src.start,
+    due: src.due,
+    status: "open",
+    pdca: open ? src.pdca : "do",
+    comments: [],
+    escalated: src.escalated,
+    context: { ...src.context },
+    ...(src.initiativeId ? { initiativeId: src.initiativeId } : {}),
+    ...(src.confidential === true ? { confidential: true } : {}),
+  };
 }
 
 export function isOverdue(a: LtkAction, today = todayIso()): boolean {

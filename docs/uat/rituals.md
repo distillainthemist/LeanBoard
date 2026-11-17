@@ -80,17 +80,17 @@ expected: the trend chart fills its box with no blank band above or below, and i
 
 ## Journey 2 — The Action card's views
 
-### UAT-RIT-009 — Show completed, edit from the Gantt, Gantt lanes follow the kanban columns
+### UAT-RIT-009 — Recently completed and Show all completed, edit from the Gantt, Gantt lanes follow the kanban columns
 persona: participant
 modules: controls/ActionBoard/editor.ts improvement/gantt.ts cardRegistry.ts
-preconditions: a board whose Action card has two or more completed actions and some open ones; a second Action card configured with custom kanban columns (grouped by issue, e.g. Safety · Quality · Delivery) with actions in at least two columns
+preconditions: a board whose Action card has an action completed today, two completed more than a week ago (or before this release) and some open ones; a second Action card configured with custom kanban columns (grouped by issue, e.g. Safety · Quality · Delivery) with actions in at least two columns
 steps:
-1. Open the first card. On the List view read the "Show completed" switch and find ＋ Add action; switch to Kanban, then Gantt, reading both each time.
+1. Open the first card. On the List view read the "Show all completed" switch and find ＋ Add action; switch to Kanban, then Gantt, reading both each time. In the card's settings set "Show completed for (days)" to 0, look, then clear it again.
 2. Switch it on, then off again; look at the Kanban's Done column while it is off.
 3. Mark every action complete, then look at the card.
 4. On the Gantt, click an action's name; change its description; save. Then drag a bar.
 5. Open the second card on the Gantt.
-expected: step 1 the switch is present on all three views and OFF, with the hidden count in brackets, and completed actions appear on none of them; ＋ Add action sits at the right-hand end of the same row on every view, in sight without scrolling however long the list, and nothing sits under the list any more; step 2 on, completed actions show on the list, in Done and as grey bars; off again, the Done column stays as a drop target reading "n completed hidden", and clicking that line switches completed on; step 3 the card reads "All n actions are complete" with the switch and ＋ Add action on the row above it, not the empty-card prompt; step 4 the action's dialog opens from its name and the saved change shows; the bar still drags its dates; step 5 the Gantt shows a lane per kanban column in the kanban's order with a count, each folding to one summary bar on click, and the list view inside the Gantt groups the same way
+expected: step 1 the switch reads "Show all completed" on all three views and is OFF, with the count of OLDER completed actions in brackets; the action completed today shows on every view without it — struck through on the list, in Done, a grey bar on the Gantt — and stays for 7 days; the older ones show on none; with the setting at 0 no completed action shows until the switch is on, and with it cleared the week is back; ＋ Add action sits at the right-hand end of the same row on every view, in sight without scrolling however long the list, and nothing sits under the list any more; step 2 on, every completed action shows on the list, in Done and as grey bars; off again, the Done column keeps the recent one and reads "n older completed hidden" under it, and clicking that line switches all completed on; step 3 the card reads "All n actions are complete" with the switch and ＋ Add action on the row above it, not the empty-card prompt; step 4 the action's dialog opens from its name and the saved change shows; the bar still drags its dates; step 5 the Gantt shows a lane per kanban column in the kanban's order with a count, each folding to one summary bar on click, and the list view inside the Gantt groups the same way
 
 ### UAT-RIT-010 — Rating definitions on the HSE cross
 persona: owner

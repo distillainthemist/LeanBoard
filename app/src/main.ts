@@ -3,7 +3,7 @@
 // from the typed Dataverse store inside Power Apps, demo data on a bare
 // dev server.
 
-import { setActionDirectoryProvider, setActionLinkProvider, setActionViewerProvider, setEndorsementLookup, setRescheduleProvider } from "../../shared/ui/actionLinkProvider";
+import { setActionDirectoryProvider, setActionLinkProvider, setActionMessageProvider, setActionTeamProvider, setActionViewerProvider, setEndorsementLookup, setRescheduleProvider } from "../../shared/ui/actionLinkProvider";
 import { el, clear } from "../../shared/ui/dom";
 import { boardOrigin, REOPEN_PRIORITY_KEY } from "./improvement/boardOrigin";
 import { getLeaveGuard, setLeaveGuard } from "./navGuard";
@@ -21,6 +21,11 @@ setRescheduleProvider(() => import("./actions/reschedule").then((m) => m.loadRes
 setActionDirectoryProvider(() =>
   import("./people/directoryAdd").then(async (m) => (await m.myDirectoryRoad({ site: "", department: "" }, [])) ?? null)
 );
+// a leader's team on a shared action, and "Message about this action"
+// (2026-11-17): both read the directory or send through the notify
+// connectors — loaded on first use, never in the shell
+setActionTeamProvider(() => import("./actions/team").then((m) => m.teamRoad()));
+setActionMessageProvider((req) => void import("./actions/message").then((m) => m.openActionMessage(req)));
 // endorsement: does closing this action wait for its endorser, and may
 // the viewer endorse? Answered from a cache the module keeps warm; the
 // module loads on first use (the shell carries the registry only)
