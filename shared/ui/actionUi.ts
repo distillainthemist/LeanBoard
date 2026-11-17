@@ -569,17 +569,11 @@ export function buildActionForm(
     const all = picked();
     const n = all.length;
     for (const c of checks) paintPart(c.part, c.person, c.box.checked);
-    if (n > MAX_ASSIGNEES) {
-      sharedNote.textContent = `${n} people — more than one action can carry (${MAX_ASSIGNEES}). The first ${MAX_ASSIGNEES} are kept.`;
-    } else if (n >= 2 && partsShown()) {
-      const done = all.filter(partDone).length;
-      sharedNote.textContent = `${n} people share this action — ${done} of ${n} parts done. Tick the circle beside a name when that person has done theirs. It can only be closed once all have.`;
-    } else if (n >= 2) {
-      sharedNote.textContent = `${n} people share this action. Each records their own part, and it can only be closed once all have.`;
-    } else {
-      sharedNote.textContent = "";
-    }
-    sharedNote.style.display = n >= 2 ? "" : "none";
+    // no standing explanation under the people (Ben, 2026-11-17): the
+    // circles carry their own tooltips and the PDCA row says when Closed
+    // is held. The line speaks only when the list is too long to keep.
+    sharedNote.textContent = n > MAX_ASSIGNEES ? `${n} people — more than one action can carry (${MAX_ASSIGNEES}). The first ${MAX_ASSIGNEES} are kept.` : "";
+    sharedNote.style.display = n > MAX_ASSIGNEES ? "" : "none";
     for (const l of peopleListeners) l();
   };
 
