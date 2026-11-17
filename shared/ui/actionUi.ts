@@ -168,7 +168,15 @@ export function buildActionForm(
   // become a wall of chips) — the overflow joins the search, which
   // covers everyone not already a chip. Hosts order `people` by
   // closeness (self · crew · site …), so the cap keeps the near circle.
-  const { upFront: primary, behindSearch: secondary } = splitWho(people);
+  const split = splitWho(people);
+  // a SAVED shared action lists only the people on it — the ones who
+  // have to sign off (Ben, 2026-11-17: the unticked boxes of everyone
+  // else in the meeting buried them). Everyone else is behind the
+  // search, which still adds people.
+  const savedShared = initial !== undefined && initialAssignees.length >= 2;
+  const onAction = (person: { whoId: string; who: string }): boolean => initialAssignees.some((x) => (x.whoId !== "" && x.whoId === person.whoId) || x.who === person.who);
+  const primary = savedShared ? split.upFront.filter(onAction) : split.upFront;
+  const secondary = savedShared ? [...split.upFront.filter((x) => !onAction(x)), ...split.behindSearch] : split.behindSearch;
   const whoWrap = people.length > 0 ? checklist() : el("div");
   const checks: { box: HTMLInputElement; wrap: HTMLElement; person: Person; part: HTMLButtonElement }[] = [];
   /** A person's PART, as a small circle on their own box (Ben,
