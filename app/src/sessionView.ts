@@ -61,6 +61,22 @@ export function rememberImprovement(v: ImprovementView): void {
   improvement = { ...v };
 }
 
+/** The executive summary (2026-11-17): open or not, its step, and the
+ *  priorities whose cards are open — so opening an initiative board from
+ *  a row and coming Back lands on the summary as it was left. */
+export interface SummaryView {
+  open: boolean;
+  step: number;
+  expanded: string[];
+}
+let summary: SummaryView = { open: false, step: 0, expanded: [] };
+export function summaryView(): SummaryView {
+  return { ...summary, expanded: [...summary.expanded] };
+}
+export function rememberSummary(v: SummaryView): void {
+  summary = { open: v.open, step: v.step, expanded: [...v.expanded] };
+}
+
 export function popupTabFor(priorityId: string): string | null {
   return popupTab.get(priorityId) ?? null;
 }
@@ -75,6 +91,7 @@ export function clearSessionView(): void {
   priorities = null;
   improvement = null;
   popupTab.clear();
+  summary = { open: false, step: 0, expanded: [] };
 }
 
 if (typeof window !== "undefined") {

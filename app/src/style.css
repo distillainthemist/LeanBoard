@@ -3741,7 +3741,7 @@ button.app-cp-card-proposed:hover { border-color: var(--app-accent); }
 .app-cp-walk-dot { width: 14px; height: 14px; min-height: 0; padding: 0; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.85); background: transparent; cursor: pointer; }
 .app-cp-walk-dot-on { background: #fff; }
 .app-cp-walk-dot-review { border-style: dashed; }
-.app-cp-walk-count { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.app-cp-walk-count { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
 /* the way out, on the coloured header: outlined in white, filled on hover */
 .app-cp-walk-exit {
   min-height: 44px; padding: 0 16px; margin-left: 6px; font-size: 15px; font-weight: 600; white-space: nowrap;
@@ -5163,3 +5163,111 @@ button.app-cp-hcchip.app-cp-hcchip-stale:hover { background: rgba(255,255,255,0.
 .ltk-procpick-central { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .ltk-procpick-below { display: contents; }
 .app-docs-fcentral { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+
+/* ---- the status rule's pictures (2026-11-17, improvement/statusUi.ts) ----
+   Count circles: on track / flagged / off track (a priority), done /
+   future / late (an initiative's actions). Filled circles, the number
+   inside; a zero is drawn faint so the three always stand in place. */
+.app-st-counts { display: inline-flex; align-items: flex-end; gap: 6px; }
+.app-st-count { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.app-st-count-label { font-size: 12.5px; color: #57534a; white-space: nowrap; }
+.app-st-dot {
+  display: flex; align-items: center; justify-content: center; border-radius: 50%;
+  color: #fff; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1;
+  width: 22px; height: 22px; font-size: 12px; background: #9a948a;
+}
+.app-st-count-zero .app-st-dot { opacity: 0.28; }
+.app-st-counts-xs { gap: 3px; }
+.app-st-counts-xs .app-st-dot { width: 17px; height: 17px; font-size: 10.5px; }
+.app-st-counts-m { gap: 14px; }
+.app-st-counts-m .app-st-dot { width: 34px; height: 34px; font-size: 16px; }
+.app-st-counts-l { gap: 18px; }
+.app-st-counts-l .app-st-dot { width: 42px; height: 42px; font-size: 20px; }
+.app-st-chip { display: inline-flex; align-items: center; border: 1px solid currentColor; border-radius: 999px; padding: 1px 8px; font-size: 11.5px; font-weight: 600; white-space: nowrap; background: #fff; }
+.app-cp-tallies .app-st-counts { vertical-align: middle; }
+/* the popup's initiative row: why it is where it is */
+.app-cp-ov-init-why { font-size: 12.5px; margin-top: 2px; }
+.app-cp-ov-init-sub { font-weight: 700; }
+/* the flag, in the status update and in its own dialog */
+.app-ib-flagsect { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border: 1px solid #e4dfd6; border-radius: 8px; background: #faf8f4; margin-top: 4px; }
+.app-ib-flagtell { display: flex; flex-direction: column; gap: 4px; padding-left: 26px; }
+.app-ib-flagnotify { max-width: 320px; }
+.app-im-flagwho { display: flex; flex-direction: column; gap: 4px; }
+
+/* ---- sparkline (improvement/sparkline.ts) ---- */
+.app-spark { display: block; width: 100%; height: 40px; border-radius: 3px; overflow: hidden; }
+.app-spark-plain { fill: #ece8e0; }
+
+/* ---- the executive summary (priorities/walk.ts) ----
+   A priority card: status edge · title + owner · the three counts · key
+   metrics · ⋮ + chevron. Open: one row per initiative. Laid out by the
+   BODY's own width (the hub can split the screen; the phone stacks). */
+.app-cp-walk-body { container-type: inline-size; }
+.app-xs-over { display: flex; align-items: center; gap: 10px; font-size: 13px; opacity: 0.92; margin-bottom: 2px; }
+.app-xs-year { background: rgba(255, 255, 255, 0.22); border: 1px solid rgba(255, 255, 255, 0.6); border-radius: 999px; padding: 1px 10px; font-weight: 700; }
+.app-xs-all { min-height: 44px; }
+.app-xs-card { background: #fff; border: 1px solid #e4dfd6; border-left: 8px solid #9a948a; border-radius: 10px; box-shadow: 0 1px 2px rgba(38, 36, 31, 0.05); }
+.app-xs-head {
+  display: grid; grid-template-columns: minmax(220px, 1.1fr) auto minmax(0, 2.2fr) auto;
+  align-items: center; gap: 18px 26px; padding: 14px 16px 14px 18px; cursor: pointer; min-height: 96px;
+}
+.app-xs-who { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+button.app-link.app-xs-title { font-size: 21px; font-weight: 600; line-height: 1.25; text-align: left; color: #26241f; text-wrap: pretty; padding: 0; white-space: normal; min-height: 0; }
+button.app-link.app-xs-title:hover, button.app-link.app-xs-title:focus-visible { color: var(--app-accent); text-decoration: underline; }
+.app-xs-owner { font-size: 14.5px; font-style: italic; color: #57534a; }
+.app-xs-countsbox, .app-xs-actions, .app-xs-stage { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.app-xs-collabel { font-size: 13px; color: #57534a; white-space: nowrap; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+.app-xs-collabel-caps { text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px; font-weight: 700; }
+.app-xs-metrics { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px 18px; min-width: 0; }
+.app-xs-metric { flex: 0 1 132px; min-width: 104px; display: flex; flex-direction: column; gap: 4px; }
+.app-xs-metric-name { font-size: 13px; color: #26241f; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.app-xs-metric-num { font-size: 12px; color: #57534a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; min-height: 15px; }
+.app-xs-metric-state { height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 3px; background: #ece8e0; font-size: 13.5px; font-weight: 600; padding: 0 6px; text-align: center; }
+.app-xs-metric-state-on { color: #fff; }
+.app-xs-metric-none { color: #8a8478; font-weight: 400; }
+.app-xs-metric-more { align-self: center; font-size: 14px; font-weight: 700; color: #57534a; }
+.app-xs-tools { display: flex; flex-direction: column; align-items: center; justify-content: space-between; gap: 6px; align-self: stretch; }
+.app-xs-kebab { position: static; min-width: 44px; min-height: 44px; }
+.app-xs-chev { min-width: 44px; min-height: 44px; border: none; background: transparent; font-size: 22px; color: #26241f; cursor: pointer; border-radius: 8px; margin-top: auto; }
+.app-xs-chev:hover, .app-xs-chev:focus-visible { background: #f1ede6; outline: none; }
+.app-xs-inits { display: flex; flex-direction: column; gap: 8px; padding: 0 14px 14px 16px; }
+.app-xs-init {
+  display: grid; grid-template-columns: minmax(200px, 1.15fr) 96px auto minmax(0, 1.9fr) minmax(0, 0.9fr);
+  align-items: center; gap: 12px 22px; padding: 10px 14px; background: #fff;
+  border: 1px solid #d9d3c8; border-left: 8px solid #9a948a; border-radius: 8px;
+}
+.app-xs-init-link { cursor: pointer; }
+.app-xs-init-link:hover, .app-xs-init-link:focus-visible { border-color: #b9b1a3; background: #fdfcfa; outline: none; }
+.app-xs-init-who { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.app-xs-tag { font-size: 10.5px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: #8a8478; }
+.app-xs-init-title { font-size: 17.5px; font-weight: 600; line-height: 1.25; text-wrap: pretty; }
+.app-xs-init-status { font-size: 13px; font-weight: 700; margin-top: 2px; }
+.app-xs-init-why { font-size: 12.5px; color: #57534a; }
+.app-xs-support { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.app-xs-support-text { font-size: 14px; line-height: 1.3; text-wrap: pretty; overflow-wrap: anywhere; }
+.app-xs-support-count { font-size: 12px; color: #57534a; white-space: nowrap; }
+.app-xs-none { padding: 6px 4px; font-size: 14px; }
+/* narrower: metrics drop under the title; the support text spans */
+@container (max-width: 1080px) {
+  .app-xs-head { grid-template-columns: minmax(0, 1fr) auto auto; }
+  .app-xs-head > .app-xs-metrics { grid-column: 1 / -1; grid-row: 2; }
+  .app-xs-head > .app-xs-metrics:empty { display: none; }
+  .app-xs-head > .app-xs-tools { grid-column: 3; grid-row: 1; }
+  .app-xs-init { grid-template-columns: minmax(0, 1fr) 96px auto; }
+  .app-xs-init > .app-xs-metrics, .app-xs-init > .app-xs-support { grid-column: 1 / -1; }
+  .app-xs-init > .app-xs-metrics:empty, .app-xs-init > .app-xs-support:empty { display: none; }
+}
+/* the phone: everything stacks; counts sit under the title */
+@container (max-width: 620px) {
+  .app-xs-head { grid-template-columns: minmax(0, 1fr) auto; gap: 10px 12px; padding: 12px; }
+  .app-xs-head > .app-xs-countsbox { grid-column: 1; grid-row: 2; align-items: flex-start; }
+  .app-xs-head > .app-xs-tools { grid-column: 2; grid-row: 1 / span 2; }
+  .app-xs-head > .app-xs-metrics { grid-row: 3; }
+  button.app-link.app-xs-title { font-size: 17px; }
+  .app-st-counts-l .app-st-dot { width: 34px; height: 34px; font-size: 16px; }
+  .app-xs-inits { padding: 0 8px 10px 8px; }
+  .app-xs-init { grid-template-columns: minmax(0, 1fr) auto; gap: 10px 12px; padding: 10px; }
+  .app-xs-init > .app-xs-stage { grid-column: 2; grid-row: 1; }
+  .app-xs-init > .app-xs-actions { grid-column: 1 / -1; align-items: flex-start; }
+  .app-xs-init-title { font-size: 15.5px; }
+}

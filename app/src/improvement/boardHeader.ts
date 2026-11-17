@@ -34,6 +34,7 @@ import { mergeUserPrefs, userPrefsJson } from "../store/config";
 import { openUpdateDialog, renderTrail } from "./commentary";
 import { addUpdate, editUpdate } from "./commentaryActions";
 import { daysBetween, staleDays, Update, updatesFrom } from "./commentaryModel";
+import { statusColour, statusSettingsFromJson } from "./status";
 import { BandGate, BandStage, renderStatusBand } from "./statusBand";
 import { actionBelongsTo, LtkAction } from "../../../shared/schema/actions";
 import { endorsementOn, endorserIds } from "./endorsers";
@@ -115,6 +116,9 @@ export function mountInitiativePane(o: InitiativePaneOpts): InitiativePaneHandle
     const palettes = await import("../store/config").then((m) => m.appPalettes()).catch(() => null);
     const stateMap = palettes ? (await import("../../../shared/palette")).paletteMap(palettes.states) : {};
     const stateColor = (key: string): string => (stateMap as Record<string, string>)[key] ?? "#9a948a";
+    const statePalette = stateMap as Record<string, string>;
+    // the status rule's settings: the flag's colour and the recency window
+    const statusSettings = statusSettingsFromJson(await import("../store/config").then((m) => m.prioritySettingsJson()).catch(() => ""));
     const me = roster.find((p) => p.whoId === (who?.objectId ?? "")) ?? (who?.objectId ? await viewerPerson(who.objectId).catch(() => null) : null);
     // admin over THIS initiative: a super admin, or a site admin at its site
     const isAdmin = adminOver(i, adminScopeFor(me?.role, me?.site));
@@ -194,16 +198,14 @@ export function mountInitiativePane(o: InitiativePaneOpts): InitiativePaneHandle
         pill.style.background = PDCA_TOKENS[stage.pdca].bg;
         o.titleHost.appendChild(pill);
       }
-      if (i.flag === "escalated") {
-        const sponsor = (i.roles.sponsor ?? [])[0]?.who ?? "sponsor";
-        const chip = el("span", "app-im-chip", `▲ Escalated to ${sponsor}`);
-        chip.style.background = stateColor("issue");
-        chip.style.color = "#fff";
-        o.titleHost.appendChild(chip);
-      } else if (i.flag === "flag") {
-        const chip = el("span", "app-im-chip", "⚐ Needs support");
-        chip.style.border = `1px solid ${stateColor("atrisk")}`;
-        chip.style.color = stateColor("atrisk");
+      if (i.flag !== "") {
+        // one flag (2026-11-17), in the Flagged state's colour, saying
+        // what is asked for on hover
+        const chip = el("span", "app-im-chip app-im-chip-flag", "⚐ Flagged");
+        const c = statusColour("flagged", statusSettings, statePalette);
+        chip.style.border = `1px solid ${c}`;
+        chip.style.color = c;
+        chip.title = i.flagNote !== "" ? `Support needed: ${i.flagNote}` : "This initiative has asked for support";
         o.titleHost.appendChild(chip);
       }
       if (i.confidential) o.titleHost.appendChild(el("span", "app-im-chip app-im-chip-conf", "◈ Confidential"));
@@ -625,16 +627,19 @@ export function mountInitiativePane(o: InitiativePaneOpts): InitiativePaneHandle
     };
     const openAdd = () =>
       openUpdateDialog({
-        offerFlag: i.flag === "",
-        onSave: async (fields, raiseFlag) => {
-          await addUpdate(i, fields, raiseFlag, actor());
+        flag: { up: i.flag !== "", sponsors: sponsorRecipients() },
+        onSave: async (fields, choice) => {
+          const raising = choice.change === "raise" && i.flag === "";
+          await addUpdate(i, fields, choice, actor());
           await afterWrite();
+          if (!raising || choice.notify === "") return;
+          const { sendFlagNotice, flagOrgLine } = await import("./escalate");
+          return `✓ Saved and flagged. ${await sendFlagNotice(choice.notify, sponsorRecipients(), i.title, flagOrgLine(actor().who, i), fields.support.trim(), boardUrl(i.boardId))}`;
         },
       });
     const openEdit = (u: Update) =>
       openUpdateDialog({
         existing: u,
-        offerFlag: false,
         onSave: async (fields) => {
           await editUpdate(u, fields, actor());
           await afterWrite();
@@ -794,7 +799,7 @@ export function mountInitiativePane(o: InitiativePaneOpts): InitiativePaneHandle
         latest: list[0] ?? null,
         updateCount: list.length,
         today: todayIso(),
-        stale: i.status === "active" ? staleDays(list[0]?.at ?? "", started, todayIso()) : null,
+        stale: i.status === "active" ? staleDays(list[0]?.at ?? "", started, todayIso(), statusSettings.recencyDays) : null,
         canComment: canComment(),
         onAdd: openAdd,
         onEdit: openEdit,
@@ -851,16 +856,19 @@ export function mountInitiativePane(o: InitiativePaneOpts): InitiativePaneHandle
           });
         });
       }, !mine());
-      item(i.flag === "" ? "⚐ Flag — needs support" : "Clear flag", () => {
+      item(i.flag === "" ? "⚐ Flag — needs support…" : "Clear flag", () => {
+        if (i.flag === "") {
+          void raiseFlag();
+          return;
+        }
         void (async () => {
-          i.flag = i.flag === "" ? "flag" : "";
+          i.flag = "";
           i.flagNote = "";
           await persist();
-          await appendInitiativeEvent(i, "flag", { flag: i.flag }, actor());
+          await appendInitiativeEvent(i, "flag", { flag: "" }, actor());
           render();
         })();
       }, !mine());
-      item("▲ Escalate to sponsor", () => void escalate(), !mine() || i.flag === "escalated");
       // Owner endorsement is a DETAIL of the initiative, set in Edit
       // details — not a menu action (Ben, 2026-09-29)
       if (!i.singleAction) {
@@ -968,24 +976,26 @@ export function mountInitiativePane(o: InitiativePaneOpts): InitiativePaneHandle
       if (done) window.location.reload();
     };
 
-    const escalate = async () => {
-      // the document-control notify anatomy (Ben, 2026-08-20): recipient
-      // chips + message + send by Teams or email, outcome in place
-      const { openEscalateDialog } = await import("./escalate");
-      const sponsors = actorsForRole("sponsor")
+    /** The sponsors a flag's notice would reach (those with an email). */
+    const sponsorRecipients = () =>
+      actorsForRole("sponsor")
         .map((p) => ({ name: p.who, email: emailOf(p.whoId) }))
         .filter((p) => p.email !== "");
-      openEscalateDialog({
+    const raiseFlag = async () => {
+      // the document-control notify anatomy (Ben, 2026-08-20): recipient
+      // chips + message + send by Teams or email, outcome in place
+      const { openFlagDialog, flagOrgLine } = await import("./escalate");
+      openFlagDialog({
         host: document.body,
         initiativeTitle: i.title,
-        orgLine: `${actor().who} escalated "${i.title}" (${i.org.site}${i.org.department ? " · " + i.org.department : ""})`,
-        recipients: sponsors,
+        orgLine: flagOrgLine(actor().who, i),
+        recipients: sponsorRecipients(),
         link: boardUrl(i.boardId),
-        onEscalate: async (note) => {
-          i.flag = "escalated";
+        onFlag: async (note, notified) => {
+          i.flag = "flag";
           i.flagNote = note;
           await persist();
-          await appendInitiativeEvent(i, "flag", { flag: "escalated", note }, actor());
+          await appendInitiativeEvent(i, "flag", { flag: "flag", note, notified }, actor());
           render();
         },
       });

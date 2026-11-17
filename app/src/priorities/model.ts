@@ -9,6 +9,8 @@
 /** An org node: company → site → department → area, blank levels = a
  *  higher node. Names, not ids — the app's org dictionary is name-keyed
  *  (site settings rows), and renames cascade by name. */
+import { DEFAULT_STATUS_SETTINGS, parseStatusSettings, StatusSettings } from "../improvement/status";
+
 export interface OrgRef {
   company: string;
   site: string;
@@ -491,74 +493,13 @@ export function countedDescendants(p: Priority, all: Priority[]): Priority[] {
   return out;
 }
 
-// ---- R/A/G tallies + roll-up (decisions 9 + the initiative-RAG answer) ------
+// ---- a metric's light --------------------------------------------------------
+// The R/A/G tallies, the strict / ratio roll-up and `initiativeRag` lived
+// here until 2026-11-17. An initiative's and a priority's status is now
+// ONE rule in improvement/status.ts (on track / flagged / off track).
+// `Rag` stays for what is still a light: a metric's reading.
 
 export type Rag = "green" | "amber" | "red" | "grey";
-
-export interface Tally {
-  green: number;
-  amber: number;
-  red: number;
-  /** grey = no data: counted in total, not in the three. */
-  grey: number;
-  total: number;
-}
-
-export function tally(states: Rag[]): Tally {
-  const t: Tally = { green: 0, amber: 0, red: 0, grey: 0, total: states.length };
-  for (const s of states) t[s]++;
-  return t;
-}
-
-export type RollupRule = "strict" | "ratio";
-
-/**
- * The priority's own state from its initiatives' tallies:
- *  - strict: any red → red; else any amber → amber; else green if any
- *    green; else grey.
- *  - ratio: red when red > X% of the coloured (non-grey) count; else amber
- *    when amber+red > X%; else green; grey when nothing coloured.
- */
-export function rollup(t: Tally, rule: RollupRule, ratioPct: number): Rag {
-  const coloured = t.green + t.amber + t.red;
-  if (coloured === 0) return "grey";
-  if (rule === "strict") {
-    if (t.red > 0) return "red";
-    if (t.amber > 0) return "amber";
-    return "green";
-  }
-  const x = Math.max(0, Math.min(100, ratioPct)) / 100;
-  if (t.red / coloured > x) return "red";
-  if ((t.red + t.amber) / coloured > x) return "amber";
-  return "green";
-}
-
-/** The worded rule for the rail ("Red — strict rule (any red)"). */
-export function rollupWords(rag: Rag, rule: RollupRule, ratioPct: number): string {
-  const label = rag === "grey" ? "No data" : rag[0].toUpperCase() + rag.slice(1);
-  return rule === "strict"
-    ? `${label} — strict rule (any red)`
-    : `${label} — ratio rule (red above ${ratioPct}%)`;
-}
-
-/**
- * An initiative's own state = worst of metric AND actions (Ben,
- * 2026-08-19): red if the primary metric is red OR escalated; amber if
- * the metric is amber OR any action overdue OR needs support; green
- * otherwise; grey when there is neither a metric state nor any action.
- */
-export function initiativeRag(input: {
-  metric: Rag | null;
-  escalated: boolean;
-  needsSupport: boolean;
-  overdueActions: number;
-  openActions: number;
-}): Rag {
-  if (input.metric === "red" || input.escalated) return "red";
-  if (input.metric === "amber" || input.needsSupport || input.overdueActions > 0) return "amber";
-  if (input.metric === "green" || input.openActions > 0) return "green";
-  return "grey";
-}
 
 // ---- periods (decision 10) --------------------------------------------------
 
@@ -577,29 +518,28 @@ export interface PeriodSettings {
 }
 
 export interface PrioritySettings {
-  ragRatioPct: number;
+  /** The status rule's settings (2026-11-17) — the recency window and the
+   *  three state colours. Replaces the ratio roll-up's percentage. */
+  status: StatusSettings;
   period: PeriodSettings;
 }
 
 export const DEFAULT_PRIORITY_SETTINGS: PrioritySettings = {
-  ragRatioPct: 30,
+  status: DEFAULT_STATUS_SETTINGS,
   period: { mode: "fy", startMonth: 7, prefix: "FY", currentPeriod: "", labels: [] },
 };
 
 export function parsePrioritySettings(raw: string | null | undefined): PrioritySettings {
   const d = DEFAULT_PRIORITY_SETTINGS;
   const t = (raw ?? "").trim();
-  if (t === "") return { ragRatioPct: d.ragRatioPct, period: { ...d.period } };
+  if (t === "") return { status: parseStatusSettings(undefined), period: { ...d.period } };
   try {
     const o = JSON.parse(t) as Record<string, unknown>;
     const p = (o.period ?? {}) as Record<string, unknown>;
     const mode = p.mode === "calendar" || p.mode === "custom" ? p.mode : "fy";
     const sm = typeof p.startMonth === "number" ? Math.round(p.startMonth) : d.period.startMonth;
     return {
-      ragRatioPct:
-        typeof o.ragRatioPct === "number" && Number.isFinite(o.ragRatioPct)
-          ? Math.max(0, Math.min(100, Math.round(o.ragRatioPct)))
-          : d.ragRatioPct,
+      status: parseStatusSettings(o.status),
       period: {
         mode,
         startMonth: Math.max(1, Math.min(12, sm)),
@@ -609,7 +549,7 @@ export function parsePrioritySettings(raw: string | null | undefined): PriorityS
       },
     };
   } catch {
-    return { ragRatioPct: d.ragRatioPct, period: { ...d.period } };
+    return { status: parseStatusSettings(undefined), period: { ...d.period } };
   }
 }
 
@@ -1068,16 +1008,6 @@ export function ragPaletteKey(rag: Rag): string {
   }
 }
 
-/** The tally line's parts: [glyph, count, rag] triplets + the total —
- *  symbols not letters, always all three (design spec §3). */
-export function tallyLine(t: Tally): { glyph: string; count: number; rag: Rag }[] {
-  return [
-    { glyph: "✓", count: t.green, rag: "green" },
-    { glyph: "!", count: t.amber, rag: "amber" },
-    { glyph: "✕", count: t.red, rag: "red" },
-  ];
-}
-
 /** Lineage glyph line copy (design spec §3): "↑ Pacific" · "↓ 3 areas" ·
  *  "↓ 2 areas · 1 pending" · "↓ 3 areas · 1 declined". */
 export function lineageWords(l: LineageSummary, unit = "org"): string[] {
@@ -1140,7 +1070,9 @@ export interface PriorityPrefs {
   viewByOrg: Record<string, ViewMode>;
   /** Last org visited (orgKey), restored on next open. */
   lastOrg: string;
-  rule: RollupRule;
+  /** Retired 2026-11-17 with the strict / ratio roll-up; still parsed so
+   *  an older stored pref reads cleanly. Nothing consults it. */
+  rule: "strict" | "ratio";
   showOther: boolean;
   groupByPillar: boolean;
   /** Health-check score chips on the sub-pillar headers (off by default —

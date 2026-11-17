@@ -10,8 +10,9 @@ import { actionsForInitiatives } from "../store/actions";
 import { getBoard } from "../store/boards";
 import { appPalettes } from "../store/config";
 import { paletteMap } from "../../../shared/palette";
-import { ragInputsFor } from "./initiativeModel";
-import { initiativeRag } from "../priorities/model";
+import { statusOf } from "./initiativeModel";
+import { statusColour } from "./status";
+import { statusMetricsOf } from "./metricValues";
 import { todayIso } from "../../../shared/schema/id";
 import { currentViewer } from "../runtime";
 
@@ -52,16 +53,19 @@ export function mountGanttCard(opts: CardMount): () => void {
     const rawWeeks = cfg(opts, "gxWeeks");
     const weeks = rawWeeks === "all" ? ("all" as const) : Number(rawWeeks) || 4;
     const today = todayIso();
+    // the status rule's inputs (metric states, settings) — a failed read
+    // leaves the metrics out, never the card
+    const { metricState, settings: statusSettings } = await import("./statusLoad").then((m) => m.loadStatusInputs(scoped));
+    if (dead) return;
     teardown = mountGantt({
       host: opts.host,
       scopes: [{ key: "org", label: site || "All sites" }],
       initiatives: scoped,
       actions,
       palette,
-      ragFor: (i) => {
-        const inputs = ragInputsFor(i, actions, today);
-        return initiativeRag(inputs);
-      },
+      // the status rule's colour — the same one the Improvement tab and
+      // the Priorities screen paint this initiative with
+      edgeColour: (i) => statusColour(statusOf(i, actions, statusMetricsOf(metricState.get(i.id)), statusSettings, today).state, statusSettings, palette),
       canEdit: !opts.readOnly,
       actor: { whoId: currentViewer()?.objectId ?? "", who: currentViewer()?.name ?? "" },
       onChanged: () => {},

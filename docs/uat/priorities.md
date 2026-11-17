@@ -1,6 +1,6 @@
 # UAT — Priorities
 
-The cascade wall: pillars, priorities, objectives, the present view and the walk.
+The cascade wall: pillars, priorities, objectives, the status rule and the executive summary.
 
 ## Journey 1 — The wall
 
@@ -10,8 +10,8 @@ modules: priorities/prioritiesScreen.ts
 preconditions: a wall with three or more priorities in view: one whose primary initiative has starred metrics with values, one whose primary initiative has none starred, one with no primary initiative
 steps:
 1. Priorities tab in the matrix view; read the Objectives row under each column.
-2. Switch to the present view and step to the same priorities.
-expected: the Objectives row shows "Name: objective" with plan / actual and a traffic light for each starred metric, and is BLANK under a priority with no starred metric or no primary initiative — no "No primary initiative" or "No metric value yet" line anywhere in the row; the present view shows the same lines and the same blanks
+2. Open ▶ Executive summary and step to the same priorities.
+expected: the Objectives row shows "Name: objective" with plan / actual and a traffic light for each starred metric, and is BLANK under a priority with no starred metric or no primary initiative — no "No primary initiative" or "No metric value yet" line anywhere in the row; the executive summary shows the SAME metrics as tiles on each closed priority card, and none where the row is blank
 
 ### UAT-PRI-002 — The ⋮ menu: no period, a health-chip toggle
 persona: viewer
@@ -21,7 +21,7 @@ steps:
 1. Priorities tab → ⋮ in the toolbar: read the sections.
 2. Change the year with the year pill in the header.
 3. ⋮ → Show → Health check scores; close and reopen the app.
-expected: the menu has Status · View · Roll-up rule · Show · Share and no Period section — the year pill (and the phone head's Period select) is the one period door; Health check scores is off by default and the headers carry no chip; on, the chips appear and the choice is remembered for this person across sessions
+expected: the menu has Status · View · Show · Share — no Period section and no Roll-up rule (the strict / ratio rule went with the status rule, 2026-11-17) — the year pill (and the phone head's Period select) is the one period door; Health check scores is off by default and the headers carry no chip; on, the chips appear and the choice is remembered for this person across sessions
 
 ## Journey 2 — Who manages an org, pulling from above (issue round 2026-11-06)
 
@@ -137,3 +137,29 @@ steps:
 4. On last year, leave Status on Active and look for the priority that was completed last year.
 5. On last year, press ＋ Priority and read the sub-pillar choices.
 expected: step 1 the dialog opens on the sub-pillar the priority sits under in the year in view and asks "from <year>, or for every year?" only because the priority began earlier; step 2 this year shows it under B and last year still shows it under A; step 3 "Every year" puts it under the third sub-pillar in both years; step 4 a past year is a record: the completed priority shows on the year it ran in under Active, marked completed, though it is hidden on this year; step 5 only the sub-pillars in force in the year in view are offered
+
+## Journey 5 — The status rule and the executive summary (2026-11-17)
+
+### UAT-PRI-012 — On track, flagged, off track: the wall and the popup
+persona: viewer
+modules: improvement/status.ts improvement/statusUi.ts improvement/initiativeModel.ts priorities/prioritiesScreen.ts priorities/lifecycle.ts priorities/model.ts store/initiatives.ts
+preconditions: a priority with at least four linked initiatives: A with open actions none late, metrics on plan and a status update in the last five weeks; B the same but with one action a day late; C flagged; D created over five weeks ago with no actions and no status update; a second priority whose initiatives are all like A; a third with no initiative
+steps:
+1. Priorities tab: read the left edge and the three small circles on each of the three priority cards; hover the circles.
+2. Open the first priority → Initiatives tab: read the groups, and the line under B, C and D.
+3. Give B's late action a later due date (or close it); return to the wall.
+4. Create a new initiative under the second priority and add nothing to it; return to the wall.
+expected: step 1 the first priority's edge is the Flagged colour (flagged wins over off track) and its circles read on track 1 · flagged 1 · off track 2 with the words on hover; the second is the on-track colour with every initiative in the first circle; the third is neutral with three faint zeros and "0 initiatives"; step 2 the groups are Flagged, Off track, On track in that order, each row's edge in its state's colour; B's row says "1 late action", D's "No actions defined · No status update yet", C's says "At risk" or "Recovery needed" with what was asked for, and a row with several owners names them all; no row reads "At risk" amber or "No signal" grey; step 3 B moves to On track and the priority's circles follow; step 4 the new initiative is ON TRACK (a new initiative has the recency window as grace) and the second priority stays on track
+
+### UAT-PRI-013 — The executive summary
+persona: viewer
+modules: priorities/walk.ts improvement/sparkline.ts improvement/statusUi.ts improvement/metricValues.ts priorities/prioritiesScreen.ts sessionView.ts
+preconditions: the wall of UAT-PRI-012; the first priority has a primary initiative with three metrics, at least one with several readings and a target; C carries a flag note
+steps:
+1. Priorities tab → ▶ Executive summary; read the head and the first priority card.
+2. Press the ◀ chevron (or anywhere on the card) to open the first priority; read the rows.
+3. Press Expand all; press it again; step with → and ←; press a priority's title.
+4. Open the first priority again and click initiative C's row; on its board use the crumb back to Priorities.
+5. ✕ Exit summary. On a phone, open Priorities.
+expected: step 1 the button reads "Executive summary" (no "Present"); the head shows the year pill, "Executive summary · <org>" and "Pillar : Sub-pillar"; each priority is one card with its status edge, title, owner, the three labelled circles On track / Flagged / Off track and its objectives as sparkline tiles (a line over a green band where the metric is good and red where it is not; at most four, then "+n"); step 2 the card's own metric tiles go and one row per initiative shows: "PRIMARY INITIATIVE" on the primary (listed first), title, every owner, its status in words with its reasons, the stage name over its PDCA disc, Actions Done / Future / Late circles, its own metric tiles, and SUPPORT NEEDED with the note on a flagged one; confidential initiatives the viewer may not see are counted and summed in one "not shown" line; step 3 every card on the page opens, then closes; the arrows step sub-pillar by sub-pillar and a final "Cascades to accept" step appears when any are pending; the title opens the priority's popup; step 4 the board opens, and coming back lands in the summary on the same step with the same cards open; step 5 the wall returns; on a phone the summary IS the page, stacked, with no Exit
+

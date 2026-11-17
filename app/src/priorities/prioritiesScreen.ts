@@ -64,14 +64,17 @@ import {
 import { loadPriorityPrefs, savePriorityPrefs, ViewMode } from "./prefs";
 import { prioritiesView, rememberPriorities, rememberShared, sharedView } from "../sessionView";
 import { mountWalk } from "./walk";
+import { rememberSummary, summaryView } from "../sessionView";
 import { initialsFor } from "../../../shared/schema/people";
 import { prioritiesViewUrl, takePendingPrioritiesView } from "../links";
 import { decodePrioritiesView, encodePrioritiesView } from "./viewLink";
 import { cascadeDialog, cascadeReview, closeDialog, closePriority, LifecycleCtx, moveBackToProposed, openPriorityOverlay, pullFromAbove, reopenPriority, sendCascade } from "./lifecycle";
-import { Initiative, adminScopeFor, initiativesByPriority, ragInputsFor } from "../improvement/initiativeModel";
+import { Initiative, adminScopeFor, initiativesByPriority, ownersLabel, ownersTitle, statusOf } from "../improvement/initiativeModel";
+import { actionCountsFor, PriorityState, priorityStatus, PriorityStatus, statusColour, StatusResult } from "../improvement/status";
+import { priorityCounts } from "../improvement/statusUi";
 import { REOPEN_PRIORITY_KEY } from "../improvement/boardOrigin";
 import { PDCA_TOKENS } from "../improvement/templateModel";
-import { buildMetricState, loadMetricLasts } from "../improvement/metricValues";
+import { buildMetricState, loadMetricLasts, statusMetricsOf } from "../improvement/metricValues";
 import {
   canApproveAt,
   canCustomiseAt,
@@ -86,7 +89,6 @@ import {
   countedDescendants,
   canManageOrg,
   densityFor,
-  initiativeRag,
   groupByColumn,
   livePrimaryId,
   objectiveValues,
@@ -119,12 +121,8 @@ import {
   ragPaletteKey,
   healthChipStale,
   isDeclined,
-  rollup,
-  RollupRule,
   sameOrg,
   strategyChips,
-  tally,
-  tallyLine,
   Viewer,
 } from "./model";
 
@@ -223,7 +221,6 @@ interface ScreenState {
   focus: string[] | null; // rotation focus set (card) — wins over l1
   period: string;
   status: "active" | "completed" | "all";
-  rule: RollupRule;
   showOther: boolean;
   groupByPillar: boolean;
   showHealth: boolean; // health-check score chips on the sub-pillar headers (kebab, default off)
@@ -231,28 +228,23 @@ interface ScreenState {
   view: ViewMode; // Simple (default, TV) | Dynamic — persists per user per org
 }
 
-/** A priority's initiative RAGs (P6b, live): direct links plus links
- *  through child priorities down the cascade (decision 9's tallies).
- *  Metric state stays null until metric values are read (P9); flags and
- *  the action position already move the colour. */
-function makeRagsFor(
-  byPriority: Map<string, import("../improvement/initiativeModel").Initiative[]>,
-  actions: import("../../../shared/schema/actions").LtkAction[],
+/** The status of every initiative counted under a priority — its own
+ *  and those of its counted descendants, each once (the status rule,
+ *  improvement/status.ts). Confidential ones count; their rows hide. */
+function makeStatusesFor(
+  byPriority: Map<string, Initiative[]>,
   allPriorities: () => Priority[],
-  metricStateRef: Map<string, { rag: "green" | "amber" | "red" | null }>
-): (p: Priority) => Rag[] {
-  const today = todayIso();
+  statusOfInitiative: (i: Initiative) => StatusResult
+): (p: Priority) => StatusResult[] {
   return (p) => {
     const ids = [p, ...countedDescendants(p, allPriorities())].map((x) => x.id);
     const seen = new Set<string>();
-    const out: Rag[] = [];
+    const out: StatusResult[] = [];
     for (const id of ids) {
       for (const i of byPriority.get(id) ?? []) {
         if (seen.has(i.id)) continue;
         seen.add(i.id);
-        const inputs = ragInputsFor(i, actions, today);
-        inputs.metric = metricStateRef.get(i.id)?.rag ?? null;
-        out.push(initiativeRag(inputs));
+        out.push(statusOfInitiative(i));
       }
     }
     return out;
@@ -353,7 +345,6 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       focus: card?.focus && card.focus.length > 0 ? card.focus : null,
       period: session?.period ?? currentPeriod,
       status: sessionPri?.status ?? "active",
-      rule: prefs.rule,
       showOther: prefs.showOther,
       groupByPillar: prefs.groupByPillar,
       showHealth: prefs.showHealth,
@@ -367,13 +358,11 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       if (linkView.view !== "") state.view = linkView.view;
       if (linkView.l1 !== "") state.l1 = linkView.l1;
       if (linkView.focus.length > 0) state.focus = linkView.focus;
-      if (linkView.rule !== "") state.rule = linkView.rule;
       if (linkView.showOther !== null) state.showOther = linkView.showOther;
       if (linkView.groupByPillar !== null) state.groupByPillar = linkView.groupByPillar;
     }
     const persist = () => {
       if (card) return; // card mounts never touch the person's prefs
-      prefs.rule = state.rule;
       prefs.showOther = state.showOther;
       prefs.groupByPillar = state.groupByPillar;
       prefs.showHealth = state.showHealth;
@@ -383,7 +372,13 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
     };
 
     const byPriority = initiativesByPriority(initiativeList);
-    const ragsFor = makeRagsFor(byPriority, initiativeActions, () => data.priorities, metricState);
+    // the status rule (2026-11-17): one initiative's status from its
+    // flag, its actions, EVERY metric and its two clocks; a priority's
+    // from its initiatives. Every painter below asks these two.
+    const statusOfInitiative = (i: Initiative): StatusResult => statusOf(i, initiativeActions, statusMetricsOf(metricState.get(i.id)), settings.status, today);
+    const statusesFor = makeStatusesFor(byPriority, () => data.priorities, statusOfInitiative);
+    const pStatus = (p: Priority): PriorityStatus => priorityStatus(statusesFor(p).map((x) => x.state));
+    const stateHex = (st: PriorityState): string => statusColour(st, settings.status, palette);
     /** An initiative write from the popup (issue 32): re-read the list
      *  and refill the SAME map, so every closure over it sees the change. */
     const reloadInitiatives = async () => {
@@ -494,7 +489,7 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       tree,
       roster,
       settings,
-      rule: () => state.rule,
+      stateColour: stateHex,
       palette,
       actor: actorRef,
       canManage: (o) => canManageOrg(viewer, o, owners),
@@ -506,7 +501,7 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       ownerPickerFor,
       periodsOnOffer: () => periodsOnOffer(),
       currentPeriod,
-      ragsFor,
+      statusesFor,
       primaryOf: (p) => {
         const id = primaryIdOf(p);
         const i = id !== "" ? initiativeList.find((x) => x.id === id) : undefined;
@@ -548,11 +543,7 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
         return {
           initiatives: inits,
           actions: initiativeActions,
-          ragFor: (i: Initiative) => {
-            const inputs = ragInputsFor(i, initiativeActions, today);
-            inputs.metric = metricState.get(i.id)?.rag ?? null;
-            return initiativeRag(inputs);
-          },
+          stateFor: (i: Initiative) => statusOfInitiative(i).state,
         };
       },
       initiativesFor: (p) => {
@@ -564,8 +555,8 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
           for (const i of byPriority.get(pr.id) ?? []) {
             if (seen.has(i.id)) continue;
             seen.add(i.id);
-            const inputs = ragInputsFor(i, initiativeActions, today);
-            inputs.metric = metricState.get(i.id)?.rag ?? null;
+            const status = statusOfInitiative(i);
+            const counts = actionCountsFor(i, initiativeActions, today);
             const stage = i.snapshot.stages.find((st) => st.id === i.stageId) ?? null;
             const tokens = stage ? PDCA_TOKENS[stage.pdca] : null;
             const visible =
@@ -579,11 +570,18 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
               stageName: i.singleAction ? "single action" : (stage?.name ?? ""),
               pdcaFg: tokens?.fg ?? "#6d675c",
               pdcaBg: tokens?.bg ?? "#ece8e0",
-              ownerName: (i.roles.owner ?? [])[0]?.who ?? "",
+              stagePdca: i.singleAction ? "" : (stage?.pdca ?? ""),
+              // every owner (issue 1, 2026-11-17: the popup's list still
+              // read the first of several)
+              ownerName: ownersLabel(i),
+              ownerTitle: ownersTitle(i),
               orgName: pr.id === p.id ? "This org" : [i.org.department, i.org.area].filter((x) => x !== "").join(" · ") || i.org.site,
-              open: inputs.openActions,
-              overdue: inputs.overdueActions,
-              rag: initiativeRag(inputs),
+              open: counts.future + counts.late,
+              overdue: counts.late,
+              counts,
+              status,
+              flagNote: i.flagNote,
+              metrics: valuesOf(i.id),
               boardId: i.boardId,
               inheritedFrom: pr.id === p.id ? "" : orgName(pr.org),
               confidentialHidden: !visible,
@@ -606,8 +604,16 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
 
     // ---- the render -------------------------------------------------------
 
-    let walkOpen = false;
-    let walkStep = 0;
+    // the executive summary: open or not, its step and its open cards are
+    // the SESSION's (sessionView) — an initiative opened from a row comes
+    // Back to the summary as it was left. A card mount keeps its own.
+    const sessionSummary = card ? null : summaryView();
+    let walkOpen = sessionSummary?.open ?? false;
+    let walkStep = sessionSummary?.step ?? 0;
+    const walkExpanded = new Set<string>(sessionSummary?.expanded ?? []);
+    const rememberWalk = () => {
+      if (!card) rememberSummary({ open: walkOpen, step: walkStep, expanded: [...walkExpanded] });
+    };
     let closeWalk: (() => void) | null = null;
     // the phone (mobile review M3): the walk IS the view — the matrix
     // gave five pillars 50px each. A card mount keeps its own modes.
@@ -671,7 +677,7 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
             columns.map((c) => ({
               name: c.name,
               color: c.color || data.pillars.find((x) => x.id === c.parentId)?.color || "",
-              edges: (byColumn.get(c.id) ?? []).map((p) => palette[ragPaletteKey(rollup(tally(ragsFor(p)), state.rule, settings.ragRatioPct))] ?? "#9a948a"),
+              edges: (byColumn.get(c.id) ?? []).map((p) => stateHex(pStatus(p).state)),
             }))
           )
         );
@@ -820,9 +826,9 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
         chip.addEventListener("click", () => cascadeReview(ctx, state.org));
         bar.appendChild(chip);
       }
-      const walk = el("button", "app-btn app-cp-tvbtn", "▶ Present") as HTMLButtonElement;
+      const walk = el("button", "app-btn app-cp-tvbtn", "▶ Executive summary") as HTMLButtonElement;
       walk.type = "button";
-      walk.title = "Full screen, one pillar at a time, with a final step for cascades to accept";
+      walk.title = "Full screen, one pillar at a time: each priority's status, initiatives and key metrics, with a final step for cascades to accept";
       walk.addEventListener("click", () => openWalk(0));
       bar.appendChild(walk);
       // the site's customisation floor gates authoring too (Ben, 2026-08-19):
@@ -985,12 +991,15 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
         pillars: data.pillars,
         byColumn,
         adoptedIds,
-        objectiveLines: objectiveLinesFor,
+        objectives: objectivesOf,
+        expanded: walkExpanded,
+        onView: rememberWalk,
         startStep: walkStep,
         className: "app-cp-walk-inline",
         inline: true,
         onStep: (i) => {
           walkStep = i;
+          rememberWalk();
         },
         onExit: () => undefined,
         onOpen: (p) => openOverlay(p),
@@ -1002,6 +1011,7 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
     const openWalk = (startStep: number) => {
       walkOpen = true;
       walkStep = startStep;
+      rememberWalk();
       // presenting: take the browser full screen where the host allows it
       // (the hosted player's iframe may refuse — presenting works either
       // way, so the promise rejection is deliberately swallowed)
@@ -1025,14 +1035,20 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
         pillars: data.pillars,
         byColumn,
         adoptedIds,
-        objectiveLines: objectiveLinesFor,
+        objectives: objectivesOf,
+        expanded: walkExpanded,
+        onView: rememberWalk,
+        onMenu: (anchor, p) => openCardMenu(anchor, p),
+        canMenu: () => canManage(),
         startStep: walkStep,
         className: card ? "" : "app-cp-walk-fixed",
         onStep: (i) => {
           walkStep = i;
+          rememberWalk();
         },
         onExit: () => {
           walkOpen = false;
+          rememberWalk();
           if (document.fullscreenElement !== null) void document.exitFullscreen().catch(() => {});
           closeWalk?.();
           closeWalk = null;
@@ -1148,7 +1164,7 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
           pillarName: l1?.name ?? "",
           pillarColor: l1?.color ?? "",
           priorities: (byColumn.get(col.id) ?? []).map((p) => {
-            const t = tally(ragsFor(p));
+            const ps = pStatus(p);
             const starred = objectivesOf(p);
             const flags: string[] = [];
             if (parentClosed(p, data.priorities)) flags.push("Parent completed");
@@ -1156,9 +1172,14 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
             return {
               statement: p.statement,
               owner: p.ownerName,
-              color: ragHex(rollup(t, state.rule, settings.ragRatioPct)),
-              tallies: tallyLine(t).map((x) => ({ glyph: x.glyph, count: x.count, color: ragHex(x.rag) })),
-              total: t.total,
+              color: stateHex(ps.state),
+              // on track / flagged / off track — the screen's three counts
+              tallies: [
+                { glyph: "✓", count: ps.counts.good, color: stateHex("good") },
+                { glyph: "⚐", count: ps.counts.flagged, color: stateHex("flagged") },
+                { glyph: "✕", count: ps.counts.bad, color: stateHex("bad") },
+              ],
+              total: ps.total,
               objectives: starred.map((mv) => ({
                 name: mv.name,
                 objective: mv.objective,
@@ -1225,15 +1246,6 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
         state.view = "dynamic";
         render();
       });
-      menu.appendChild(el("div", "app-cp-menu-h", "Roll-up rule"));
-      item("Strict — any red is red", state.rule === "strict", () => {
-        state.rule = "strict";
-        render();
-      });
-      item(`Ratio — red above ${settings.ragRatioPct}%`, state.rule === "ratio", () => {
-        state.rule = "ratio";
-        render();
-      });
       menu.appendChild(el("div", "app-cp-menu-h", "Show"));
       item("Other (unlinked initiatives)", state.showOther, () => {
         state.showOther = !state.showOther;
@@ -1262,7 +1274,7 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
             view: state.view,
             l1: state.l1 ?? "",
             focus: state.focus ?? [],
-            rule: state.rule,
+            rule: "",
             showOther: state.showOther,
             groupByPillar: state.groupByPillar,
           })
@@ -1552,11 +1564,9 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
     // pillars over sub-pillar columns — the card carries every detail
     // (metric, owner, tallies, lineage) and the Objectives row folds into it.
     const dynamicCard = (p: Priority, col: Pillar | null, adopted: boolean): HTMLElement => {
-      const rags = ragsFor(p);
-      const t = tally(rags);
-      const rag = rollup(t, state.rule, settings.ragRatioPct);
+      const ps = pStatus(p);
       const card = el("div", "app-cp-dcard");
-      card.style.borderLeftColor = palette[ragPaletteKey(rag)] ?? "#9a948a";
+      card.style.borderLeftColor = stateHex(ps.state);
       void col; // the column head names the pillar — no strip on the card
       if (canManage() && !adopted) {
         const kebab = el("button", "app-cp-kebab", "⋮") as HTMLButtonElement;
@@ -1598,12 +1608,8 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       body.appendChild(owner);
       // tallies + total, lineage, flags — same as the matrix card
       const meta = el("div", "app-cp-tallies");
-      for (const part of tallyLine(t)) {
-        const s = el("span", "app-cp-tally" + (part.count === 0 ? " app-cp-tally-zero" : ""), `${part.glyph} ${part.count}`);
-        if (part.count > 0) s.style.color = palette[ragPaletteKey(part.rag)] ?? "";
-        meta.appendChild(s);
-      }
-      meta.appendChild(el("span", "app-cp-total", `· ${t.total} initiative${t.total === 1 ? "" : "s"}`));
+      meta.appendChild(priorityCounts(ps, stateHex, "s", false));
+      meta.appendChild(el("span", "app-cp-total", `· ${ps.total} initiative${ps.total === 1 ? "" : "s"}`));
       body.appendChild(meta);
       if (p.status !== "active") body.appendChild(el("div", "app-cp-flag", p.status === "completed" ? "✓ Completed" : p.status === "archived" ? "▣ Archived" : "▣ Retired"));
       if (parentClosed(p, data.priorities)) body.appendChild(el("div", "app-cp-flag app-cp-flag-amber", "▲ Parent completed — decide"));
@@ -1629,21 +1635,16 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
     };
 
     const priorityCard = (p: Priority, adopted: boolean, density: ReturnType<typeof densityFor>): HTMLElement => {
-      const rags = ragsFor(p);
-      const t = tally(rags);
-      const rag = rollup(t, state.rule, settings.ragRatioPct);
+      const ps = pStatus(p);
       const card = el("div", "app-cp-card");
-      card.style.borderLeftColor = palette[ragPaletteKey(rag)] ?? "#9a948a";
+      card.style.borderLeftColor = stateHex(ps.state);
       card.appendChild(el("div", "app-cp-statement", p.statement));
+      // on track / flagged / off track — the three counts every surface
+      // carries (the status rule, 2026-11-17)
       const meta = el("div", "app-cp-tallies");
-      for (const part of tallyLine(t)) {
-        const s = el("span", "app-cp-tally" + (part.count === 0 ? " app-cp-tally-zero" : ""));
-        s.textContent = density === "compact" ? `${part.glyph}${part.count}` : `${part.glyph} ${part.count}`;
-        if (part.count > 0) s.style.color = palette[ragPaletteKey(part.rag)] ?? "";
-        meta.appendChild(s);
-      }
+      meta.appendChild(priorityCounts(ps, stateHex, density === "compact" ? "xs" : "s", false));
       meta.appendChild(
-        el("span", "app-cp-total", density === "compact" ? `·${t.total}` : `· ${t.total} initiative${t.total === 1 ? "" : "s"}`)
+        el("span", "app-cp-total", density === "compact" ? `·${ps.total}` : `· ${ps.total} initiative${ps.total === 1 ? "" : "s"}`)
       );
       card.appendChild(meta);
       // cascade lineage and sender flags live in the detail overlay, not

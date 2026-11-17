@@ -110,8 +110,19 @@ describe("cascade bridge (P6b)", () => {
       { initiativeId: "in-1", status: "done", due: "2026-01-01", assignees: [] },
       { initiativeId: "other", status: "open", due: "2026-01-01", assignees: [] },
     ];
-    const inp = m.ragInputsFor(i, acts, "2026-08-20");
-    expect(inp).toEqual({ metric: null, escalated: false, needsSupport: true, overdueActions: 1, openActions: 2 });
+    // the status rule's inputs (2026-11-17): the flag, the two clocks,
+    // its OWN actions counted, every metric
+    const inp = m.statusInputFor({ ...(i as object), createdAt: "2026-01-01T00:00:00Z", lastUpdateAt: "" } as never, acts, [{ name: "Scrap", rag: "amber" }], "2026-08-20");
+    expect(inp).toEqual({
+      flagged: true,
+      createdAt: "2026-01-01T00:00:00Z",
+      lastUpdateAt: "",
+      actions: { total: 3, done: 2, future: 0, late: 1, support: 0 },
+      metrics: [{ name: "Scrap", rag: "amber" }],
+    });
+    const st = m.statusOf({ ...(i as object), createdAt: "2026-01-01T00:00:00Z", lastUpdateAt: "2026-08-10T00:00:00Z" } as never, acts, [], { recencyDays: 35, colours: { good: "good", flagged: "flagged", bad: "issue" } }, "2026-08-20");
+    expect(st.state).toBe("flagged");
+    expect(st.sub).toBe("Recovery needed");
   });
   it("initiativesByPriority maps active initiatives only", async () => {
     const m = await import("../improvement/initiativeModel");

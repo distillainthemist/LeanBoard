@@ -3,7 +3,7 @@
 // sanitiser.
 import { describe, expect, it } from "vitest";
 import { ACTION_PDCA, isOnHold, isOverdue, newAction, newComment, PDCA_LABELS, pdcaOf, sanitizeAction } from "../../../shared/schema/actions";
-import { ragInputsFor } from "../improvement/initiativeModel";
+import { actionCountsFor } from "../improvement/status";
 
 const act = (over: Record<string, unknown> = {}) => ({ ...newAction({ source: "card", sourceId: "" }), due: "2026-09-01", ...over });
 
@@ -29,10 +29,9 @@ describe("On hold", () => {
     expect(sanitizeAction({ ...act({ pdca: "paused" }) }).pdca).toBeUndefined();
   });
   it("counts as open but not overdue in an initiative's roll-up", () => {
-    const i = { id: "I1", boardId: "init-I1", flag: "" } as never as Parameters<typeof ragInputsFor>[0];
-    const r = ragInputsFor(i, [{ initiativeId: "I1", status: "open", pdca: "hold", due: "2026-09-01", assignees: [] }, { initiativeId: "I1", status: "open", pdca: "do", due: "2026-09-01", assignees: [] }], "2026-09-30");
-    expect(r.openActions).toBe(2);
-    expect(r.overdueActions).toBe(1);
+    const r = actionCountsFor({ id: "I1", boardId: "init-I1" }, [{ initiativeId: "I1", status: "open", pdca: "hold", due: "2026-09-01" }, { initiativeId: "I1", status: "open", pdca: "do", due: "2026-09-01" }], "2026-09-30");
+    expect(r.future + r.late).toBe(2);
+    expect(r.late).toBe(1);
   });
 });
 

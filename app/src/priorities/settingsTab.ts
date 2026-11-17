@@ -20,15 +20,16 @@ import { el, clear } from "../../../shared/ui/dom";
 import { settingsSection } from "../settingsSection";
 import type { RosterPerson } from "../store/mappers";
 import {
+  appPalettes,
   companies,
   orgJson,
   prioritySettingsJson,
   savePrioritySettingsJson,
 } from "../store/config";
 import { deletePillar, listPillars, loadCascade, savePillar } from "../store/priorities";
+import { DEFAULT_STATUS_SETTINGS, parseStatusSettings, STATE_LABELS, StatusState } from "../improvement/status";
 import { promptChoice, promptConfirm } from "../prompts";
 import {
-  DEFAULT_PRIORITY_SETTINGS,
   parsePrioritySettings,
   periodFor,
   Pillar,
@@ -536,8 +537,8 @@ async function renderPillars(body: HTMLElement, ctx: DirtyCtx, saves: (() => Pro
 
 async function renderPeriod(body: HTMLElement, ctx: DirtyCtx, saves: (() => Promise<void>)[]) {
   const box = sectionTitle(
-    "Period & roll-up rule",
-    "A priority runs from a start period until it closes; the year picker on the views shows what was live in that year and defaults to the current one. The ratio rule turns a priority red when more than X% of its initiatives are red (the strict rule — any red — is the other toggle on the view)."
+    "Period",
+    "A priority runs from a start period until it closes; the year picker on the views shows what was live in that year and defaults to the current one."
   );
   body.appendChild(box);
   const s = parsePrioritySettings(await prioritySettingsJson());
@@ -574,11 +575,32 @@ async function renderPeriod(body: HTMLElement, ctx: DirtyCtx, saves: (() => Prom
   labels.rows = 4;
   labels.value = s.period.labels.join("\n");
   labels.placeholder = "H1 2026\nH2 2026\nH1 2027";
-  const ratio = el("input", "app-input app-pr-short") as HTMLInputElement;
-  ratio.type = "number";
-  ratio.min = "0";
-  ratio.max = "100";
-  ratio.value = String(s.ragRatioPct);
+  // ---- Status (2026-11-17): the status rule's settings. The ratio
+  // roll-up's percentage lived here until then.
+  const recency = el("input", "app-input app-pr-short") as HTMLInputElement;
+  recency.type = "number";
+  recency.min = "1";
+  recency.max = "365";
+  recency.value = String(s.status.recencyDays);
+  const stateEntries = await appPalettes().then((p) => p.states).catch(() => []);
+  const colourPick = (state: StatusState): HTMLSelectElement => {
+    const sel = el("select", "app-input") as HTMLSelectElement;
+    const current = s.status.colours[state];
+    if (!stateEntries.some((e) => e.key === current)) {
+      const o = el("option", "", `Default ${STATE_LABELS[state].toLowerCase()} colour (not in the palette)`) as HTMLOptionElement;
+      o.value = current;
+      o.selected = true;
+      sel.appendChild(o);
+    }
+    for (const e of stateEntries) {
+      const o = el("option", "", e.label) as HTMLOptionElement;
+      o.value = e.key;
+      if (e.key === current) o.selected = true;
+      sel.appendChild(o);
+    }
+    return sel;
+  };
+  const colourSels: Record<StatusState, HTMLSelectElement> = { good: colourPick("good"), flagged: colourPick("flagged"), bad: colourPick("bad") };
   const preview = el("span", "app-field-hint", "");
 
   const sync = () => {
@@ -587,14 +609,17 @@ async function renderPeriod(body: HTMLElement, ctx: DirtyCtx, saves: (() => Prom
     s.period.prefix = prefix.value;
     s.period.currentPeriod = custom.value;
     s.period.labels = labels.value.split(/\r?\n/).map((l) => l.trim()).filter((l) => l !== "");
-    s.ragRatioPct = Math.max(0, Math.min(100, Number(ratio.value) || 0));
+    s.status = parseStatusSettings({
+      recencyDays: Number(recency.value) || DEFAULT_STATUS_SETTINGS.recencyDays,
+      colours: { good: colourSels.good.value, flagged: colourSels.flagged.value, bad: colourSels.bad.value },
+    });
     startField.style.display = s.period.mode === "fy" ? "" : "none";
     customField.style.display = s.period.mode === "custom" ? "" : "none";
     labelsField.style.display = s.period.mode === "custom" ? "" : "none";
     prefixField.style.display = s.period.mode === "custom" ? "none" : "";
     preview.textContent = `Today falls in “${periodFor(s.period, todayIso())}”`;
   };
-  for (const c of [mode, start, prefix, custom, labels, ratio]) {
+  for (const c of [mode, start, prefix, custom, labels, recency, colourSels.good, colourSels.flagged, colourSels.bad]) {
     c.addEventListener("input", () => {
       sync();
       dirty = true;
@@ -614,7 +639,16 @@ async function renderPeriod(body: HTMLElement, ctx: DirtyCtx, saves: (() => Prom
   row.append(field("Period", mode), startField, prefixField, customField, preview);
   box.appendChild(row);
   box.appendChild(labelsField);
-  box.appendChild(field("Ratio rule — red above (%)", ratio, `Default ${DEFAULT_PRIORITY_SETTINGS.ragRatioPct}%.`));
+  const statusBox = sectionTitle(
+    "Status",
+    "An initiative is on track, off track or flagged. It is off track with a late action or no actions at all, with any metric outside its limits or short of plan, or with no status update inside the window below. A new initiative has the same window before “no actions” and “no update” count. Flagged is its own state: the initiative's people have asked for support. A priority is flagged if any of its initiatives is, else off track if any is, else on track."
+  );
+  body.appendChild(statusBox);
+  statusBox.appendChild(field("No status update for (days)", recency, `Default ${DEFAULT_STATUS_SETTINGS.recencyDays} days (5 weeks). The initiative board's “no update” notice uses the same number.`));
+  const colourRow = el("div", "app-settings-row");
+  colourRow.append(field("On track colour", colourSels.good), field("Flagged colour", colourSels.flagged), field("Off track colour", colourSels.bad));
+  statusBox.appendChild(colourRow);
+  statusBox.appendChild(el("div", "app-field-hint", "Colours are entries of the state palette (Settings → Branding). Add or recolour an entry there, then pick it here."));
   sync();
 
   saves.push(async () => {

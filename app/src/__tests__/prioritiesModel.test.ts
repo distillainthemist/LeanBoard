@@ -7,7 +7,6 @@ import {
   CLOSE_REASONS,
   canManageOrg,
   descendantPriorities,
-  initiativeRag,
   isDescendant,
   lineageFor,
   nextPeriod,
@@ -25,10 +24,7 @@ import {
   Priority,
   PriorityAssignment,
   prioritiesForOrg,
-  rollup,
-  rollupWords,
   strategyChips,
-  tally,
  groupPrioritiesForPicker , pickerSections , prevPeriod , periodWindow } from "../priorities/model";
 
 const co = orgRef("Pechey");
@@ -147,45 +143,18 @@ describe("matrix membership (decision 2)", () => {
   });
 });
 
-describe("tallies and roll-up (decision 9)", () => {
-  it("counts every state; grey stays out of the three but in the total", () => {
-    expect(tally(["green", "amber", "red", "red", "grey"])).toEqual({
-      green: 1,
-      amber: 1,
-      red: 2,
-      grey: 1,
-      total: 5,
-    });
-  });
-
-  it("strict: any red is red; ratio: red above X% of coloured", () => {
-    const t = tally(["green", "green", "green", "red"]);
-    expect(rollup(t, "strict", 30)).toBe("red");
-    expect(rollup(t, "ratio", 30)).toBe("green"); // 25% red ≤ 30%
-    expect(rollup(t, "ratio", 20)).toBe("red"); // 25% > 20%
-    expect(rollup(tally(["green", "amber", "amber"]), "ratio", 50)).toBe("amber"); // 66% amber+red > 50%
-    expect(rollup(tally(["grey", "grey"]), "strict", 30)).toBe("grey");
-    expect(rollupWords("red", "strict", 30)).toBe("Red — strict rule (any red)");
-    expect(rollupWords("grey", "ratio", 25)).toBe("No data — ratio rule (red above 25%)");
-  });
-
-  it("initiative RAG = worst of metric and actions", () => {
-    const base = { metric: null, escalated: false, needsSupport: false, overdueActions: 0, openActions: 0 };
-    expect(initiativeRag({ ...base, metric: "green" })).toBe("green");
-    expect(initiativeRag({ ...base, metric: "green", overdueActions: 1 })).toBe("amber");
-    expect(initiativeRag({ ...base, metric: "amber", escalated: true })).toBe("red");
-    expect(initiativeRag({ ...base, openActions: 2 })).toBe("green");
-    expect(initiativeRag({ ...base, needsSupport: true })).toBe("amber");
-    expect(initiativeRag(base)).toBe("grey");
-  });
-});
+// The tallies, the strict / ratio roll-up and `initiativeRag` were tested
+// here until 2026-11-17; the status rule that replaced them is
+// improvement/status.ts, tested in status.test.ts.
 
 describe("periods (decision 10)", () => {
   it("settings parse with defaults and clamps", () => {
     const s = parsePrioritySettings("");
-    expect(s).toEqual({ ragRatioPct: 30, period: { mode: "fy", startMonth: 7, prefix: "FY", currentPeriod: "", labels: [] } });
-    expect(parsePrioritySettings('{"ragRatioPct":140,"period":{"mode":"calendar","startMonth":99,"labels":["H1"," H2 ",""]}}')).toEqual({
-      ragRatioPct: 100,
+    const status = { recencyDays: 35, colours: { good: "good", flagged: "flagged", bad: "issue" } };
+    expect(s).toEqual({ status, period: { mode: "fy", startMonth: 7, prefix: "FY", currentPeriod: "", labels: [] } });
+    // a stored ratio percentage (retired 2026-11-17) is simply not read
+    expect(parsePrioritySettings('{"ragRatioPct":140,"status":{"recencyDays":21},"period":{"mode":"calendar","startMonth":99,"labels":["H1"," H2 ",""]}}')).toEqual({
+      status: { ...status, recencyDays: 21 },
       period: { mode: "calendar", startMonth: 12, prefix: "FY", currentPeriod: "", labels: ["H1", "H2"] },
     });
   });
@@ -316,7 +285,6 @@ describe("matrix helpers", () => {
     expect(m.densityFor(6)).toBe("compact");
     expect(m.densityFor(7)).toBe("scroll");
     expect(m.ragPaletteKey("red")).toBe("issue");
-    expect(m.tallyLine(tally(["green", "red"])).map((t) => `${t.glyph}${t.count}`)).toEqual(["✓1", "!0", "✕1"]);
     expect(
       m.lineageWords({ from: site, sent: 3, accepted: 1, pending: 1, declined: 1, held: 0 }, "area")
     ).toEqual(["↑ Bendigo", "↓ 3 areas · 1 pending · 1 declined"]);

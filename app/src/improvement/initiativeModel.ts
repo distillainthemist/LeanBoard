@@ -6,11 +6,14 @@
 // primary, field values, metrics, the pending gate, stage target dates.
 // History lives in ben_ltkinitiativeevent. Everything here is pure.
 
-import { actionBelongsTo } from "../../../shared/schema/actions";
+import { actionCountsFor, initiativeStatus, StatusInput, StatusMetric, StatusResult, StatusSettings } from "./status";
 import { MetricRule, InitiativeTemplate, RolePerson, TemplateMetric, TemplateStage, Gate, activeRoles } from "./templateModel";
 
 export type InitiativeStatus = "active" | "completed" | "archived";
-export type FlagLevel = "" | "flag" | "escalated";
+/** One flag (2026-11-17 — "needs support" and "escalated to sponsor"
+ *  merged: flagging is one act, telling the sponsor is a tick on it). A
+ *  row still carrying "escalated" reads as flagged. */
+export type FlagLevel = "" | "flag";
 
 export interface InitiativeSnapshot {
   stages: TemplateStage[];
@@ -71,6 +74,15 @@ export interface Initiative {
   gate: PendingGate | null;
   /** stage id → target date (ISO), derived from target weeks at creation. */
   stageTargets: Record<string, string>;
+  /** The row's created-on (ISO); "" on a row not yet read back. The
+   *  status rule's grace runs from it. */
+  createdAt?: string;
+  /** The latest status update's moment (ISO), stamped on the row as the
+   *  comment event is written; "" = none yet. */
+  lastUpdateAt?: string;
+  /** False on a row written before the stamp existed: its latest update
+   *  is not known from the row and is read from the event trail once. */
+  updateStampKnown?: boolean;
 }
 
 /** The resolved copy an initiative keeps of its template (design 1.7). */
@@ -354,35 +366,25 @@ export function validateNewInitiative(
   return errs;
 }
 
-// ---- the cascade bridge (P6b): initiative RAG per priority ---------------------
+// ---- the status rule's inputs (2026-11-17; the rule is status.ts) ----------------
 
-export interface InitiativeRagInput {
-  metric: "green" | "amber" | "red" | null;
-  escalated: boolean;
-  needsSupport: boolean;
-  overdueActions: number;
-  openActions: number;
+type StatusAction = { initiativeId?: string; instanceId?: string; status: string; pdca?: string; due: string; escalated?: boolean };
+
+/** One initiative's inputs to the status rule: its flag, its two clocks,
+ *  its own actions counted, and every metric's state. */
+export function statusInputFor(i: Initiative, actions: StatusAction[], metrics: StatusMetric[], today: string): StatusInput {
+  return {
+    flagged: i.flag !== "",
+    createdAt: i.createdAt ?? "",
+    lastUpdateAt: i.lastUpdateAt ?? "",
+    actions: actionCountsFor(i, actions, today),
+    metrics,
+  };
 }
 
-/** The RAG inputs for one initiative from its header + linked actions.
- *  Metric state stays null until metric values are read (P9 reporting);
- *  flags and the action position already move the colour. */
-export function ragInputsFor(
-  i: Initiative,
-  actions: { initiativeId?: string; instanceId?: string; status: string; pdca?: string; due: string; assignees: { done: boolean }[] }[],
-  today: string
-): InitiativeRagInput {
-  const mine = actions.filter((a) => actionBelongsTo(i, { initiativeId: a.initiativeId, instanceId: a.instanceId ?? "" }));
-  const open = mine.filter((a) => a.status !== "done" && a.status !== "cancelled");
-  // awaiting verification is the owner's queue; on hold is paused by decision
-  const overdue = open.filter((a) => a.due !== "" && a.due < today && a.status !== "verify" && a.pdca !== "hold");
-  return {
-    metric: null,
-    escalated: i.flag === "escalated",
-    needsSupport: i.flag === "flag",
-    overdueActions: overdue.length,
-    openActions: open.length,
-  };
+/** The status of one initiative — what every surface calls. */
+export function statusOf(i: Initiative, actions: StatusAction[], metrics: StatusMetric[], settings: StatusSettings, today: string): StatusResult {
+  return initiativeStatus(statusInputFor(i, actions, metrics, today), settings, today);
 }
 
 /** priorityId → the initiatives linked to it (active ones only). */

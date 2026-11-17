@@ -5,7 +5,7 @@
 // Data in, callbacks out — no store import (the harness mounts it).
 
 import { el } from "../../../shared/ui/dom";
-import { ageLabel, isBlank, sameFields, Update, UPDATE_LABELS, UpdateFields } from "./commentaryModel";
+import { ageLabel, FlagChoice, isBlank, NO_FLAG_CHANGE, sameFields, Update, UPDATE_LABELS, UpdateFields } from "./commentaryModel";
 
 const btn = (label: string, cls = "app-btn"): HTMLButtonElement => {
   const b = el("button", cls, label) as HTMLButtonElement;
@@ -88,9 +88,12 @@ export function renderUpdateCard(u: Update, today: string, onEdit: (() => void) 
 export interface UpdateDialogOpts {
   /** Set when editing; absent when adding. */
   existing?: Update;
-  /** Offer "Raise the ⚐ Needs support flag" (adding, flag not yet up). */
-  offerFlag: boolean;
-  onSave: (fields: UpdateFields, raiseFlag: boolean) => Promise<void>;
+  /** Adding: the flag as it stands and who a notice would reach. Absent
+   *  when editing (an edit never touches the flag). */
+  flag?: { up: boolean; sponsors: { name: string; email: string }[] };
+  /** May return a line to show (a notice's outcome): the dialog then
+   *  stays open on it until closed. */
+  onSave: (fields: UpdateFields, flag: FlagChoice) => Promise<string | void>;
 }
 
 /** Add or edit an update — the app's modal, the four boxes. */
@@ -111,27 +114,61 @@ export function openUpdateDialog(o: UpdateDialogOpts): void {
     inputs.set(key, ta);
   }
   const read = (): UpdateFields => ({ high: inputs.get("high")!.value, low: inputs.get("low")!.value, next: inputs.get("next")!.value, support: inputs.get("support")!.value });
-  // support text and the ⚐ flag must not silently disagree — the tick
-  // pre-arms when support text exists, stays the author's call
+  // the flag, in the update (issue 3, 2026-11-17): the status update is
+  // where support gets asked for. Always on offer while no flag is up —
+  // the tick pre-arms once Support needed has text and stays the
+  // author's call; a flag already up can be cleared here.
   let flagBox: HTMLInputElement | null = null;
-  if (o.offerFlag) {
+  let clearBox: HTMLInputElement | null = null;
+  let notifySel: HTMLSelectElement | null = null;
+  if (o.flag && !o.flag.up) {
+    const sect = el("div", "app-ib-flagsect");
     const flagWrap = el("label", "app-check app-ib-supportflag");
     flagBox = el("input") as HTMLInputElement;
     flagBox.type = "checkbox";
-    flagWrap.append(flagBox, el("span", undefined, "Raise the ⚐ Needs support flag"));
+    flagWrap.append(flagBox, el("span", undefined, "⚐ Flag this initiative — it needs support"));
+    sect.appendChild(flagWrap);
+    const tell = el("div", "app-ib-flagtell");
+    notifySel = el("select", "app-input app-ib-flagnotify") as HTMLSelectElement;
+    for (const [v, l] of [["", "Do not notify the sponsor"], ["teams", "Notify the sponsor by Teams"], ["email", "Notify the sponsor by email"]] as const) {
+      const opt = el("option", undefined, l) as HTMLOptionElement;
+      opt.value = v;
+      notifySel.appendChild(opt);
+    }
+    notifySel.setAttribute("aria-label", "Notify the sponsor");
+    const names = o.flag.sponsors.map((p) => p.name).join("; ");
+    if (o.flag.sponsors.length === 0) notifySel.disabled = true;
+    tell.append(notifySel, el("span", "app-field-hint", o.flag.sponsors.length === 0 ? "No sponsor with an email to notify." : `Sponsor: ${names}`));
+    sect.appendChild(tell);
     const support = inputs.get("support")!;
     const sync = () => {
       const has = support.value.trim() !== "";
-      flagWrap.style.display = has ? "" : "none";
       if (has && !flagBox!.dataset.touched) flagBox!.checked = true;
+      if (!has && !flagBox!.dataset.touched) flagBox!.checked = false;
+      tell.style.display = flagBox!.checked ? "" : "none";
     };
     sync();
     support.addEventListener("input", sync);
     flagBox.addEventListener("change", () => {
       flagBox!.dataset.touched = "1";
+      sync();
     });
-    box.appendChild(flagWrap);
+    box.appendChild(sect);
+  } else if (o.flag && o.flag.up) {
+    const sect = el("div", "app-ib-flagsect");
+    sect.appendChild(el("div", "app-field-hint", "⚐ This initiative is flagged. New Support needed text replaces what the flag says."));
+    const clearWrap = el("label", "app-check app-ib-supportflag");
+    clearBox = el("input") as HTMLInputElement;
+    clearBox.type = "checkbox";
+    clearWrap.append(clearBox, el("span", undefined, "Clear the flag — support is no longer needed"));
+    sect.appendChild(clearWrap);
+    box.appendChild(sect);
   }
+  const flagChoice = (): FlagChoice => {
+    if (flagBox?.checked === true) return { change: "raise", notify: (notifySel?.value ?? "") as FlagChoice["notify"] };
+    if (clearBox?.checked === true) return { change: "clear", notify: "" };
+    return NO_FLAG_CHANGE;
+  };
   const err = el("div", "app-cp-err", "");
   box.appendChild(err);
   const foot = el("div", "app-modal-footer");
@@ -148,10 +185,28 @@ export function openUpdateDialog(o: UpdateDialogOpts): void {
       scrim.remove();
       return;
     }
+    const choice = flagChoice();
+    if (choice.change === "raise" && fields.support.trim() === "") {
+      err.textContent = "Say what support you need — it shows with the flag.";
+      inputs.get("support")!.focus();
+      return;
+    }
     save.disabled = true;
     void o
-      .onSave(fields, flagBox?.checked === true && fields.support.trim() !== "")
-      .then(() => scrim.remove())
+      .onSave(fields, choice)
+      .then((line) => {
+        if (typeof line !== "string" || line === "") {
+          scrim.remove();
+          return;
+        }
+        // a notice's outcome is said before the dialog goes
+        err.className = "app-field-hint";
+        err.textContent = line;
+        save.style.display = "none";
+        cancel.textContent = "Close";
+        for (const ta of inputs.values()) ta.disabled = true;
+        for (const c of [flagBox, clearBox, notifySel]) if (c) c.disabled = true;
+      })
       .catch(() => {
         save.disabled = false;
         err.textContent = "That could not be saved. Try again.";

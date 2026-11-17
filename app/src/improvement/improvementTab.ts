@@ -25,7 +25,9 @@ import { appendInitiativeEvent, createInitiative, listInitiatives, saveInitiativ
 import { actionsForInitiatives, upsertActions } from "../store/actions";
 import { listBoards } from "../store/boards";
 import { rowsForInitiativeBoards } from "../store/cards";
-import { buildMetricState, loadMetricLasts } from "./metricValues";
+import { buildMetricState, loadMetricLasts, statusMetricsOf } from "./metricValues";
+import { actionCountsFor, PriorityState, statusColour, StatusResult } from "./status";
+import { statusChip } from "./statusUi";
 import { actionBelongsTo, newAction } from "../../../shared/schema/actions";
 import { promptConfirm } from "../prompts";
 import { parseOrgTree } from "../../../shared/schema/meeting";
@@ -33,7 +35,7 @@ import { effectiveEnd, groupPrioritiesForPicker, isDescendant, orgFromKey, orgKe
 import { paletteMap } from "../../../shared/palette";
 import { appPalettes } from "../store/config";
 import { todayIso } from "../../../shared/schema/id";
-import { ImprovementViewer, Initiative, adminScopeFor, groupInitiatives, myRoles, nextGateFor, orgKeyOf, orgsOf, ragInputsFor, validateNewInitiative,
+import { ImprovementViewer, Initiative, adminScopeFor, groupInitiatives, myRoles, nextGateFor, orgKeyOf, orgsOf, statusOf, validateNewInitiative,
   ownersLabel,
 } from "./initiativeModel";
 import { fieldInput } from "./fieldInput";
@@ -44,7 +46,6 @@ import { buildProcessTree, flatProcessOptions, inCentralSubtree, inSubtree, proc
 import { mountCentralPicker, mountProcessPicker } from "../../../shared/ui/processPicker";
 import { mountOrgCascade } from "../priorities/orgCascade";
 import { allSiteProcessRoots, listProcessNodes } from "../store/processes";
-import { initiativeRag } from "../priorities/model";
 import { improvementView, rememberImprovement, rememberShared, sharedView } from "../sessionView";
 import {
   primaryMetric,
@@ -151,17 +152,24 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
     // state colours resolve through the SITE STATE PALETTE (ui-standard §1)
     const stateColors = paletteMap(palettes.states);
     const ragColor = (rag: "green" | "amber" | "red" | "grey"): string => stateColors[ragPaletteKey(rag)] ?? "#9a948a";
-    /** Escalated IS the Issue state, needs-support the At-risk state —
-     *  chips resolve through the palette (ui-standard §1). */
-    const flagChip = (text: string, kind: "escalated" | "flag"): HTMLElement => {
-      const chip = el("span", "app-im-chip", text);
-      const c = kind === "escalated" ? ragColor("red") : ragColor("amber");
-      if (kind === "escalated") {
-        chip.style.background = c;
-        chip.style.color = "#fff";
-      } else {
-        chip.style.border = `1px solid ${c}`;
-        chip.style.color = c;
+    // the status rule (2026-11-17): the edge, the chip and the Gantt's
+    // group edge all read one status. An initiative that is not active
+    // has none — it paints neutral.
+    const statusOfInitiative = (i: Initiative): StatusResult => statusOf(i, initActions, statusMetricsOf(metricState.get(i.id)), prSettings.status, todayIso());
+    const stateHex = (st: PriorityState): string => statusColour(st, prSettings.status, stateColors);
+    const edgeOf = (i: Initiative): string => (i.status === "active" ? stateHex(statusOfInitiative(i).state) : stateHex("none"));
+    /** Flagged or off track says so beside the title, its reasons on
+     *  hover; on track says nothing. `short`: the tile's glyph-only chip. */
+    const stateChip = (i: Initiative, short = false): HTMLElement | null => {
+      if (i.status !== "active") return null;
+      const st = statusOfInitiative(i);
+      if (st.state === "good") return null;
+      const chip = statusChip(st, stateHex);
+      chip.classList.add("app-im-chip");
+      if (i.flagNote !== "" && st.state === "flagged") chip.title = `Support needed: ${i.flagNote}${chip.title !== "" ? `\n${chip.title}` : ""}`;
+      if (short) {
+        if (chip.title === "") chip.title = chip.textContent ?? "";
+        chip.textContent = st.state === "flagged" ? "⚐" : "✕";
       }
       return chip;
     };
@@ -238,11 +246,7 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
             initiatives: groups.all,
             actions: initActions,
             palette: stateColors,
-            ragFor: (i) => {
-              const inputs = ragInputsFor(i, initActions, todayIso());
-              inputs.metric = metricState.get(i.id)?.rag ?? null;
-              return initiativeRag(inputs);
-            },
+            edgeColour: edgeOf,
             canEdit: true,
             actor: actor(),
             hideViewSwitch: true,
@@ -620,19 +624,15 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
 
     const rowFor = (i: Initiative): HTMLElement => {
       const row = el("div", "app-im-row");
-      // status edge = the initiative's RAG (flags + action position; metric
-      // values join the mix with reporting)
-      const inputs = ragInputsFor(i, initActions, todayIso());
-      inputs.metric = metricState.get(i.id)?.rag ?? null;
-      const rag = initiativeRag(inputs);
-      row.style.borderLeftColor = ragColor(rag);
+      // status edge = the initiative's status (the one rule, status.ts)
+      row.style.borderLeftColor = edgeOf(i);
       const main = el("div", "app-im-main");
       const titleLine = el("div", "app-im-title");
       titleLine.appendChild(el("span", "app-im-title-text", i.title));
       const tplChip = templateChip(i);
       if (tplChip) titleLine.appendChild(tplChip);
-      if (i.flag === "escalated") titleLine.appendChild(flagChip("▲ Escalated", "escalated"));
-      else if (i.flag === "flag") titleLine.appendChild(flagChip("⚐ Needs support", "flag"));
+      const rowChip = stateChip(i);
+      if (rowChip) titleLine.appendChild(rowChip);
       if (i.confidential) titleLine.appendChild(el("span", "app-im-chip app-im-chip-conf", "◈ Confidential"));
       main.appendChild(titleLine);
       // meta = priority statement · owner (org and roles are columns now)
@@ -708,14 +708,16 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
       row.appendChild(metricCell);
       // actions column: the underlying position (Ben, 2026-08-26)
       const actCell = el("div", "app-im-cell");
-      if (inputs.openActions === 0) {
+      const counts = actionCountsFor(i, initActions, todayIso());
+      const openCount = counts.future + counts.late;
+      if (openCount === 0) {
         actCell.classList.add("app-cp-muted");
         actCell.textContent = "none open";
       } else {
-        actCell.appendChild(el("span", undefined, `${inputs.openActions} open`));
-        if (inputs.overdueActions > 0) {
-          const od = el("span", undefined, ` · ${inputs.overdueActions} overdue`);
-          od.style.color = ragColor("red");
+        actCell.appendChild(el("span", undefined, `${openCount} open`));
+        if (counts.late > 0) {
+          const od = el("span", undefined, ` · ${counts.late} late`);
+          od.style.color = stateHex("bad");
           od.style.fontWeight = "600";
           actCell.appendChild(od);
         }
@@ -737,11 +739,8 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
     // (the working folder is NOT a shortcut on the list or tiles — Ben,
     // 2026-10-08; it lives on the initiative's pane and the links card)
     const tileFor = (i: Initiative): HTMLElement => {
-      const inputs = ragInputsFor(i, initActions, todayIso());
-      inputs.metric = metricState.get(i.id)?.rag ?? null;
-      const rag = initiativeRag(inputs);
       const tile = el("div", "app-im-tile");
-      tile.style.borderTopColor = ragColor(rag);
+      tile.style.borderTopColor = edgeOf(i);
       tile.appendChild(el("div", "app-im-tile-title", i.title));
       const stage = i.snapshot.stages.find((s) => s.id === i.stageId) ?? null;
       const line = el("div", "app-im-tile-line");
@@ -754,8 +753,8 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
         chip.style.background = PDCA_TOKENS[stage.pdca].bg;
         line.appendChild(chip);
       }
-      if (i.flag === "escalated") line.appendChild(flagChip("▲", "escalated"));
-      else if (i.flag === "flag") line.appendChild(flagChip("⚐", "flag"));
+      const tileChip = stateChip(i, true);
+      if (tileChip) line.appendChild(tileChip);
       tile.appendChild(line);
       const mv = (metricState.get(i.id)?.values ?? [])[0] ?? null;
       tile.appendChild(

@@ -51,31 +51,32 @@ export function openInitiativeRowMenu(anchor: HTMLElement, i: Initiative, d: Row
   const mine = mayManageInitiative(i, d.viewer);
 
   const setFlag = async (flag: Initiative["flag"]) => {
-    if (flag === "escalated") {
-      const { openEscalateDialog } = await import("./escalate");
+    if (flag !== "") {
+      // one flag (2026-11-17): what is needed, and optionally the sponsor told
+      const { openFlagDialog, flagOrgLine } = await import("./escalate");
       const sponsors = (i.roles.sponsor ?? [])
         .map((p) => ({ name: p.who, email: d.roster.find((r) => r.whoId === p.whoId)?.email ?? "" }))
         .filter((p) => p.email !== "");
-      openEscalateDialog({
+      openFlagDialog({
         host: d.host,
         initiativeTitle: i.title,
-        orgLine: `${d.actor().who} escalated "${i.title}" (${i.org.site}${i.org.department ? " · " + i.org.department : ""})`,
+        orgLine: flagOrgLine(d.actor().who, i),
         recipients: sponsors,
         link: boardUrl(i.boardId),
-        onEscalate: async (note) => {
-          i.flag = "escalated";
+        onFlag: async (note, notified) => {
+          i.flag = "flag";
           i.flagNote = note;
           await saveInitiative(i);
-          await appendInitiativeEvent(i, "flag", { flag: "escalated", note }, d.actor());
+          await appendInitiativeEvent(i, "flag", { flag: "flag", note, notified }, d.actor());
           d.onChanged();
         },
       });
       return;
     }
-    i.flag = flag;
+    i.flag = "";
     i.flagNote = "";
     await saveInitiative(i);
-    await appendInitiativeEvent(i, "flag", { flag }, d.actor());
+    await appendInitiativeEvent(i, "flag", { flag: "" }, d.actor());
     d.onChanged();
   };
 
@@ -93,8 +94,7 @@ export function openInitiativeRowMenu(anchor: HTMLElement, i: Initiative, d: Row
       openEditDetails({ host: d.host, initiative: i, actor: d.actor(), onSaved: () => d.onChanged() });
     });
   }, !mine);
-  item(i.flag === "" ? "⚐ Flag — needs support" : "Clear flag", () => void setFlag(i.flag === "" ? "flag" : ""), !mine);
-  item("▲ Escalate to sponsor", () => void setFlag("escalated"), !mine || i.flag === "escalated");
+  item(i.flag === "" ? "⚐ Flag — needs support…" : "Clear flag", () => void setFlag(i.flag === "" ? "flag" : ""), !mine);
   item("Health check (next update)", () => undefined, true);
   item("Move stage (next update)", () => undefined, true);
   item(i.status === "archived" ? "Restore" : "Archive", () => void archive(), !mine);

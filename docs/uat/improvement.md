@@ -31,10 +31,10 @@ persona: siteadmin
 modules: improvement/initiativeModel.ts improvement/rowMenu.ts improvement/improvementTab.ts improvement/boardHeader.ts screens/board.ts actions/endorsement.ts
 preconditions: signed in as a site admin of site A; an active initiative at site A you hold no role on, one at site B, and one at site B that also spans site A; a super admin on a second device
 steps:
-1. Improvement tab → the ⋮ on each of the three rows; read Edit details…, Flag, Escalate and Archive.
+1. Improvement tab → the ⋮ on each of the three rows; read Edit details…, Flag and Archive.
 2. Open the site-A initiative's board: Edit details in the header, the health check button, an endorsement.
 3. As the super admin, the same three rows.
-expected: the site admin may edit, flag, escalate and archive the site-A initiative and the one that also spans site A, and sees those actions greyed on the site-B-only initiative; on the board the header's Edit details, the health check and the endorsement follow the same line; a confidential site-B initiative is hidden from the site admin unless they hold a role or own its org; the super admin has every action on all three — including initiatives they did not create and hold no role on
+expected: the site admin may edit, flag and archive the site-A initiative and the one that also spans site A, and sees those actions greyed on the site-B-only initiative; on the board the header's Edit details, the health check and the endorsement follow the same line; a confidential site-B initiative is hidden from the site admin unless they hold a role or own its org; the super admin has every action on all three — including initiatives they did not create and hold no role on
 
 ### UAT-IMP-004 — An initiative board is always live; a filled charter is not "empty"
 persona: member
@@ -70,3 +70,26 @@ steps:
 5. Search the directory for the revoked person and pick them.
 6. As the ordinary user, open the same pickers and type a name nobody on the roster matches.
 expected: step 1 the picker is titled by the role ("Choose the owner", "Choose the sponsor" …), its box reads "Search the app and the directory…", people in the app narrow as you type and the directory is searched by itself after a short pause — no "Search the directory" button anywhere — and the person is added to the app and chosen in one click; step 2 the multi-person picker offers the same road and ticks them; step 3 both new people sit at site A — the admin's own site — whatever org was being edited, with the department only when the org was at site A; step 4 the directory is searched by itself after a short pause — there is no "Search the directory" button to press — and the action is assigned to the new person; step 5 the picker refuses: "had their access revoked. Restore them in Settings → Users first" — nobody is silently re-activated; step 6 an ordinary user is offered no directory search anywhere
+
+### UAT-IMP-007 — One flag: from the menu, and from a status update
+persona: member
+modules: improvement/escalate.ts improvement/commentary.ts improvement/commentaryActions.ts improvement/commentaryModel.ts improvement/rowMenu.ts improvement/boardHeader.ts priorities/lifecycle.ts
+preconditions: an active initiative you hold a role on, with a sponsor who has an email; no flag up; a second initiative that was "escalated" before this release
+steps:
+1. On the initiative board → ⋮: read the flag items. Choose "⚐ Flag — needs support…", write what you need, leave "Notify the sponsor" unticked, press Flag.
+2. ⋮ → Clear flag. Then Add update: type only a High; read the flag section; type a Support needed line; read it again.
+3. With the flag ticked, choose "Notify the sponsor by Teams" and Save.
+4. Add another update with a different Support needed line and no other change; then one with "Clear the flag" ticked.
+5. Open the second initiative.
+expected: step 1 the menu has ONE flag item and no "Escalate to sponsor"; the dialog asks what you need (required) and the tick reveals the sponsor chips and "Flag & email" / "Flag & send Teams"; after Flag the header shows "⚐ Flagged" in the Flagged colour with the note on hover, and the initiative reads Flagged wherever it is listed; step 2 the Add update dialog always shows "⚐ Flag this initiative — it needs support", unticked until Support needed has text, then ticked (untick it and it stays unticked); ticking with no Support text refuses to save and says why; step 3 the update saves, the flag goes up with the Support text as its note, and the dialog stays open on "✓ Saved and flagged. Sent by Teams…" (or "Not sent: …" — the flag stands either way) until closed; step 4 the first update replaces the flag's note with the new text; the second clears the flag; an EDIT of an update never offers the flag; step 5 it reads Flagged, with its escalation note kept
+
+### UAT-IMP-008 — The Improvement tab reads the same status
+persona: member
+modules: improvement/improvementTab.ts improvement/ganttCard.ts improvement/statusLoad.ts improvement/gantt.ts improvement/status.ts improvement/boardHeader.ts improvement/statusBand.ts
+preconditions: the four initiatives of UAT-PRI-012 in one department; a completed initiative; a ritual board with an Actions Gantt card scoped to that department
+steps:
+1. Improvement tab, list view: read each row's left edge and the chip beside its title; hover a chip. Switch to tiles, then to the Gantt.
+2. Open the ritual board's Actions Gantt card.
+3. Open initiative D's board; read the status band.
+expected: step 1 every active row's edge is its status colour — the same state the Priorities popup gives it; a flagged row carries "⚐ Flagged · at risk" or "· recovery needed", an off-track row "Off track", each with its reasons on hover (and what was asked for, on a flag); an on-track row carries no chip; the completed initiative's edge is neutral; tiles carry the colour on top and a ⚐ or ✕ glyph; the Gantt's group rows carry the same edge; the Actions column says "n late", not "overdue"; step 2 the card's group edges match the tab's; step 3 the band says "No update for n days" only once the recency window (Settings → Priorities → Status, 35 days unless changed) has passed — not at 14 days
+

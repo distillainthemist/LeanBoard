@@ -1,7 +1,7 @@
 // Initiative commentary (2026-09-29): the trail, edits that keep the
 // earlier wording, and the stale cue.
 import { describe, expect, it } from "vitest";
-import { ageLabel, daysBetween, editedDetail, isBlank, MAX_PREVIOUS, sameFields, staleDays, updatesFrom } from "../improvement/commentaryModel";
+import { ageLabel, daysBetween, editedDetail, flagAfterUpdate, flagNoteFrom, isBlank, MAX_PREVIOUS, NO_FLAG_CHANGE, sameFields, staleDays, updatesFrom } from "../improvement/commentaryModel";
 
 const ev = (id: string, at: string, detail: Record<string, unknown>, kind = "comment") => ({ id, kind, detail, actorId: "u1", actorName: "Jane Smith", at });
 
@@ -71,11 +71,28 @@ describe("age and staleness", () => {
     expect(ageLabel("2026-09-01", "2026-09-29")).toBe("4 weeks ago");
     expect(ageLabel("2026-05-01", "2026-09-29")).toBe("5 months ago");
   });
-  it("goes stale at 14 days — from the last update, or the start when there is none", () => {
-    expect(staleDays("2026-09-16", "", "2026-09-29")).toBeNull();
-    expect(staleDays("2026-09-15", "", "2026-09-29")).toBe(14);
-    expect(staleDays("", "2026-09-01", "2026-09-29")).toBe(28);
-    expect(staleDays("", "2026-09-25", "2026-09-29")).toBeNull();
-    expect(staleDays("", "", "2026-09-29")).toBeNull();
+  it("goes stale at the window — from the last update, or the start when there is none", () => {
+    // the window is the status rule's recency setting (35 days unless set)
+    expect(staleDays("2026-09-16", "", "2026-09-29", 14)).toBeNull();
+    expect(staleDays("2026-09-15", "", "2026-09-29", 14)).toBe(14);
+    expect(staleDays("", "2026-09-01", "2026-09-29", 14)).toBe(28);
+    expect(staleDays("", "2026-09-25", "2026-09-29", 14)).toBeNull();
+    expect(staleDays("", "", "2026-09-29", 14)).toBeNull();
+    expect(staleDays("2026-08-26", "", "2026-09-29")).toBeNull(); // 34 days
+    expect(staleDays("2026-08-25", "", "2026-09-29")).toBe(35);
+  });
+  it("an update can raise, clear or refresh the flag", () => {
+    const f = (support: string) => ({ high: "", low: "", next: "", support });
+    const none = { flag: "" as const, flagNote: "" };
+    const up = { flag: "flag" as const, flagNote: "two fitters" };
+    expect(flagAfterUpdate(none, f(" a crane "), { change: "raise", notify: "" })).toEqual({ flag: "flag", flagNote: "a crane", changed: true });
+    expect(flagAfterUpdate(none, f("a crane"), NO_FLAG_CHANGE)).toEqual({ flag: "", flagNote: "", changed: false });
+    expect(flagAfterUpdate(up, f(""), { change: "clear", notify: "" })).toEqual({ flag: "", flagNote: "", changed: true });
+    // a flag left up takes the latest ask as its note; no text leaves it be
+    expect(flagAfterUpdate(up, f("a crane"), NO_FLAG_CHANGE)).toEqual({ flag: "flag", flagNote: "a crane", changed: true });
+    expect(flagAfterUpdate(up, f(""), NO_FLAG_CHANGE)).toEqual({ flag: "flag", flagNote: "two fitters", changed: false });
+    // raising one already up changes nothing but the note
+    expect(flagAfterUpdate(up, f("two fitters"), { change: "raise", notify: "teams" }).changed).toBe(false);
+    expect(flagNoteFrom(f("x".repeat(500))).length).toBe(400);
   });
 });

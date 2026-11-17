@@ -65,8 +65,9 @@ export interface GanttOpts {
   actions: LtkAction[];
   /** State palette (ragPaletteKey → colour). */
   palette: Record<string, string>;
-  /** Per-initiative RAG for the group rows' status edge. */
-  ragFor?: (i: Initiative) => "green" | "amber" | "red" | "grey";
+  /** A group row's status edge: the initiative's status colour (the
+   *  status rule — the caller resolves it; the Gantt only paints). */
+  edgeColour?: (i: Initiative) => string;
   /** Who may edit (drag / steppers). False = read-only (ritual card). */
   canEdit: boolean;
   actor: { whoId: string; who: string };
@@ -857,8 +858,7 @@ export function mountGantt(opts: GanttOpts): () => void {
         const open = expanded.has(g.i.id);
         const gr = el("div", "app-gx-row app-gx-grouprow");
         const label = el("div", "app-gx-label app-gx-grouplabel");
-        const rag = opts.ragFor?.(g.i) ?? "grey";
-        label.style.borderLeft = `3px solid ${opts.palette[rag === "green" ? "good" : rag === "amber" ? "atrisk" : rag === "red" ? "issue" : "neutral"] ?? "#9a948a"}`;
+        label.style.borderLeft = `3px solid ${opts.edgeColour?.(g.i) ?? opts.palette.neutral ?? "#9a948a"}`;
         const caret = el("span", "app-gx-caret", open ? "▾" : "▸");
         label.append(caret, el("span", "app-gx-group-name", g.i.title));
         const st = g.i.snapshot.stages.find((s) => s.id === g.i.stageId);

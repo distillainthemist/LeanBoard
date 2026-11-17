@@ -165,3 +165,15 @@ steps:
 6. Press × on a sub-pillar that has priorities; read the question. Press × on one that has none.
 7. Rename another one and choose "Every year".
 expected: step 1 the list shows the pillars in force this year, with a note saying what adding and renaming do; step 2 the new sub-pillar is a column next year and NOT this year; step 3 the question names the old and new name; step 4 this year keeps the OLD name and next year shows the NEW one, each with the same priorities under it (they followed the rename — nothing was re-filed by hand); "Other years" lists the ended version with its span; step 5 the sub-pillar sits under the old pillar this year and the new one next year; step 6 a sub-pillar in use is ENDED after the year before the one in view ("ended rather than deleted"), never deleted; an unused one is removed as before; step 7 the name changes on every year
+
+### UAT-SET-015 — Status: the recency window and the three colours
+persona: superadmin
+modules: priorities/settingsTab.ts improvement/status.ts priorities/model.ts
+preconditions: an initiative whose last status update is 20 days old and is otherwise on track; Settings → Branding has a state palette
+steps:
+1. Settings → Priorities: read the sections. In Status set "No status update for (days)" to 14 and Save.
+2. Open Priorities and the initiative's board.
+3. Settings → Priorities → Status: set the Flagged colour to another palette entry; Save; open Priorities.
+4. Set the days back to 35.
+expected: step 1 the section "Period" no longer mentions a ratio rule and there is no "Ratio rule — red above (%)" field; a "Status" section explains the rule in a paragraph and carries the days and three colour pickers listing the state palette's entries (a state whose key is not in the site's palette reads "Default … colour (not in the palette)"); step 2 the initiative is Off track with "No update for 2 weeks" and its board's band says "No update for 20 days"; step 3 every flagged edge, circle and chip takes the new colour; step 4 the initiative returns to On track
+

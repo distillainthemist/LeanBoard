@@ -25,6 +25,7 @@ import { addModeToggle, modal, field, OrgTree, childOrgs, priorityDialog, cascad
 import { rememberBoardOrigin } from "../improvement/boardOrigin";
 import { popupTabFor, rememberPopupTab } from "../sessionView";
 import { promptConfirm } from "../prompts";
+import { reasonsLine, STATE_LABELS, STATE_ORDER } from "../improvement/status";
 import {
   CLOSE_REASONS,
   CloseReason,
@@ -50,7 +51,6 @@ import {
   Rag,
   ragPaletteKey,
   reviewQueue,
-  RollupRule,
   sameOrg,
   senderFlags,
 } from "./model";
@@ -62,7 +62,9 @@ export interface LifecycleCtx {
   tree: OrgTree;
   roster: RosterPerson[];
   settings: PrioritySettings;
-  rule: () => RollupRule;
+  /** A status state's colour, through the site palette and the status
+   *  settings (the status rule, 2026-11-17). */
+  stateColour: (state: import("../improvement/status").PriorityState) => string;
   palette: Record<string, string>;
   actor: () => { whoId: string; who: string };
   canManage: (org: OrgRef) => boolean;
@@ -83,7 +85,9 @@ export interface LifecycleCtx {
   ownerPickerFor: (org: OrgRef) => import("./dialogs").OwnerPickerExtras;
   periodsOnOffer: () => string[];
   currentPeriod: string;
-  ragsFor: (p: Priority) => Rag[];
+  /** The status of every initiative counted under a priority (its own
+   *  and its counted descendants'), by the ONE status rule. */
+  statusesFor: (p: Priority) => import("../improvement/status").StatusResult[];
   /** The initiatives behind a priority (direct + through children), for
    *  the overlay's Initiatives/Actions tabs (P6b). */
   initiativesFor: (p: Priority) => {
@@ -92,11 +96,22 @@ export interface LifecycleCtx {
     stageName: string;
     pdcaFg: string;
     pdcaBg: string;
+    /** The current stage's PDCA quadrant ("" = none: a single action). */
+    stagePdca: string;
+    /** Every owner as one label, and all of them for a tooltip. */
     ownerName: string;
+    ownerTitle: string;
     orgName: string;
     open: number;
     overdue: number;
-    rag: Rag;
+    /** Done / future / late over its own actions. */
+    counts: import("../improvement/status").ActionCounts;
+    /** On track / flagged / off track, with its reasons. */
+    status: import("../improvement/status").StatusResult;
+    /** What a flagged initiative has asked for. */
+    flagNote: string;
+    /** Its metrics, ★ starred first (the summary's sparkline tiles). */
+    metrics: import("../improvement/metricValues").MetricValue[];
     boardId: string;
     inheritedFrom: string;
     confidentialHidden: boolean;
@@ -106,7 +121,7 @@ export interface LifecycleCtx {
   ganttFor: (p: Priority) => {
     initiatives: import("../improvement/initiativeModel").Initiative[];
     actions: import("../../../shared/schema/actions").LtkAction[];
-    ragFor: (i: import("../improvement/initiativeModel").Initiative) => "green" | "amber" | "red" | "grey";
+    stateFor: (i: import("../improvement/initiativeModel").Initiative) => import("../improvement/status").StatusState;
   };
   /** The priority's primary initiative AS IT COUNTS NOW (model
    *  `livePrimaryId`: still linked, active or completed) — null = none.
@@ -248,7 +263,15 @@ export async function closePriority(
 /** The primary initiative's commentary (2026-09-29): the latest update in
  *  full, the earlier ones beneath — and the team adds and edits here as
  *  on the initiative's own board (the same dialog, the same writes). */
-async function mountPrimaryCommentary(host: HTMLElement, initiativeId: string, actor: { whoId: string; who: string }, priorityId = ""): Promise<void> {
+async function mountPrimaryCommentary(
+  host: HTMLElement,
+  initiativeId: string,
+  actor: { whoId: string; who: string },
+  priorityId = "",
+  recencyDays?: number,
+  /** An update raised or cleared the flag — the screen's picture is stale. */
+  onFlagChanged?: () => void
+): Promise<void> {
   host.appendChild(el("div", "app-cp-muted", "Loading…"));
   const [{ listInitiatives, listInitiativeEvents }, { listPeople }, { myRoles, adminOver }, { updatesFrom, staleDays }, { renderUpdateCard, renderTrail, openUpdateDialog }, { addUpdate, editUpdate }, { todayIso }] = await Promise.all([
     import("../store/initiatives"),
@@ -270,6 +293,8 @@ async function mountPrimaryCommentary(host: HTMLElement, initiativeId: string, a
   }
   const role = roster.find((p) => p.whoId === actor.whoId)?.role ?? "user";
   const canComment = i.status === "active" && (myRoles(i, actor.whoId).length > 0 || role === "superadmin" || role === "siteadmin");
+  // who a flag raised from an update would notify
+  const sponsors = (i.roles.sponsor ?? []).map((p) => ({ name: p.who, email: roster.find((r) => r.whoId === p.whoId)?.email ?? "" })).filter((p) => p.email !== "");
   const head = el("div", "app-cp-ov-charterhead");
   head.append(el("span", "app-cp-ov-chartertitle", `★ ${i.title}`), el("span", "app-cp-muted", i.description));
   const open = btn("Open board ↗", "app-link");
@@ -290,13 +315,12 @@ async function mountPrimaryCommentary(host: HTMLElement, initiativeId: string, a
     const today = todayIso();
     const bar = el("div", "app-cm-tabhead");
     bar.appendChild(el("span", "app-sb-h", list.length > 0 ? `Commentary · ${list.length}` : "Commentary"));
-    const stale = i.status === "active" ? staleDays(list[0]?.at ?? "", events.length > 0 ? events[events.length - 1].at : "", today) : null;
+    const stale = i.status === "active" ? staleDays(list[0]?.at ?? "", events.length > 0 ? events[events.length - 1].at : "", today, recencyDays) : null;
     if (stale !== null) bar.appendChild(el("span", "app-sb-stale", `⚠ No update for ${stale} days`));
     bar.appendChild(el("span", "app-bar-gap"));
     const edit = (u: (typeof list)[number]) =>
       openUpdateDialog({
         existing: u,
-        offerFlag: false,
         onSave: async (fields) => {
           await editUpdate(u, fields, actor);
           await paint();
@@ -306,10 +330,15 @@ async function mountPrimaryCommentary(host: HTMLElement, initiativeId: string, a
       const add = btn("＋ Add update", "app-btn app-btn-primary app-sb-btn");
       add.addEventListener("click", () =>
         openUpdateDialog({
-          offerFlag: i.flag === "",
-          onSave: async (fields, raiseFlag) => {
-            await addUpdate(i, fields, raiseFlag, actor);
+          flag: { up: i.flag !== "", sponsors },
+          onSave: async (fields, choice) => {
+            const raising = choice.change === "raise" && i.flag === "";
+            await addUpdate(i, fields, choice, actor);
             await paint();
+            onFlagChanged?.();
+            if (!raising || choice.notify === "") return;
+            const [{ sendFlagNotice, flagOrgLine }, { boardUrl }] = await Promise.all([import("../improvement/escalate"), import("../links")]);
+            return `✓ Saved and flagged. ${await sendFlagNotice(choice.notify, sponsors, i.title, flagOrgLine(actor.who, i), fields.support.trim(), boardUrl(i.boardId))}`;
           },
         })
       );
@@ -1132,7 +1161,7 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
     // left: tabs
     const left = el("div", "app-cp-ov-left");
     const tabs = el("div", "app-cp-ov-tabs");
-    const rags = ctx.ragsFor(live);
+    const rags = ctx.statusesFor(live);
     // the charter and the commentary are the PRIMARY initiative's: a
     // priority without one has neither tab (Ben, 2026-11-16, issue 8),
     // and its Metrics tab is where its objectives are picked
@@ -1178,18 +1207,35 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
       }
       // grouped by RAG (Ben, 2026-08-24: the groups replace the rail's
       // tally chips; empty groups are omitted)
-      const GROUPS: [string, string][] = [["red", "Issue"], ["amber", "At risk"], ["green", "On track"], ["grey", "No signal"]];
+      // …by STATUS since 2026-11-17: flagged first (someone asked), then
+      // off track, then on track
+      const GROUPS = STATE_ORDER.map((st) => [st, STATE_LABELS[st]] as const);
       const buildRow = (r: (typeof shown)[number]): HTMLElement => {
         const rowEl = el("div", "app-cp-ov-init");
-        rowEl.style.borderLeftColor = ctx.palette[ragPaletteKey(r.rag)] ?? "#9a948a";
+        rowEl.style.borderLeftColor = ctx.stateColour(r.status.state);
         const main = el("div", "app-cp-ov-init-main");
         const t = el("div", "app-cp-ov-init-title");
         if (r.inheritedFrom !== "") t.appendChild(el("span", "app-cp-muted", `↓ ${r.inheritedFrom} `));
         t.appendChild(el("span", undefined, r.title));
         main.appendChild(t);
-        main.appendChild(
-          el("div", "app-cp-ov-init-meta", [r.orgName, r.ownerName, `${r.open} open action${r.open === 1 ? "" : "s"}`, r.overdue > 0 ? `${r.overdue} overdue` : ""].filter((x) => x !== "").join(" · "))
-        );
+        const meta = el("div", "app-cp-ov-init-meta", [r.orgName, r.ownerName, `${r.open} open action${r.open === 1 ? "" : "s"}`, r.overdue > 0 ? `${r.overdue} late` : ""].filter((x) => x !== "").join(" · "));
+        if (r.ownerTitle !== "") meta.title = `Owner: ${r.ownerTitle}`;
+        main.appendChild(meta);
+        // why it is where it is: a flagged one says what lies under the
+        // flag and what was asked for; an off-track one lists its reasons
+        const why = reasonsLine(r.status);
+        if (r.status.state === "flagged") {
+          const line = el("div", "app-cp-ov-init-why");
+          line.appendChild(el("span", "app-cp-ov-init-sub", r.status.sub));
+          if (r.flagNote !== "") line.appendChild(el("span", undefined, ` · Support needed: ${r.flagNote}`));
+          if (why !== "") line.appendChild(el("span", "app-cp-muted", ` · ${why}`));
+          line.style.color = ctx.stateColour("flagged");
+          main.appendChild(line);
+        } else if (why !== "") {
+          const line = el("div", "app-cp-ov-init-why", why);
+          line.style.color = ctx.stateColour("bad");
+          main.appendChild(line);
+        }
         rowEl.appendChild(main);
         // ★ the priority's PRIMARY initiative (its charter + metrics on the
         // Charter tab) — a direct link only, set by whoever manages the org
@@ -1309,11 +1355,11 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
         body.appendChild(row);
       }
       const rest = primaryRow ? shown.filter((r) => r.id !== primaryRow.id) : shown;
-      const grouped = GROUPS.map(([rag, label]) => ({ rag, label, rows: rest.filter((r) => r.rag === rag) })).filter((g) => g.rows.length > 0);
+      const grouped = GROUPS.map(([state, label]) => ({ state, label, rows: rest.filter((r) => r.status.state === state) })).filter((g) => g.rows.length > 0);
       for (const g of grouped) {
         const h = el("div", "app-cp-ov-group");
         const dot = el("span", "app-cp-ov-group-dot");
-        dot.style.background = ctx.palette[ragPaletteKey(g.rag as "red")] ?? "#9a948a";
+        dot.style.background = ctx.stateColour(g.state);
         h.append(dot, el("span", undefined, `${g.label} · ${g.rows.length}`));
         body.appendChild(h);
         for (const r of g.rows) {
@@ -1375,7 +1421,7 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
     } else if (tab === "commentary" && primary !== null) {
       const host = el("div", "app-cp-ov-charter");
       body.appendChild(host);
-      void mountPrimaryCommentary(host, primary.id, ctx.actor(), live.id);
+      void mountPrimaryCommentary(host, primary.id, ctx.actor(), live.id, ctx.settings.status.recencyDays, () => void ctx.initiativesChanged());
     } else if (tab === "actions") {
       // the action card the boards use (issues 5 and 11, 2026-11-16) —
       // List | Kanban | Gantt, the full dialog, Add action — over every
@@ -1394,7 +1440,7 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
             actions: g.actions,
             roster: ctx.roster,
             palette: ctx.palette,
-            ragFor: g.ragFor,
+            edgeColour: (i) => ctx.stateColour(g.stateFor(i)),
             actor: ctx.actor(),
             // an edit leaves the tallies on the other tabs stale; the
             // screen reloads when this tab is left, not under the editor

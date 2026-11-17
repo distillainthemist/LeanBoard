@@ -23,6 +23,9 @@ export function defaultPalette(): PaletteEntry[] {
     { key: "good", label: "Good", color: STATUS_PALETTE.done },
     { key: "issue", label: "Issue", color: STATUS_PALETTE.blocked },
     { key: "atrisk", label: "At risk", color: STATUS_PALETTE.open },
+    // the status rule's Flagged state (2026-11-17): someone has asked for
+    // support — its own colour, never a shade of trouble
+    { key: "flagged", label: "Flagged", color: "#7b3fa0" },
     { key: "info", label: "Info", color: STATUS_PALETTE.inProgress },
     { key: "neutral", label: "Neutral", color: "#808080" },
   ];

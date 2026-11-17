@@ -27,7 +27,8 @@ export interface PriorityActionsOpts {
   actions: LtkAction[];
   roster: RosterPerson[];
   palette: Record<string, string>;
-  ragFor: (i: Initiative) => "green" | "amber" | "red" | "grey";
+  /** An initiative's status colour (the Gantt's group edge). */
+  edgeColour: (i: Initiative) => string;
   actor: { whoId: string; who: string };
   onOpenBoard: (boardId: string) => void;
   /** An action was written: the screen's tallies are stale. */
@@ -100,7 +101,7 @@ export function mountPriorityActions(o: PriorityActionsOpts): () => void {
           initiatives: o.initiatives,
           actions: g.actions,
           palette: o.palette,
-          ragFor: o.ragFor,
+          edgeColour: o.edgeColour,
           canEdit: !g.readOnly && g.actor.whoId !== "",
           actor: g.actor,
           // the Gantt writes a date move itself; the tallies follow

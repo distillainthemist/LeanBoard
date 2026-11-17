@@ -26,7 +26,13 @@ export interface DriverLast {
   spec: SpecSeries;
   /** A good / bad or picklist DRIVER's reading as label + state. */
   display?: { label: string; rag: "green" | "amber" | "red" | null };
+  /** The last few numeric readings, oldest first — the sparkline
+   *  (2026-11-17). The read already carried every point. */
+  tail?: number[];
 }
+
+/** How many readings a sparkline shows. */
+export const SPARK_POINTS = 12;
 
 export interface MetricValue {
   key: string;
@@ -41,6 +47,19 @@ export interface MetricValue {
   /** ★ starred (several may be) + the metric's objective sentence. */
   starred: boolean;
   objective: string;
+  /** The sparkline's inputs (2026-11-17): the last readings, oldest
+   *  first, and the spec in force. Empty tail = nothing to draw (a
+   *  good / bad or picklist metric, or no reading yet). */
+  tail: number[];
+  usl: number | null;
+  lsl: number | null;
+  direction: "up" | "down" | "range";
+}
+
+/** An initiative's metrics as the status rule reads them — EVERY metric,
+ *  by name and state (a metric with no reading carries null). */
+export function statusMetricsOf(state: InitiativeMetricState | undefined): { name: string; rag: "green" | "amber" | "red" | null }[] {
+  return (state?.values ?? []).map((v) => ({ name: v.name, rag: v.rag }));
 }
 
 export interface InitiativeMetricState {
@@ -74,12 +93,12 @@ export function buildMetricState(
       const points = doc?.points ?? [];
       const ml = driverLast.get(`${i.id}|${key}`) ?? (def.driverId && def.driverLink !== "leads" ? driverLast.get(def.driverId) : undefined) ?? null;
       if (ml?.display) {
-        values.push({ key, name: def.name, unit: "", last: null, display: ml.display.label, target: null, rag: ml.display.rag, starred: def.primary === true, objective: def.objective ?? "" });
+        values.push({ key, name: def.name, unit: "", last: null, display: ml.display.label, target: null, rag: ml.display.rag, starred: def.primary === true, objective: def.objective ?? "", tail: [], usl: null, lsl: null, direction: directionOf(def) });
         continue;
       }
       if (def.tracking !== "value") {
         const disp = trackingDisplay(def, ml?.raw ?? "");
-        values.push({ key, name: def.name, unit: "", last: null, display: disp.label, target: null, rag: disp.rag, starred: def.primary === true, objective: def.objective ?? "" });
+        values.push({ key, name: def.name, unit: "", last: null, display: disp.label, target: null, rag: disp.rag, starred: def.primary === true, objective: def.objective ?? "", tail: [], usl: null, lsl: null, direction: directionOf(def) });
         continue;
       }
       const last = ml ? ml.last : points.length > 0 ? points[points.length - 1].value : null;
@@ -107,6 +126,10 @@ export function buildMetricState(
         rag: metricRag(reading),
         starred: def.primary === true,
         objective: def.objective ?? "",
+        tail: ml ? (ml.tail ?? []) : points.slice(-SPARK_POINTS).map((pt) => pt.value),
+        usl: reading.usl,
+        lsl: reading.lsl,
+        direction: reading.goodDirection,
       });
     }
     // ★ starred first (definition order within) — the register, tiles and
@@ -159,7 +182,7 @@ export async function loadMetricLasts(
             } else if (loc.driverId !== "") {
               const [pts, spec] = await Promise.all([listDriverPoints(loc.driverId, "1900-01-01", "2999-12-31"), listSpecSeries("vdt", loc.driverId, "2999-12-31").catch(() => EMPTY_SPEC_SERIES)]);
               const lastPt = pts.length > 0 ? pts[pts.length - 1] : null;
-              const v = { last: lastPt ? lastPt.value : null, raw: lastPt ? String(lastPt.value) : "", date: lastPt ? lastPt.date : "", spec };
+              const v = { last: lastPt ? lastPt.value : null, raw: lastPt ? String(lastPt.value) : "", date: lastPt ? lastPt.date : "", spec, tail: pts.slice(-SPARK_POINTS).map((pt) => pt.value) };
               out.set(`${i.id}|${m.key}`, v);
               out.set(loc.driverId, v);
             } else {
@@ -167,7 +190,8 @@ export async function loadMetricLasts(
               const pts = cells.filter((c) => loc.isActual(c.key) && c.value !== "").sort((a, b) => (a.date + a.shift < b.date + b.shift ? -1 : 1));
               const lastPt = pts.length > 0 ? pts[pts.length - 1] : null;
               const n = lastPt ? Number(lastPt.value) : NaN;
-              out.set(`${i.id}|${m.key}`, { last: Number.isFinite(n) ? n : null, raw: lastPt ? lastPt.value : "", date: lastPt ? lastPt.date : "", spec });
+              const tail = pts.slice(-SPARK_POINTS).map((c) => Number(c.value)).filter((x) => Number.isFinite(x));
+              out.set(`${i.id}|${m.key}`, { last: Number.isFinite(n) ? n : null, raw: lastPt ? lastPt.value : "", date: lastPt ? lastPt.date : "", spec, tail });
             }
           } catch {
             /* no reading */

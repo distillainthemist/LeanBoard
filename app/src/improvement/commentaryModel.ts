@@ -36,8 +36,10 @@ export const UPDATE_LABELS: [keyof UpdateFields, string, string][] = [
   ["support", "Support needed", "What would unblock this"],
 ];
 
-/** No update for this long and the band says so. */
-export const STALE_DAYS = 14;
+/** No update for this long and the band says so — the status rule's
+ *  recency window (Settings → Priorities → Status; 14 days until
+ *  2026-11-17, when the band and the status took the one setting). */
+export const STALE_DAYS = 35;
 /** Earlier wordings kept per update. */
 export const MAX_PREVIOUS = 10;
 
@@ -122,9 +124,36 @@ export function ageLabel(atIso: string, todayIso: string): string {
 /** Days since the last update when the commentary has gone stale, else
  *  null. `sinceIso` stands in when there is no update at all (the day the
  *  initiative started). */
-export function staleDays(latestAtIso: string, sinceIso: string, todayIso: string): number | null {
+export function staleDays(latestAtIso: string, sinceIso: string, todayIso: string, windowDays = STALE_DAYS): number | null {
   const from = latestAtIso !== "" ? latestAtIso : sinceIso;
   if (from === "") return null;
   const d = daysBetween(from, todayIso);
-  return d >= STALE_DAYS ? d : null;
+  return d >= windowDays ? d : null;
+}
+
+// ---- the flag, in an update (issue 3, 2026-11-17) --------------------------------
+
+/** What an update does to the flag. */
+export interface FlagChoice {
+  change: "raise" | "clear" | "none";
+  /** With "raise": tell the sponsor, and how. */
+  notify: "" | "teams" | "email";
+}
+
+export const NO_FLAG_CHANGE: FlagChoice = { change: "none", notify: "" };
+
+/** The flag note an update leaves: the Support needed text, capped to
+ *  the column. */
+export function flagNoteFrom(fields: UpdateFields): string {
+  return fields.support.trim().slice(0, 400);
+}
+
+/** What `addUpdate` will do to the flag — pure, for the tests. */
+export function flagAfterUpdate(current: { flag: "" | "flag"; flagNote: string }, fields: UpdateFields, choice: FlagChoice): { flag: "" | "flag"; flagNote: string; changed: boolean } {
+  const note = flagNoteFrom(fields);
+  if (choice.change === "raise" && current.flag === "") return { flag: "flag", flagNote: note, changed: true };
+  if (choice.change === "clear" && current.flag !== "") return { flag: "", flagNote: "", changed: true };
+  // a flag left up takes the latest ask as its note
+  if (current.flag !== "" && note !== "" && note !== current.flagNote) return { flag: current.flag, flagNote: note, changed: true };
+  return { flag: current.flag, flagNote: current.flagNote, changed: false };
 }

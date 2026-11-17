@@ -47,7 +47,8 @@ function fromRow(r: Ben_ltkinitiatives): Initiative {
     stageId: r.ben_stage ?? "",
     status: r.ben_status === "completed" || r.ben_status === "archived" ? r.ben_status : "active",
     confidential: r.ben_confidential === true,
-    flag: r.ben_flag === "flag" || r.ben_flag === "escalated" ? r.ben_flag : "",
+    // "escalated" was a second level until 2026-11-17 — one flag now
+    flag: r.ben_flag === "flag" || r.ben_flag === "escalated" ? "flag" : "",
     flagNote: r.ben_flagnote ?? "",
     endorsement: r.ben_endorsement === true,
     period: r.ben_period ?? "",
@@ -62,13 +63,67 @@ function fromRow(r: Ben_ltkinitiatives): Initiative {
     stageTargets: parseStringMap(r.ben_stagetargetsjson ?? ""),
     alsoOrgs: parseAlsoOrgs(r.ben_alsoorgsjson ?? ""),
     processNodeId: r.ben_processnodeid ?? "",
+    createdAt: r.createdon ?? "",
+    ...updateStampOf(r.ben_lastupdateat),
   };
+}
+
+/** The row's stamp: an ISO moment, NO_UPDATE_YET ("-": known, none
+ *  yet), or empty on a row written before the stamp existed. */
+export const NO_UPDATE_YET = "-";
+function updateStampOf(raw: string | undefined): { lastUpdateAt: string; updateStampKnown: boolean } {
+  const v = (raw ?? "").trim();
+  if (v === "") return { lastUpdateAt: "", updateStampKnown: false };
+  return { lastUpdateAt: v === NO_UPDATE_YET ? "" : v, updateStampKnown: true };
+}
+
+/**
+ * The latest status update of every initiative whose row carries no
+ * stamp yet (rows from before 2026-11-17): ONE read of the comment
+ * events, newest first, laid over the list in place — and written back
+ * to the rows, a few per load, so the read stops being needed. A list
+ * whose every row is stamped costs nothing.
+ */
+const BACKFILL_PER_LOAD = 25;
+/** Rows this session has already written a stamp to (the list is served
+ *  from a 60 s cache, so the same unstamped rows come round again). */
+const backfilled = new Set<string>();
+export async function fillUpdateStamps(list: Initiative[]): Promise<void> {
+  const need = list.filter((i) => i.updateStampKnown !== true && i.rowId);
+  if (need.length === 0) return;
+  let rows: { _ben_initiative_value?: string; ben_at?: string }[];
+  try {
+    rows = await memoRead("initiatives", "comment-stamps", () =>
+      allWhere(Ben_ltkinitiativeeventsService.getAll, "ben_kind eq 'comment'", ["_ben_initiative_value", "ben_at"], ["ben_at desc"])
+    );
+  } catch {
+    return; // the clock stays unknown: creation date stands in
+  }
+  const latest = new Map<string, string>();
+  for (const r of rows) {
+    const id = (r._ben_initiative_value ?? "").toLowerCase();
+    if (id !== "" && !latest.has(id) && (r.ben_at ?? "") !== "") latest.set(id, r.ben_at ?? "");
+  }
+  let written = 0;
+  for (const i of need) {
+    const at = latest.get((i.rowId ?? "").toLowerCase()) ?? "";
+    i.lastUpdateAt = at;
+    i.updateStampKnown = true;
+    if (written < BACKFILL_PER_LOAD && !backfilled.has(i.rowId as string)) {
+      written++;
+      backfilled.add(i.rowId as string);
+      // quiet: no cache bump — the value just read is the value written
+      void Ben_ltkinitiativesService.update(i.rowId as string, { ben_lastupdateat: at !== "" ? at : NO_UPDATE_YET } as never).catch(() => undefined);
+    }
+  }
 }
 
 export async function listInitiatives(): Promise<Initiative[]> {
   // cached 60s; every write bumps "initiatives" (and callers mutate copies)
   const rows = await memoRead("initiatives", "all", () => allWhere(Ben_ltkinitiativesService.getAll));
-  return rows.map(fromRow).filter((i) => i.id !== "");
+  const list = rows.map(fromRow).filter((i) => i.id !== "");
+  await fillUpdateStamps(list);
+  return list;
 }
 
 /** Remove a deleted priority's links from every initiative carrying it;
@@ -128,6 +183,14 @@ export async function saveInitiative(i: Initiative): Promise<string> {
       ben_stagetargetsjson: JSON.stringify(i.stageTargets),
       ben_alsoorgsjson: JSON.stringify(i.alsoOrgs ?? []),
       ben_processnodeid: i.processNodeId ?? "",
+      // a NEW row is stamped "known, none yet"; an update never writes
+      // the stamp (the merge drops it) — it belongs to the comment
+      // write alone, and a stale in-memory copy must not turn it back
+      ben_lastupdateat: NO_UPDATE_YET,
+    },
+    (_existing, fields) => {
+      const { ben_lastupdateat: _stamp, ...rest } = fields;
+      return rest as typeof fields;
     }
   )));
 }
@@ -148,6 +211,14 @@ export async function appendInitiativeEvent(
     ben_at: nowIso(),
     "ben_Initiative@odata.bind": `/ben_ltkinitiatives(${i.rowId})`,
   } as never);
+  // a status update moves the initiative's recency clock (the status
+  // rule): the row carries the moment, so no screen reads the trail
+  if (kind === "comment") {
+    const at = nowIso();
+    i.lastUpdateAt = at;
+    i.updateStampKnown = true;
+    await writing("initiatives", Ben_ltkinitiativesService.update(i.rowId, { ben_lastupdateat: at } as never)).catch(() => undefined);
+  }
 }
 
 export interface InitiativeEvent {

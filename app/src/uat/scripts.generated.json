@@ -1,6 +1,10 @@
 {
- "generatedAt": "2026-11-16",
+ "generatedAt": "2026-11-17",
  "releases": [
+  {
+   "tag": "v0.94.0",
+   "date": "2026-11-16"
+  },
   {
    "tag": "v0.93.0",
    "date": "2026-11-12"
@@ -3099,13 +3103,13 @@
        ],
        "preconditions": "signed in as a site admin of site A; an active initiative at site A you hold no role on, one at site B, and one at site B that also spans site A; a super admin on a second device",
        "steps": [
-        "Improvement tab → the ⋮ on each of the three rows; read Edit details…, Flag, Escalate and Archive.",
+        "Improvement tab → the ⋮ on each of the three rows; read Edit details…, Flag and Archive.",
         "Open the site-A initiative's board: Edit details in the header, the health check button, an endorsement.",
         "As the super admin, the same three rows."
        ],
-       "expected": "the site admin may edit, flag, escalate and archive the site-A initiative and the one that also spans site A, and sees those actions greyed on the site-B-only initiative; on the board the header's Edit details, the health check and the endorsement follow the same line; a confidential site-B initiative is hidden from the site admin unless they hold a role or own its org; the super admin has every action on all three — including initiatives they did not create and hold no role on",
-       "hash": "48602432",
-       "changed": "2026-11-01"
+       "expected": "the site admin may edit, flag and archive the site-A initiative and the one that also spans site A, and sees those actions greyed on the site-B-only initiative; on the board the header's Edit details, the health check and the endorsement follow the same line; a confidential site-B initiative is hidden from the site admin unless they hold a role or own its org; the super admin has every action on all three — including initiatives they did not create and hold no role on",
+       "hash": "fd8a48fa",
+       "changed": "2026-11-17"
       },
       {
        "id": "UAT-IMP-004",
@@ -3177,6 +3181,56 @@
        "expected": "step 1 the picker is titled by the role (\"Choose the owner\", \"Choose the sponsor\" …), its box reads \"Search the app and the directory…\", people in the app narrow as you type and the directory is searched by itself after a short pause — no \"Search the directory\" button anywhere — and the person is added to the app and chosen in one click; step 2 the multi-person picker offers the same road and ticks them; step 3 both new people sit at site A — the admin's own site — whatever org was being edited, with the department only when the org was at site A; step 4 the directory is searched by itself after a short pause — there is no \"Search the directory\" button to press — and the action is assigned to the new person; step 5 the picker refuses: \"had their access revoked. Restore them in Settings → Users first\" — nobody is silently re-activated; step 6 an ordinary user is offered no directory search anywhere",
        "hash": "f353f560",
        "changed": "2026-11-16"
+      },
+      {
+       "id": "UAT-IMP-007",
+       "title": "One flag: from the menu, and from a status update",
+       "journey": "Journey 2 — Initiatives",
+       "persona": "member",
+       "modules": [
+        "improvement/escalate.ts",
+        "improvement/commentary.ts",
+        "improvement/commentaryActions.ts",
+        "improvement/commentaryModel.ts",
+        "improvement/rowMenu.ts",
+        "improvement/boardHeader.ts",
+        "priorities/lifecycle.ts"
+       ],
+       "preconditions": "an active initiative you hold a role on, with a sponsor who has an email; no flag up; a second initiative that was \"escalated\" before this release",
+       "steps": [
+        "On the initiative board → ⋮: read the flag items. Choose \"⚐ Flag — needs support…\", write what you need, leave \"Notify the sponsor\" unticked, press Flag.",
+        "⋮ → Clear flag. Then Add update: type only a High; read the flag section; type a Support needed line; read it again.",
+        "With the flag ticked, choose \"Notify the sponsor by Teams\" and Save.",
+        "Add another update with a different Support needed line and no other change; then one with \"Clear the flag\" ticked.",
+        "Open the second initiative."
+       ],
+       "expected": "step 1 the menu has ONE flag item and no \"Escalate to sponsor\"; the dialog asks what you need (required) and the tick reveals the sponsor chips and \"Flag & email\" / \"Flag & send Teams\"; after Flag the header shows \"⚐ Flagged\" in the Flagged colour with the note on hover, and the initiative reads Flagged wherever it is listed; step 2 the Add update dialog always shows \"⚐ Flag this initiative — it needs support\", unticked until Support needed has text, then ticked (untick it and it stays unticked); ticking with no Support text refuses to save and says why; step 3 the update saves, the flag goes up with the Support text as its note, and the dialog stays open on \"✓ Saved and flagged. Sent by Teams…\" (or \"Not sent: …\" — the flag stands either way) until closed; step 4 the first update replaces the flag's note with the new text; the second clears the flag; an EDIT of an update never offers the flag; step 5 it reads Flagged, with its escalation note kept",
+       "hash": "7c4a179f",
+       "changed": "2026-11-17"
+      },
+      {
+       "id": "UAT-IMP-008",
+       "title": "The Improvement tab reads the same status",
+       "journey": "Journey 2 — Initiatives",
+       "persona": "member",
+       "modules": [
+        "improvement/improvementTab.ts",
+        "improvement/ganttCard.ts",
+        "improvement/statusLoad.ts",
+        "improvement/gantt.ts",
+        "improvement/status.ts",
+        "improvement/boardHeader.ts",
+        "improvement/statusBand.ts"
+       ],
+       "preconditions": "the four initiatives of UAT-PRI-012 in one department; a completed initiative; a ritual board with an Actions Gantt card scoped to that department",
+       "steps": [
+        "Improvement tab, list view: read each row's left edge and the chip beside its title; hover a chip. Switch to tiles, then to the Gantt.",
+        "Open the ritual board's Actions Gantt card.",
+        "Open initiative D's board; read the status band."
+       ],
+       "expected": "step 1 every active row's edge is its status colour — the same state the Priorities popup gives it; a flagged row carries \"⚐ Flagged · at risk\" or \"· recovery needed\", an off-track row \"Off track\", each with its reasons on hover (and what was asked for, on a flag); an on-track row carries no chip; the completed initiative's edge is neutral; tiles carry the colour on top and a ⚐ or ✕ glyph; the Gantt's group rows carry the same edge; the Actions column says \"n late\", not \"overdue\"; step 2 the card's group edges match the tab's; step 3 the band says \"No update for n days\" only once the recency window (Settings → Priorities → Status, 35 days unless changed) has passed — not at 14 days",
+       "hash": "086fb96b",
+       "changed": "2026-11-17"
       }
      ]
     }
@@ -3199,11 +3253,11 @@
        "preconditions": "a wall with three or more priorities in view: one whose primary initiative has starred metrics with values, one whose primary initiative has none starred, one with no primary initiative",
        "steps": [
         "Priorities tab in the matrix view; read the Objectives row under each column.",
-        "Switch to the present view and step to the same priorities."
+        "Open ▶ Executive summary and step to the same priorities."
        ],
-       "expected": "the Objectives row shows \"Name: objective\" with plan / actual and a traffic light for each starred metric, and is BLANK under a priority with no starred metric or no primary initiative — no \"No primary initiative\" or \"No metric value yet\" line anywhere in the row; the present view shows the same lines and the same blanks",
-       "hash": "2145a970",
-       "changed": "2026-10-31"
+       "expected": "the Objectives row shows \"Name: objective\" with plan / actual and a traffic light for each starred metric, and is BLANK under a priority with no starred metric or no primary initiative — no \"No primary initiative\" or \"No metric value yet\" line anywhere in the row; the executive summary shows the SAME metrics as tiles on each closed priority card, and none where the row is blank",
+       "hash": "fe2b5b19",
+       "changed": "2026-11-17"
       },
       {
        "id": "UAT-PRI-002",
@@ -3220,9 +3274,9 @@
         "Change the year with the year pill in the header.",
         "⋮ → Show → Health check scores; close and reopen the app."
        ],
-       "expected": "the menu has Status · View · Roll-up rule · Show · Share and no Period section — the year pill (and the phone head's Period select) is the one period door; Health check scores is off by default and the headers carry no chip; on, the chips appear and the choice is remembered for this person across sessions",
-       "hash": "a37495ee",
-       "changed": "2026-10-31"
+       "expected": "the menu has Status · View · Show · Share — no Period section and no Roll-up rule (the strict / ratio rule went with the status rule, 2026-11-17) — the year pill (and the phone head's Period select) is the one period door; Health check scores is off by default and the headers carry no chip; on, the chips appear and the choice is remembered for this person across sessions",
+       "hash": "753d23ca",
+       "changed": "2026-11-17"
       }
      ]
     },
@@ -3446,6 +3500,61 @@
        "expected": "step 1 the dialog opens on the sub-pillar the priority sits under in the year in view and asks \"from <year>, or for every year?\" only because the priority began earlier; step 2 this year shows it under B and last year still shows it under A; step 3 \"Every year\" puts it under the third sub-pillar in both years; step 4 a past year is a record: the completed priority shows on the year it ran in under Active, marked completed, though it is hidden on this year; step 5 only the sub-pillars in force in the year in view are offered",
        "hash": "773f399f",
        "changed": "2026-11-16"
+      }
+     ]
+    },
+    {
+     "title": "Journey 5 — The status rule and the executive summary (2026-11-17)",
+     "cases": [
+      {
+       "id": "UAT-PRI-012",
+       "title": "On track, flagged, off track: the wall and the popup",
+       "journey": "Journey 5 — The status rule and the executive summary (2026-11-17)",
+       "persona": "viewer",
+       "modules": [
+        "improvement/status.ts",
+        "improvement/statusUi.ts",
+        "improvement/initiativeModel.ts",
+        "priorities/prioritiesScreen.ts",
+        "priorities/lifecycle.ts",
+        "priorities/model.ts",
+        "store/initiatives.ts"
+       ],
+       "preconditions": "a priority with at least four linked initiatives: A with open actions none late, metrics on plan and a status update in the last five weeks; B the same but with one action a day late; C flagged; D created over five weeks ago with no actions and no status update; a second priority whose initiatives are all like A; a third with no initiative",
+       "steps": [
+        "Priorities tab: read the left edge and the three small circles on each of the three priority cards; hover the circles.",
+        "Open the first priority → Initiatives tab: read the groups, and the line under B, C and D.",
+        "Give B's late action a later due date (or close it); return to the wall.",
+        "Create a new initiative under the second priority and add nothing to it; return to the wall."
+       ],
+       "expected": "step 1 the first priority's edge is the Flagged colour (flagged wins over off track) and its circles read on track 1 · flagged 1 · off track 2 with the words on hover; the second is the on-track colour with every initiative in the first circle; the third is neutral with three faint zeros and \"0 initiatives\"; step 2 the groups are Flagged, Off track, On track in that order, each row's edge in its state's colour; B's row says \"1 late action\", D's \"No actions defined · No status update yet\", C's says \"At risk\" or \"Recovery needed\" with what was asked for, and a row with several owners names them all; no row reads \"At risk\" amber or \"No signal\" grey; step 3 B moves to On track and the priority's circles follow; step 4 the new initiative is ON TRACK (a new initiative has the recency window as grace) and the second priority stays on track",
+       "hash": "5dd52fb8",
+       "changed": "2026-11-17"
+      },
+      {
+       "id": "UAT-PRI-013",
+       "title": "The executive summary",
+       "journey": "Journey 5 — The status rule and the executive summary (2026-11-17)",
+       "persona": "viewer",
+       "modules": [
+        "priorities/walk.ts",
+        "improvement/sparkline.ts",
+        "improvement/statusUi.ts",
+        "improvement/metricValues.ts",
+        "priorities/prioritiesScreen.ts",
+        "sessionView.ts"
+       ],
+       "preconditions": "the wall of UAT-PRI-012; the first priority has a primary initiative with three metrics, at least one with several readings and a target; C carries a flag note",
+       "steps": [
+        "Priorities tab → ▶ Executive summary; read the head and the first priority card.",
+        "Press the ◀ chevron (or anywhere on the card) to open the first priority; read the rows.",
+        "Press Expand all; press it again; step with → and ←; press a priority's title.",
+        "Open the first priority again and click initiative C's row; on its board use the crumb back to Priorities.",
+        "✕ Exit summary. On a phone, open Priorities."
+       ],
+       "expected": "step 1 the button reads \"Executive summary\" (no \"Present\"); the head shows the year pill, \"Executive summary · <org>\" and \"Pillar : Sub-pillar\"; each priority is one card with its status edge, title, owner, the three labelled circles On track / Flagged / Off track and its objectives as sparkline tiles (a line over a green band where the metric is good and red where it is not; at most four, then \"+n\"); step 2 the card's own metric tiles go and one row per initiative shows: \"PRIMARY INITIATIVE\" on the primary (listed first), title, every owner, its status in words with its reasons, the stage name over its PDCA disc, Actions Done / Future / Late circles, its own metric tiles, and SUPPORT NEEDED with the note on a flagged one; confidential initiatives the viewer may not see are counted and summed in one \"not shown\" line; step 3 every card on the page opens, then closes; the arrows step sub-pillar by sub-pillar and a final \"Cascades to accept\" step appears when any are pending; the title opens the priority's popup; step 4 the board opens, and coming back lands in the summary on the same step with the same cards open; step 5 the wall returns; on a phone the summary IS the page, stacked, with no Exit",
+       "hash": "2fc573b7",
+       "changed": "2026-11-17"
       }
      ]
     }
@@ -3769,6 +3878,27 @@
        "expected": "step 1 the list shows the pillars in force this year, with a note saying what adding and renaming do; step 2 the new sub-pillar is a column next year and NOT this year; step 3 the question names the old and new name; step 4 this year keeps the OLD name and next year shows the NEW one, each with the same priorities under it (they followed the rename — nothing was re-filed by hand); \"Other years\" lists the ended version with its span; step 5 the sub-pillar sits under the old pillar this year and the new one next year; step 6 a sub-pillar in use is ENDED after the year before the one in view (\"ended rather than deleted\"), never deleted; an unused one is removed as before; step 7 the name changes on every year",
        "hash": "4f4fc978",
        "changed": "2026-11-16"
+      },
+      {
+       "id": "UAT-SET-015",
+       "title": "Status: the recency window and the three colours",
+       "journey": "Journey 6 — A slow connection",
+       "persona": "superadmin",
+       "modules": [
+        "priorities/settingsTab.ts",
+        "improvement/status.ts",
+        "priorities/model.ts"
+       ],
+       "preconditions": "an initiative whose last status update is 20 days old and is otherwise on track; Settings → Branding has a state palette",
+       "steps": [
+        "Settings → Priorities: read the sections. In Status set \"No status update for (days)\" to 14 and Save.",
+        "Open Priorities and the initiative's board.",
+        "Settings → Priorities → Status: set the Flagged colour to another palette entry; Save; open Priorities.",
+        "Set the days back to 35."
+       ],
+       "expected": "step 1 the section \"Period\" no longer mentions a ratio rule and there is no \"Ratio rule — red above (%)\" field; a \"Status\" section explains the rule in a paragraph and carries the days and three colour pickers listing the state palette's entries (a state whose key is not in the site's palette reads \"Default … colour (not in the palette)\"); step 2 the initiative is Off track with \"No update for 2 weeks\" and its board's band says \"No update for 20 days\"; step 3 every flagged edge, circle and chip takes the new colour; step 4 the initiative returns to On track",
+       "hash": "4f275485",
+       "changed": "2026-11-17"
       }
      ]
     }
