@@ -55,6 +55,9 @@ import {
   childOrgs,
   orgSelectOptions,
   editVision,
+  field,
+  modal,
+  requiredStar,
   OrgTree,
   pickOrg,
   priorityDialog,
@@ -65,13 +68,14 @@ import { loadPriorityPrefs, savePriorityPrefs, ViewMode } from "./prefs";
 import { prioritiesView, rememberPriorities, rememberShared, sharedView } from "../sessionView";
 import { mountWalk } from "./walk";
 import { rememberSummary, summaryView } from "../sessionView";
-import { initialsFor } from "../../../shared/schema/people";
 import { prioritiesViewUrl, takePendingPrioritiesView } from "../links";
 import { decodePrioritiesView, encodePrioritiesView } from "./viewLink";
 import { cascadeDialog, cascadeReview, closeDialog, closePriority, LifecycleCtx, moveBackToProposed, openPriorityOverlay, pullFromAbove, reopenPriority, sendCascade } from "./lifecycle";
 import { Initiative, adminScopeFor, initiativesByPriority, ownersLabel, ownersTitle, statusOf } from "../improvement/initiativeModel";
 import { actionCountsFor, PriorityState, priorityStatus, PriorityStatus, statusColour, StatusResult } from "../improvement/status";
 import { priorityCounts, statusLegend } from "../improvement/statusUi";
+import { objectiveCharts } from "../improvement/initiativeRow";
+import { offerStepMessage } from "./stepMessage";
 import { REOPEN_PRIORITY_KEY } from "../improvement/boardOrigin";
 import { PDCA_TOKENS } from "../improvement/templateModel";
 import { buildMetricState, loadMetricLasts, statusMetricsOf } from "../improvement/metricValues";
@@ -111,6 +115,11 @@ import {
   parsePrioritySettings,
   parseSiteCascadeSettings,
   pendingCascades,
+  PriorityAssignment,
+  isPulledProposal,
+  orphansOf,
+  reviewQueue,
+  waitingAt,
   periodFor,
   Pillar,
   pillarSpans,
@@ -252,7 +261,9 @@ function makeStatusesFor(
 }
 
 /** The Proposed row: collapsed until the person opens it, for the session. */
-let proposedOpen = false;
+/** The decision zone's rows (2026-11-18): open unless the person folds
+ *  one, for the session. Proposed was folded by default until then. */
+const zoneOpen = { proposed: true, cascaded: true, unplaced: true };
 
 export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts = {}): () => void {
   const card = opts.card ?? null;
@@ -423,7 +434,6 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
      *  Its owner or an admin — not the owner's direct reports, whose own
      *  additions and pulls wait as proposals. */
     const canApprove = (org: OrgRef) => canApproveAt(viewer, org, owners);
-    const reviewQueueLen = () => data.assignments.filter((a) => orgKey(a.org) === orgKey(state.org) && a.status === "onhold").length;
     // the year picker is a LENS over spans (2026-10-02): every period from
     // the earliest start to the later of next period and the latest end
     const periodsOnOffer = () =>
@@ -599,7 +609,10 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
     const openOverlay = (p: Priority) => {
       // shown ADOPTED at the viewed org: its managers get Customise / Drop
       const adopted = !sameOrg(p.org, state.org) && prioritiesForOrg(state.org, data.priorities, data.assignments).adopted.some((x) => x.id === p.id);
-      openPriorityOverlay(ctx, p, (live) => void editPriority(live), adopted ? state.org : null);
+      // …or it WAITS on this org (a cascade, a proposed pull): the answer
+      // is given in the popup (2026-11-18 — it was a separate list)
+      const waits = reviewQueue(state.org, data.assignments).some((a) => a.priorityId === p.id);
+      openPriorityOverlay(ctx, p, (live) => void editPriority(live), adopted ? state.org : null, waits ? state.org : null);
     };
 
     // ---- the render -------------------------------------------------------
@@ -666,6 +679,8 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       } else {
         wrap.appendChild(renderMatrix(columns, null));
       }
+      const unplacedBand = renderUnplaced();
+      if (unplacedBand) wrap.appendChild(unplacedBand);
       wrap.appendChild(renderOther());
       if (card?.onSnapshot) {
         const visible = visibleFor(state.org);
@@ -797,35 +812,42 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
         }
         return bar;
       }
-      // proposals waiting on this org's owner (issue 13): worded apart
-      // from "cascades to accept", which is the assignment queue
-      const proposedCount = proposedFor(state.org).length;
-      if (proposedCount > 0) {
-        const chip = el("button", "app-cp-cascadechip app-cp-proposedchip", `✎ ${proposedCount} proposed`) as HTMLButtonElement;
+      // ONE chip for everything waiting on this org (2026-11-18): the
+      // proposals raised from below and the cascades sent from above —
+      // they were two chips, one opening a row and one a pop-up. It
+      // takes the person to the zone at the foot of the page.
+      const waiting = waitingHere();
+      const awaiting = proposedFor(state.org).length + waiting.fromBelow.filter((a) => a.status === "proposed").length + waiting.fromAbove.filter((a) => a.status === "proposed").length;
+      if (awaiting > 0) {
+        const chip = el("button", "app-cp-cascadechip", `${awaiting} awaiting a decision`) as HTMLButtonElement;
         chip.type = "button";
-        chip.title = canApprove(state.org) ? "Priorities proposed for this org — open one to accept or decline it" : "Priorities proposed for this org, waiting for its owner or an admin";
+        chip.title = "Priorities proposed to this org and cascades sent to it — shown at the foot of the page";
         chip.addEventListener("click", () => {
-          proposedOpen = true;
+          zoneOpen.proposed = true;
+          zoneOpen.cascaded = true;
+          // a pillar filter would hide some of them
+          state.l1 = null;
           render();
-          wrap.querySelector(".app-cp-proposedrow")?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+          wrap.querySelector(".app-cp-zonelabel")?.scrollIntoView({ block: "center", behavior: "smooth" });
         });
         bar.appendChild(chip);
       }
-      // cascade chip — the one cascade surface
-      const pending = pendingCascades(state.org, data.assignments).length;
-      if (pending > 0) {
-        const chip = el("button", "app-cp-cascadechip", `⇩ ${pending} cascade${pending === 1 ? "" : "s"} to accept`) as HTMLButtonElement;
-        chip.type = "button";
-        chip.title = "Review the cascades sent to this org";
-        chip.addEventListener("click", () => cascadeReview(ctx, state.org));
-        bar.appendChild(chip);
-      } else if (reviewQueueLen() > 0) {
-        const chip = el("button", "app-cp-cascadechip app-cp-cascadechip-quiet", `⏸ ${reviewQueueLen()} parked`) as HTMLButtonElement;
-        chip.type = "button";
-        chip.title = "Cascades this org put on hold";
-        chip.addEventListener("click", () => cascadeReview(ctx, state.org));
-        bar.appendChild(chip);
-      }
+      // "Objectives": what the tiles carry, in view beside the button it
+      // sits left of — a switch that changes what is on screen is never
+      // hidden in a menu (it was the kebab's View choice)
+      const objTog = el("label", "app-cp-objtoggle");
+      const objSw = el("button", "app-tw-toggle" + (showObjectives() ? " app-tw-toggle-on" : "")) as HTMLButtonElement;
+      objSw.type = "button";
+      objSw.setAttribute("role", "switch");
+      objSw.setAttribute("aria-checked", String(showObjectives()));
+      objSw.title = showObjectives() ? "Hide the objectives on each priority" : "Show each priority's objectives as charts";
+      objSw.appendChild(el("span", "app-tw-toggle-knob"));
+      objSw.addEventListener("click", () => {
+        state.view = showObjectives() ? "dynamic" : "simple";
+        render();
+      });
+      objTog.append(objSw, el("span", undefined, "Objectives"));
+      bar.appendChild(objTog);
       const walk = el("button", "app-btn app-cp-tvbtn", "▶ Executive summary") as HTMLButtonElement;
       walk.type = "button";
       walk.title = "One pillar at a time: each priority's status, initiatives and key metrics, with a final step for cascades to accept";
@@ -1233,15 +1255,6 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
           render();
         });
       }
-      menu.appendChild(el("div", "app-cp-menu-h", "View"));
-      item("Priority/Objective view", state.view === "simple", () => {
-        state.view = "simple";
-        render();
-      });
-      item("Priority only view", state.view === "dynamic", () => {
-        state.view = "dynamic";
-        render();
-      });
       menu.appendChild(el("div", "app-cp-menu-h", "Show"));
       item("Other (unlinked initiatives)", state.showOther, () => {
         state.showOther = !state.showOther;
@@ -1311,38 +1324,15 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       cleanups.push(() => menu.remove());
     };
 
-    /** A priority's objectives: the primary initiative's ★ STARRED metrics
-     *  (Ben, 2026-09-23: several may be) — "Name: objective", then plan /
-     *  actual with a traffic light. ONE builder: the grid's Objectives row
-     *  and the present view show the same lines (2026-09-29 — the present
-     *  view carried a placeholder and never showed a metric). */
-    const objectiveLinesFor = (p: Priority): HTMLElement[] => {
-      const starred = objectivesOf(p);
-      // no placeholder line (Ben, 2026-10-31: the row repeated "No primary
-      // initiative" / "No metric value yet" down every column) — the row
-      // lists the metrics there are, and stays blank otherwise
-      if (starred.length === 0) return [];
-      return starred.map((mv) => {
-        const line = el("div", "app-cp-objective");
-        const light = el("span", "app-cp-objective-light");
-        light.style.background = mv.rag ? (palette[ragPaletteKey(mv.rag)] ?? "#9a948a") : "#d9d3c8";
-        light.title = mv.rag === "red" ? "Outside the limits" : mv.rag === "amber" ? "Short of plan" : mv.rag === "green" ? "On plan" : "No reading";
-        line.appendChild(light);
-        const text = el("div", "app-cp-objective-text");
-        const nameLine = el("div", "app-cp-objective-name");
-        nameLine.appendChild(el("span", undefined, mv.name));
-        if (mv.objective !== "") nameLine.appendChild(el("span", "app-cp-objective-obj", `: ${mv.objective}`));
-        nameLine.title = mv.objective !== "" ? `${mv.name}: ${mv.objective}` : mv.name;
-        text.appendChild(nameLine);
-        const nums = el("div", "app-cp-objective-nums");
-        nums.appendChild(el("span", "app-cp-objective-k", "Plan"));
-        nums.appendChild(el("span", "app-cp-objective-v", mv.target !== null ? `${mv.target}${mv.unit}` : "—"));
-        nums.appendChild(el("span", "app-cp-objective-k", "Actual"));
-        nums.appendChild(el("span", "app-cp-objective-v app-cp-objective-actual", mv.display !== "" ? mv.display : "—"));
-        text.appendChild(nums);
-        line.appendChild(text);
-        return line;
-      });
+    /** Do the tiles carry their objectives? The header's switch. Kept in
+     *  the old view's words so every saved preference, shared link and
+     *  board-card setting still reads: "dynamic" (the retired "Priority
+     *  only view") = objectives off. */
+    const showObjectives = (): boolean => state.view !== "dynamic";
+    /** What a tile's objective charts paint with. */
+    const tilePaint = {
+      colour: (st: string) => stateHex(st as PriorityState),
+      metricColour: (rag: "green" | "amber" | "red") => palette[ragPaletteKey(rag)] ?? "#9a948a",
     };
 
     // ---- the matrix -------------------------------------------------------
@@ -1366,6 +1356,9 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
     const proposedFor = (org: OrgRef): Priority[] =>
       prioritiesForOrg(org, data.priorities, data.assignments).own.filter((p) => p.status === "proposed" && priorityLiveIn(settings.period, p, state.period));
 
+    /** The cascades and pulls waiting on the org in view. */
+    const waitingHere = () => waitingAt(state.org, data.assignments);
+
     const renderMatrix = (columns: Pillar[], onlyL1: Pillar | null): HTMLElement => {
       const density = densityFor(columns.length);
       const phone = window.matchMedia("(max-width: 719px)").matches;
@@ -1374,8 +1367,9 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       const { byColumn, unplaced } = groupByColumn(columns, visible, colOf);
       const adoptedIds = new Set(prioritiesForOrg(state.org, data.priorities, data.assignments).adopted.map((p) => p.id));
 
-      const cardFor = (p: Priority, col: Pillar) =>
-        state.view === "dynamic" ? dynamicCard(p, col, adoptedIds.has(p.id)) : priorityCard(p, adoptedIds.has(p.id), density);
+      // ONE tile (2026-11-18): the "Priority only view" and its own card
+      // are retired — the Objectives switch decides what a tile carries
+      const cardFor = (p: Priority, _col: Pillar) => priorityCard(p, adoptedIds.has(p.id), density);
       if (phone) {
         for (const col of columns) {
           box.appendChild(el("div", "app-cp-ph-h", col.name));
@@ -1497,134 +1491,62 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       }
       if (columns.length === 0) grid.appendChild(el("div", "app-cp-cell"));
 
-      // row 4: Objectives (headline metrics — P5 fills these). Always shown
-      // at every density (Ben, 2026-08-19); in Dynamic the metric lives on
-      // the card, so the row is not repeated.
-      if (state.view === "dynamic") {
-        // fall through to the unplaced note
-      } else {
-      grid.appendChild(el("div", "app-cp-label", "Objectives"));
-      for (const col of columns) {
-        const cell = el("div", "app-cp-cell app-cp-cell-obj");
-        const items = byColumn.get(col.id) ?? [];
-        for (const p of items) for (const line of objectiveLinesFor(p)) cell.appendChild(line);
-        grid.appendChild(cell);
-      }
-      if (columns.length === 0) grid.appendChild(el("div", "app-cp-cell"));
-      }
-
-      // row 5: Proposed (issue 13, 2026-11-16) — under the objectives, in
-      // their columns; absent with none, collapsed to a count per column
-      // until opened. Dashed, no tallies: a proposal counts for nothing yet
-      const proposals = proposedFor(state.org);
-      if (proposals.length > 0) {
-        const byCol = groupByColumn(columns, proposals, colOf).byColumn;
-        const label = el("button", "app-cp-label app-cp-proposedlabel", `${proposedOpen ? "▾" : "▸"} Proposed`) as HTMLButtonElement;
+      // ---- the decision zone (2026-11-18): what waits on this org, under
+      // the priorities and in their columns. "Proposed" is what was
+      // raised from below (issue 13, 2026-11-16); "Cascaded to you" is
+      // what was sent from above — it used to be a header chip and a
+      // pop-up list. Each row is absent when empty and OPEN unless the
+      // person folds it. Dashed, no tallies: none of it counts yet.
+      const filtered = onlyL1 !== null || focusNow() !== null;
+      /** A row of the zone: the label that folds it, a cell per column. */
+      const zoneRow = (key: "proposed" | "cascaded", name: string, tiles: { col: string; card: () => HTMLElement }[]) => {
+        // a tile whose sub-pillar is not a column on screen: hidden by a
+        // filter like everything else; with no filter it has lost its
+        // column and stands in the first one rather than vanish
+        const shown = new Set(columns.map((c) => c.id));
+        const placed = tiles.filter((t) => shown.has(t.col));
+        const loose = filtered ? [] : tiles.filter((t) => !shown.has(t.col));
+        if (placed.length + loose.length === 0) return;
+        const open = zoneOpen[key];
+        const label = el("button", "app-cp-label app-cp-proposedlabel app-cp-zonelabel", `${open ? "▾" : "▸"} ${name}`) as HTMLButtonElement;
         label.type = "button";
-        label.title = proposedOpen ? "Hide the proposed priorities" : `Show the ${proposals.length} proposed priorit${proposals.length === 1 ? "y" : "ies"}`;
-        label.setAttribute("aria-expanded", String(proposedOpen));
+        label.title = open ? `Fold “${name}”` : `Show the ${placed.length + loose.length} under “${name}”`;
+        label.setAttribute("aria-expanded", String(open));
         label.addEventListener("click", () => {
-          proposedOpen = !proposedOpen;
+          zoneOpen[key] = !zoneOpen[key];
           render();
         });
         grid.appendChild(label);
-        for (const col of columns) {
+        columns.forEach((col, n) => {
           const cell = el("div", "app-cp-cell app-cp-proposedrow");
-          const items = byCol.get(col.id) ?? [];
-          if (!proposedOpen) {
+          const items = [...placed.filter((t) => t.col === col.id), ...(n === 0 ? loose : [])];
+          if (!open) {
             if (items.length > 0) {
-              const chip = el("button", "app-cp-proposedcount", `${items.length} proposed`) as HTMLButtonElement;
+              const chip = el("button", "app-cp-proposedcount", String(items.length)) as HTMLButtonElement;
               chip.type = "button";
+              chip.title = `Show the ${items.length} here`;
               chip.addEventListener("click", () => {
-                proposedOpen = true;
+                zoneOpen[key] = true;
                 render();
               });
               cell.appendChild(chip);
             }
           } else {
-            for (const p of items) cell.appendChild(proposedCard(p));
+            for (const t of items) cell.appendChild(t.card());
           }
           grid.appendChild(cell);
-        }
-        if (columns.length === 0) grid.appendChild(el("div", "app-cp-cell"));
-      }
-
-      // priorities whose sub-pillar is not a shown column
-      if (unplaced.length > 0 && onlyL1 === null) {
-        const note = el("div", "app-cp-unplaced");
-        note.appendChild(el("span", "app-cp-muted", `${unplaced.length} priorit${unplaced.length === 1 ? "y" : "ies"} under a retired or filtered sub-pillar: `));
-        for (const p of unplaced) {
-          const b = el("button", "app-link", p.statement.slice(0, 60)) as HTMLButtonElement;
-          b.type = "button";
-          b.addEventListener("click", () => void editPriority(p));
-          note.appendChild(b);
-        }
-        box.appendChild(note);
-      }
-      return box;
-    };
-
-    // ---- Dynamic view (§5, as Ben wants it 2026-08-19): SAME matrix —
-    // pillars over sub-pillar columns — the card carries every detail
-    // (metric, owner, tallies, lineage) and the Objectives row folds into it.
-    const dynamicCard = (p: Priority, col: Pillar | null, adopted: boolean): HTMLElement => {
-      const ps = pStatus(p);
-      const card = el("div", "app-cp-dcard");
-      card.style.borderLeftColor = stateHex(ps.state);
-      void col; // the column head names the pillar — no strip on the card
-      if (canManage() && !adopted) {
-        const kebab = el("button", "app-cp-kebab", "⋮") as HTMLButtonElement;
-        kebab.type = "button";
-        kebab.title = "Edit · cascade · reorder · complete";
-        kebab.addEventListener("click", (e) => {
-          e.stopPropagation();
-          openCardMenu(kebab, p);
         });
-        card.appendChild(kebab);
-      }
-      const body = el("div", "app-cp-dcard-body");
-      body.appendChild(el("div", "app-cp-dcard-statement", p.statement));
-      // headline metric: large value + target + 96×40 sparkline (P5 fills)
-      const metric = el("div", "app-cp-dcard-metric");
-      const val = el("div", "app-cp-dcard-value");
-      // the primary initiative's first ★ starred metric (Ben, 2026-09-14);
-      // its objective, when written, captions it
-      const livePrimary = primaryIdOf(p);
-      const mv = livePrimary !== "" ? (valuesOf(livePrimary)[0] ?? null) : (objectivesOf(p)[0] ?? null);
-      if (mv) {
-        const num = el("span", "app-cp-dcard-num", mv.display !== "" ? mv.display : "—");
-        if (mv.rag) num.style.color = palette[ragPaletteKey(mv.rag)] ?? "";
-        val.appendChild(num);
-        val.appendChild(el("span", "app-cp-dcard-target", `${mv.name}${mv.objective !== "" ? `: ${mv.objective}` : ""}${mv.target !== null ? ` · plan ${mv.target}${mv.unit}` : ""}`));
-      } else {
-        val.appendChild(el("span", "app-cp-dcard-num app-cp-muted", "—"));
-        val.appendChild(el("span", "app-cp-dcard-target", livePrimary !== "" || p.objectives.length > 0 ? "No metric value yet" : "No primary initiative"));
-      }
-      metric.appendChild(val);
-      const spark = el("div", "app-cp-dcard-spark");
-      spark.title = "Sparkline — follows the headline metric";
-      metric.appendChild(spark);
-      body.appendChild(metric);
-      // owner chip + name (dynamic shows it; the matrix card omits it)
-      const owner = el("div", "app-cp-dcard-owner");
-      const chip = el("span", "app-cp-dcard-initials", p.ownerName !== "" ? initialsFor(p.ownerName) : "—");
-      owner.append(chip, el("span", p.ownerName !== "" ? "" : "app-cp-muted", p.ownerName !== "" ? p.ownerName : "No owner"));
-      body.appendChild(owner);
-      // tallies + total, lineage, flags — same as the matrix card
-      const meta = el("div", "app-cp-tallies");
-      // the three circles ARE the count — no "· n initiatives" beside
-      // them (Ben, 2026-11-17: the total repeated their sum)
-      meta.appendChild(priorityCounts(ps, stateHex, "s", false));
-      body.appendChild(meta);
-      if (p.status !== "active") body.appendChild(el("div", "app-cp-flag", p.status === "completed" ? "✓ Completed" : p.status === "archived" ? "▣ Archived" : "▣ Retired"));
-      if (parentClosed(p, data.priorities)) body.appendChild(el("div", "app-cp-flag app-cp-flag-amber", "▲ Parent completed — decide"));
-      if (reviewDue(settings.period, p, state.period)) body.appendChild(el("div", "app-cp-flag app-cp-flag-amber", `⟳ Past its planned end (${p.plannedEnd}) — review`));
-      card.appendChild(body);
-      card.addEventListener("click", () => {
-        state.lastColumn = p.pillarId;
-        openOverlay(p);
-      });
-      return card;
+        if (columns.length === 0) grid.appendChild(el("div", "app-cp-cell"));
+      };
+      const waiting = waitingHere();
+      const waitingTiles = (list: PriorityAssignment[]) =>
+        list.flatMap((a) => {
+          const p = data.priorities.find((x) => x.id === a.priorityId);
+          return p ? [{ col: colOf(p), card: () => waitingCard(a, p) }] : [];
+        });
+      zoneRow("proposed", "Proposed", [...proposedFor(state.org).map((p) => ({ col: colOf(p), card: () => proposedCard(p) })), ...waitingTiles(waiting.fromBelow)]);
+      zoneRow("cascaded", "Cascaded to you", waitingTiles(waiting.fromAbove));
+      return box;
     };
 
     /** A proposal in the Proposed row: its statement and who proposed it,
@@ -1639,6 +1561,127 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       return card;
     };
 
+    /** A cascade sent to this org, or a pull a direct report proposed,
+     *  still to be answered: the priority's statement and where it came
+     *  from, dashed like a proposal. Click opens the priority itself,
+     *  where the answer is given. */
+    const waitingCard = (a: PriorityAssignment, p: Priority): HTMLElement => {
+      const pulled = isPulledProposal(a);
+      const held = a.status === "onhold";
+      const card = el("button", "app-cp-card app-cp-card-proposed" + (held ? " app-cp-card-held" : "")) as HTMLButtonElement;
+      card.type = "button";
+      card.appendChild(el("div", "app-cp-statement", p.statement));
+      card.appendChild(
+        el(
+          "div",
+          "app-cp-proposedmeta",
+          pulled ? `Proposed · pulled from ${orgName(p.org)}${a.decidedByName !== "" ? ` by ${a.decidedByName}` : ""}` : held ? `On hold · from ${orgName(p.org)}` : `From ${orgName(p.org)}${p.ownerName !== "" ? ` · ${p.ownerName}` : ""}`
+        )
+      );
+      const decides = pulled ? canApprove(state.org) : canManage();
+      card.title = held && a.reason !== "" ? `On hold — “${a.reason}”` : decides ? "Open to accept or decline" : pulled ? "Waiting for the org's owner or an admin" : "Waiting for someone who manages this org";
+      card.addEventListener("click", () => ctx.open(p));
+      return card;
+    };
+
+    /** The priorities with no column in the year shown (their sub-pillar
+     *  ended and nothing follows it): a band of their own under the
+     *  matrix, each with the one thing to do about it. It was a line of
+     *  links that opened Edit for anyone, and it counted priorities that
+     *  were only hidden by a pillar filter. */
+    const renderUnplaced = (): HTMLElement | null => {
+      const visible = visibleFor(state.org);
+      const lost = orphansOf(visible, colOf, livePillars());
+      if (lost.length === 0) return null;
+      const adoptedIds = new Set(prioritiesForOrg(state.org, data.priorities, data.assignments).adopted.map((p) => p.id));
+      const box = el("div", "app-cp-unplacedband");
+      const open = zoneOpen.unplaced;
+      const label = el("button", "app-cp-label app-cp-proposedlabel", `${open ? "▾" : "▸"} Unplaced`) as HTMLButtonElement;
+      label.type = "button";
+      label.title = `${lost.length} priorit${lost.length === 1 ? "y" : "ies"} whose sub-pillar is not in use in ${state.period}`;
+      label.setAttribute("aria-expanded", String(open));
+      label.addEventListener("click", () => {
+        zoneOpen.unplaced = !zoneOpen.unplaced;
+        render();
+      });
+      const cell = el("div", "app-cp-cell app-cp-unplacedrow");
+      if (!open) {
+        cell.appendChild(el("span", "app-cp-muted", `${lost.length} unplaced`));
+      } else {
+        for (const p of lost) {
+          const adopted = adoptedIds.has(p.id);
+          const item = el("div", "app-cp-unplaceditem");
+          item.appendChild(priorityCard(p, adopted, "comfortable"));
+          if (!adopted && canManageOrg(viewer, p.org, owners)) {
+            const place = el("button", "app-link", "Place under…") as HTMLButtonElement;
+            place.type = "button";
+            place.addEventListener("click", () => void placeUnder(p));
+            item.appendChild(place);
+          } else {
+            item.appendChild(el("span", "app-cp-muted", adopted ? `Placed by ${orgName(p.org)}` : "Placed by its org's owner"));
+          }
+          cell.appendChild(item);
+        }
+      }
+      box.append(label, cell);
+      return box;
+    };
+
+    /** "Place under…": the year's sub-pillars; the priority sits under
+     *  the one chosen FROM that year on, its earlier years as they were. */
+    const placeUnder = (p: Priority): Promise<void> =>
+      new Promise((resolve) => {
+        const m = modal(wrap, "Place under a sub-pillar", `“${p.statement.slice(0, 90)}” — from ${state.period}; its earlier years stay as they were.`);
+        const sel = el("select", "app-input") as HTMLSelectElement;
+        const none = el("option", "", "Choose…") as HTMLOptionElement;
+        none.value = "";
+        sel.appendChild(none);
+        const subs = objectiveColumns(livePillars(), null);
+        for (const top of strategyChips(livePillars())) {
+          const kids = subs.filter((c) => c.parentId === top.id);
+          if (kids.length === 0) continue;
+          const group = document.createElement("optgroup");
+          group.label = top.name;
+          for (const c of kids) {
+            const o = el("option", "", c.name) as HTMLOptionElement;
+            o.value = c.id;
+            group.appendChild(o);
+          }
+          sel.appendChild(group);
+        }
+        const f = field("Sub-pillar", sel);
+        f.querySelector(".app-field-label")?.appendChild(requiredStar());
+        m.body.appendChild(f);
+        const cancel = el("button", "app-link", "Cancel") as HTMLButtonElement;
+        cancel.type = "button";
+        cancel.addEventListener("click", () => {
+          m.close();
+          resolve();
+        });
+        const save = el("button", "app-btn app-btn-primary", "Place") as HTMLButtonElement;
+        save.type = "button";
+        save.disabled = true;
+        sel.addEventListener("change", () => {
+          save.disabled = sel.value === "";
+        });
+        save.addEventListener("click", () => {
+          const to = sel.value;
+          if (to === "") return;
+          m.close();
+          void (async () => {
+            const moved = moveFrom(settings.period, p, state.period, to);
+            const next: Priority = { ...p, pillarId: moved.pillarId, placements: moved.placements };
+            await savePriority(next, data);
+            Object.assign(p, next);
+            await appendEvent(p, "edited", { fields: "sub-pillar", from: state.period }, actor());
+            await reload();
+            resolve();
+          })();
+        });
+        m.footer.append(cancel, save);
+        sel.focus();
+      });
+
     const priorityCard = (p: Priority, adopted: boolean, density: ReturnType<typeof densityFor>): HTMLElement => {
       const ps = pStatus(p);
       const card = el("div", "app-cp-card");
@@ -1651,6 +1694,10 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       // the total only repeated their sum)
       meta.appendChild(priorityCounts(ps, stateHex, density === "compact" ? "xs" : "s", false));
       card.appendChild(meta);
+      // its objectives, as charts under the circles (Ben, 2026-11-18 —
+      // they were a row of their own): titled by the objective's words,
+      // no numbers, two to a row
+      if (showObjectives()) card.appendChild(objectiveCharts(objectivesOf(p), tilePaint));
       // cascade lineage and sender flags live in the detail overlay, not
       // on the card (Ben, 2026-08-19)
       if (p.status !== "active") {
@@ -1814,7 +1861,11 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       data.priorities.push(r.priority);
       await appendEvent(r.priority, approves ? "created" : "proposed", { statement: r.priority.statement }, actor());
       if (approves) await cascade(r.priority, r.cascadeTo);
-      else proposedOpen = true; // show the person where it went
+      else {
+        zoneOpen.proposed = true; // show the person where it went
+        // …and offer to tell the one who decides
+        offerStepMessage({ step: "proposed", statement: r.priority.statement, org: state.org, to: [ownerFor(state.org)?.whoId ?? ""], linkOrg: state.org, period: state.period }, actor(), roster);
+      }
       await reload();
     };
 

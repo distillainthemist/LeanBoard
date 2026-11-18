@@ -3550,20 +3550,25 @@
      "cases": [
       {
        "id": "UAT-PRI-001",
-       "title": "The Objectives row lists metrics only",
+       "title": "Objectives sit on each priority, as charts",
        "journey": "Journey 1 — The wall",
        "persona": "viewer",
        "modules": [
-        "priorities/prioritiesScreen.ts"
+        "priorities/prioritiesScreen.ts",
+        "improvement/initiativeRow.ts",
+        "improvement/sparkline.ts"
        ],
-       "preconditions": "a wall with three or more priorities in view: one whose primary initiative has starred metrics with values, one whose primary initiative has none starred, one with no primary initiative",
+       "preconditions": "a wall with four or more priorities in view: one whose primary initiative has one starred metric with several readings; one with three or more starred metrics, at least one with an objective sentence written and one without; one whose only metric is good / bad or a picklist; one with no primary initiative and nothing ticked on its Objectives tab",
        "steps": [
-        "Priorities tab in the matrix view; read the Objectives row under each column.",
-        "Open ▶ Executive summary and step to the same priorities."
+        "Priorities tab in the matrix view; read the rows of the matrix and each priority's tile.",
+        "Rest the pointer on a chart and on its title.",
+        "Turn off the \"Objectives\" switch to the left of ▶ Executive summary; turn it on again; close and reopen the app.",
+        "Open ⋮ in the toolbar. Open ▶ Executive summary and step to the same priorities.",
+        "Open a priority and read the Key metrics of its initiative rows; open the Improvement tab and read the same column."
        ],
-       "expected": "the Objectives row shows \"Name: objective\" with plan / actual and a traffic light for each starred metric, and is BLANK under a priority with no starred metric or no primary initiative — no \"No primary initiative\" or \"No metric value yet\" line anywhere in the row; the executive summary shows the SAME metrics as tiles on each closed priority card, and none where the row is blank",
-       "hash": "fe2b5b19",
-       "changed": "2026-11-17"
+       "expected": "step 1 there is NO Objectives row under the priorities: each tile carries its objectives under its three circles as small charts, two to a row, a third wrapping under and the tile growing with them; a chart is titled by the objective's sentence where one was written, else the metric's name, on one line cut with \"…\"; there are NO numbers on the tile; a good / bad or picklist metric shows its state as a coloured chip in place of a chart; a priority with no objectives shows none and no placeholder; step 2 the tooltip gives the metric's name, its objective, the latest reading and the plan; step 3 off, every tile is its statement and circles alone; the switch is on by default and the choice is remembered for this person and org; step 4 the ⋮ menu has no View section; the executive summary shows the same metrics on each closed priority card; step 5 each metric there is its name over a taller chart with no \"reading · plan\" line beneath",
+       "hash": "afbcd5a9",
+       "changed": "2026-11-18"
       },
       {
        "id": "UAT-PRI-002",
@@ -3580,9 +3585,9 @@
         "Change the year with the year pill in the header.",
         "⋮ → Show → Health check scores; close and reopen the app."
        ],
-       "expected": "the menu has Status · View · Show · Share — no Period section and no Roll-up rule (the strict / ratio rule went with the status rule, 2026-11-17) — the year pill (and the phone head's Period select) is the one period door; Health check scores is off by default and the headers carry no chip; on, the chips appear and the choice is remembered for this person across sessions",
-       "hash": "753d23ca",
-       "changed": "2026-11-17"
+       "expected": "the menu has Status · Show · Share — no View section (the Objectives switch in the toolbar replaced it, 2026-11-18), no Period section and no Roll-up rule (the strict / ratio rule went with the status rule, 2026-11-17) — the year pill (and the phone head's Period select) is the one period door; Health check scores is off by default and the headers carry no chip; on, the chips appear and the choice is remembered for this person across sessions",
+       "hash": "e7bc18e6",
+       "changed": "2026-11-18"
       }
      ]
     },
@@ -3770,18 +3775,18 @@
        "preconditions": "an org with an owner; a direct report of that owner able to sign in; the org's site admin; an accepted priority with an initiative; a priority set at the org above",
        "steps": [
         "As the direct report, press ＋ Priority. Read the dialog's title, fill it in and save.",
-        "Read the matrix: the Priorities row, the Objectives row, the row beneath, and the chip in the bar. Open the row.",
+        "Read the matrix: the Priorities row, the row beneath, and the chip in the bar. Fold the row and open it again.",
         "As the direct report, open the proposal: read the header and its buttons; edit its wording; create an initiative under it.",
-        "As the direct report, ＋ Priority → Pull from above: read the buttons, pick a priority and \"Propose as-is\". Read the cascades chip.",
-        "As the owner, read the same screen; open \"to accept\", accept the pull; open the proposal and press Accept.",
+        "As the direct report, ＋ Priority → Pull from above: read the buttons, pick a priority and \"Propose as-is\". Read the Proposed row and the chip.",
+        "As the owner, read the same screen; open the pull's tile and press Accept; open the proposal and press Accept.",
         "As the direct report, propose another. As the owner, Decline it with a reason.",
         "As the direct report, set Status to All, open the declined one, read its buttons, and press Propose again.",
         "As the direct report, edit, complete and cascade an ACCEPTED priority.",
         "As the owner, open the ⋮ of an accepted priority that an org below has adopted as-is and another has customised; choose \"Move back to proposed…\", read the question and confirm. Read both boards, then Accept it again. As the direct report, open the same ⋮."
        ],
-       "expected": "step 1 the dialog reads \"Propose a priority\" and offers no cascade targets; step 2 the proposal is in NO column of the Priorities row and adds nothing to Objectives, tallies or the poster; a \"▸ Proposed\" row sits under Objectives with \"1 proposed\" in its column and the bar shows \"✎ 1 proposed\"; opening the row shows a dashed card with no tallies; step 3 the header reads \"Proposed — waiting for the org's owner or an admin\", with Edit but no Accept, Decline or Reopen; the initiative form lists the priority tagged \"(proposed)\"; step 4 the buttons read \"Propose as-is\" / \"Propose & customise…\" with a line saying a pull is proposed; the pull waits in \"cascades to accept\" marked \"Pulled … by <name> — proposed\" with its buttons greyed for the direct report; step 5 the owner (and the site admin) can accept both — the accepted priority joins its column and starts to count; step 6 it leaves the Proposed row; step 7 the declined one reads \"Declined — <reason>\" and offers \"Propose again\", never \"Reopen\", to someone who cannot approve; step 8 the direct report can do all three, as before; step 9 the question says it stops counting and names \"1 org adopted it as-is\" and \"1 customised copy below stays\"; confirmed, it sits in the Proposed row with no tallies, its initiatives no longer feed the objectives above, the adopting org's board no longer shows it and the customising org's own copy is untouched; History reads \"moved back to proposed\"; Accept puts everything back; the direct report's ⋮ has no such item",
-       "hash": "cac2a94e",
-       "changed": "2026-11-16"
+       "expected": "step 1 the dialog reads \"Propose a priority\" and offers no cascade targets; step 2 the proposal is in NO column of the Priorities row and adds nothing to objectives, tallies or the poster; a \"▾ Proposed\" row sits under the priorities, OPEN, with a dashed card and no tallies in its column, and the bar shows \"1 awaiting a decision\"; folded, its column shows the count; after sending, a \"Let the owner know\" panel is offered (Skip, Send email, Send by Teams) addressed to the org's owner; step 3 the header reads \"Proposed — waiting for the org's owner or an admin\", with Edit but no Accept, Decline or Reopen; the initiative form lists the priority tagged \"(proposed)\"; step 4 the buttons read \"Propose as-is\" / \"Propose & customise…\" with a line saying a pull is proposed; the pull waits in the Proposed row as a dashed card reading \"Proposed · pulled from <org> by <name>\"; opened by the direct report its header reads \"… waiting for the org's owner or an admin\" with no Accept or Decline; step 5 the owner (and the site admin) can accept both — the accepted priority joins its column and starts to count; step 6 it leaves the Proposed row; step 7 the declined one reads \"Declined — <reason>\" and offers \"Propose again\", never \"Reopen\", to someone who cannot approve; step 8 the direct report can do all three, as before; step 9 the question says it stops counting and names \"1 org adopted it as-is\" and \"1 customised copy below stays\"; confirmed, it sits in the Proposed row with no tallies, its initiatives no longer feed the objectives above, the adopting org's board no longer shows it and the customising org's own copy is untouched; History reads \"moved back to proposed\"; Accept puts everything back; the direct report's ⋮ has no such item",
+       "hash": "c2df2b67",
+       "changed": "2026-11-18"
       },
       {
        "id": "UAT-PRI-011",
@@ -3861,6 +3866,35 @@
        "expected": "step 1 the button reads \"Executive summary\" (no \"Present\") and the summary fills the app's window WITHOUT taking the browser full screen; each card's open / close control is a round button with a chevron, pointing right when closed and down (filled) when open; the head shows the year pill, \"Executive summary · <org>\" and \"Pillar : Sub-pillar\"; each priority is one card with its status edge, title, owner, the three labelled circles On track / Flagged / Off track and its objectives as sparkline tiles (a line over a green band where the metric is good and red where it is not; at most four, then \"+n\"); step 2 the card's own metric tiles go and the initiatives show under the SAME header and as the SAME rows as the popup and the Improvement list, larger: Initiative (status in small caps above the title, the i for the reasons — press it, nothing hovers on a wall screen; the primary first, heavy-bordered) · Stage pill · Actions Done / Future / Late · Key metrics as sparkline tiles · Support needed, which carries the note of an initiative that asked; confidential initiatives the viewer may not see are counted and summed in one \"not shown\" line; step 3 every card on the page opens, then closes; the arrows step sub-pillar by sub-pillar and a final \"Cascades to accept\" step appears when any are pending; the title opens the priority's popup; step 4 the board opens, and coming back lands in the summary on the same step with the same cards open; step 5 the wall returns; on a phone the summary IS the page, stacked, with no Exit",
        "hash": "e26cbf5c",
        "changed": "2026-11-17"
+      },
+      {
+       "id": "UAT-PRI-014",
+       "title": "The decision zone: cascades, proposals and unplaced priorities",
+       "journey": "Journey 5 — The status rule and the executive summary (2026-11-17)",
+       "persona": "orgowner",
+       "modules": [
+        "priorities/prioritiesScreen.ts",
+        "priorities/lifecycle.ts",
+        "priorities/model.ts",
+        "priorities/stepMessage.ts",
+        "priorities/stepMessageModel.ts",
+        "actions/message.ts"
+       ],
+       "preconditions": "a site you own under a company; the company's owner able to sign in; a direct report of yours; three active company priorities not yet at the site; a site priority under a sub-pillar that ends this year with nothing following it; Teams or email available",
+       "steps": [
+        "As the company's owner, cascade two priorities to the site (the ⋮ on a tile → Cascade to…). Read what is offered afterwards.",
+        "As the site's owner, open Priorities: read the bar and the foot of the matrix.",
+        "Open the first cascade's tile. Read the header and its buttons. Press Hold…, give a reason.",
+        "Open the second and press Accept. Read the matrix and what is offered.",
+        "Open the held one; press Accept & customise…, change the wording and save.",
+        "As the direct report, open a waiting cascade (have the company send a third). Then as a person who does not manage the site.",
+        "Turn on a pillar filter (click a pillar), then clear it. Move the year forward to next year.",
+        "On the unplaced priority press \"Place under…\"; read the dialog; choose a sub-pillar and Place. Go back a year.",
+        "As the direct report, read the same Unplaced band. As the company's owner, read the priority's Cascade tab."
+       ],
+       "expected": "step 1 a \"Let them know\" panel is offered, addressed to the site's owner, with Skip, Send email and Send by Teams — nothing is sent unless one is pressed; step 2 the bar shows ONE chip, \"2 awaiting a decision\" (no \"cascades to accept\" chip, no pop-up list); under the priorities a row \"▾ Cascaded to you\", open, holds each cascade as a dashed tile under the sub-pillar it would land in, reading \"From <company> · <owner>\"; clicking the chip scrolls to it; step 3 the priority's own popup opens with \"Cascaded to <site> — yours to accept or decline\" and the buttons Decline…, Hold…, Accept & customise… and ONE solid button, Accept — no Add initiative; Hold asks for a reason, the tile stays in the row dimmed and reading \"On hold · from <company>\", the chip drops to 1, and a \"Let the sender know\" panel is offered to the company priority's owner carrying the reason; step 4 the priority joins its column as adopted and the row loses the tile; the sender is offered \"… accepted …\"; step 5 the site has its own priority with the new wording and the held tile is gone; step 6 a direct report sees the same buttons and may answer a cascade; a person who does not manage the site sees \"… waiting for someone who manages the org\" and no buttons; step 7 a pillar filter hides the tiles of other pillars and reports NOTHING as unplaced; in the next year an \"▾ Unplaced\" band under the matrix holds the priority whose sub-pillar ended, with \"Place under…\"; a priority whose sub-pillar is followed by another sits in the follower's column, not here; step 8 the dialog lists that year's sub-pillars grouped by pillar, Sub-pillar carries a red asterisk and Place is disabled until one is chosen; placed, the priority sits in that column from that year on and in its old column the year before; step 9 someone who does not manage the priority's org sees \"Placed by its org's owner\" and no link; the company's Cascade tab shows the site's answers as before",
+       "hash": "8df27adf",
+       "changed": "2026-11-18"
       }
      ]
     }

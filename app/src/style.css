@@ -2758,6 +2758,8 @@ button.app-docs-navterm.app-docs-navterm-on {
 .app-docs-addbody { display: flex; flex-direction: column; gap: 10px; max-height: min(64vh, 560px); overflow-y: auto; text-align: left; }
 .app-docs-addfield { display: flex; flex-direction: column; gap: 3px; border-left: 3px solid transparent; padding-left: 6px; margin-left: -9px; }
 .app-docs-addfield-missing { border-left-color: #a4262c; background: #fff6f6; }
+/* a required field's mark in the app's own dialogs: a quiet red asterisk */
+.app-req-star { margin-left: 2px; font-size: 11px; line-height: 0; color: #c4314b; font-weight: 600; cursor: default; }
 .app-field-req { display: inline-block; margin-left: 8px; font-size: 10.5px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; color: #a4262c; background: #fde7e9; border-radius: 4px; padding: 1px 6px; vertical-align: middle; }
 .app-docs-colwarn { color: #a4262c; }
 .app-docs-filepick { display: flex; flex-direction: column; gap: 6px; }
@@ -3455,7 +3457,7 @@ button.app-doclist-hsort:hover { color: var(--app-accent, #2563eb); }
 /* every column cell may shrink below its content; long words break rather
    than widen the grid (the page scrolls vertically, never sideways) */
 .app-cp-grid > * { min-width: 0; }
-.app-cp-cell, .app-cp-card, .app-cp-dcard, .app-cp-colhead, .app-cp-l1span, .app-cp-label { min-width: 0; overflow-wrap: anywhere; }
+.app-cp-cell, .app-cp-card, .app-cp-colhead, .app-cp-l1span, .app-cp-label { min-width: 0; overflow-wrap: anywhere; }
 .app-cp-scroll .app-cp-grid { min-width: calc(126px + 7 * 220px); }
 .app-cp-label {
   font-size: 11.5px;
@@ -3542,8 +3544,13 @@ button.app-doclist-hsort:hover { color: var(--app-accent, #2563eb); }
 .app-cp-kebab:hover { color: #26241f; }
 .app-cp-metric { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; padding: 3px 6px; }
 .app-cp-metric-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.app-cp-unplaced { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; font-size: 12.5px; padding: 8px 4px 0; }
-.app-cp-unplaced .app-link { cursor: pointer; border: none; background: none; }
+/* "Unplaced" (2026-11-18): the priorities with no column in the year
+   shown, a band of their own under the matrix on the matrix's own rail */
+.app-cp-unplacedband { display: grid; grid-template-columns: 126px minmax(0, 1fr); gap: 6px; margin-top: 6px; }
+.app-cp-unplacedrow { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; border-top: 1px dashed #d9d3c8; }
+.app-cp-unplaceditem { width: min(280px, 100%); display: flex; flex-direction: column; gap: 4px; }
+.app-cp-unplaceditem > .app-link { align-self: flex-start; font-size: 12.5px; cursor: pointer; border: none; background: none; padding: 0 2px; }
+.app-cp-unplaceditem > .app-cp-muted { font-size: 12px; padding: 0 2px; }
 .app-cp-other { font-size: 13px; padding: 8px 12px; border-top: 1px dashed #d9d3c8; }
 /* phone stacking */
 .app-cp-phone { display: flex; flex-direction: column; gap: 6px; }
@@ -3596,6 +3603,8 @@ button.app-cp-proposedcount:hover { border-color: var(--app-accent); color: var(
 button.app-cp-card-proposed { font: inherit; text-align: left; width: 100%; cursor: pointer; border-style: dashed; border-left-style: dashed; border-color: #b9b2a4; background: #faf9f7; color: inherit; }
 button.app-cp-card-proposed:hover { border-color: var(--app-accent); }
 .app-cp-proposedmeta { font-size: 11.5px; color: #6d675c; margin-top: 4px; }
+/* a cascade this org has put on hold: still waiting, quieter */
+button.app-cp-card-held { opacity: 0.72; }
 .app-cp-flag-red { color: #b3261e; }
 .app-cp-flag-amber { color: #7a4d00; }
 .app-cp-q { font-weight: 600; font-size: 13.5px; }
@@ -3689,26 +3698,6 @@ button.app-cp-card-proposed:hover { border-color: var(--app-accent); }
   .app-cp-overlay { max-height: 100%; overflow: auto; }
 }
 /* Dynamic view (P3): the same matrix, richer cards */
-.app-cp-dcard {
-  position: relative;
-  background: #fff;
-  border: 1px solid #e4dfd6;
-  border-left: 4px solid #9a948a;
-  border-radius: 10px;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-}
-.app-cp-dcard:hover { border-color: #cfc8bc; border-left-width: 4px; }
-.app-cp-dcard-body { padding: 10px 26px 12px 12px; display: flex; flex-direction: column; gap: 8px; }
-.app-cp-dcard-statement { font-size: 14.5px; font-weight: 600; line-height: 1.35; text-wrap: pretty; }
-.app-cp-dcard-metric { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 0; }
-.app-cp-dcard-value { display: flex; flex-direction: column; }
-.app-cp-dcard-num { font-size: 22px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
-.app-cp-dcard-target { font-size: 12px; color: #6d675c; }
-.app-cp-dcard-spark { width: 96px; height: 40px; border-bottom: 1px dashed #d9d3c8; border-radius: 2px; background: repeating-linear-gradient(90deg, transparent 0 22px, #f4f1ea 22px 24px); }
-.app-cp-dcard-owner { display: flex; align-items: center; gap: 8px; font-size: 13px; }
-.app-cp-dcard-initials { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: #26241f; color: #fff; font-size: 11px; font-weight: 700; }
 .app-cp-cascade-h { font-size: 12px; font-weight: 700; padding: 6px 0 2px; border-top: 1px dashed #e4dfd6; margin-top: 4px; }
 .app-cp-cascade-h:first-child { border-top: none; margin-top: 0; }
 .app-cp-cascade-peer .app-cp-cascade-org { font-weight: 500; }
@@ -3739,13 +3728,9 @@ button.app-cp-card-proposed:hover { border-color: var(--app-accent); }
 .app-cp-tv .app-cp-label { font-size: 13px; }
 .app-cp-tv .app-cp-l1span, .app-cp-tv .app-cp-colhead { font-size: 17px; min-height: 52px; }
 .app-cp-tv .app-cp-statement { font-size: 14px; font-weight: 600; }
-.app-cp-tv .app-cp-dcard-statement { font-size: 14.5px; }
 .app-cp-tv .app-cp-tallies { font-size: 13px; }
 .app-cp-tv .app-cp-lineage, .app-cp-tv .app-cp-flag { font-size: 15px; }
 .app-cp-tv .app-cp-metric { font-size: 13.5px; }
-.app-cp-tv .app-cp-dcard-initials { width: 36px; height: 36px; font-size: 14px; }
-.app-cp-tv .app-cp-dcard-num { font-size: 30px; }
-.app-cp-tv .app-cp-dcard-spark { width: 130px; height: 54px; }
 
 /* the walk */
 .app-cp-walk { display: flex; flex-direction: column; background: #fff; min-height: 100%; }
@@ -5241,9 +5226,8 @@ button.app-link.app-xs-title:hover, button.app-link.app-xs-title:focus-visible {
 .app-xs-metrics.app-ir-metrics { gap: 10px 18px; flex-wrap: wrap; }
 .app-xs-metrics .app-ir-metric { width: 132px; }
 .app-xs-metrics .app-ir-metric-name { font-size: 13px; }
-.app-xs-metrics .app-ir-metric-num { font-size: 12px; }
-.app-xs-metrics .app-spark { height: 40px; }
-.app-xs-metrics .app-ir-metric-state { height: 40px; font-size: 13.5px; }
+.app-xs-metrics .app-spark { height: 54px; }
+.app-xs-metrics .app-ir-metric-state { height: 54px; font-size: 13.5px; }
 .app-xs-tools { display: flex; flex-direction: column; align-items: center; justify-content: space-between; gap: 6px; align-self: stretch; }
 .app-xs-kebab { position: static; min-width: 44px; min-height: 44px; }
 button.app-xs-chev {
@@ -5327,12 +5311,23 @@ button.app-ir-info:hover, button.app-ir-info:focus-visible, button.app-ir-info[a
 .app-ir-metrics { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
 .app-ir-metric { width: 92px; flex: 0 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .app-ir-metric-name { font-size: 11px; color: #26241f; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.app-ir-metric .app-spark { height: 22px; }
-.app-ir-metric-num { font-size: 10.5px; color: #6d675c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; min-height: 13px; }
-.app-ir-metric-state { height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 3px; background: #ece8e0; font-size: 11.5px; font-weight: 600; padding: 0 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* no number line under the chart (2026-11-18): the chart has its height */
+.app-ir-metric .app-spark { height: 36px; }
+.app-ir-metric-state { height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 3px; background: #ece8e0; font-size: 11.5px; font-weight: 600; padding: 0 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .app-ir-metric-state-on { color: #fff; }
 .app-ir-metric-none { color: #8a8478; font-weight: 400; }
 .app-ir-metric-more { align-self: center; font-size: 12px; font-weight: 700; color: #57534a; }
+/* a priority's objectives INSIDE its tile (2026-11-18): two charts to a
+   row, the tile growing with them; one to a row where the columns are
+   many and narrow */
+.app-cp-objcharts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 10px; margin-top: 8px; }
+.app-cp-objcharts:empty { display: none; }
+.app-cp-objcharts .app-ir-metric { width: auto; }
+.app-cp-objcharts .app-ir-metric .app-spark, .app-cp-objcharts .app-ir-metric-state { height: 28px; }
+.app-cp-scroll .app-cp-objcharts { grid-template-columns: minmax(0, 1fr); }
+.app-cp-cardmount-tile .app-cp-objcharts { display: none; }
+/* the header's "Objectives" switch */
+.app-cp-objtoggle { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #57534a; cursor: pointer; white-space: nowrap; }
 .app-ir-support { font-size: 13.5px; line-height: 1.3; overflow-wrap: anywhere; }
 .app-ir-tool { display: flex; align-items: center; justify-content: center; min-width: 0; }
 .app-ir-tool .app-cp-kebab { position: static; }
@@ -5353,9 +5348,8 @@ button.app-ir-info:hover, button.app-ir-info:focus-visible, button.app-ir-info[a
 .app-ir-summary .app-ir-dot { width: 34px; height: 34px; font-size: 16px; }
 .app-ir-summary .app-ir-metric { width: 132px; }
 .app-ir-summary .app-ir-metric-name { font-size: 13px; }
-.app-ir-summary .app-ir-metric .app-spark { height: 38px; }
-.app-ir-summary .app-ir-metric-state { height: 38px; font-size: 13.5px; }
-.app-ir-summary .app-ir-metric-num { font-size: 12px; }
+.app-ir-summary .app-ir-metric .app-spark { height: 52px; }
+.app-ir-summary .app-ir-metric-state { height: 52px; font-size: 13.5px; }
 .app-ir-summary .app-ir-none { font-size: 13.5px; }
 /* narrower containers: columns leave from the right; the row keeps its order */
 @container (max-width: 1080px) {

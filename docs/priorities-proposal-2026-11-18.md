@@ -285,6 +285,47 @@ read, so they should reach production in one release, followed by
 - UAT: new cases in `docs/uat/priorities.md` for each feature;
   PRI-001, 007 and 008 rewritten for the tile charts and the toggle.
 
+## As built — tranche 1 (2026-11-18, on dev, NOT released)
+
+**3A. Visuals.** `metricTile` lost its number line everywhere it is
+used (charts 36 px in rows, 52 px in the summary); `objectiveCharts`
+puts a priority's objectives in its tile; the Objectives row,
+`objectiveLinesFor` and the "Priority only" card (`dynamicCard`) are
+gone; the toolbar has the Objectives switch. The stored word is kept:
+"dynamic" (the retired view) = objectives off, so saved preferences,
+shared links and the board card's setting (now labelled "Objectives:
+Shown on each priority / Hidden") still read.
+
+**5. The decision zone.** `waitingAt` and `orphansOf` (model, tested);
+rows "Proposed" and "Cascaded to you" open by default; one chip, "N
+awaiting a decision"; a waiting cascade or proposed pull opens the
+priority's popup with Decline…, Hold…, Accept & customise… and Accept
+(`decideCascade`, `openPriorityOverlay(…, decideAt)`); the message
+panel offered after each step (`stepMessage.ts`, `stepMessageModel.ts`,
+on `openMessagePanel`, split out of the action message dialog).
+- **Named "Unplaced", not "Other".** The page already has an "Other
+  (unlinked initiatives)" band; a second "Other" would be two things
+  under one word.
+- **Confirmed and fixed:** a customised pull by someone who cannot
+  approve marked the parent "customised" at once. It is now marked when
+  the proposal is accepted.
+- **Left as found:** a proposed pull that the owner puts ON HOLD shows
+  afterwards under "Cascaded to you" (on hold), where any manager may
+  answer it — the hold overwrites who raised it. Small; say if it
+  should stay with the owner.
+- The phone and the executive summary's last step keep the old list.
+
+**A way to see it.** The Priorities page could not be opened outside
+Power Apps at all. `app/harness/dataverseStub.ts` and `appStub.ts` now
+stand in for the SDK (an in-memory Dataverse, a signed-in person), and
+`harness/priorities.html` seeds a company, sites, pillars that change
+between 2026 and 2027, a proposal, cascades, a pull and an unplaced
+priority through the stores' own save functions. Seen there: the zone,
+the popup's answers, Accept, Hold with its offered message, "Place
+under…", the 2027 follow-on. `?year=2027`, `?org=PacOps`, `?as=u2`.
+
+UAT: PRI-001 rewritten; PRI-002 and PRI-010 updated; PRI-014 added.
+
 ## Not in this round
 
 - The phone layout (decision 15).

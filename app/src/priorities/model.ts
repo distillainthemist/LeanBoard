@@ -1061,6 +1061,32 @@ export function reviewQueue(org: OrgRef, assignments: PriorityAssignment[]): Pri
   return [...mine.filter((a) => a.status === "proposed"), ...mine.filter((a) => a.status === "onhold")];
 }
 
+// ---- the decision zone (2026-11-18) ------------------------------------------------
+// One place at the foot of the page for what waits on this org: what was
+// PROPOSED to it from below, what was CASCADED to it from above, and the
+// priorities that have lost their column ("Other").
+
+/** What waits at an org among its assignments, by where it came from. A
+ *  direct report's as-is pull is a proposal — raised from below, decided
+ *  by the owner or an admin — though it is stored as an assignment; a
+ *  cascade is sent from above and any manager of the org may answer it.
+ *  Each list: awaiting first, then on hold. */
+export function waitingAt<A extends Pick<PriorityAssignment, "org" | "status" | "decidedById">>(org: OrgRef, assignments: A[]): { fromBelow: A[]; fromAbove: A[] } {
+  const key = orgKey(org);
+  const mine = assignments.filter((a) => orgKey(a.org) === key);
+  const queue = [...mine.filter((a) => a.status === "proposed"), ...mine.filter((a) => a.status === "onhold")];
+  return { fromBelow: queue.filter((a) => isPulledProposal(a)), fromAbove: queue.filter((a) => !isPulledProposal(a)) };
+}
+
+/** The priorities with NO column in the year shown: their sub-pillar is
+ *  not among the year's live sub-pillars. Asked of the WHOLE year, never
+ *  of the columns on screen — a pillar filter hides priorities, it does
+ *  not orphan them (the old line counted both). */
+export function orphansOf<P>(priorities: P[], colOf: (p: P) => string, liveInYear: Pick<Pillar, "id" | "level" | "active">[]): P[] {
+  const columns = new Set(liveInYear.filter((x) => x.level === 2 && x.active).map((x) => x.id));
+  return priorities.filter((p) => !columns.has(colOf(p)));
+}
+
 // ---- per-user presentation prefs (P3) -----------------------------------------------
 
 export type ViewMode = "simple" | "dynamic";

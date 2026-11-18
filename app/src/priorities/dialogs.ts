@@ -169,6 +169,16 @@ export function modal(host: HTMLElement, title: string, note?: string, wide = fa
   return { overlay, box, body, footer, close };
 }
 
+/** The mark of a field that must be filled: a quiet red superscript
+ *  asterisk after its label (Ben, 2026-11-18 — the standing way; the
+ *  primary button stays disabled until such fields are filled). */
+export function requiredStar(): HTMLElement {
+  const star = el("sup", "app-req-star", "*");
+  star.title = "Required";
+  star.setAttribute("aria-label", "required");
+  return star;
+}
+
 export function field(label: string, control: HTMLElement, hint?: string): HTMLElement {
   const f = el("div", "app-field");
   f.append(el("span", "app-field-label", label), control);

@@ -26,6 +26,7 @@ import { rememberBoardOrigin } from "../improvement/boardOrigin";
 import { popupTabFor, rememberPopupTab } from "../sessionView";
 import { promptConfirm } from "../prompts";
 import { initiativeRow, initiativeRowHead, rowRank } from "../improvement/initiativeRow";
+import { offerStepMessage } from "./stepMessage";
 import {
   CLOSE_REASONS,
   CloseReason,
@@ -517,6 +518,15 @@ export async function sendCascade(ctx: LifecycleCtx, p: Priority, targets: OrgRe
   }
   if (sent.length > 0) await appendEvent(p, "cascaded", { to: sent }, ctx.actor());
   if (resent.length > 0) await appendEvent(p, "cascaded", { to: resent, resent: true }, ctx.actor());
+  // offered, never sent by itself: the owners of the orgs it went to
+  const went = targets.filter((o) => sent.includes(orgName(o)) || resent.includes(orgName(o)));
+  if (went.length > 0) {
+    offerStepMessage(
+      { step: "cascaded", statement: p.statement, org: p.org, toOrgs: went, to: went.map((o) => ctx.ownerFor(o)?.whoId ?? ""), linkOrg: went[0], period: ctx.currentPeriod },
+      ctx.actor(),
+      ctx.roster
+    );
+  }
 }
 
 /** Cascade-only dialog (overlay rail): tick child/peer orgs. */
@@ -554,8 +564,40 @@ export function cascadeDialog(ctx: LifecycleCtx, p: Priority): void {
 
 // ---- cascade review list (§3) -------------------------------------------------------
 
+/** Answer a cascade (or a pull proposed by a direct report) waiting at
+ *  `org`: accept as-is, hold, or decline. Hold and Decline ask why — the
+ *  sender reads the reason. True when an answer was recorded. The one
+ *  road for the priority popup's buttons (2026-11-18), the executive
+ *  summary's last step and the phone's list. */
+export async function decideCascade(ctx: LifecycleCtx, org: OrgRef, a: PriorityAssignment, p: Priority, status: "accepted" | "onhold" | "rejected"): Promise<boolean> {
+  let reason = "";
+  if (status !== "accepted") {
+    const r = await reasonDialog(
+      ctx.host,
+      status === "onhold" ? "Hold this priority" : "Decline this priority",
+      `Tell ${orgName(p.org)} why — they'll see this on their view.`,
+      "e.g. no capacity until Q3"
+    );
+    if (r === null) return false;
+    reason = r;
+  }
+  // who raised it, read BEFORE the answer overwrites the row's "decided by"
+  const pulledBy = isPulledProposal(a) ? a.decidedById : "";
+  await decideAssignment(a, status, reason, ctx.actor(), "", ctx.data());
+  await appendEvent(p, status === "accepted" ? "accepted" : status === "onhold" ? "held" : "rejected", { org: orgName(org), reason }, ctx.actor());
+  await ctx.changed();
+  // the answer is offered to whoever is waiting on it: the direct report
+  // who proposed the pull, or the priority's owner who cascaded it
+  if (pulledBy !== "") {
+    offerStepMessage({ step: status === "accepted" ? "proposal-accepted" : status === "onhold" ? "proposal-held" : "proposal-declined", statement: p.statement, org, reason, to: [pulledBy], linkOrg: org, period: ctx.currentPeriod }, ctx.actor(), ctx.roster);
+  } else {
+    offerStepMessage({ step: status === "accepted" ? "accepted" : status === "onhold" ? "held" : "declined", statement: p.statement, org, reason, to: [p.ownerId], linkOrg: p.org, period: ctx.currentPeriod }, ctx.actor(), ctx.roster);
+  }
+  return true;
+}
+
 export function cascadeReview(ctx: LifecycleCtx, org: OrgRef): void {
-  const m = modal(ctx.host, "Cascades to accept", `Sent to ${orgName(org)} from above or beside. Accept as-is, accept and customise the wording, hold, or reject — the sender sees your reason.`, true);
+  const m = modal(ctx.host, "Cascades to accept", `Sent to ${orgName(org)} from above or beside. Accept as-is, accept and customise the wording, hold, or decline — the sender sees your reason.`, true);
   const list = el("div", "app-cp-review");
   m.body.appendChild(list);
   renderReviewList(ctx, org, list);
@@ -607,7 +649,8 @@ export function renderReviewList(ctx: LifecycleCtx, org: OrgRef, list: HTMLEleme
       const accept = btn("Accept", "app-btn app-btn-primary");
       const customise = btn("Accept & customise");
       const hold = btn(a.status === "onhold" ? "Update hold" : "Hold");
-      const reject = btn("Reject", "app-btn app-btn-danger");
+      // "Decline", the proposals' word (2026-11-18 — it read "Reject")
+      const reject = btn("Decline…", "app-btn");
       for (const b of [accept, customise, hold, reject]) b.disabled = !can;
       accept.addEventListener("click", () => void decide(a, p, "accepted"));
       customise.addEventListener("click", () => void acceptCustomised(a, p));
@@ -626,21 +669,7 @@ export function renderReviewList(ctx: LifecycleCtx, org: OrgRef, list: HTMLEleme
   };
 
   const decide = async (a: PriorityAssignment, p: Priority, status: "accepted" | "onhold" | "rejected") => {
-    let reason = "";
-    if (status !== "accepted") {
-      const r = await reasonDialog(
-        ctx.host,
-        status === "onhold" ? "Hold this priority" : "Reject this priority",
-        `Tell ${orgName(p.org)} why — they'll see this on their view.`,
-        "e.g. no capacity until Q3"
-      );
-      if (r === null) return;
-      reason = r;
-    }
-    await decideAssignment(a, status, reason, ctx.actor(), "", ctx.data());
-    await appendEvent(p, status === "accepted" ? "accepted" : status === "onhold" ? "held" : "rejected", { org: orgName(org), reason }, ctx.actor());
-    await ctx.changed();
-    paint();
+    if (await decideCascade(ctx, org, a, p, status)) paint();
   };
 
   const acceptCustomised = async (a: PriorityAssignment, p: Priority) => {
@@ -693,8 +722,15 @@ export async function customiseInto(
   r.priority.rowId = await savePriority(r.priority, data);
   data.priorities.push(r.priority);
   await appendEvent(r.priority, asProposal ? "proposed" : "created", { statement: r.priority.statement, customisedFrom: p.id }, ctx.actor());
-  await recordAccepted(ctx, org, p, a, r.priority.id);
-  await appendEvent(p, "customised", { org: orgName(org), child: r.priority.id, statement: r.priority.statement }, ctx.actor());
+  // a copy that is only PROPOSED has not been taken on: the parent is
+  // marked customised when the proposal is accepted (the popup's Accept),
+  // not now — the sender read "✓ customised" for something its org's
+  // owner had not seen, and went on reading it if the owner declined
+  // (found 2026-11-18)
+  if (!asProposal) {
+    await recordAccepted(ctx, org, p, a, r.priority.id);
+    await appendEvent(p, "customised", { org: orgName(org), child: r.priority.id, statement: r.priority.statement }, ctx.actor());
+  }
   for (const o of r.cascadeTo) {
     await saveAssignment(
       { id: "", priorityId: r.priority.id, org: o, status: "proposed", reason: "", decidedById: "", decidedByName: "", decidedAt: "", childPriorityId: "" },
@@ -703,12 +739,17 @@ export async function customiseInto(
   }
   if (r.cascadeTo.length > 0) await appendEvent(r.priority, "cascaded", { to: r.cascadeTo.map(orgName) }, ctx.actor());
   await ctx.changed();
+  if (asProposal) {
+    offerStepMessage({ step: "proposed", statement: r.priority.statement, org, to: [ctx.ownerFor(org)?.whoId ?? ""], linkOrg: org, period: ctx.currentPeriod }, ctx.actor(), ctx.roster);
+  } else {
+    offerStepMessage({ step: "customised", statement: p.statement, org, to: [p.ownerId], linkOrg: p.org, period: ctx.currentPeriod }, ctx.actor(), ctx.roster);
+  }
   return true;
 }
 
 /** p × org recorded as accepted (child "" = adopted as-is): the given or
  *  existing assignment is decided, else a new one is written. */
-async function recordAccepted(ctx: LifecycleCtx, org: OrgRef, p: Priority, a: PriorityAssignment | null, childId: string): Promise<void> {
+export async function recordAccepted(ctx: LifecycleCtx, org: OrgRef, p: Priority, a: PriorityAssignment | null, childId: string): Promise<void> {
   const data = ctx.data();
   const row = a ?? data.assignments.find((x) => x.priorityId === p.id && orgKey(x.org) === orgKey(org)) ?? null;
   if (row) {
@@ -811,6 +852,7 @@ export function pullFromAbove(ctx: LifecycleCtx, org: OrgRef, opts: { onNew?: ()
           data
         );
         await appendEvent(p, "proposed", { org: orgName(org), pulled: "yes" }, by);
+        offerStepMessage({ step: "proposed", statement: p.statement, org, to: [ctx.ownerFor(org)?.whoId ?? ""], linkOrg: org, period: ctx.currentPeriod }, by, ctx.roster);
       }
       await ctx.changed();
     })();
@@ -847,8 +889,10 @@ async function dropAdopted(ctx: LifecycleCtx, org: OrgRef, p: Priority): Promise
 // ---- detail overlay (§6) -------------------------------------------------------------
 
 /** `adoptedAt`: the org whose matrix showed this priority as ADOPTED
- *  as-is (the parent's row) — its managers get Customise and Drop. */
-export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: Priority) => void, adoptedAt: OrgRef | null = null): () => void {
+ *  as-is (the parent's row) — its managers get Customise and Drop.
+ *  `decideAt`: the org this priority WAITS on (a cascade sent to it, or a
+ *  pull one of its people proposed) — the answer is given here. */
+export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: Priority) => void, adoptedAt: OrgRef | null = null, decideAt: OrgRef | null = null): () => void {
   const scrim = el("div", "app-cp-scrim");
   const box = el("div", "app-cp-overlay");
   scrim.appendChild(box);
@@ -902,7 +946,19 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
     }
     headText.appendChild(chip);
     headText.appendChild(el("h2", "app-cp-ov-statement", live.statement));
-    if (live.status === "proposed") {
+    // waiting on the org in view: a cascade from above, or a pull one of
+    // its people proposed (the answer was a separate pop-up list)
+    const waiting = decideAt ? (reviewQueue(decideAt, data.assignments).find((a) => a.priorityId === live.id) ?? null) : null;
+    const waitingPulled = waiting !== null && isPulledProposal(waiting);
+    const mayDecide = waiting !== null && decideAt !== null && (waitingPulled ? ctx.canApprove(decideAt) : ctx.canManage(decideAt));
+    if (waiting !== null && decideAt !== null) {
+      const what = waitingPulled
+        ? `Proposed for ${orgName(decideAt)}${waiting.decidedByName !== "" ? ` by ${waiting.decidedByName}` : ""}`
+        : `Cascaded to ${orgName(decideAt)}`;
+      const held = waiting.status === "onhold" ? ` — on hold${waiting.reason !== "" ? `: “${waiting.reason}”` : ""}` : "";
+      const whose = mayDecide ? " — yours to accept or decline" : waitingPulled ? " — waiting for the org's owner or an admin" : " — waiting for someone who manages the org";
+      headText.appendChild(el("div", "app-cp-ov-proposedpill", `${what}${held}${whose}`));
+    } else if (live.status === "proposed") {
       headText.appendChild(el("div", "app-cp-ov-proposedpill", ctx.canApprove(live.org) ? "Proposed — yours to accept or decline" : "Proposed — waiting for the org's owner or an admin"));
     } else if (isDeclined(live)) {
       headText.appendChild(el("div", "app-cp-ov-proposedpill app-cp-ov-declinedpill", live.statusReason));
@@ -932,7 +988,40 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
       close();
       window.location.hash = "#/improvement";
     });
-    headBtns.appendChild(add);
+    if (waiting !== null && decideAt !== null) {
+      // ONE solid button: Accept. The rest are outline, and Hold and
+      // Decline ask why. Nothing to link an initiative to until it is
+      // taken on, so "Add initiative" gives way.
+      if (mayDecide) {
+        const at = decideAt;
+        const w = waiting;
+        const answer = (status: "accepted" | "onhold" | "rejected") => {
+          void decideCascade(ctx, at, w, live, status).then((done) => {
+            if (done) close();
+          });
+        };
+        const decline = btn("Decline…", "app-btn");
+        decline.addEventListener("click", () => answer("rejected"));
+        const hold = btn(w.status === "onhold" ? "Update hold…" : "Hold…", "app-btn");
+        hold.addEventListener("click", () => answer("onhold"));
+        headBtns.append(decline, hold);
+        if (ctx.canCustomise(at)) {
+          const customise = btn("Accept & customise…", "app-btn");
+          customise.addEventListener("click", () => {
+            void customiseInto(ctx, at, live, w, `Accept & customise — from ${orgName(live.org)}`).then((ok) => {
+              if (ok) close();
+            });
+          });
+          headBtns.appendChild(customise);
+        }
+        const accept = btn("Accept", "app-btn app-btn-primary");
+        accept.title = ctx.canCustomise(at) ? "Take it on as it is written" : "Cascades to this level are adopted as written";
+        accept.addEventListener("click", () => answer("accepted"));
+        headBtns.appendChild(accept);
+      }
+    } else {
+      headBtns.appendChild(add);
+    }
     // adopted as-is at the viewed org: its managers may customise it into
     // their own linked row (renameable, unlinkable) or drop it
     const adoptOrg = adoptedAt && !sameOrg(adoptedAt, live.org) && ctx.canManage(adoptedAt) && live.status === "active" ? adoptedAt : null;
@@ -1005,6 +1094,7 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
             await savePriority(live, ctx.data());
             await appendEvent(live, "declined", { reason }, ctx.actor());
             await ctx.changed();
+            offerStepMessage({ step: "proposal-declined", statement: live.statement, org: live.org, reason, to: [live.ownerId], linkOrg: live.org, period: ctx.currentPeriod }, ctx.actor(), ctx.roster);
             events = null;
             if (scrim.isConnected) paint();
           })();
@@ -1017,6 +1107,14 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
             live.statusReason = "";
             await savePriority(live, ctx.data());
             await appendEvent(live, "approved", {}, ctx.actor());
+            // a proposed customised copy of a priority from above: taking
+            // it on is what answers the parent (see customiseInto)
+            const parent = live.parentId !== "" ? ctx.data().priorities.find((x) => x.id === live.parentId) : undefined;
+            if (parent && !sameOrg(parent.org, live.org) && !ctx.data().assignments.some((x) => x.priorityId === parent.id && orgKey(x.org) === orgKey(live.org) && x.status === "accepted")) {
+              await recordAccepted(ctx, live.org, parent, null, live.id);
+              await appendEvent(parent, "customised", { org: orgName(live.org), child: live.id, statement: live.statement }, ctx.actor());
+            }
+            offerStepMessage({ step: "proposal-accepted", statement: live.statement, org: live.org, to: [live.ownerId], linkOrg: live.org, period: ctx.currentPeriod }, ctx.actor(), ctx.roster);
             await ctx.changed();
             events = null;
             if (scrim.isConnected) paint();

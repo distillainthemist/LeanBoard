@@ -477,14 +477,40 @@ the driver popup and the KPI card dialog (`.app-vg-modal`, 1320px).
   cell has an accent border; a click pops the chart out
   (`.app-modal-wide`).
 
-### 5.3 The Objectives row (Priorities, 2026-09-15/23)
+### 5.3 Objectives on a priority tile (Priorities, 2026-11-18)
 
-`.app-cp-objective`: one entry per starred metric of the priority's
-primary initiative — a 12px site-palette traffic light (neutral
-`#d9d3c8` when no reading), then line 1 "**Name**: objective" (name
-bold, objective regular muted), line 2 small-caps PLAN / ACTUAL labels
-with tabular values (Actual 14px). Entries inset 12px with hairline
-dividers. No priority statement here — the card above names it.
+The Objectives ROW is gone (it was `.app-cp-objective` lines under the
+priorities, 2026-09-15/23). A priority's objectives sit INSIDE its tile,
+under the three circles: `.app-cp-objcharts`, two `metricTile`s to a
+row, as many rows as it takes, the tile growing with them (one to a row
+at the narrow "scroll" density). Each is a caption — the objective's
+sentence, else the metric's name, one line cut with "…" — over a
+sparkline on its good / bad bands, or the state as a coloured chip
+where there is no trend to draw (good / bad, picklist, no reading).
+**No numbers on a chart tile, anywhere** (popup rows, the Improvement
+register, the executive summary, the priority tile): reading, plan and
+limits are the tooltip. The toolbar's `.app-tw-toggle` "Objectives",
+left of ▶ Executive summary, shows or hides them — a switch that
+changes what is on screen is never hidden in a menu.
+
+### 5.4 The decision zone (Priorities, 2026-11-18)
+
+What waits on an org sits at the foot of the matrix in rows on the
+matrix's own rail, each OPEN unless folded and absent when empty:
+"Proposed" (raised from below), "Cascaded to you" (sent from above),
+and the "Unplaced" band (no column in the year shown). Waiting things
+are dashed tiles under the sub-pillar they would land in; the answer is
+given in the priority's own popup — one solid button (Accept), the rest
+outline, Hold and Decline asking why. One header chip counts them and
+scrolls there. A step that someone else needs to hear about OFFERS the
+message panel ("Skip" as its way out); nothing is sent by itself.
+
+### 5.5 Required fields
+
+A field that must be filled carries a small red superscript asterisk
+after its label (`requiredStar()` / `.app-req-star`; `.ltk-req-star` in
+card dialogs) and the primary button is DISABLED until every such field
+is filled — no "Required" tag, no message on press (Ben, 2026-11-18).
 
 ## 6. Settings surfaces
 

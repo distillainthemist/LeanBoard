@@ -2,7 +2,7 @@
 // layouts — the priority popup's and the Improvement list's — with stub
 // data. The executive summary's is on walk.html.
 import "../src/style.css";
-import { initiativeRow, InitiativeRowData, initiativeRowHead, rowRank } from "../src/improvement/initiativeRow";
+import { initiativeRow, InitiativeRowData, initiativeRowHead, objectiveCharts, rowRank } from "../src/improvement/initiativeRow";
 import type { MetricValue } from "../src/improvement/metricValues";
 import { DEFAULT_STATUS_SETTINGS, initiativeStatus, statusColour, StatusInput } from "../src/improvement/status";
 
@@ -57,3 +57,34 @@ table.appendChild(initiativeRowHead("register", ["Org", "Your role(s)"], 1));
 for (const r of rows) table.appendChild(initiativeRow({ ...r, primary: false, sub: [r.sub.split(" · ")[0], "Leadership in the Field is awesome", r.reg[2]].filter((x) => x !== "").join(" · "), tags: r.title === "Test problem" ? ["◈ Confidential"] : [] }, { layout: "register", colour, metricColour, extra: [cell(r.reg[0]), cell(r.reg[1])], tools: [tool("⋮")], onOpen: () => log.push(`open ${r.title}`) }));
 table.appendChild(initiativeRow({ title: "A completed initiative", sub: "Hall, Tom · Changeover under 25 minutes", status: null, statusText: "completed", flagNote: "", primary: false, stageName: "", stagePdca: "", counts: null, metrics: [] }, { layout: "register", colour, metricColour, extra: [cell("Mine"), cell("—")], tools: [tool("⋮")] }));
 reg.appendChild(table);
+
+// A priority TILE carrying its objectives (2026-11-18): two charts to a
+// row, titled by the objective's words (or the metric's name), no
+// numbers; a third and a fifth wrap under; a state chip where there is
+// no trend. Three widths: comfortable, compact, and the narrow "scroll".
+const tiles = document.getElementById("tiles");
+if (tiles) {
+  const O = (m: MetricValue, objective: string): MetricValue => ({ ...m, objective });
+  const sets: [string, MetricValue[]][] = [
+    ["Zero Harm - Critical Risk Management (CRM) Maturity Uplift", [O(Y, "CRM verifications completed against plan"), O(P, ""), O(A, "Audit actions closed on time")]],
+    ["Improve Everyday Respect for Our Teams", [O(Y, "Every leader completes the respect module"), O(P, "Engagement score"), O(A, ""), O(Y, ""), O(P, "A fifth objective with a long description that must cut off")]],
+    ["Leadership Capability Uplift", []],
+  ];
+  for (const [cls, width] of [["app-cp-comfortable", 300], ["app-cp-compact", 210], ["app-cp-scroll", 150]] as [string, number][]) {
+    const col = document.createElement("div");
+    col.className = `app-cp-matrix ${cls}`;
+    col.style.cssText = `width:${width}px;display:flex;flex-direction:column;gap:8px`;
+    for (const [statement, list] of sets) {
+      const card = document.createElement("div");
+      card.className = "app-cp-card";
+      card.style.borderLeftColor = colour(list.length === 0 ? "good" : "bad");
+      const st2 = document.createElement("div");
+      st2.className = "app-cp-statement";
+      st2.textContent = statement;
+      card.append(st2, objectiveCharts(list, { colour, metricColour }));
+      col.appendChild(card);
+    }
+    tiles.appendChild(col);
+  }
+}
+

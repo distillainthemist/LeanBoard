@@ -24,12 +24,32 @@ const btn = (label: string, cls = "app-btn"): HTMLButtonElement => {
   return b;
 };
 
-export async function openActionMessage(req: ActionMessageRequest): Promise<void> {
-  const me = currentViewer();
+/** What a message panel is opened with. */
+export interface MessagePanelOpts {
+  title: string;
+  /** One line under the title; "" for none. */
+  note: string;
+  /** Who it opens addressed to — given the roster's email lookup. */
+  recipients: (emailOf: (whoId: string) => string) => MessageRecipient[];
+  subject: string;
+  body: string;
+  /** The link the message carries. */
+  link: string;
+  /** The text link that leaves without sending ("Cancel"; "Skip" where
+   *  the panel is offered after a step, not asked for). */
+  cancelLabel?: string;
+  /** After a send: `say` appends to the outcome line. */
+  onSent?: (to: MessageRecipient[], how: "Teams" | "email", say: (extra: string) => void) => void | Promise<void>;
+}
+
+/** The message panel (the notify panel's anatomy): recipient chips, a
+ *  type-ahead to add anyone, an editable message, send by Teams or
+ *  email, the outcome in place. "Message about this action" opens it,
+ *  and so do the priorities' steps (2026-11-18). */
+export async function openMessagePanel(o: MessagePanelOpts): Promise<void> {
   const [{ listPeople, searchEntra }] = await Promise.all([import("../store/people")]);
   const roster = await listPeople().catch(() => []);
   const emailOf = (whoId: string) => roster.find((p) => p.whoId === whoId)?.email ?? "";
-  const a = req.action;
 
   const overlay = el("div", "app-modal-overlay app-act-msg");
   const box = el("div", "app-modal");
@@ -39,11 +59,11 @@ export async function openActionMessage(req: ActionMessageRequest): Promise<void
   // a form never closes on a click outside it (Ben, 2026-10-07)
 
   // marked modal: the action dialog's focus trap leaves Tab to this panel
-  markDialog(box, "Message about this action");
-  box.appendChild(el("div", "app-modal-title", "Message about this action"));
-  box.appendChild(el("div", "app-modal-note", "Sends a Teams message or an email with a link to the action. A line is added to the action's comments saying who was told."));
+  markDialog(box, o.title);
+  box.appendChild(el("div", "app-modal-title", o.title));
+  if (o.note !== "") box.appendChild(el("div", "app-modal-note", o.note));
 
-  let recips: MessageRecipient[] = defaultRecipients(a.assignees, emailOf, me?.objectId ?? "");
+  let recips: MessageRecipient[] = o.recipients(emailOf);
   const chips = el("div", "app-docs-pplchips");
   const paintChips = () => {
     clear(chips);
@@ -186,7 +206,7 @@ export async function openActionMessage(req: ActionMessageRequest): Promise<void
   toField.append(el("span", "app-field-label", "To"), chips, addBox);
   box.appendChild(toField);
 
-  const draft = messageDraft(a);
+  const draft = { subject: o.subject, body: o.body };
   const msg = el("textarea", "app-input") as HTMLTextAreaElement;
   msg.rows = 5;
   msg.value = draft.body;
@@ -198,12 +218,11 @@ export async function openActionMessage(req: ActionMessageRequest): Promise<void
   box.appendChild(outLine);
 
   const footer = el("div", "app-modal-footer");
-  const cancel = btn("Cancel", "app-link");
+  const cancel = btn(o.cancelLabel ?? "Cancel", "app-link");
   cancel.addEventListener("click", close);
   const mailBtn = btn("Send email");
   const teamsBtn = btn("Send by Teams", "app-btn app-btn-primary");
-  const home = homeBoardOf(a.instanceId);
-  const link = home !== "" ? boardUrl(home) : appLinkUrl();
+  const link = o.link;
   const run = (kind: "teams" | "email") => {
     void (async () => {
       const text = msg.value.trim();
@@ -237,21 +256,9 @@ export async function openActionMessage(req: ActionMessageRequest): Promise<void
       const how = result.how === "email" ? "email" : "Teams";
       outLine.textContent = `✓ Sent by ${result.how === "card" ? "Teams card" : result.how === "message" ? "Teams message" : "email"} to ${to.length} ${to.length === 1 ? "person" : "people"}.`;
       cancel.textContent = "Close";
-      // the trail: one comment on the action, written through the one
-      // write path; the open dialog adopts it so its Save keeps it
-      if (me && me.objectId !== "") {
-        const comment = newComment({ whoId: me.objectId, who: me.name }, sentLine(to, how));
-        a.comments = [...a.comments, comment];
-        try {
-          const { upsertActions } = await import("../store/actions");
-          await upsertActions([a]);
-          req.onSent(comment);
-          if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("ltk-actions-changed"));
-        } catch {
-          a.comments = a.comments.filter((c) => c !== comment);
-          outLine.textContent += " The note on the action could not be saved.";
-        }
-      }
+      await o.onSent?.(to, how, (extra) => {
+        outLine.textContent += extra;
+      });
     })();
   };
   teamsBtn.addEventListener("click", () => run("teams"));
@@ -259,4 +266,35 @@ export async function openActionMessage(req: ActionMessageRequest): Promise<void
   footer.append(cancel, mailBtn, teamsBtn);
   box.appendChild(footer);
   msg.focus();
+}
+
+export async function openActionMessage(req: ActionMessageRequest): Promise<void> {
+  const me = currentViewer();
+  const a = req.action;
+  const draft = messageDraft(a);
+  const home = homeBoardOf(a.instanceId);
+  await openMessagePanel({
+    title: "Message about this action",
+    note: "Sends a Teams message or an email with a link to the action. A line is added to the action's comments saying who was told.",
+    recipients: (emailOf) => defaultRecipients(a.assignees, emailOf, me?.objectId ?? ""),
+    subject: draft.subject,
+    body: draft.body,
+    link: home !== "" ? boardUrl(home) : appLinkUrl(),
+    onSent: async (to, how, say) => {
+      // the trail: one comment on the action, written through the one
+      // write path; the open dialog adopts it so its Save keeps it
+      if (!me || me.objectId === "") return;
+      const comment = newComment({ whoId: me.objectId, who: me.name }, sentLine(to, how));
+      a.comments = [...a.comments, comment];
+      try {
+        const { upsertActions } = await import("../store/actions");
+        await upsertActions([a]);
+        req.onSent(comment);
+        if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("ltk-actions-changed"));
+      } catch {
+        a.comments = a.comments.filter((c) => c !== comment);
+        say(" The note on the action could not be saved.");
+      }
+    },
+  });
 }

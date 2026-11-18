@@ -15,6 +15,17 @@ and v0.95.0 are SOLUTION-CARRYING — import the solution first — and
 v0.96.0 is app-only. Lock older builds from Settings once the new one
 runs.
 
+**On dev, NOT released (2026-11-18) — the priorities proposal
+(`priorities-proposal-2026-11-18.md`, Ben's fifteen decisions),
+tranche 1:** objectives as charts inside each priority tile with an
+"Objectives" switch, no numbers on any chart tile, the "Priority only
+view" retired (UAT-PRI-001); the decision zone — Proposed, Cascaded to
+you, Unplaced — with cascades answered in the priority's popup and a
+message offered after each step (UAT-PRI-014). App-only. Tranches 2–4
+follow: sub-pillar by year, actions on a priority, metrics on a
+priority. The harness can now run the real Priorities page
+(`harness/priorities.html` on an in-memory Dataverse).
+
 **v0.96.0 (2026-11-18, app-only):** the review of the full 2026-11-17
 issues export (45 reports) and its build — status of every report,
 Ben's decisions and the as-built record in `issues-plan-2026-11-18.md`.

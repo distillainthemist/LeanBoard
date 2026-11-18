@@ -1127,13 +1127,15 @@ export const CARDS: CardSpec[] = [
       },
       {
         key: "prView",
-        label: "View",
+        label: "Objectives",
         kind: "enum",
+        // the stored values are the retired views' names (2026-11-18):
+        // "dynamic" was the "Priority only view" = objectives off
         options: [
-          { value: "simple", label: "Simple (matrix)" },
-          { value: "dynamic", label: "Dynamic (rich cards)" },
+          { value: "simple", label: "Shown on each priority" },
+          { value: "dynamic", label: "Hidden" },
         ],
-        help: "How the matrix cards read when the card is focused.",
+        help: "Whether each priority carries its objectives as charts when the card is focused.",
       },
     ],
     appBound: [],

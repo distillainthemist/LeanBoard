@@ -278,7 +278,7 @@ export function mountWalk(o: WalkOpts): () => void {
 
     // the priority's key metrics — shown while it is closed; open, each
     // initiative carries its own and these would only repeat them
-    const keys = open ? el("div", "app-ir-metrics") : metricTiles(o.objectives(p), SUMMARY_METRIC_CAP, paint0, 40);
+    const keys = open ? el("div", "app-ir-metrics") : metricTiles(o.objectives(p), SUMMARY_METRIC_CAP, paint0, 54);
     keys.classList.add("app-xs-metrics");
     head.appendChild(keys);
 

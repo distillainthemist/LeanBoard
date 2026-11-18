@@ -111,33 +111,49 @@ export function stagePill(name: string, pdca: string, size = 13): HTMLElement {
   return pill;
 }
 
-/** One metric as a tile: name, sparkline over its good band (or its
- *  state), the reading. */
-export function metricTile(mv: MetricValue, o: Pick<InitiativeRowOpts, "colour" | "metricColour">, h = 22): HTMLElement {
-  const tile = el("div", "app-ir-metric");
-  const name = el("div", "app-ir-metric-name", mv.name);
-  name.title = mv.objective !== "" ? `${mv.name}: ${mv.objective}` : mv.name;
-  tile.appendChild(name);
+/** What a metric tile says on hover — the numbers it no longer prints. */
+export function metricTileTitle(mv: MetricValue): string {
+  const head = mv.objective !== "" ? `${mv.name}: ${mv.objective}` : mv.name;
   const reading = mv.display !== "" ? mv.display : "No data";
   const plan = mv.target !== null ? ` · plan ${mv.target}${mv.unit}` : "";
+  return `${head} — ${reading}${plan}`;
+}
+
+/** One metric as a tile: its caption, then the sparkline over its good
+ *  band (or its state as a chip where there is no trend to draw). NO
+ *  numbers (Ben, 2026-11-18): the line that read "92% · plan 100%" gave
+ *  its height to the chart; the reading, the plan and the limits are the
+ *  tooltip. `caption` defaults to the metric's name. */
+export function metricTile(mv: MetricValue, o: Pick<InitiativeRowOpts, "colour" | "metricColour">, h = 36, caption = ""): HTMLElement {
+  const tile = el("div", "app-ir-metric");
+  const title = metricTileTitle(mv);
+  tile.title = title;
+  tile.appendChild(el("div", "app-ir-metric-name", caption !== "" ? caption : mv.name));
   if (mv.tail.length > 0) {
-    tile.appendChild(sparklineSvg(mv.tail, { target: mv.target, usl: mv.usl, lsl: mv.lsl, direction: mv.direction }, { good: o.colour("good"), bad: o.colour("bad"), line: "#26241f" }, 92, h, `${mv.name}: ${reading}${plan}`));
+    tile.appendChild(sparklineSvg(mv.tail, { target: mv.target, usl: mv.usl, lsl: mv.lsl, direction: mv.direction }, { good: o.colour("good"), bad: o.colour("bad"), line: "#26241f" }, 92, h, title));
   } else {
-    const chip = el("div", "app-ir-metric-state" + (mv.display === "" ? " app-ir-metric-none" : ""), reading);
+    const chip = el("div", "app-ir-metric-state" + (mv.display === "" ? " app-ir-metric-none" : ""), mv.display !== "" ? mv.display : "No data");
     if (mv.rag) {
       chip.style.background = o.metricColour(mv.rag);
       chip.classList.add("app-ir-metric-state-on");
     }
     tile.appendChild(chip);
   }
-  const num = el("div", "app-ir-metric-num", mv.tail.length > 0 ? `${reading}${plan}` : plan.replace(/^ · /, ""));
-  if (mv.rag === "red" || mv.rag === "amber") num.style.color = o.colour("bad");
-  tile.appendChild(num);
   return tile;
 }
 
+/** A priority's objectives inside its tile (Ben, 2026-11-18 — they were
+ *  a row of their own under the priorities): two charts to a row, as
+ *  many rows as it takes, each titled by the objective's own words, or
+ *  the metric's name where none were written. */
+export function objectiveCharts(list: MetricValue[], o: Pick<InitiativeRowOpts, "colour" | "metricColour">): HTMLElement {
+  const box = el("div", "app-cp-objcharts");
+  for (const mv of list) box.appendChild(metricTile(mv, o, 28, mv.objective !== "" ? mv.objective : mv.name));
+  return box;
+}
+
 /** A row's (or a priority card's) metric tiles: `cap`, then "+n". */
-export function metricTiles(list: MetricValue[], cap: number, o: Pick<InitiativeRowOpts, "colour" | "metricColour">, h = 22, none = ""): HTMLElement {
+export function metricTiles(list: MetricValue[], cap: number, o: Pick<InitiativeRowOpts, "colour" | "metricColour">, h = 36, none = ""): HTMLElement {
   const box = el("div", "app-ir-metrics");
   for (const mv of list.slice(0, cap)) box.appendChild(metricTile(mv, o, h));
   if (list.length > cap) {
@@ -239,7 +255,7 @@ export function initiativeRow(d: InitiativeRowData, o: InitiativeRowOpts): HTMLE
   row.appendChild(acts);
 
   // ---- key metrics ----------------------------------------------------------------
-  const metrics = metricTiles(d.metrics, ROW_METRIC_CAP[o.layout], o, o.layout === "summary" ? 38 : 22, "No metric set");
+  const metrics = metricTiles(d.metrics, ROW_METRIC_CAP[o.layout], o, o.layout === "summary" ? 52 : 36, "No metric set");
   metrics.classList.add("app-ir-metricscol");
   row.appendChild(metrics);
 
