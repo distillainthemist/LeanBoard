@@ -3566,7 +3566,16 @@ textarea.app-cp-statement { font-size: 14px; font-weight: 500; }
 .app-cp-orgtree-row { border: none; background: none; text-align: left; font: inherit; font-size: 13.5px; padding: 8px 10px; border-radius: 5px; cursor: pointer; color: #26241f; min-height: 36px; }
 .app-cp-orgtree-row:hover { background: #f4f1ea; }
 .app-cp-orgtree-on { font-weight: 700; background: #ece8e0; }
-.app-cp-people { display: flex; flex-direction: column; max-height: 50vh; overflow: auto; margin-top: 8px; }
+/* the people list of the owner / role pickers keeps ONE height whatever
+   it holds (Ben, 2026-11-18). It used to be as tall as its rows, in a
+   dialog centred on the screen: every letter typed changed the number of
+   rows, the whole dialog re-centred, and it moved again a moment later
+   when the directory answered — the row under the pointer was a
+   different one by the time the click landed. Now the dialog is the same
+   size from open to close and only the list's own contents change. */
+.app-cp-people { display: flex; flex-direction: column; height: min(50vh, 360px); overflow: auto; margin-top: 8px; }
+/* a row keeps its own height: in a full list a two-line row must not be squeezed */
+.app-cp-people > * { flex: none; }
 .app-cp-person { border: none; background: none; text-align: left; font: inherit; font-size: 13.5px; padding: 8px 10px; border-radius: 5px; cursor: pointer; color: #26241f; min-height: 36px; }
 .app-cp-person:hover { background: #f4f1ea; }
 .app-cp-person-on { font-weight: 700; background: #ece8e0; }

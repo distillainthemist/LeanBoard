@@ -14,6 +14,10 @@ v0.92.0 carries the Utilities app in the managed solution, and v0.94.0
 and v0.95.0 are SOLUTION-CARRYING — import the solution first, then
 lock older builds from Settings once the new one runs.
 
+**On dev, NOT released (2026-11-18):** the owner / role picker kept
+moving under the pointer as a name was typed (the dialog re-centred with
+every change of its list); the list now keeps one height (UAT-IMP-006).
+
 **On dev, NOT released (2026-11-18) — the 2026-11-17 export's review
 (`docs/issues-plan-2026-11-18.md`), tranche 1:** charter rows sized by
 their own content and a tile floor of three-quarters size (issues 44,

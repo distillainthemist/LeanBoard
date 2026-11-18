@@ -1,7 +1,7 @@
 // The priority owner picker (2026-10-02): suggested people first, the
 // roster behind a search, the directory behind that — stub data.
 import "../src/style.css";
-import { pickOwner } from "../src/priorities/dialogs";
+import { pickOwner, pickPeople } from "../src/priorities/dialogs";
 
 const roster = ["Ann Ray", "Ben O'Brien", "Jane Smith", "Sam Lee", "Kim Lowe"].map((who, i) => ({ whoId: `u${i}`, who, email: "", site: "Bendigo", department: "", area: "", role: "user", active: true }));
 const suggested = [{ whoId: "u2", who: "Jane Smith" }, { whoId: "u3", who: "Sam Lee" }, { whoId: "u4", who: "Kim Lowe" }];
@@ -15,8 +15,13 @@ const directory = {
     return { whoId: hit.objectId, who: hit.displayName };
   },
 };
+const long = [...roster, ...Array.from({ length: 30 }, (_, n) => ({ ...roster[0], whoId: `x${n}`, who: `${["Anna", "Brett", "Chandra", "Dan", "Ana"][n % 5]} Person ${n + 1}` }))];
 const cases: [string, () => void][] = [
   ["Suggested + directory", () => void pickOwner(host, roster, null, "owner", { suggested, directory }).then((r) => log.push(`chose ${JSON.stringify(r)}`))],
+  // a role several people hold, on a roster long enough to scroll: the
+  // frame must not move as the list changes under the pointer (Ben, 2026-11-18)
+  ["Several people + directory", () => void pickPeople(host, long, [], "Members", { directory }).then((r) => log.push(`chose ${JSON.stringify(r)}`))],
+  ["One person, long roster", () => void pickOwner(host, long, null, "Sponsor", { directory }).then((r) => log.push(`chose ${JSON.stringify(r)}`))],
   ["Roster only (legacy)", () => void pickOwner(host, roster, { whoId: "u2", who: "Jane Smith" }).then((r) => log.push(`chose ${JSON.stringify(r)}`))],
 ];
 const bar = document.getElementById("cases")!;

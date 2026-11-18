@@ -356,6 +356,22 @@ Ben cuts releases.
   the stored ids. Harness (`capture.html`): picked, saved and re-read.
 - UAT: RIT-013 and RIT-014 added.
 
+## Added the same day — the role picker that moved under the pointer
+
+Ben, 2026-11-18: "when adding a person to a role on an initiative, and
+searching for them the popup size changes rapidly resulting in
+misclicks." Cause: the owner / role pickers (`pickOwner`, `pickPeople`
+in `priorities/dialogs.ts`) are dialogs centred on the screen whose
+people list was as tall as its rows. Each letter changed the row
+count, the whole dialog re-centred, and it moved again when the
+directory answered about half a second later. Measured in the harness
+(`owner.html`): the dialog's top went 90, 158, 131, 176, 149 px while
+typing "anna". Fix: the list has one height (`.app-cp-people`, the
+lesser of half the window and 360 px) and its own scroll. After: the
+same top and height at every step, desktop and phone width. The same
+pickers serve a priority's owner. UAT-IMP-006 extended. On dev, not
+released.
+
 ## 6. Questions for Ben
 
 1. 23: owners, approvers and reviewers land on every status too?
