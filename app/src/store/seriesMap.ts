@@ -263,3 +263,11 @@ export function partitionSeries(
       .map(({ key, date, shift, value }) => ({ key, date, shift, value }))
   );
 }
+
+/** Oldest first, by date then shift. The table hands rows back in no
+ *  promised order, and the callers read the LAST point as the latest
+ *  reading (a metric's value and status, the sparkline's tail) — a week
+ *  filled in late must not become "the latest". Pure. */
+export function sortPoints<P extends { date: string; shift: string }>(points: P[]): P[] {
+  return [...points].sort((a, b) => (a.date + a.shift < b.date + b.shift ? -1 : a.date + a.shift > b.date + b.shift ? 1 : 0));
+}

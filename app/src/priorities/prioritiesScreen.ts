@@ -1759,16 +1759,9 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       // …and they ARE the count: no "· n" beside them (Ben, 2026-11-17 —
       // the total only repeated their sum)
       meta.appendChild(priorityCounts(ps, stateHex, density === "compact" ? "xs" : "s", false));
-      // its own actions (2026-11-18): how many are open, in the off-track
-      // colour when one is late — the count the status rule reads
-      const mine = ownOf(p).actions;
-      if (mine.future + mine.late > 0) {
-        const open = mine.future + mine.late;
-        const chip = el("span", "app-cp-ownactions" + (mine.late > 0 ? " app-cp-ownactions-late" : ""), mine.late > 0 ? `${mine.late} late` : `${open} action${open === 1 ? "" : "s"}`);
-        if (mine.late > 0) chip.style.color = stateHex("bad");
-        chip.title = `Actions on this priority: ${mine.done} done · ${mine.future} future · ${mine.late} late`;
-        meta.appendChild(chip);
-      }
+      // its own actions are NOT counted on the tile (Ben, 2026-11-19: the
+      // "1 action" beside the circles was distracting) — a late one still
+      // turns the edge and is named in the circles' tooltip
       card.appendChild(meta);
       // its objectives, as charts under the circles (Ben, 2026-11-18 —
       // they were a row of their own): titled by the objective's words,

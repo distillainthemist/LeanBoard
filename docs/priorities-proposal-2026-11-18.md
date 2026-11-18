@@ -384,8 +384,9 @@ Actions on a priority. App-only: no schema.
 - **Status.** `priorityStatus(states, own)`: a late own action makes the
   priority off track; a priority with no initiatives is on track once it
   has an action of its own. The reason rides the circles' tooltip
-  ("… · 1 late priority action"). The tile shows "N actions", or "N
-  late" in the off-track colour. The executive summary row shows
+  ("… · 1 late priority action"). The tile shows NO action count: the
+  "N actions" / "N late" words beside the circles were taken off on
+  2026-11-19 (Ben: distracting). The executive summary row shows
   "Priority actions" Done / Future / Late beside the initiative circles.
 - **No roll-up.** A priority's own actions count toward THAT priority at
   THAT org. They do not count toward the priority it was cascaded from,
@@ -445,6 +446,22 @@ Metrics on a priority. App-only: no schema.
 - **Not seen in the hosted player.** Checked in the harness: add a
   metric, enter values, the tile chart and status, the read-only view.
   UAT-PRI-016.
+
+## Changes from Ben's test walk (2026-11-19)
+
+- **No action count on the tile** (test 6). The edge colour and the
+  circles' tooltip carry a late priority action.
+- **The sparkline and the Metrics card chart read the same series but
+  not the same span** (test 6, the Yield driver on dev: 11 weekly
+  readings, 6 Jul to 14 Sep). The sparkline draws the last 12 READINGS
+  whatever their age; the card's chart draws the 13-week page around
+  today, so only the two readings since 7 Sep fall in it. Not changed —
+  Ben to say whether the two should share a span.
+- **Driver readings are sorted by date** (`store/seriesMap.ts`
+  `sortPoints`, used by `listDriverPoints`). The read promised no order and the callers took the
+  last row as the latest reading; a week filled in late would have
+  become the metric's value and state. Dev's rows happened to be in
+  date order, so nothing on screen was wrong.
 
 ## Not in this round
 

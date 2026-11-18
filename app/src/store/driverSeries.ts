@@ -4,6 +4,7 @@
 //   boardId "vdt" · cardId = driver id · seriesKey "actual" · date + shift.
 
 import { applySeries, listSeries, listSeriesByPrefix } from "./series";
+import { sortPoints } from "./seriesMap";
 import { Cadence, Aggregate, foldSeries, SeriesPoint } from "../improvement/vdt/model";
 import { isSpecSeriesKey, SPEC_SERIES_KEYS, SPEC_SERIES_PREFIX, SpecKind, SpecSeries, specSeriesFromCells, spreadOverBuckets } from "../../../shared/schema/specSeries";
 import { DriverNode, setValue } from "../improvement/vdt/model";
@@ -13,15 +14,16 @@ import { loadGridCells } from "./gridCells";
 export const DRIVER_SERIES_BOARD = "vdt";
 export const DRIVER_SERIES_KEY = "actual";
 
-/** The points inside [from, to] (yyyy-mm-dd, inclusive). */
+/** The points inside [from, to] (yyyy-mm-dd, inclusive), oldest first. */
 export async function listDriverPoints(driverId: string, from: string, to: string): Promise<SeriesPoint[]> {
   const cells = await listSeries(DRIVER_SERIES_BOARD, driverId, from, to);
-  return cells
-    .filter((c) => c.key === DRIVER_SERIES_KEY)
-    .map((c) => ({ date: c.date, shift: c.shift || "-", value: Number(c.value) }))
-    .filter((p) => Number.isFinite(p.value));
+  return sortPoints(
+    cells
+      .filter((c) => c.key === DRIVER_SERIES_KEY)
+      .map((c) => ({ date: c.date, shift: c.shift || "-", value: Number(c.value) }))
+      .filter((p) => Number.isFinite(p.value))
+  );
 }
-
 /** Write (or overwrite) one point; an empty value deletes it. */
 export async function putDriverPoint(driverId: string, date: string, shift: string, value: number | null): Promise<void> {
   const cell = { key: DRIVER_SERIES_KEY, date, shift: shift || "-", value: value === null ? "" : String(value) };
