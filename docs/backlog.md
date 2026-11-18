@@ -34,7 +34,13 @@ board, so production locks older builds with the release. **Tranche
 priority" (add, edit, Values…), they show first wherever objectives
 show, and one off plan makes the priority off track (UAT-PRI-016); an
 older build drops them when it saves a priority, the second reason to
-lock older builds. All four tranches are built; nothing is released. The harness can now run the real Priorities page
+lock older builds. All four tranches are built; nothing is released.
+**Ben's test walk on dev, 2026-11-19:** twelve checks passed (the
+record is in the proposal). Changed on the way: no action count on the
+tile; a priority's own metrics show their full trend in the Objectives
+tab; driver readings are read in date order. Unproven: what a person
+who does not manage the site sees on a priority's actions. Dev runs
+`v0.96.0-11`. The harness can now run the real Priorities page
 (`harness/priorities.html` on an in-memory Dataverse).
 
 **v0.96.0 (2026-11-18, app-only):** the review of the full 2026-11-17

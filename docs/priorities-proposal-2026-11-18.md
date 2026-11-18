@@ -475,7 +475,7 @@ Metrics on a priority. App-only: no schema.
 
 ## Ben's test walk on dev (2026-11-19)
 
-Twelve checks, one at a time, on `v0.96.0-6` then `v0.96.0-7`.
+Twelve checks, one at a time, on `v0.96.0-6`, `v0.96.0-7` and `v0.96.0-11`.
 
 | # | Check | Result |
 |---|---|---|
@@ -488,7 +488,12 @@ Twelve checks, one at a time, on `v0.96.0-6` then `v0.96.0-7`.
 | 7 | Popup "Add action", Actions tab, Gantt | Pass |
 | 8 | Complete / Archive warning, executive summary | Pass |
 | 9 | Adopted tile, company view, hub label, message | Steps 1–5 taken as passed; step 6 (a person who does not manage the site) UNTESTED — no second person |
-| 10 | Add a metric to a priority | In progress: Ben asked for the full trend; charts added on `v0.96.0-11` |
+| 10 | Add a metric to a priority | Pass on `v0.96.0-11`, after the full trend charts were added |
+| 11 | Enter values; the chart, tile and status follow | Pass |
+| 12 | Eight-metric cap, remove, with a primary, company level, adopted, read-only | Pass as reported. The read-only view at an adopting site is only proven by someone who manages the site and not the company; Ben manages both |
+
+Still unproven after the walk: test 9 step 6 (what a person who does
+not manage the site sees on a priority's actions).
 
 ## Not in this round
 
