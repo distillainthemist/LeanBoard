@@ -5,55 +5,42 @@ its decision date and enough context to pick it up cold. The phase plans
 (`leanboard-phase5-plan.md`, `leanboard-standard-documents-plan.md`)
 stay the design detail; this is the queue.
 
-## Current state (2026-11-17, after v0.95.0)
+## Current state (2026-11-18, after v0.96.0)
 
-Released through v0.95.0 (ledger: `leanboard-cascade-improvement-plan.md`;
+Released through v0.96.0 (ledger: `leanboard-cascade-improvement-plan.md`;
 release paragraphs: `../CLAUDE.md`). Production took v0.88.1 and the
 v0.89.0/v0.90.0 managed solution; v0.91.0 and v0.93.0 are app-only,
-v0.92.0 carries the Utilities app in the managed solution, and v0.94.0
-and v0.95.0 are SOLUTION-CARRYING — import the solution first, then
-lock older builds from Settings once the new one runs.
+v0.92.0 carries the Utilities app in the managed solution, v0.94.0
+and v0.95.0 are SOLUTION-CARRYING — import the solution first — and
+v0.96.0 is app-only. Lock older builds from Settings once the new one
+runs.
 
-**On dev, NOT released (2026-11-18):** Settings → Issues reads newest
-first under any ranked issues (it was oldest first) — UAT-ISS-002.
-
-**On dev, NOT released (2026-11-18):** a new action needs its Action,
-a person and a due date, each marked with a red asterisk, and Raise /
-Save is disabled until they are filled (Raise used to do nothing,
-silently) — UAT-ACT-012; existing
-actions are not held to it.
-
-**On dev, NOT released (2026-11-18):** the owner / role picker kept
-moving under the pointer as a name was typed (the dialog re-centred with
-every change of its list); the list now keeps one height (UAT-IMP-006).
-
-**On dev, NOT released (2026-11-18) — the 2026-11-17 export's review
-(`docs/issues-plan-2026-11-18.md`), tranche 1:** charter rows sized by
-their own content and a tile floor of three-quarters size (issues 44,
-41; UAT-IMP-010); canvas labels wrap (33); the duplicate document-id
-check stops when it cannot be made (7; UAT-DOC-026); an action tile
-shows what fits and "+N more" (39; UAT-ACT-011). App-only. **Tranche 2, same day:**
-initiative card switches read once and in parallel (45; UAT-IMP-011);
-one people search for Who and Support (40); cascaded people as grid
-boxes, two levels at most (43); the Default filters tick tree with the
-member's own site leading (42; UAT-DOC-076); "Show all n" on short
-filter vocabularies and pills that wait for the profile (38). **Tranche 3, same day:** the action card "By person"
-(a setting and a per-person select; drag reassigns a one-person action;
-UAT-RIT-013) and a Person column in capture cards kept with identity
-(UAT-RIT-014). After the release that carries tranche 3, LOCK OLDER
-BUILDS: an older build shows a person cell as raw text and would spoil
-one it edits. Owed by
-Ben: the replies in the plan's section 1, the UAT library's Linked
-documents column, Kat's Dataverse role, Casting's featured document
-types, and whether canvas labels get a style (33).
-
-**On dev, NOT released (2026-11-18):** the Documents register stopped
-at its first 20 documents on a tall window (production, Ben's screen) —
-the near-end observer only reports a change, and 20 rows never pushed
-the sentinel out of range. `listView.ts` and `docsTiles.ts` watch the
-sentinel afresh as each load ends (UAT-DOC-094; harness
-`doclist.html`). App-only. In the code since the small first page of
-2026-08-14.
+**v0.96.0 (2026-11-18, app-only):** the review of the full 2026-11-17
+issues export (45 reports) and its build — status of every report,
+Ben's decisions and the as-built record in `issues-plan-2026-11-18.md`.
+Owed from it:
+- **Ben, no code:** send the replies (the PDF
+  `issue-responses-2026-11-18.pdf`) and close the reports; change the
+  UAT library's Linked documents column to multiple lines of text (12,
+  26); check Kat's Dataverse role can write `ben_ltkdoclibrary` (17);
+  set Casting's featured document types (38); lock older builds in each
+  environment after installing v0.96.0.
+- **Never seen in a browser:** the Default filters tick tree
+  (UAT-DOC-076). Not tested on dev by Ben: the label wrap, the person
+  column, the duplicate-id check, the role picker, Charter edits across
+  a card switch.
+- **Open with Ben:** a style for canvas labels (33: size, bold, colour;
+  4–6 h) — Alicia asked for formatting, and only wrap was built; the
+  four card dialogs that raise an action with an entry (5 Whys, fault
+  tree, risk matrix, heatmap) enforce the required fields on the press,
+  not by disabling their own Add button; whether the Documents forms'
+  "Required" tag should become the action form's asterisk.
+- **Not built, by decision (2026-11-18):** naming guidance on upload
+  (1); the document ID catalogue (3, the register's own export is the
+  answer given); the previous meeting on a Link card (31); prompts
+  (32); owners and approvers landing on every status (23); the replayed
+  work link (15); site admins editing their own featured terms; a
+  ceiling on a cascade.
 
 **v0.95.0 (2026-11-17):** the executive summary scope and the
 2026-11-17 issue export — plan, decisions and the as-built record in

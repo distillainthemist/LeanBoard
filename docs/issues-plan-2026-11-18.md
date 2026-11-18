@@ -1,5 +1,7 @@
 # Issues review — export of 2026-11-17 (45 issues)
 
+**RELEASED as v0.96.0 on 2026-11-18 (app-only).**
+
 Source: the full issues export of 2026-11-17 23:59 UTC (45 reports,
 production, app v0.94.0-20-g4f95af2). Reviewed 2026-11-18 against
 v0.95.0 plus the Documents paging fix (4d991d9, on dev, not released).
@@ -256,7 +258,7 @@ Ben cuts releases.
 2. 45, 40, 43, 42, and the two 38 gaps.
 3. 5 and 34.
 
-## As built — tranche 1 (2026-11-18, on dev, NOT released)
+## As built — tranche 1 (2026-11-18, released in v0.96.0)
 
 - **44** `controls/CanvasCard/styles.ts`: reading rows are
   `minmax(60px, auto)`. Harness (`charter.html?long=1`): forty lines in
@@ -288,7 +290,7 @@ Ben cuts releases.
   "+8 more". Tiles stay inert.
 - UAT: IMP-010 and ACT-011 added, DOC-026 extended.
 
-## As built — tranche 2 (2026-11-18, on dev, NOT released)
+## As built — tranche 2 (2026-11-18, released in v0.96.0)
 
 - **45** `improvement/binding.ts`, `screens/cardEditor.ts`,
   `store/priorities.ts`. An initiative card switch now reads the
@@ -330,7 +332,7 @@ Ben cuts releases.
   it paints pills.
 - UAT: IMP-011 added; ACT-006, ACT-009, DOC-076, DOC-093 extended.
 
-## As built — tranche 3 (2026-11-18, on dev, NOT released)
+## As built — tranche 3 (2026-11-18, released in v0.96.0)
 
 - **5** `controls/ActionBoard/personGroup.ts` (tested) and the editor.
   "By person" is a third kanban grouping: a card setting (Kanban
@@ -369,8 +371,8 @@ directory answered about half a second later. Measured in the harness
 typing "anna". Fix: the list has one height (`.app-cp-people`, the
 lesser of half the window and 360 px) and its own scroll. After: the
 same top and height at every step, desktop and phone width. The same
-pickers serve a priority's owner. UAT-IMP-006 extended. On dev, not
-released.
+pickers serve a priority's owner. UAT-IMP-006 extended. Released in
+v0.96.0.
 
 ## Added the same day — what an action needs to be raised
 
@@ -389,7 +391,7 @@ its Action. The four card dialogs that raise an action with an entry
 action has text; their Add button is the card's own, so there the
 rule is enforced on the press, with the fields outlined and a line in
 the form. An Issue alone no longer raises an action. Every
-raise goes through this one form. UAT-ACT-012. On dev, not released.
+raise goes through this one form. UAT-ACT-012. Released in v0.96.0.
 
 ## 6. Questions for Ben
 

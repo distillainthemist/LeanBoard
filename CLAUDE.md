@@ -516,6 +516,26 @@ Version lives in the tag alone — nothing is stamped into files.
   review's summary tiles and the task banner heading removed) is
   SOLUTION-CARRYING for the Utilities app only: prod imports the managed
   solution; the LeanBoard app is unchanged. No schema change.
+  v0.96.0 (2026-11-18, app-only, no schema: the review of the full
+  2026-11-17 issues export and its build — `docs/issues-plan-2026-11-18.md`;
+  canvas rows sized by their own content, a tile's scale floored at
+  0.75 (`CanvasCard/fit.ts`), wrapped labels; an initiative card switch
+  that reads once and beside the card (`initiativeContext`,
+  `priorityStatement`); owner / role pickers that keep one height;
+  action tiles with "+N more" (`ActionBoard/tileFit.ts`); the kanban
+  "By person" (`ActionBoard/personGroup.ts`, a setting and a
+  per-person select, drag reassigns a one-person action); ONE people
+  search for Who and Support (`peopleSearchBox`); cascades of two
+  levels at most, their people as grid boxes; a new action needs
+  Action, Who and Due — a red asterisk on the label and Raise / Save
+  disabled until then, the standing way to mark a required field in a
+  card dialog; a Person column in capture cards kept with identity as
+  "<whoId>|<name>" strings; the duplicate document-id check that stops
+  when it cannot be made; the Default filters tick tree; "Show all n"
+  on short filter vocabularies; the Documents register loading past
+  its first 20; Settings → Issues newest first). After it reaches an
+  environment, "Lock every older build": an older bundle spoils a
+  person cell it edits.
   v0.95.0 (2026-11-17: the executive summary scope and the 2026-11-17
   issue export — `docs/issues-plan-2026-11-17.md`; the status rule
   `improvement/status.ts` — on track / off track / "⚑ Support needed" —

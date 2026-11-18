@@ -1455,6 +1455,61 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-11-18 — released as v0.96.0** (app-only, no schema; Utilities
+  unchanged). The review of the full 2026-11-17 issues export (45
+  reports) and what came of it the same day —
+  `docs/issues-plan-2026-11-18.md` holds the status of every report,
+  Ben's decisions and "As built" by tranche. AFTER the release reaches
+  an environment: Settings → the release policy → "Lock every older
+  build" — an older bundle shows a capture card's person cell as raw
+  text and spoils one it edits.
+  **Documents.** The register no longer stops at its first 20 on a tall
+  window (`listView.ts`, `docsTiles.ts` watch the sentinel afresh as a
+  load ends). The duplicate document-id check STOPS when it cannot be
+  made (`documentIdInUse` throws `DocIdUnchecked`; a refusal used to
+  read as "no clash") — a library the person may not read is skipped;
+  index the Document ID column. Default filters is a tick tree of
+  companies with their sites, the member's own site always leads, and
+  a mapped company is not folded over it (`filterModel.ts`:
+  `defaultFilterRows`, `defaultBranchRoots`, `firstVisitFolds`). A
+  short filter vocabulary gets "Show all n"; the Filters pane waits
+  for the person's profile.
+  **Initiatives and cards.** Canvas rows are sized by their own
+  content (`minmax(60px, auto)` — one long field made every row tall);
+  a tile's canvas scale is searched for and never under 0.75
+  (`CanvasCard/fit.ts`); labels wrap in a reading canvas. A card
+  switch on an `init-` board reads the initiative's row, settings and
+  template once, beside the card's own reads, the primary priority as
+  one row and only when shown (`improvement/binding.ts`
+  `initiativeContext` / `initiativeCardSide`,
+  `store/priorities.priorityStatement`). The owner / role pickers keep
+  one height, so the dialog no longer moves under the pointer.
+  **Actions.** A tile's kanban clamps to three lines and ends a full
+  column "+N more" (`ActionBoard/tileFit.ts`); tiles stay inert. "By
+  person" is a third kanban grouping — a card setting and a per-person
+  select — where a drag reassigns a one-person action and a shared one
+  is refused; the Gantt follows (`ActionBoard/personGroup.ts`,
+  `kanbanGroupOf`). Who and Support are ONE search
+  (`peopleSearchBox`; `shared/ui/personTypeAhead.ts`). Cascaded people
+  are boxes in the same grid; the cascade goes two levels at most
+  (`reports(leader, 1 | 2)`), and a depth stop is no longer "answered
+  only in part" (`walkReports` returns `capped`). A NEW action needs
+  its Action, a person and a due date: a red asterisk on each label
+  and Raise / Save disabled until then (`checkRequired`, `missing`);
+  existing actions are not held to it.
+  **Capture cards.** A "Person" column type, one or several, kept
+  with identity as "<whoId>|<name>" strings in a string array — a
+  shape an older build keeps when it saves the row.
+  **Settings → Issues** reads newest first under any ranked issues
+  (`issues/queueOrder.ts`).
+  UAT: IMP-010, IMP-011, ACT-011, ACT-012, RIT-013, RIT-014, ISS-002,
+  DOC-094 added; ACT-006, ACT-009, DOC-026, DOC-076, DOC-093, IMP-006
+  extended. Ben's walk on dev passed the charter, the tile, the speed,
+  By person, the shared search, the cascade and "Show all"; not seen
+  by anyone in a browser: the Default filters tree. Not built, by
+  decision: naming guidance (1), the ID catalogue (3), previous-meeting
+  Link card (31), prompts (32), owners landing on every status (23),
+  the replayed work link (15).
 - **2026-11-17 — released as v0.95.0** (SOLUTION-CARRYING: the new
   `ben_ltkattachment` table; `ben_doneat` and a widened
   `ben_assigneesjson` (10 000 → 100 000) on `ben_ltkaction`;
