@@ -1575,6 +1575,12 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
         const docId = docIdInternal !== "" ? (row.values[docIdInternal] ?? "").trim() : "";
         if (docId !== "" && carried.has(docIdInternal)) {
           const dup = await renderListPage(ctx.site, dest.listId, buildRenderViewXml({ textEquals: [{ col: docIdInternal, value: docId }], fields: [docIdInternal], rowLimit: 2 }));
+          // not checked is not "free" (2026-11-18): the feed answers a
+          // refusal as no rows plus an error
+          if (dup.error !== "") {
+            refuse(`Document ID "${docId}" could not be checked — ${spErrorText(dup.error).slice(0, 160)}`);
+            return;
+          }
           if (dup.rows.length > 0) {
             refuse(`Document ID "${docId}" is already used by "${dup.rows[0].name}"`);
             return;

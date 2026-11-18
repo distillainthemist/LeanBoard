@@ -42,6 +42,7 @@ import {
   vString,
 } from "./types";
 import { CANVAS_CSS, CANVAS_STEP } from "./styles";
+import { fitScale } from "./fit";
 
 export interface CanvasEditorCallbacks {
   onChange: (env: CanvasEnvelope) => void;
@@ -232,8 +233,9 @@ export class CanvasEditor {
 
   /** A TILE shows the whole charter: when the grid is taller than the
    *  body it is scaled down to fit (the BoardGrid's own trick), never
-   *  below half size (card-responsiveness-review-2026-10-30, R4). The
-   *  focused view scrolls instead. */
+   *  below TILE_SCALE_FLOOR (card-responsiveness-review-2026-10-30, R4;
+   *  the floor and the search, 2026-11-18 — fit.ts). The focused view
+   *  scrolls instead. */
   private fitTile(): void {
     const body = this.root.querySelector<HTMLElement>(".ltk-cv-body");
     const grid = this.root.querySelector<HTMLElement>(".ltk-cv-grid");
@@ -243,11 +245,15 @@ export class CanvasEditor {
     if (this.root.closest(".ltk-tile") === null || this.designing()) return;
     const banner = body.querySelector<HTMLElement>(".ltk-cv-banner");
     const avail = body.clientHeight - (banner?.offsetHeight ?? 0) - 26;
-    const need = grid.scrollHeight;
-    if (avail <= 0 || need <= avail) return;
-    const k = Math.max(0.5, avail / need);
-    grid.style.width = `${Math.round(10000 / k) / 100}%`;
-    grid.style.transform = `scale(${Math.round(k * 1000) / 1000})`;
+    const widthFor = (k: number) => (k >= 1 ? "" : `${Math.round(10000 / k) / 100}%`);
+    // the grid's height at the width a scale implies (a forced layout
+    // per ask; a charter is a handful of fields)
+    const k = fitScale(avail, (at) => {
+      grid.style.width = widthFor(at);
+      return grid.scrollHeight;
+    });
+    grid.style.width = widthFor(k);
+    if (k < 1) grid.style.transform = `scale(${k})`;
   }
 
   private render(): void {

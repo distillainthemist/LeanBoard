@@ -14,6 +14,18 @@ v0.92.0 carries the Utilities app in the managed solution, and v0.94.0
 and v0.95.0 are SOLUTION-CARRYING — import the solution first, then
 lock older builds from Settings once the new one runs.
 
+**On dev, NOT released (2026-11-18) — the 2026-11-17 export's review
+(`docs/issues-plan-2026-11-18.md`), tranche 1:** charter rows sized by
+their own content and a tile floor of three-quarters size (issues 44,
+41; UAT-IMP-010); canvas labels wrap (33); the duplicate document-id
+check stops when it cannot be made (7; UAT-DOC-026); an action tile
+shows what fits and "+N more" (39; UAT-ACT-011). App-only. Tranche 2
+(45, 40, 43, 42, two document-filter gaps) and tranche 3 (By person
+kanban grouping, a person column in capture cards) follow. Owed by
+Ben: the replies in the plan's section 1, the UAT library's Linked
+documents column, Kat's Dataverse role, Casting's featured document
+types, and whether canvas labels get a style (33).
+
 **On dev, NOT released (2026-11-18):** the Documents register stopped
 at its first 20 documents on a tall window (production, Ben's screen) —
 the near-end observer only reports a change, and 20 rows never pushed

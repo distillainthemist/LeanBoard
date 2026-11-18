@@ -33,9 +33,19 @@ export const CANVAS_CSS = `
 /* a reading canvas (not the designer) lets its rows GROW on a tall host
    (card-responsiveness-review-2026-10-30, R4): the grid fills the body
    and the surplus height is shared by the rows; the designer keeps the
-   fixed step its drop maths relies on */
+   fixed step its drop maths relies on.
+   The rows are AUTO, not 1fr (Damon, 2026-11-17): once the content is
+   taller than the card the grid's height is its content's, and every
+   1fr row then took the height of the neediest one — forty lines in
+   Scope In made the one-line Title 256 px tall. An auto row is as tall
+   as ITS fields need; the spare height of a tall host is still shared
+   equally (align-content stretches auto rows). */
 .ltk-cv-grow { display: flex; flex-direction: column; }
-.ltk-cv-grow .ltk-cv-grid { flex: 1 0 auto; grid-auto-rows: minmax(${CANVAS_STEP}px, 1fr); }
+.ltk-cv-grow .ltk-cv-grid { flex: 1 0 auto; grid-auto-rows: minmax(${CANVAS_STEP}px, auto); }
+/* a reading canvas WRAPS a long label — its row grows with it; the
+   designer keeps one line (fixed rows) (Alicia, 2026-11-06) */
+.ltk-cv-grow .ltk-cv-label { white-space: normal; overflow: visible; }
+.ltk-cv-grow .ltk-cv-label > span:first-child { min-width: 0; overflow-wrap: anywhere; }
 .ltk-cv-narrow .ltk-cv-grid { grid-template-columns: 1fr !important; }
 /* narrow: one column, and a field's height span capped at two steps
    (--hn, set by the editor) so a tall field does not eat the phone */

@@ -19,7 +19,14 @@ const defs: TemplateField[] = [
   { key: "confidence", label: "Confidence", kind: "rating", options: [], required: false },
   { key: "progress", label: "Progress", kind: "percent", options: [], required: false },
 ];
-const values: Record<string, string> = { scope: "Filler 2 changeovers only.\nExcludes labelling.", problem: "Changeover takes 48 minutes on average", saving: "12500.5" };
+// ?long=1 puts forty lines in Scope (Damon's charter, 2026-11-17: one
+// long field made every row tall); ?tile=1 mounts the card as a board
+// TILE (Sue: the tile's text at half size); ?label=1 gives one field a
+// long label (Alicia: a question as a label)
+const q = new URLSearchParams(location.search);
+const longScope = Array.from({ length: 40 }, (_, n) => `Line item ${n + 1} in scope`).join("\n");
+const values: Record<string, string> = { scope: q.has("long") ? longScope : "Filler 2 changeovers only.\nExcludes labelling.", problem: "Changeover takes 48 minutes on average", saving: "12500.5" };
+if (q.has("tile")) document.getElementById("c")!.classList.add("ltk-tile");
 const def = (k: string) => defs.find((d) => d.key === k)!;
 const log: string[] = [];
 (window as unknown as { values: typeof values; log: string[] }).values = values;
@@ -52,7 +59,7 @@ const config: CanvasConfig = {
     f("t", "Initiative", "title", 3, 1),
     f("p", "Problem statement", "field:problem", 2, 3),
     f("s", "Scope", "field:scope", 1, 3),
-    f("sv", "Target saving", "field:saving", 1, 1),
+    f("sv", q.has("label") ? "What did any of us do to work more safely on our last shift, and what would we do again?" : "Target saving", "field:saving", 1, 1),
     f("r", "Risk level", "field:risk", 1, 1),
     f("fu", "Funded", "field:funded", 1, 1),
     f("a", "Areas affected", "field:areas", 1, 2),

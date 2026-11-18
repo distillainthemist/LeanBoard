@@ -2673,6 +2673,20 @@ export function friendlySpError(raw: string): string {
   return t;
 }
 
+/** A refusal that means "you may not read this library" (or it is gone),
+ *  as against one that means the question could not be answered. The
+ *  duplicate-id check skips the first — a person cannot check a library
+ *  closed to them — and stops on the second (2026-11-18). */
+export function isAccessRefusal(raw: string): boolean {
+  return /access (is )?denied|unauthori[sz]ed|forbidden|does not exist|not found|\b40[134]\b/i.test(`${spErrorText(raw)} ${raw}`);
+}
+
+/** SharePoint's list view threshold: a filter on an unindexed column in
+ *  a library past 5,000 items. */
+export function isThresholdRefusal(raw: string): boolean {
+  return /list view threshold|exceeds the .*threshold/i.test(`${spErrorText(raw)} ${raw}`);
+}
+
 export function spErrorText(raw: string): string {
   const deepest = (value: unknown, depth: number): string => {
     // a real refusal nests connector envelope → message string → JSON →

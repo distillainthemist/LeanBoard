@@ -21,7 +21,7 @@ import {
   newDocumentWrites,
   sanitizeFileName,
   spErrorText,
-  validateItemErrors, friendlySpError } from "./model";
+  validateItemErrors, friendlySpError, isAccessRefusal, isThresholdRefusal } from "./model";
 import { DocRow, buildRenderViewXml, extOf } from "./rows";
 import { renderListPage } from "./data";
 import { BuiltEditor, buildFieldEditors, missingEditors, revealMissing } from "./fieldEditors";
@@ -46,9 +46,32 @@ import {
 /** Required columns SharePoint fills itself on a new file. */
 const ALWAYS_SET = new Set(["FileLeafRef", "LinkFilename", "LinkFilenameNoMenu", "Created", "Modified", "Author", "Editor"]);
 
+/** The duplicate-id question could not be answered for a library — the
+ *  caller stops instead of adding (2026-11-18). */
+export class DocIdUnchecked extends Error {
+  constructor(public readonly lib: string, public readonly why: string) {
+    super(`The document ID could not be checked in ${lib} — ${why}`);
+    this.name = "DocIdUnchecked";
+  }
+}
+
+/** What to tell the person when the check itself failed. */
+export function docIdUncheckedLine(e: unknown, nothing: string): string {
+  const text = e instanceof DocIdUnchecked ? e.message : `The document ID could not be checked — ${e instanceof Error ? e.message : String(e)}`;
+  return `${text}. ${nothing}`;
+}
+
 /** The document, if any, already carrying this id in one of `libs`
  *  (the column must be carried by the library; `self` excludes the
- *  document being edited). */
+ *  document being edited).
+ *
+ *  A lookup that FAILS is not "no clash" (2026-11-18): it used to count
+ *  as one — the feed answers a refusal as no rows plus an error — so a
+ *  duplicate went through exactly where it matters, on a library past
+ *  SharePoint's 5,000-item threshold with the id column unindexed. Now
+ *  it throws DocIdUnchecked and the caller stops. The one exception is
+ *  a library this person may not read: they cannot check it, and
+ *  refusing would stop them adding anything at all. */
 export async function documentIdInUse(
   site: string,
   col: string,
@@ -62,7 +85,20 @@ export async function documentIdInUse(
     if (seen.has(k)) continue;
     seen.add(k);
     if (!l.config.columns.some((c) => c.internal === col)) continue;
-    const page = await renderListPage(site, l.listId, buildRenderViewXml({ textEquals: [{ col, value }], fields: [col], rowLimit: 3 })).catch(() => ({ rows: [] as DocRow[] }));
+    const page = await renderListPage(site, l.listId, buildRenderViewXml({ textEquals: [{ col, value }], fields: [col], rowLimit: 3 })).catch((e: unknown) => ({
+      rows: [] as DocRow[],
+      error: e instanceof Error ? e.message : String(e),
+    }));
+    if (page.error !== "") {
+      if (isAccessRefusal(page.error)) continue;
+      const libName = l.config.title || l.name;
+      throw new DocIdUnchecked(
+        libName,
+        isThresholdRefusal(page.error)
+          ? "the library is past 5,000 items and its Document ID column is not indexed (a document controller indexes it in the library's settings)"
+          : spErrorText(page.error).slice(0, 200)
+      );
+    }
     const hit = page.rows.find((r) => !(self !== null && r.listId.toLowerCase() === self.listId.toLowerCase() && r.id === self.id) && (r.values[col] ?? "").trim().toLowerCase() === value.toLowerCase());
     if (hit !== undefined) return { name: hit.name, lib: l.config.title || l.name };
   }
@@ -565,7 +601,16 @@ export function openAddDocument(opts: AddDocumentOpts): void {
     const idVal = idEd !== undefined ? (idEd.read().text ?? "").trim() : "";
     if (idEd !== undefined && idVal !== "") {
       status("Checking the document ID…");
-      const clash = await documentIdInUse(site, idEd.field.internal, idVal, [lib, ...(opts.standards ?? [])], null);
+      let clash: { name: string; lib: string } | null = null;
+      try {
+        clash = await documentIdInUse(site, idEd.field.internal, idVal, [lib, ...(opts.standards ?? [])], null);
+      } catch (e) {
+        // not checked is not "free" — nothing is created
+        status(`Not added: ${docIdUncheckedLine(e, "Nothing was created — try again.")}`, true);
+        creating = false;
+        sync();
+        return;
+      }
       if (clash !== null) {
         status(`Not added: Document ID “${idVal}” is already used by “${clash.name}” in ${clash.lib} — choose another.`, true);
         creating = false;

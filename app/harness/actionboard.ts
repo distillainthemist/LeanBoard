@@ -97,6 +97,8 @@ const make = (n: number, status: LtkAction["status"]): LtkAction => {
   a.id = `a${n}`;
   a.issue = ["Safety", "Quality", "Delivery"][n % 3];
   a.description = `Action number ${n + 1} with enough words to wrap onto a second line in a column`;
+  // ?tile=1: every third action runs to a paragraph, as real ones do
+  if (query.get("tile") === "1" && n % 3 === 0) a.description += " — strengthen capacity and capability by ensuring sufficient trained and competent people are available to deliver consistent, effective on-the-job training and support workforce competency development";
   a.status = status;
   a.pdca = status === "done" ? "closed" : status === "in-progress" ? "do" : "plan";
   a.start = day(-6 + n);
@@ -125,6 +127,9 @@ const make = (n: number, status: LtkAction["status"]): LtkAction => {
 const many = [...Array.from({ length: 11 }, (_, n) => make(n, "open")), ...Array.from({ length: 2 }, (_, n) => make(20 + n, "in-progress")), make(30, "done"), ...(shared ? [make(31, "done"), make(32, "done")] : [])];
 const log: string[] = [];
 (window as unknown as { log: string[] }).log = log;
+// ?tile=1 mounts the card as a board TILE: inert, three-line actions,
+// "+N more" under a column that does not fit (Sue, 2026-11-17)
+if (query.get("tile") === "1") document.getElementById("b")!.classList.add("ltk-tile");
 const ed = new ActionBoardEditor(document.getElementById("b")!, { onChange: (acts) => log.push(`change ${acts.length} last=${acts[acts.length - 1].status}/${acts[acts.length - 1].issue}`) });
 (window as unknown as { ed: ActionBoardEditor }).ed = ed;
 ed.setActor({ whoId: "u1", who: "Ben O'Brien" });

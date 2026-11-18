@@ -250,13 +250,13 @@ expected: the device file goes straight into the library byte-exact (a name alre
 
 ### UAT-DOC-026 — Add refuses a duplicate name and a duplicate document id
 persona: author
-modules: docs/addDocument.ts docs/model.ts
+modules: docs/addDocument.ts docs/model.ts docs/editProperties.ts docs/ingestionScreen.ts
 preconditions: an existing document name and document id in the library; a second standards library carrying a document id
 steps:
 1. Add document with the same file name.
 2. Add document with a different name but the same document id.
 3. Add document to the second library with a document id used in the first.
-expected: all three are refused before anything is written, each with a plain reason naming the clash ("A document named “X” already exists in this library — last modified by … on …" / "Document ID “X” is already used by “name” in <library>"); the check spans every standards library
+expected: all three are refused before anything is written, each with a plain reason naming the clash ("A document named “X” already exists in this library — last modified by … on …" / "Document ID “X” is already used by “name” in <library>"); the check spans every standards library; a check that could NOT be made (SharePoint refuses the lookup — for example a library past 5,000 items whose Document ID column is not indexed) stops the Add with "The document ID could not be checked in <library> — …" and nothing is created; Edit properties and an ingestion run refuse the same way; a library the person may not read is skipped
 
 ### UAT-DOC-027 — Edit properties
 persona: owner

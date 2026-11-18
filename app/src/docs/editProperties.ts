@@ -333,8 +333,13 @@ export function openEditProperties(opts: EditPropertiesOpts): void {
       const was = (initialMap.get(idEd.field.internal)?.text ?? "").trim();
       if (idVal !== "" && idVal.toLowerCase() !== was.toLowerCase()) {
         status.textContent = "Checking the document ID…";
-        const { documentIdInUse } = await import("./addDocument");
-        const clash = await documentIdInUse(site, idEd.field.internal, idVal, [opts.lib, ...(opts.standards ?? [])], { listId: row.listId, id: row.id });
+        const { documentIdInUse, docIdUncheckedLine } = await import("./addDocument");
+        let clash: { name: string; lib: string } | null = null;
+        try {
+          clash = await documentIdInUse(site, idEd.field.internal, idVal, [opts.lib, ...(opts.standards ?? [])], { listId: row.listId, id: row.id });
+        } catch (e) {
+          return fail("Not saved", docIdUncheckedLine(e, "Nothing was changed — try again."));
+        }
         if (clash !== null) return fail("Not saved", `Document ID “${idVal}” is already used by “${clash.name}” in ${clash.lib} — choose another.`);
       }
     }

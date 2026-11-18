@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-17",
+ "generatedAt": "2026-11-18",
  "releases": [
   {
    "tag": "v0.95.0",
@@ -1006,7 +1006,9 @@
        "persona": "author",
        "modules": [
         "docs/addDocument.ts",
-        "docs/model.ts"
+        "docs/model.ts",
+        "docs/editProperties.ts",
+        "docs/ingestionScreen.ts"
        ],
        "preconditions": "an existing document name and document id in the library; a second standards library carrying a document id",
        "steps": [
@@ -1014,9 +1016,9 @@
         "Add document with a different name but the same document id.",
         "Add document to the second library with a document id used in the first."
        ],
-       "expected": "all three are refused before anything is written, each with a plain reason naming the clash (\"A document named “X” already exists in this library — last modified by … on …\" / \"Document ID “X” is already used by “name” in <library>\"); the check spans every standards library",
-       "hash": "15d6c73a",
-       "changed": "2026-10-26"
+       "expected": "all three are refused before anything is written, each with a plain reason naming the clash (\"A document named “X” already exists in this library — last modified by … on …\" / \"Document ID “X” is already used by “name” in <library>\"); the check spans every standards library; a check that could NOT be made (SharePoint refuses the lookup — for example a library past 5,000 items whose Document ID column is not indexed) stops the Add with \"The document ID could not be checked in <library> — …\" and nothing is created; Edit properties and an ingestion run refuse the same way; a library the person may not read is skipped",
+       "hash": "5cbc925a",
+       "changed": "2026-11-18"
       },
       {
        "id": "UAT-DOC-027",
@@ -3155,6 +3157,27 @@
        "expected": "step 1 the tick that read \"Escalated\" is now the \"⚑ Flag for support\" button in the title row, with a ⋮ menu to its right holding \"✉ Message about this action…\", \"Duplicate…\" and \"Cancel this action…\" (red; it still asks first): a faint tint of the flag's colour until pressed, the full colour once the action is flagged (press again to take the flag off); it is saved with the dialog's Save; the action carries ⚑ on the card and the Gantt and \"⚑ Support required\" in My day, and still reaches the Escalation viewer of the board above; the right side's three headings — Linked to (optional), Comments, Attachments & links — read alike; the round button folds the right side into a slim rail showing the comment and attachment counts, the dialog narrows, the rail brings it back, and the choice is remembered for the next action opened in this browser; step 2 a Raise action dialog opens already filled — issue, action, people, supporters, dates, link, Support required, Confidential — with no comments, no history and no parts done; raised, it is a NEW action beside the original, which is unchanged; a closed action duplicates as Do; step 3 the panel opens over the dialog addressed to the action's assignees (never yourself), with a message naming the action and its due date that you can edit; the list under \"Add a person…\" shows LeanBoard people first and, after three letters and a pause, the directory; Tab and typing stay inside the panel; after sending it reports \"✓ Sent by Teams…\" (a failure says why and sends nothing) and the action's comments gain \"Messaged <name> by Teams\"; step 4 the comment line is still there — it was saved when the message went",
        "hash": "c471c469",
        "changed": "2026-11-17"
+      },
+      {
+       "id": "UAT-ACT-011",
+       "title": "An action tile shows what fits and says how many more",
+       "journey": "Journey 4 — Shared actions, support, duplicate and message (2026-11-17)",
+       "persona": "assignee",
+       "modules": [
+        "controls/ActionBoard/editor.ts",
+        "controls/ActionBoard/tileFit.ts",
+        "controls/ActionBoard/styles.ts"
+       ],
+       "preconditions": "a board (a meeting's or an initiative's) whose Action card holds more open actions in one kanban column than its tile can show, some with descriptions several lines long",
+       "steps": [
+        "Open the board and read the Action card's tile without opening it.",
+        "Make the browser window shorter, then taller.",
+        "Switch the card to the list view (open it, choose List, go back) and read the tile.",
+        "Open the card."
+       ],
+       "expected": "step 1 each action's words stop at three lines; a column that holds more than fits shows whole cards only and ends \"+N more\" (N = the actions not shown), with no card cut through at the tile's bottom edge; a column that fits has no such line; step 2 the count follows the tile's height; step 3 the list ends \"+N more\" the same way; step 4 the opened card shows every action and scrolls, with no \"+N more\" — a tile still cannot be scrolled or clicked into",
+       "hash": "b7fbdc84",
+       "changed": "2026-11-18"
       }
      ]
     }
@@ -3383,6 +3406,27 @@
        "expected": "step 1 \"＋ Add file\" and \"＋ Add link\" sit together on one line under the heading; \"Uploading <name>…\" shows, then the file is listed newest first behind the document register's own type chip (PDF, DOCX, XLSX… — a link carries LINK), with who added it, the date and its size, and the heading counts it; two dropped files upload one after the other (\"Uploading 1 of 2…\"); step 2 nothing uploads and the line says the file's size, the 30 MB limit, and to put large files in the working folder and add a link; step 3 \"notes\" is refused as not a web address; the full address is added by Enter without closing or saving anything around it, listed by its caption, and https:// is added when it was left off; step 4 a \"📎 n\" chip sits with the title's chips and opens the details pane at the attachments; the PDF downloads under its own name; the link opens in a new tab; step 5 the action's file is there on reopening — an attachment is saved when it is added, not with the dialog's Save — and a NEW action (Raise) shows no attachments block until it exists; step 6 the second account sees and opens everything, has no ＋ Add file / ＋ Add link on the initiative, and no ✕ on rows it did not add; step 7 a confirmation names the file and says it is deleted for everyone; after it the row and the count are gone",
        "hash": "4cca2a9e",
        "changed": "2026-11-17"
+      },
+      {
+       "id": "UAT-IMP-010",
+       "title": "A long charter field does not stretch the others; the charter tile stays readable",
+       "journey": "Journey 2 — Initiatives",
+       "persona": "member",
+       "modules": [
+        "controls/CanvasCard/styles.ts",
+        "controls/CanvasCard/editor.ts",
+        "controls/CanvasCard/fit.ts"
+       ],
+       "preconditions": "an initiative whose Charter has several fields (Title, Owner, Context, Scope In, Scope Out) and one field with a long label; you may edit it",
+       "steps": [
+        "Open the Charter card in the focused view. Paste about forty short lines into Scope In.",
+        "Read the Title and Owner fields.",
+        "Go back to the board and read the Charter tile.",
+        "Read the field whose label is a full sentence, on the tile and in the focused view."
+       ],
+       "expected": "step 1 Scope In grows to show its lines and the card scrolls; step 2 Title and Owner stay one line tall (about the height of their text and label), not as tall as Scope In; step 3 the tile's text is never smaller than three-quarters of its normal size — a charter too long for the tile is cut off at the tile's bottom edge rather than shrunk further; step 4 the long label wraps onto a second line and nothing of it is cut off (the board designer still shows labels on one line)",
+       "hash": "51fecd58",
+       "changed": "2026-11-18"
       }
      ]
     }

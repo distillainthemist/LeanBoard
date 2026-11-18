@@ -107,3 +107,13 @@ steps:
 7. As yourself, remove the PDF with ✕.
 expected: step 1 "＋ Add file" and "＋ Add link" sit together on one line under the heading; "Uploading <name>…" shows, then the file is listed newest first behind the document register's own type chip (PDF, DOCX, XLSX… — a link carries LINK), with who added it, the date and its size, and the heading counts it; two dropped files upload one after the other ("Uploading 1 of 2…"); step 2 nothing uploads and the line says the file's size, the 30 MB limit, and to put large files in the working folder and add a link; step 3 "notes" is refused as not a web address; the full address is added by Enter without closing or saving anything around it, listed by its caption, and https:// is added when it was left off; step 4 a "📎 n" chip sits with the title's chips and opens the details pane at the attachments; the PDF downloads under its own name; the link opens in a new tab; step 5 the action's file is there on reopening — an attachment is saved when it is added, not with the dialog's Save — and a NEW action (Raise) shows no attachments block until it exists; step 6 the second account sees and opens everything, has no ＋ Add file / ＋ Add link on the initiative, and no ✕ on rows it did not add; step 7 a confirmation names the file and says it is deleted for everyone; after it the row and the count are gone
 
+### UAT-IMP-010 — A long charter field does not stretch the others; the charter tile stays readable
+persona: member
+modules: controls/CanvasCard/styles.ts controls/CanvasCard/editor.ts controls/CanvasCard/fit.ts
+preconditions: an initiative whose Charter has several fields (Title, Owner, Context, Scope In, Scope Out) and one field with a long label; you may edit it
+steps:
+1. Open the Charter card in the focused view. Paste about forty short lines into Scope In.
+2. Read the Title and Owner fields.
+3. Go back to the board and read the Charter tile.
+4. Read the field whose label is a full sentence, on the tile and in the focused view.
+expected: step 1 Scope In grows to show its lines and the card scrolls; step 2 Title and Owner stay one line tall (about the height of their text and label), not as tall as Scope In; step 3 the tile's text is never smaller than three-quarters of its normal size — a charter too long for the tile is cut off at the tile's bottom edge rather than shrunk further; step 4 the long label wraps onto a second line and nothing of it is cut off (the board designer still shows labels on one line)

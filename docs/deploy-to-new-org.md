@@ -52,6 +52,16 @@ Check it for every column the site dictionary maps to a role
 (organisation, status, document type) — Settings → Documents →
 Document columns lists them.
 
+**Index the Document ID column on every library that will pass 5,000
+items.** The app refuses a duplicate document id by looking the typed id
+up in each standards library. SharePoint refuses that lookup on an
+unindexed column once the library is past its list view threshold, and
+since 2026-11-18 a lookup that cannot be made STOPS the Add ("The
+document ID could not be checked in <library>"), where it used to pass
+as "no clash". Library settings → Indexed columns → the Document ID
+column; do it before the library grows, since SharePoint may refuse to
+build the index afterwards.
+
 **The Linked documents column must be "Multiple lines of text" (plain
 text)** on every library that carries it. Links are JSON, 150–250
 characters each; a single line of text holds 255, so one link saves and

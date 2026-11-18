@@ -17,6 +17,7 @@ import { applyEndorsementRule } from "../../shared/schema/actionEndorsement";
 import { endorsementFor } from "../../shared/ui/actionLinkProvider";
 import { Person } from "../../shared/schema/people";
 import { ACTIONBOARD_CSS } from "./styles";
+import { tileShown } from "./tileFit";
 
 export type BoardView = "list" | "kanban" | "gantt";
 
@@ -264,6 +265,9 @@ export class ActionBoardEditor {
       this.narrow = want;
       this.tight = tight;
       this.render();
+    } else {
+      // the same layout at a new size: a tile re-counts what fits
+      this.fitTile();
     }
   }
 
@@ -492,6 +496,39 @@ export class ActionBoardEditor {
     );
     this.renderBody();
     for (const o of overlays) this.root.appendChild(o);
+    this.fitTile();
+  }
+
+  /** A TILE cannot scroll, so a column or a list longer than the tile
+   *  shows what fits and says how many more there are (tileFit.ts). Run
+   *  after every paint and every resize; nothing happens outside a tile. */
+  private fitTile(): void {
+    if (this.root.closest(".ltk-tile") === null) return;
+    const body = this.root.querySelector<HTMLElement>(".ltk-ab-body");
+    if (!body || body.clientHeight === 0) return;
+    const groups = Array.from(body.querySelectorAll<HTMLElement>(".ltk-ab-cards, .ltk-ab-list"));
+    const cardsOf = (g: HTMLElement) => Array.from(g.children).filter((c): c is HTMLElement => c.classList.contains("ltk-ab-card") || c.classList.contains("ltk-action-row"));
+    // undo the last fit first, so every measurement is of the whole column
+    for (const g of groups) {
+      g.classList.remove("ltk-ab-cut");
+      g.querySelector(":scope > .ltk-ab-more")?.remove();
+      for (const c of cardsOf(g)) c.classList.remove("ltk-ab-over");
+    }
+    // the board's stage may be scaled: measure in the screen's own pixels
+    const rect = body.getBoundingClientRect();
+    const scale = body.offsetHeight > 0 ? rect.height / body.offsetHeight : 1;
+    const limit = rect.bottom - 12 * scale; // the body's own padding
+    const foot = 26 * scale;
+    const cuts = groups.map((g) => {
+      const cards = cardsOf(g);
+      return { g, cards, shown: tileShown(cards.map((c) => c.getBoundingClientRect().bottom), limit, foot) };
+    });
+    for (const { g, cards, shown } of cuts) {
+      if (shown >= cards.length) continue;
+      for (const c of cards.slice(shown)) c.classList.add("ltk-ab-over");
+      g.classList.add("ltk-ab-cut");
+      g.appendChild(el("div", "ltk-ab-more", `+${cards.length - shown} more`));
+    }
   }
 
   private renderBody(): void {

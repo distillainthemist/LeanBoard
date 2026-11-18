@@ -165,6 +165,16 @@ export const ACTIONBOARD_CSS = `
 }
 .ltk-ab-card-desc { font-size: 13px; line-height: 1.35; overflow-wrap: break-word; }
 .ltk-ab-card-desc.ltk-ab-done { text-decoration: line-through; }
+/* a TILE is honest about what it cannot show (Sue, 2026-11-17): an
+   action's words stop at three lines, and a column longer than the tile
+   shows the cards that fit and "+N more" (editor.fitTile). The tile
+   stays inert — the card opens for the rest. */
+.ltk-tile .ltk-ab-card-desc, .ltk-tile .ltk-action-desc {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden;
+}
+.ltk-tile .ltk-ab-over { display: none !important; }
+.ltk-tile .ltk-ab-cut > .ltk-ab-col-hidden { display: none; }
+.ltk-ab-more { font-size: 12px; font-weight: 600; color: var(--ltk-muted); text-align: center; padding: 3px 0 1px; }
 /* who · awaiting endorsement · due. The row WRAPS: unwrapped, a narrow
    card (a board tile) pushed "awaiting endorsement" out past its own
    edge and broke the due date over three lines (Ben, 2026-11-11) */

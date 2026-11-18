@@ -225,6 +225,69 @@ All app-only. No schema change. Hours include tests and the UAT case.
 4. **Ideas, by decision.** Cheapest first: 33 wrap only (1 h), 1 (2–3 h),
    3 (3–4 h), 31 (5–7 h), 5, 34, 32.
 
+## Decisions of record (Ben, 2026-11-18)
+
+Ben worked through every question. These replace sections 5 and 6
+where they differ.
+
+| # | Decision |
+|---|---|
+| 23 | **Leave as it is.** Controllers and super admins land on every status; owners and approvers untick the toggle. Reply to Ellen and close. |
+| 15 | **Reply and close.** No build. Kat bookmarks LeanBoard from the Power Apps home page. |
+| 39 | **Honest inert tiles.** Three-line clamp and "+N more" per column. Tiles stay inert. |
+| 42 | **Companies and sites.** An indented tick tree, no departments (the August decision stands). The member's own site always leads. |
+| 43 | **Two levels, no ceiling.** "Direct reports" or "Direct reports and their reports". No count limit on a cascade: two levels is the limit. The action's own cap of 500 people stays. Cascaded people are the same sign-off boxes in the same grid. |
+| 40 | **One search for Who and Support**, directory included for admins. |
+| 45 | **Fix only.** No timing readout. |
+| 7 | **A failed lookup stops the Add.** |
+| 38 | **Two gaps fixed:** the other terms stay reachable on a small term set; the pills wait for the person's profile. Site admins editing their own lists: not now. |
+| 1 | Naming guidance: **not now.** |
+| 3 | Catalogue: **reply with the workaround** (untick Show only approved, add the Document ID column, export CSV). No build. |
+| 5 | **By person as a third kanban grouping**; the Gantt follows. A single-owner card dragged to another person is reassigned; a shared action refuses the drag. |
+| 33 | **Labels wrap.** No label styles. |
+| 31 | Previous meeting on a Link card: **not now.** |
+| 32 | Prompts: **not now.** |
+| 34 | **Person column in capture cards, with identity.** Older builds must be locked out, since they would corrupt the cells on save. |
+
+**Delivery: three tranches to dev**, each pushed when its gates pass;
+Ben cuts releases.
+
+1. 44, 41, 7, 39, 33 (with the paging fix already on dev).
+2. 45, 40, 43, 42, and the two 38 gaps.
+3. 5 and 34.
+
+## As built — tranche 1 (2026-11-18, on dev, NOT released)
+
+- **44** `controls/CanvasCard/styles.ts`: reading rows are
+  `minmax(60px, auto)`. Harness (`charter.html?long=1`): forty lines in
+  Scope give rows 60 / 256 / 256 / 256 / 60 / 60 / 60 / 60, where every
+  row was 256.
+- **41** `controls/CanvasCard/fit.ts` (`fitScale`, tested) and
+  `editor.fitTile`: the floor is 0.75 and the scale is searched for,
+  not taken from one measurement. Harness (`?tile=1`): a short charter
+  0.917; with forty lines 0.75 and clipped.
+- **33** labels wrap in a reading canvas (the designer keeps one
+  line). **Correction to section 4:** Alicia's screenshot does NOT show
+  a cut-off label. The label there is whole; the cut-off line under it
+  is the designer's preview of the field's value. Her words ask for
+  FORMATTING of the label (a question used as a heading reads as 11 px
+  grey text). Wrap is right for narrow fields but does not answer that.
+  The label style (size, bold, colour; 4–6 h) is still open with Ben.
+- **7** `documentIdInUse` (`docs/addDocument.ts`): the hole was wider
+  than the `.catch`. The feed answers a REFUSAL as no rows plus an
+  error, which read as "no clash" with no exception at all. Now a
+  lookup that cannot be made throws `DocIdUnchecked`; Add, Edit
+  properties and the ingestion run stop and say so. One exception,
+  my call: a library the person may not READ is skipped, since
+  refusing there would stop them adding any document at all. The
+  deploy guide says to index the Document ID column.
+- **39** `controls/ActionBoard/tileFit.ts` (`tileShown`, tested) and
+  `editor.fitTile`: in a tile an action's words stop at three lines,
+  and a kanban column or a list that does not fit shows whole cards
+  and "+N more". Harness (`actionboard.html?tile=1`): 3 of 11 shown,
+  "+8 more". Tiles stay inert.
+- UAT: IMP-010 and ACT-011 added, DOC-026 extended.
+
 ## 6. Questions for Ben
 
 1. 23: owners, approvers and reviewers land on every status too?
