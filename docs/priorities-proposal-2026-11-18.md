@@ -488,7 +488,7 @@ Twelve checks, one at a time, on `v0.96.0-6` then `v0.96.0-7`.
 | 7 | Popup "Add action", Actions tab, Gantt | Pass |
 | 8 | Complete / Archive warning, executive summary | Pass |
 | 9 | Adopted tile, company view, hub label, message | Steps 1–5 taken as passed; step 6 (a person who does not manage the site) UNTESTED — no second person |
-| 10 | Add a metric to a priority | In progress: Ben asked for the full trend; charts added on `v0.96.0-10` |
+| 10 | Add a metric to a priority | In progress: Ben asked for the full trend; charts added on `v0.96.0-11` |
 
 ## Not in this round
 
