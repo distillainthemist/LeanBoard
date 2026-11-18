@@ -5,43 +5,40 @@ its decision date and enough context to pick it up cold. The phase plans
 (`leanboard-phase5-plan.md`, `leanboard-standard-documents-plan.md`)
 stay the design detail; this is the queue.
 
-## Current state (2026-11-18, after v0.96.0)
+## Current state (2026-11-19, after v0.97.0)
 
-Released through v0.96.0 (ledger: `leanboard-cascade-improvement-plan.md`;
+Released through v0.97.0 (ledger: `leanboard-cascade-improvement-plan.md`;
 release paragraphs: `../CLAUDE.md`). Production took v0.88.1 and the
 v0.89.0/v0.90.0 managed solution; v0.91.0 and v0.93.0 are app-only,
 v0.92.0 carries the Utilities app in the managed solution, v0.94.0
 and v0.95.0 are SOLUTION-CARRYING — import the solution first — and
-v0.96.0 is app-only. Lock older builds from Settings once the new one
-runs.
+v0.96.0 and v0.97.0 are app-only. Lock older builds from Settings once
+the new one runs.
 
-**On dev, NOT released (2026-11-18) — the priorities proposal
-(`priorities-proposal-2026-11-18.md`, Ben's fifteen decisions),
-tranche 1:** objectives as charts inside each priority tile with an
-"Objectives" switch, no numbers on any chart tile, the "Priority only
-view" retired (UAT-PRI-001); the decision zone — Proposed, Cascaded to
-you, Unplaced — with cascades answered in the priority's popup and a
-message offered after each step (UAT-PRI-014). App-only. **Tranche 2:**
-Edit priority asks for the sub-pillar year by year, only where the
-choice cannot carry, and Settings lets a new sub-pillar follow one that
-ended (UAT-PRI-011). **Tranche 3:** actions raised ON a priority — an
-outline "Add action" in the popup, "Add action…" on the tile's ⋮, a
-"This priority" section in the Actions tab and the Gantt, a late one
-makes the priority off track, shown only at the org it was raised at
-(UAT-PRI-015); an older build reads the new action key as an unknown
-board, so production locks older builds with the release. **Tranche
-4:** metrics defined ON a priority — the Objectives tab leads with "This
-priority" (add, edit, Values…), they show first wherever objectives
-show, and one off plan makes the priority off track (UAT-PRI-016); an
-older build drops them when it saves a priority, the second reason to
-lock older builds. All four tranches are built; nothing is released.
-**Ben's test walk on dev, 2026-11-19:** twelve checks passed (the
-record is in the proposal). Changed on the way: no action count on the
-tile; a priority's own metrics show their full trend in the Objectives
-tab; driver readings are read in date order. Unproven: what a person
-who does not manage the site sees on a priority's actions. Dev runs
-`v0.96.0-11`. The harness can now run the real Priorities page
-(`harness/priorities.html` on an in-memory Dataverse).
+**v0.97.0 (2026-11-19, app-only):** the priorities proposal
+(`priorities-proposal-2026-11-18.md`: the review, Ben's fifteen
+decisions, the as-built record by tranche, his twelve-check test walk
+on dev). Objectives as charts inside each tile with an "Objectives"
+switch (UAT-PRI-001); the decision zone — Proposed, Cascaded to you,
+Unplaced — answered in the priority's popup, a message offered after
+each step (UAT-PRI-014); the sub-pillar year by year and "Follows" in
+Settings (UAT-PRI-011); actions raised ON a priority (UAT-PRI-015);
+metrics defined ON a priority with their full trend in the Objectives
+tab (UAT-PRI-016). Owed from it:
+- **Ben, no code:** install the app package in production, then "Lock
+  every older build" straight away — an older build reads a priority
+  action's key as an unknown board and drops a priority's own metrics
+  when it saves that priority. Clear the test actions and metrics left
+  on dev from the walk.
+- **Unproven, needs a second person:** what someone who does not manage
+  the site sees on a priority's actions (UAT-PRI-015 step 11) and on
+  an adopted priority's metrics (UAT-PRI-016 steps 9–10). Ben manages
+  both orgs on dev.
+- **Left as found:** phone and the executive summary's last step keep
+  the old cascade list; a proposed pull put on hold shows afterwards
+  under "Cascaded to you"; a priority's own actions do not roll up to
+  the priority it was cascaded from (decision 2 — say if they should).
+- **Metrics follow-ups:** "Metrics — open items" below.
 
 **v0.96.0 (2026-11-18, app-only):** the review of the full 2026-11-17
 issues export (45 reports) and its build — status of every report,

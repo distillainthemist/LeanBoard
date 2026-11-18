@@ -1455,6 +1455,73 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-11-19 — released as v0.97.0** (app-only, no schema; Utilities
+  unchanged). The priorities proposal of 2026-11-18 — a review of five
+  proposed features, Ben's fifteen decisions, the design, "As built" by
+  tranche and his twelve-check test walk on dev are all in
+  `docs/priorities-proposal-2026-11-18.md`. AFTER the release reaches
+  an environment: Settings → the release policy → "Lock every older
+  build" — an older bundle reads the new action key as an unknown
+  board, and drops a priority's own metrics when it saves that priority.
+  **Objectives on the tile.** A priority's objectives are charts inside
+  its tile, titled by the objective's words, with NO number beside any
+  sparkline (`improvement/initiativeRow.ts` `metricTile`,
+  `objectiveCharts`); an "Objectives" switch on the bar shows or hides
+  them; the Objectives row and the "Priority only view" are retired.
+  **The decision zone.** Under the priorities: "Proposed", "Cascaded to
+  you" and "Unplaced", each a row of dashed tiles in the sub-pillar it
+  would land in; ONE chip, "N awaiting a decision"; a cascade is
+  answered in the priority's own popup (Decline…, Hold…, Accept &
+  customise…, one solid Accept) and the pop-up list is gone
+  (`priorities/model.ts` `waitingAt`, `orphansOf`; `lifecycle.ts`
+  `decideCascade`). "Place under…" places an orphan from the year in
+  view. A message is OFFERED after each step, never sent by itself
+  (`priorities/stepMessage.ts`; `actions/message.ts` `openMessagePanel`).
+  **Sub-pillar by year.** The priority form asks for the sub-pillar year
+  by year, only where the choice cannot carry
+  (`subPillarPlan`, `followCandidates`); Settings lets a sub-pillar
+  that starts in a year FOLLOW one that ended, and its priorities carry
+  over unasked. Required fields carry the red asterisk and Save waits.
+  **Actions on a priority.** An action raised on the priority itself, by
+  the people who manage the org it is raised at: an outline "Add action"
+  in the popup, "Add action…" on the tile's ⋮ (an adopted tile gets a ⋮
+  for it), "This priority" first in the Actions tab's "Linked to"
+  select. Keyed `priority:<id>@<org mark>` in `ben_instanceid`
+  (`shared/schema/actionLinks.ts` `priorityKey`), so an adopted
+  priority's action shows only at the org that raised it and does not
+  roll up. A late one makes the priority off track
+  (`improvement/status.ts` `priorityStatus(states, own)`); the tile
+  carries NO count (Ben, 2026-11-19) — the edge and the circles'
+  tooltip do. The Actions tab and the Gantt lead with "This priority"
+  (`ActionSection.first`, `GanttOpts.extraGroup`); the summary row
+  shows "Priority actions" circles; Complete / Archive say how many are
+  still open and leave them open; the hub names the group "Priority ·
+  <statement>".
+  **Metrics on a priority.** Up to eight metrics of its own, stored as
+  `{ own }` entries ahead of the picks in `ben_objectivesjson`
+  (`parseOwnMetrics`, `objectivesJson`), readings in `ben_ltkcardseries`
+  at board `"priority"`, card `<priorityId>/<metricKey>`
+  (`ownSeriesCard`; a tree metric reads the driver's series). The
+  popup's tab is "Objectives", always: "This priority" with the metric
+  editor rows and each metric's FULL TREND — the Metrics card's chart
+  grid over a `source` (`mountMetricsCard`, `priorities/ownMetricsTab.ts`)
+  with "Update values" in the chart's title strip — then the primary's
+  metrics card or the tick list. The owning org's managers edit;
+  everyone else reads. They lead wherever objectives show
+  (`objectiveValues` is additive) and one off plan makes the priority
+  off track. One value rule now, `metricValueOf`.
+  **Fixed on the way.** A form field hidden by its form really hides
+  (`.app-field[hidden]` — the metric form's Options showed for every
+  tracking); the metric form marks Name required; a value driver's
+  readings are read in date order (`store/seriesMap.ts` `sortPoints`),
+  so a week filled in late cannot become a metric's value.
+  **Harness.** The real Priorities page runs on an in-memory Dataverse
+  (`harness/priorities.html`, `dataverseStub.ts`, `appStub.ts`).
+  **Unproven.** What a person who does not manage the site sees on a
+  priority's actions and on an adopted priority's metrics (Ben manages
+  both orgs on dev). Phone and the executive summary's last step keep
+  the old cascade list. Metrics follow-ups: `docs/backlog.md`,
+  "Metrics — open items".
 - **2026-11-18 — released as v0.96.0** (app-only, no schema; Utilities
   unchanged). The review of the full 2026-11-17 issues export (45
   reports) and what came of it the same day —

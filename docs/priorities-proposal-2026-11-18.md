@@ -3,7 +3,12 @@
 Source: Ben's six-page deck "cascadedprioritiesapp.pdf" (2026-11-18).
 Reviewed the same day against v0.96.0. Each feature was checked in the
 code before any question was asked; Ben then answered fifteen questions
-one at a time. Nothing here is built.
+one at a time.
+
+**RELEASED as v0.97.0 on 2026-11-19**, all four tranches, after Ben's
+test walk on dev. The sections "As built" record what was built;
+where they say "on dev, NOT released" they were written before the
+release.
 
 **All five are app-only: no Dataverse schema change.** Two of them
 change what older builds can read, so "Lock every older build" follows

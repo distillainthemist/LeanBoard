@@ -516,6 +516,30 @@ Version lives in the tag alone — nothing is stamped into files.
   review's summary tiles and the task banner heading removed) is
   SOLUTION-CARRYING for the Utilities app only: prod imports the managed
   solution; the LeanBoard app is unchanged. No schema change.
+  v0.97.0 (2026-11-19, app-only, no schema: the priorities proposal —
+  `docs/priorities-proposal-2026-11-18.md`, Ben's fifteen decisions and
+  his test walk; objectives as charts INSIDE each priority tile behind
+  an "Objectives" switch, no number beside any sparkline, the
+  "Priority only view" retired; the decision zone under the priorities
+  — Proposed, Cascaded to you, Unplaced — answered in the priority's
+  popup, one "N awaiting a decision" chip, a message offered after
+  each step (`priorities/stepMessage.ts`); the priority form asks for
+  the sub-pillar year by year only where it cannot carry
+  (`subPillarPlan`) and a sub-pillar can FOLLOW one that ended; actions
+  raised ON a priority, keyed `priority:<id>@<org mark>`
+  (`shared/schema/actionLinks.ts`), shown only at the org that raised
+  them, a late one makes the priority off track, nothing added to the
+  tile for them; metrics defined ON a priority, `{ own }` entries in
+  `ben_objectivesjson`, readings in `ben_ltkcardseries` at board
+  `"priority"`, the Objectives tab leading with "This priority" — rows
+  and each metric's full trend through `mountMetricsCard`'s `source` —
+  and one off plan makes the priority off track; one metric value rule
+  `metricValueOf`; driver readings read in date order
+  (`store/seriesMap.ts` `sortPoints`); `.app-field[hidden]` hides; the
+  harness runs the real Priorities page on an in-memory Dataverse
+  (`harness/priorities.html`). After it reaches an environment, "Lock
+  every older build": an older bundle misreads a priority action's key
+  and drops a priority's own metrics when it saves the priority.
   v0.96.0 (2026-11-18, app-only, no schema: the review of the full
   2026-11-17 issues export and its build — `docs/issues-plan-2026-11-18.md`;
   canvas rows sized by their own content, a tile's scale floored at
