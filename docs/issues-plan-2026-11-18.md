@@ -378,15 +378,17 @@ Ben, 2026-11-18: "it isn't clear what fields need to be completed to be
 saved/raised." The only rule was that the Issue OR the Action had
 text; with both empty, Raise did nothing and said nothing; no field was
 marked. Ben's rule: a NEW action needs **Action, Who and Due**. Built
-in `buildActionForm` (`checkRequired`, `missingLine`): a "Required" tag
-on those three labels, and a press on Raise that outlines what is
-missing, puts the cursor in the first and says "Required before Raise:
-…" beside the buttons; each field leaves the line as it is filled. An
+in `buildActionForm`. First as a "Required" tag and a message on
+press; then, the same day, at Ben's word: **a small red superscript
+asterisk** on those three labels and **Raise / Save disabled** until
+they are filled, with "Still needed: …" as the button's tooltip. An
 action that already exists is NOT held to it (old actions with no
 owner or date stay editable): it only cannot lose both its Issue and
 its Action. The four card dialogs that raise an action with an entry
 (5 Whys, fault tree, risk matrix, heatmap) ask the same once the
-action has text. An Issue alone no longer raises an action. Every
+action has text; their Add button is the card's own, so there the
+rule is enforced on the press, with the fields outlined and a line in
+the form. An Issue alone no longer raises an action. Every
 raise goes through this one form. UAT-ACT-012. On dev, not released.
 
 ## 6. Questions for Ben

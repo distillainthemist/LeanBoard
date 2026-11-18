@@ -50,10 +50,16 @@ export interface ActionForm {
    *  2026-11-18); an existing one only keeps some words — its Action,
    *  or failing that the `issue` the host passes. */
   checkRequired: (opts?: { issue?: string; verb?: string }) => boolean;
-  /** "Required before Raise: Who, Due" — empty while nothing is missing.
-   *  It sits at the foot of the form; a host may move it (the action
-   *  dialog puts it beside its buttons). */
+  /** "Required before Add: Who, Due" — empty while nothing is missing.
+   *  It sits at the foot of the form, for a host whose own button cannot
+   *  be held back (an action raised inside another card's dialog). */
   missingLine: HTMLElement;
+  /** What is still missing, by label, without marking anything — the
+   *  action dialog keeps its Raise / Save button disabled on it. */
+  missing: (opts?: { issue?: string }) => string[];
+  /** Something a requirement reads has changed (the action's words, its
+   *  people, its due date). */
+  onRequiredChange: (listener: () => void) => void;
 }
 
 /** One row of a people search's list. */
@@ -551,7 +557,13 @@ export function buildActionForm(
   // counted. An action that already exists is not held to it (old
   // actions without an owner or a date must stay editable).
   const raising = initial === undefined || fresh;
-  const requiredTag = (): HTMLElement => el("span", "ltk-req-tag", "Required");
+  // a quiet red asterisk, no word (Ben, 2026-11-18)
+  const requiredTag = (): HTMLElement => {
+    const star = el("sup", "ltk-req-star", "*");
+    star.title = "Required";
+    star.setAttribute("aria-label", "required");
+    return star;
+  };
   const actionRow = fieldRow("Action", desc);
   if (raising) actionRow.querySelector(".ltk-field-label")?.appendChild(requiredTag());
   wrap.appendChild(actionRow);
@@ -793,12 +805,23 @@ export function buildActionForm(
     ].filter(([, m]) => (m as HTMLElement).classList.contains("ltk-field-missing")).map(([label]) => label as string);
     missingLine.textContent = left.length > 0 ? `Required before ${missingVerb}: ${left.join(", ")}` : "";
   };
-  desc.addEventListener("input", clearMissing);
-  due.addEventListener("change", clearMissing);
-  due.addEventListener("input", clearMissing);
-  freeWho?.addEventListener("input", clearMissing);
-  peopleListeners.push(clearMissing);
-  const checkRequired = (opts: { issue?: string; verb?: string } = {}): boolean => {
+  const requiredListeners: (() => void)[] = [];
+  const changed = () => {
+    clearMissing();
+    for (const l of requiredListeners) l();
+  };
+  desc.addEventListener("input", changed);
+  due.addEventListener("change", changed);
+  due.addEventListener("input", changed);
+  freeWho?.addEventListener("input", changed);
+  peopleListeners.push(changed);
+  if (raising) {
+    desc.setAttribute("aria-required", "true");
+    due.setAttribute("aria-required", "true");
+  }
+  /** The one rule, read two ways: asked (the button's state) and
+   *  enforced (a press, where the button is not ours to disable). */
+  const missingNow = (opts: { issue?: string } = {}): { label: string; mark: HTMLElement; focus: () => void }[] => {
     const missing: { label: string; mark: HTMLElement; focus: () => void }[] = [];
     const noAction = desc.value.trim() === "";
     if (raising ? noAction : noAction && (opts.issue ?? "").trim() === "") missing.push({ label: "Action", mark: desc, focus: () => desc.focus() });
@@ -806,6 +829,10 @@ export function buildActionForm(
       missing.push({ label: "Who", mark: whoMark, focus: () => (freeWho ?? whoWrap.querySelector<HTMLElement>("input"))?.focus() });
     }
     if (raising && due.value === "") missing.push({ label: "Due", mark: due, focus: () => due.focus() });
+    return missing;
+  };
+  const checkRequired = (opts: { issue?: string; verb?: string } = {}): boolean => {
+    const missing = missingNow(opts);
     for (const m of [desc, whoMark, due]) m.classList.remove("ltk-field-missing");
     for (const m of missing) m.mark.classList.add("ltk-field-missing");
     missingVerb = opts.verb ?? (raising ? "Raise" : "Save");
@@ -833,6 +860,10 @@ export function buildActionForm(
     },
     checkRequired,
     missingLine,
+    missing: (opts) => missingNow(opts).map((m) => m.label),
+    onRequiredChange: (listener) => {
+      requiredListeners.push(listener);
+    },
     apply: (action) => {
       action.description = desc.value.trim();
       action.start = start.value;
@@ -1815,9 +1846,10 @@ export function openActionDialog(o: ActionDialogOptions): void {
 
   let asking = false;
   const save = () => {
-    // what, who and when for a new action; some words for an old one —
-    // said beside the buttons, never a press that does nothing
-    if (!form.checkRequired({ issue: issue.value })) return;
+    // what, who and when for a new action; some words for an old one.
+    // The button is disabled until then (below) — this is the same rule
+    // for a press that reaches here another way (Enter in a field).
+    if (form.missing({ issue: issue.value }).length > 0) return;
     const nextDue = form.due();
     if (prevDue === "" || nextDue === prevDue) return commit(null);
     if (asking) return;
@@ -1924,8 +1956,19 @@ export function openActionDialog(o: ActionDialogOptions): void {
     maxWidth: 940,
   });
   dlg.body.classList.add("ltk-act-body");
-  // what is missing is said beside the buttons that were pressed
-  dlg.root.querySelector(".ltk-dialog-footer")?.prepend(form.missingLine);
+  // Raise / Save waits for what the action needs (Ben, 2026-11-18): the
+  // button is disabled until the starred fields are filled, and says
+  // what is still to do when the pointer rests on it
+  const saveBtn = dlg.root.querySelector<HTMLButtonElement>(".ltk-dialog-footer .ltk-btn-primary");
+  const syncSave = () => {
+    if (!saveBtn) return;
+    const missing = form.missing({ issue: issue.value });
+    saveBtn.disabled = missing.length > 0;
+    saveBtn.title = missing.length > 0 ? `Still needed: ${missing.join(", ")}` : "";
+  };
+  form.onRequiredChange(syncSave);
+  issue.addEventListener("input", syncSave);
+  syncSave();
   // the title row's tools: "✉ Message" on a saved action (issue 6 — tell
   // someone about it by Teams or email, the host's own notify panel),
   // then "⚑ Flag for support"

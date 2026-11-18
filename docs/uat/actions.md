@@ -145,10 +145,9 @@ persona: assignee
 modules: shared/ui/actionUi.ts shared/ui/baseCss.ts controls/FiveWhys/editor.ts controls/FaultTree/editor.ts controls/RiskMatrix/editor.ts controls/HeatmapCard/editor.ts
 preconditions: a board with an Action card you may add to; an existing action with no due date (or one whose date you may clear); a 5 Whys, fault tree, risk matrix or heatmap card
 steps:
-1. Press ＋ Add action. Read the labels. Press Raise with nothing filled in.
-2. Type the action; then tick a person; then set a due date. Read the line beside the buttons after each.
-3. Press Raise.
-4. Open the existing action: read its labels; clear its due date and Save. Open it again, clear both the Issue and the Action and press Save.
+1. Press ＋ Add action. Read the labels and the Raise button; rest the pointer on Raise.
+2. Type the action; then tick a person; then set a due date. Read Raise after each. Untick the person.
+3. Tick the person again and press Raise.
+4. Open the existing action: read its labels; clear its due date and Save. Open it again and clear both the Issue and the Action.
 5. On the 5 Whys (or other) card add an entry, press "＋ Add action" inside the dialog, type an action only, and press Add.
-expected: step 1 Action, Who and Due each carry a "Required" tag (Issue, Start and Support do not); Raise does not close the dialog: the three fields are outlined in red, the cursor goes to Action, and beside the buttons it reads "Required before Raise: Action, Who, Due"; step 2 each field leaves the line as it is filled ("… Who, Due", then "… Due", then nothing) and loses its outline; step 3 the action is raised; step 4 an existing action shows no Required tags and saves without a due date or a person; with no Issue and no Action it is refused, "Required before Save: Action"; step 5 the entry is not added until the action has a person and a due date ("Required before Add: Who, Due"); leaving the action's text empty adds the entry with no action, as before
-
+expected: step 1 Action, Who and Due each carry a small red asterisk after the label — no word, no tag (Issue, Start and Support carry none); Raise is greyed and cannot be pressed, and its tooltip reads "Still needed: Action, Who, Due"; step 2 the tooltip shortens as each is filled and Raise comes alive once all three are; unticking the only person greys it again; step 3 the action is raised; step 4 an existing action shows no asterisks and saves without a due date or a person; with no Issue and no Action its Save is greyed ("Still needed: Action"); step 5 the card's own Add button stays live, and pressing it with the action half filled does not add the entry: the missing fields are outlined and a line in the form reads "Required before Add: Who, Due"; leaving the action's text empty adds the entry with no action, as before
