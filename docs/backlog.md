@@ -600,6 +600,50 @@ script.
 - **Custom periods** need their ordered label list kept current in
   Settings → Priorities; a label missing from the list sorts last.
 
+## Metrics — open items (2026-11-19)
+
+Raised while Ben tested the priorities build on dev (a tile's sparkline
+did not look like the same metric's chart). Nothing here is built.
+
+- **One span for a metric's pictures.** The sparkline (priority tile,
+  initiative row, executive summary) draws the last 12 READINGS,
+  evenly spaced, whatever their age. The Metrics card chart draws the
+  13-week page around today. Same series, different spans: the Yield
+  driver on dev showed an 11-point climb on the tile and two points on
+  the card. Decide: leave it, or draw the sparkline over the chart's
+  span on a time axis. Ben has not chosen.
+- **A stale metric looks current.** The status rule judges the LAST
+  reading whatever its age, and the sparkline shows no gap. A metric
+  not filled in for nine weeks still reads on track. Offered: a "no
+  reading for N periods" mark on the metric, and whether that counts
+  toward the initiative's or priority's status. The periods would
+  follow the metric's cadence.
+- **The Metrics card chart opens around today.** A metric last filled
+  in weeks ago opens almost empty, though its history is there.
+  Offered: open on the page that holds the latest reading, or show a
+  "latest reading: <date>" link that jumps to it.
+- **Readings are read from the beginning of time.** To find a metric's
+  last value and its tail, the page reads every reading the metric has
+  ever had (`loadMetricLasts`, `loadOwnMetricLasts`: 1900 to 2999).
+  Fine today. Bound it to a window, or read the last N, before a daily
+  or shiftly metric has a year of history.
+- **A priority's own metrics: two reads each at page load** (readings
+  and spec). The readings coalesce into one query; the spec reads do
+  not. Batch them if priorities come to carry many metrics.
+- **Removing a metric leaves its readings** in the series table, on an
+  initiative and on a priority. A metric added again under the same
+  name gets the same key and the old readings come back. Decide: keep
+  (an undo), or delete with a confirmation.
+- **A priority's own metric stays own.** No Link… or Promote… into the
+  value driver tree, because its readings would not move with it. To
+  build: carry the series across, as an initiative's metric does.
+- **The values grid's note says "this card's own readings"** when it
+  is opened from a priority. Wording only.
+- **Short of plan and outside the limits read the same on a priority.**
+  Both turn the edge to the off-track colour (the initiative rule,
+  applied to a priority's own metrics). Ben has seen it and not asked
+  for a change; listed so the rule is on record.
+
 ## Initiative stages — open items (2026-09-29)
 
 - A revert needs no approval (Ben's call). If sign-off being undone by
