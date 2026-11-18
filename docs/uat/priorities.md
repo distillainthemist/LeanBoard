@@ -131,15 +131,17 @@ expected: step 1 the dialog reads "Propose a priority" and offers no cascade tar
 
 ### UAT-PRI-011 — A priority's sub-pillar, year by year
 persona: orgowner
-modules: priorities/model.ts priorities/prioritiesScreen.ts priorities/dialogs.ts prompts.ts store/priorities.ts
-preconditions: a priority that began last year under sub-pillar A; a sub-pillar B in force this year; a priority completed last year
+modules: priorities/model.ts priorities/prioritiesScreen.ts priorities/dialogs.ts priorities/settingsTab.ts store/priorities.ts
+preconditions: Settings → Priorities with this year's and next year's pillars set up: a sub-pillar A in force in both years; a sub-pillar B that ENDS this year with nothing following it; a sub-pillar C that ends this year and a sub-pillar C2 starting next year that follows it; a new sub-pillar D starting next year. Three priorities that began this year with no planned end, one under each of A, B and C; a priority completed last year
 steps:
-1. On this year, edit the priority and change its sub-pillar to B. Read the question; choose "From <this year>".
-2. Read this year's matrix, then switch the year to last year.
-3. Edit it again on this year, choose a third sub-pillar and "Every year"; look at last year.
-4. On last year, leave Status on Active and look for the priority that was completed last year.
-5. On last year, press ＋ Priority and read the sub-pillar choices.
-expected: step 1 the dialog opens on the sub-pillar the priority sits under in the year in view and asks "from <year>, or for every year?" only because the priority began earlier; step 2 this year shows it under B and last year still shows it under A; step 3 "Every year" puts it under the third sub-pillar in both years; step 4 a past year is a record: the completed priority shows on the year it ran in under Active, marked completed, though it is hidden on this year; step 5 only the sub-pillars in force in the year in view are offered
+1. On this year, press ＋ Priority. Read the order of the fields, the marks on the labels and the Save button. Fill the statement only.
+2. Choose the start period (this year) and sub-pillar B. Read what appears. Set Planned end to this year; then back to "No planned end".
+3. Choose a sub-pillar for next year and Save. Read this year's matrix, then next year's.
+4. Edit the priority under A: read its sub-pillar block. Edit the one under C.
+5. Switch the year to next year. Edit the priority under A; press "＋ Change from <next year>"; choose D; Save. Read both years. Edit it again and press Remove.
+6. Settings → Priorities, Year in view = next year: read the row of D. Set "Follows: B" and Save. Edit the priority of step 3.
+7. On last year, leave Status on Active and look for the priority that was completed last year.
+expected: step 1 the fields read Statement, Owner, Start period, Planned end, Sub-pillar, Cascade to, Notes — the sub-pillar AFTER the years; Statement, Start period and Sub-pillar carry a small red asterisk; there are no sentences under any field (Planned end and Cascade to explain themselves in their label's tooltip); Save is greyed with the tooltip "Still needed: Sub-pillar" until a sub-pillar is chosen; step 2 with B chosen a second select appears, "Sub-pillar from <next year>", required, offering next year's sub-pillars, and Save greys again; with the planned end at this year the second select goes (the priority never reaches next year) and returns when the end is opened; step 3 this year shows the priority under B and next year under the one chosen — it is never in the Unplaced band; step 4 the priority under A shows ONE select (A is in force throughout); the one under C shows ONE select too (C2 follows C, so it carries over without being asked); step 5 the link adds "Sub-pillar from <next year>" opening on A; saved with D, this year still shows it under A and next year under D; Remove takes the move back; step 6 a sub-pillar that starts in the year in view and has a sub-pillar that ended the year before to follow shows a "Follows: …" select, listing only ended sub-pillars that nothing else follows; with D following B, the priority of step 3 opens with one select only if its next-year choice was D, and a priority still under B now carries into D unasked; step 7 a past year is a record: the completed priority shows on the year it ran in under Active, marked completed, though it is hidden on this year
 
 ## Journey 5 — The status rule and the executive summary (2026-11-17)
 

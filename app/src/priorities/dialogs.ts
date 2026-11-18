@@ -16,6 +16,15 @@ import {
   orgPath,
   orgRef,
   strategyChips,
+  comparePeriods,
+  lastSetUpYear,
+  PeriodSettings,
+  picksOf,
+  pillarIdIn,
+  pillarsLiveIn,
+  placementsFromRows,
+  SubPillarRow,
+  subPillarPlan,
 } from "./model";
 
 /** The org tree as the screen sees it (from the site-settings rows). */
@@ -536,7 +545,14 @@ export interface PriorityDialogOpts {
   host: HTMLElement;
   title: string;
   priority: Priority; // a copy the dialog mutates
+  /** EVERY pillar row of the company, every year's: the form asks for
+   *  the sub-pillar of each year the priority runs through that needs
+   *  asking (2026-11-18) — it used to be handed one year's set. */
   pillars: Pillar[];
+  /** The period rules the years are stepped and compared by. */
+  periodSettings: PeriodSettings;
+  /** The year in view: a move "from this year" is offered for it. */
+  viewYear: string;
   /** Pre-select this sub-pillar (the column last interacted with). */
   preselectPillarId?: string;
   periods: string[]; // current + neighbours, for the select
@@ -600,24 +616,6 @@ export function priorityDialog(o: PriorityDialogOpts): Promise<PriorityDialogRes
     statement.value = p.statement;
     statement.spellcheck = true;
 
-    // pillar: sub-pillars grouped under their pillars
-    const pillar = el("select", "app-input") as HTMLSelectElement;
-    const none = el("option", "", "Choose a sub-pillar…") as HTMLOptionElement;
-    none.value = "";
-    pillar.appendChild(none);
-    for (const l1 of strategyChips(o.pillars)) {
-      const group = el("optgroup") as HTMLOptGroupElement;
-      group.label = l1.name;
-      const subs = o.pillars.filter((x) => x.level === 2 && x.parentId === l1.id && x.active).sort((a, b) => a.order - b.order);
-      for (const s of subs) {
-        const opt = el("option", "", s.name) as HTMLOptionElement;
-        opt.value = s.id;
-        if (s.id === (p.pillarId || o.preselectPillarId)) opt.selected = true;
-        group.appendChild(opt);
-      }
-      pillar.appendChild(group);
-    }
-
     // owner
     let owner: PersonRef | null = p.ownerId !== "" ? { whoId: p.ownerId, who: p.ownerName } : null;
     const ownerRow = el("div", "app-cp-ownerrow");
@@ -677,19 +675,122 @@ export function priorityDialog(o: PriorityDialogOpts): Promise<PriorityDialogRes
     notes.value = p.notes;
     notes.placeholder = "Optional notes";
 
-    m.body.append(
-      field("Statement", statement),
-      field("Sub-pillar", pillar),
-      field("Owner", ownerRow),
-      field("Start period", period),
-      field("Planned end", planned, "Optional. Still open past it, the priority asks for a review — it never closes on its own."),
-      field("Cascade to", cascadeBox, "Child orgs and peers. Each receives it as a request to accept."),
-      confirm,
-      field("Notes", notes)
-    );
+    // ---- the sub-pillar, year by year (2026-11-18) -----------------------
+    // It sits AFTER the years, because it depends on them: one select for
+    // the start year, and another only for a later year in which that
+    // choice cannot carry (its sub-pillar ended and nothing follows it).
+    // `picks`: year → the sub-pillar chosen from that year on.
+    const ps = o.periodSettings;
+    let picks: Record<string, string> = picksOf(ps, p, o.pillars);
+    let startWas = period.value;
+    if (picks[startWas] === undefined && (o.preselectPillarId ?? "") !== "") picks[startWas] = o.preselectPillarId ?? "";
+    const subBox = el("div", "app-cp-subpillars");
+    /** How far ahead the form looks: the pillars' own last change — and
+     *  the year in view, where a move may be made — but never past the
+     *  planned end. */
+    const until = (): string => {
+      let far = lastSetUpYear(ps, o.pillars);
+      for (const y of [o.viewYear, ...Object.keys(picks)]) if (y !== "" && (far === "" || comparePeriods(ps, y, far) > 0)) far = y;
+      if (planned.value !== "" && (far === "" || comparePeriods(ps, planned.value, far) < 0)) far = planned.value;
+      return far === "" || comparePeriods(ps, far, period.value) < 0 ? period.value : far;
+    };
+    const planNow = () => subPillarPlan(ps, o.pillars, period.value, until(), picks);
+    const subSelect = (row: SubPillarRow): HTMLSelectElement => {
+      const sel = el("select", "app-input") as HTMLSelectElement;
+      const none = el("option", "", "Choose a sub-pillar…") as HTMLOptionElement;
+      none.value = "";
+      sel.appendChild(none);
+      const live = pillarsLiveIn(ps, o.pillars, row.year);
+      for (const l1 of strategyChips(live)) {
+        const subs = row.options.filter((x) => x.parentId === l1.id);
+        if (subs.length === 0) continue;
+        const group = el("optgroup") as HTMLOptGroupElement;
+        group.label = l1.name;
+        for (const sub of subs) {
+          const opt = el("option", "", sub.name) as HTMLOptionElement;
+          opt.value = sub.id;
+          if (sub.id === row.pillarId) opt.selected = true;
+          group.appendChild(opt);
+        }
+        sel.appendChild(group);
+      }
+      sel.addEventListener("change", () => {
+        picks = { ...picks, [row.year]: sel.value };
+        paintSubs();
+      });
+      return sel;
+    };
+    const paintSubs = () => {
+      clear(subBox);
+      const plan = planNow();
+      plan.rows.forEach((row, n) => {
+        const f = field(n === 0 ? "Sub-pillar" : `Sub-pillar from ${row.year}`, subSelect(row));
+        f.querySelector(".app-field-label")?.appendChild(requiredStar());
+        // a move the person chose to make can be taken back; one the
+        // years force cannot
+        if (n > 0 && !row.forced) {
+          const undo = el("button", "app-link app-cp-subundo", "Remove") as HTMLButtonElement;
+          undo.type = "button";
+          undo.title = `Keep the earlier sub-pillar from ${row.year} on`;
+          undo.addEventListener("click", () => {
+            const next = { ...picks };
+            delete next[row.year];
+            picks = next;
+            paintSubs();
+          });
+          f.appendChild(undo);
+        }
+        subBox.appendChild(f);
+      });
+      // a move from the year in view (it was a question after Save:
+      // "from 2027, or for every year?")
+      const view = o.viewYear;
+      if (plan.complete && view !== "" && comparePeriods(ps, view, period.value) > 0 && (planned.value === "" || comparePeriods(ps, view, planned.value) <= 0) && !plan.rows.some((r) => r.year === view)) {
+        const move = el("button", "app-link app-cp-submove", `＋ Change from ${view}`) as HTMLButtonElement;
+        move.type = "button";
+        move.title = `Put it under a different sub-pillar from ${view} on; the earlier years stay as they are`;
+        move.addEventListener("click", () => {
+          // opens on the sub-pillar it would sit under that year anyway
+          const rows = planNow().rows;
+          const home = placementsFromRows(ps, rows);
+          picks = { ...picks, [view]: pillarIdIn(ps, { pillarId: home.pillarId, placements: home.placements }, view, o.pillars) };
+          paintSubs();
+        });
+        subBox.appendChild(move);
+      }
+      sync();
+    };
+    // a changed start takes the first choice with it; later years' picks
+    // that fall before it go
+    period.addEventListener("change", () => {
+      const next: Record<string, string> = {};
+      if (picks[startWas] !== undefined) next[period.value] = picks[startWas];
+      for (const [y, id] of Object.entries(picks)) if (comparePeriods(ps, y, period.value) > 0) next[y] = id;
+      picks = next;
+      startWas = period.value;
+      paintSubs();
+    });
+    planned.addEventListener("change", () => paintSubs());
 
-    const err = el("div", "app-cp-err", "");
-    m.body.appendChild(err);
+    const labelled = (label: string, control: HTMLElement, opts: { required?: boolean; title?: string } = {}): HTMLElement => {
+      const f = field(label, control);
+      const lab = f.querySelector<HTMLElement>(".app-field-label");
+      if (lab && opts.required) lab.appendChild(requiredStar());
+      // what a helper sentence used to say under the field is the label's
+      // tooltip (lean dialogs: no sentences under fields)
+      if (lab && opts.title) lab.title = opts.title;
+      return f;
+    };
+    m.body.append(
+      labelled("Statement", statement, { required: true }),
+      labelled("Owner", ownerRow),
+      labelled("Start period", period, { required: true }),
+      labelled("Planned end", planned, { title: "Optional. Still open past it, the priority asks for a review — it never closes on its own." }),
+      subBox,
+      labelled("Cascade to", cascadeBox, { title: "Child orgs and peers. Each receives it as a request to accept." }),
+      confirm,
+      labelled("Notes", notes)
+    );
 
     const done = (r: PriorityDialogResult | null) => {
       m.close();
@@ -700,20 +801,23 @@ export function priorityDialog(o: PriorityDialogOpts): Promise<PriorityDialogRes
     cancel.addEventListener("click", () => done(null));
     const save = el("button", "app-btn app-btn-primary", "Save") as HTMLButtonElement;
     save.type = "button";
+    // Save waits for what is required: the statement, and a sub-pillar
+    // for every year that asks for one (no message on a press — the
+    // button is simply not there to press)
+    function sync(): void {
+      const missing = [statement.value.trim() === "" ? "Statement" : "", planNow().complete ? "" : "Sub-pillar"].filter((x) => x !== "");
+      save.disabled = missing.length > 0;
+      save.title = missing.length > 0 ? `Still needed: ${missing.join(", ")}` : "";
+    }
+    statement.addEventListener("input", sync);
     save.addEventListener("click", () => {
       const st = statement.value.trim();
-      if (st === "") {
-        err.textContent = "A statement is needed.";
-        statement.focus();
-        return;
-      }
-      if (pillar.value === "") {
-        err.textContent = "Choose a sub-pillar — it decides the column.";
-        pillar.focus();
-        return;
-      }
+      const plan = planNow();
+      if (st === "" || !plan.complete) return;
+      const home = placementsFromRows(ps, plan.rows);
       p.statement = st;
-      p.pillarId = pillar.value;
+      p.pillarId = home.pillarId;
+      p.placements = home.placements;
       p.ownerId = owner?.whoId ?? "";
       p.ownerName = owner?.who ?? "";
       p.period = period.value;
@@ -725,6 +829,7 @@ export function priorityDialog(o: PriorityDialogOpts): Promise<PriorityDialogRes
       });
     });
     m.footer.append(cancel, save);
+    paintSubs();
     statement.focus();
   });
 }

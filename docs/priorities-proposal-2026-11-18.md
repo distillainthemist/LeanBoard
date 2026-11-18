@@ -326,6 +326,29 @@ under…", the 2027 follow-on. `?year=2027`, `?org=PacOps`, `?as=u2`.
 
 UAT: PRI-001 rewritten; PRI-002 and PRI-010 updated; PRI-014 added.
 
+## As built — tranche 2 (2026-11-18, on dev, NOT released)
+
+**4. Sub-pillar by year.** `subPillarPlan`, `placementsFromRows`,
+`picksOf`, `lastSetUpYear`, `followCandidates` (model, tested). The
+form reads Statement, Owner, Start period, Planned end, Sub-pillar,
+Cascade to, Notes; it is handed every pillar row, not one year's; the
+first select is the START year's, and "Sub-pillar from <year>" appears
+only where the choice cannot carry. Required fields carry the
+asterisk; Save is disabled until they are filled; the two helper
+sentences are label tooltips.
+- **Kept, in a new place:** moving a priority to another sub-pillar
+  from a later year by choice. It was a question after Save ("from
+  2027, or for every year?"); it is now "＋ Change from <year in
+  view>" in the form, with Remove to take it back.
+- **Settings:** a sub-pillar that starts in a year shows "Follows: …"
+  when a sub-pillar ended the year before and nothing else follows it.
+- Seen in the harness (`priorities.html`, `prioritysettings.html`):
+  the forced second select, the carry-over through a follower, a
+  chosen move from 2027, a saved priority reopening on its choices,
+  and the Follows select in the 2027 lens.
+
+UAT: PRI-011 rewritten.
+
 ## Not in this round
 
 - The phone layout (decision 15).

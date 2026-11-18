@@ -39,6 +39,7 @@ import {
   comparePeriods,
   pillarUse,
   spanLiveIn,
+  followCandidates,
 } from "./model";
 import { newId, todayIso } from "../../../shared/schema/id";
 
@@ -452,6 +453,32 @@ async function renderPillars(body: HTMLElement, ctx: DirtyCtx, saves: (() => Pro
         under = sel;
       }
     }
+    // what a sub-pillar that starts in a year FOLLOWS (2026-11-18): the
+    // one it replaces — priorities under that one carry over into this
+    // one without being asked. One follows one.
+    let follows: HTMLSelectElement | null = null;
+    if (parent) {
+      const cands = followCandidates(periodSettings, pillars, p);
+      if (cands.length > 0) {
+        const sel = el("select", "app-input app-pr-short app-pr-under") as HTMLSelectElement;
+        sel.title = "The sub-pillar this one replaces — priorities under it carry over into this one";
+        const none = el("option", "", "Follows: nothing") as HTMLOptionElement;
+        none.value = "";
+        sel.appendChild(none);
+        for (const c of cands) {
+          const o = el("option", "", `Follows: ${c.name.trim() !== "" ? c.name : "(unnamed)"}`) as HTMLOptionElement;
+          o.value = c.id;
+          sel.appendChild(o);
+        }
+        sel.value = cands.some((c) => c.id === (p.succeedsId ?? "")) ? (p.succeedsId ?? "") : "";
+        sel.addEventListener("change", () => {
+          p.succeedsId = sel.value;
+          touch();
+          paint();
+        });
+        follows = sel;
+      }
+    }
     const x = el("button", "app-btn app-palette-x", "×") as HTMLButtonElement;
     x.type = "button";
     const uses = p.rowId ? useOf(p) : 0;
@@ -505,9 +532,9 @@ async function renderPillars(body: HTMLElement, ctx: DirtyCtx, saves: (() => Pro
       });
       row.append(arrows, swatch, name, co, from, to, active, x);
     } else if (under) {
-      row.append(arrows, swatch, name, under, from, to, active, x);
+      row.append(arrows, swatch, name, under, ...(follows ? [follows] : []), from, to, active, x);
     } else {
-      row.append(arrows, swatch, name, from, to, active, x);
+      row.append(arrows, swatch, name, ...(follows ? [follows] : []), from, to, active, x);
     }
     return row;
   };

@@ -2758,6 +2758,11 @@ button.app-docs-navterm.app-docs-navterm-on {
 .app-docs-addbody { display: flex; flex-direction: column; gap: 10px; max-height: min(64vh, 560px); overflow-y: auto; text-align: left; }
 .app-docs-addfield { display: flex; flex-direction: column; gap: 3px; border-left: 3px solid transparent; padding-left: 6px; margin-left: -9px; }
 .app-docs-addfield-missing { border-left-color: #a4262c; background: #fff6f6; }
+/* the priority form's sub-pillar block: one select for the start year,
+   another only for a year that needs asking (2026-11-18) */
+.app-cp-subpillars { display: flex; flex-direction: column; gap: 12px; }
+.app-cp-subpillars .app-field { max-width: none; }
+.app-cp-subundo, .app-cp-submove { align-self: flex-start; font-size: 12.5px; cursor: pointer; border: none; background: none; padding: 0; }
 /* a required field's mark in the app's own dialogs: a quiet red asterisk */
 .app-req-star { margin-left: 2px; font-size: 11px; line-height: 0; color: #c4314b; font-weight: 600; cursor: default; }
 .app-field-req { display: inline-block; margin-left: 8px; font-size: 10.5px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; color: #a4262c; background: #fde7e9; border-radius: 4px; padding: 1px 6px; vertical-align: middle; }

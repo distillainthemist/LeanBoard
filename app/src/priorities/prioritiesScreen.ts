@@ -1845,7 +1845,9 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
         host: wrap,
         title: approves ? "Add priority" : "Propose a priority",
         priority: draft,
-        pillars: livePillars(),
+        pillars: data.pillars,
+        periodSettings: settings.period,
+        viewYear: state.period,
         preselectPillarId: state.lastColumn,
         periods: periodsOnOffer(),
         roster,
@@ -1870,19 +1872,19 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
     };
 
     const editPriority = async (p: Priority) => {
-      // the dialog shows the sub-pillar the priority sits under in the
-      // year in view, among the sub-pillars in force that year (issue 4)
-      const homeThen = colOf(p);
-      const copy: Priority = { ...p, org: { ...p.org }, pillarId: homeThen, placements: [...p.placements] };
-      const offered = livePillars();
+      // the form asks for the sub-pillar of every year that needs asking
+      // (2026-11-18): it is handed the priority as recorded and every
+      // pillar row, and returns the home and the earlier placements —
+      // the "from this year, or every year?" question after Save is gone
+      const copy: Priority = { ...p, org: { ...p.org }, placements: [...p.placements] };
       const already = data.assignments.filter((a) => a.priorityId === p.id).map((a) => ({ org: a.org, status: a.status, reason: a.reason }));
       const r = await priorityDialog({
         host: wrap,
         title: "Edit priority",
         priority: copy,
-        // its home that year is always among the choices, even when the
-        // year's set no longer carries it (the unplaced road)
-        pillars: offered.some((x) => x.id === homeThen) ? offered : data.pillars,
+        pillars: data.pillars,
+        periodSettings: settings.period,
+        viewYear: state.period,
         periods: periodsOnOffer(),
         roster,
         cascadeTargets: cascadeTargetsFor(p),
@@ -1891,34 +1893,6 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       });
       if (!r) return;
       const before = p.statement;
-      if (r.priority.pillarId === homeThen) {
-        // the sub-pillar was not touched: its real home and history stand
-        r.priority.pillarId = p.pillarId;
-        r.priority.placements = p.placements;
-      } else {
-        const newHome = r.priority.pillarId;
-        const hasEarlier = p.period !== "" && state.period !== "" && comparePeriods(settings.period, p.period, state.period) < 0;
-        let how: "from" | "all" | null = "all";
-        if (hasEarlier) {
-          const pillarName = (id: string) => data.pillars.find((x) => x.id === id)?.name ?? "its sub-pillar";
-          how = await promptChoice({
-            title: `Move to “${pillarName(newHome)}” from ${state.period}, or for every year?`,
-            note: `This priority began in ${p.period}. “From ${state.period}” keeps it under “${pillarName(placedIn(settings.period, p, prevPeriod(settings.period, state.period)))}” for the years before, as a record. “Every year” corrects where it has always belonged.`,
-            choices: [
-              { key: "all", label: "Every year" },
-              { key: "from", label: `From ${state.period}`, primary: true },
-            ],
-          });
-          if (how === null) return;
-        }
-        if (how === "from") {
-          const moved = moveFrom(settings.period, p, state.period, newHome);
-          r.priority.pillarId = moved.pillarId;
-          r.priority.placements = moved.placements;
-        } else {
-          r.priority.placements = [];
-        }
-      }
       await savePriority(r.priority, data);
       Object.assign(p, r.priority);
       await appendEvent(

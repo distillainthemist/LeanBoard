@@ -21,9 +21,11 @@ tranche 1:** objectives as charts inside each priority tile with an
 "Objectives" switch, no numbers on any chart tile, the "Priority only
 view" retired (UAT-PRI-001); the decision zone — Proposed, Cascaded to
 you, Unplaced — with cascades answered in the priority's popup and a
-message offered after each step (UAT-PRI-014). App-only. Tranches 2–4
-follow: sub-pillar by year, actions on a priority, metrics on a
-priority. The harness can now run the real Priorities page
+message offered after each step (UAT-PRI-014). App-only. **Tranche 2:**
+Edit priority asks for the sub-pillar year by year, only where the
+choice cannot carry, and Settings lets a new sub-pillar follow one that
+ended (UAT-PRI-011). Tranches 3–4 follow: actions on a priority,
+metrics on a priority. The harness can now run the real Priorities page
 (`harness/priorities.html` on an in-memory Dataverse).
 
 **v0.96.0 (2026-11-18, app-only):** the review of the full 2026-11-17

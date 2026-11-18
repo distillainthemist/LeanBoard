@@ -1061,6 +1061,129 @@ export function reviewQueue(org: OrgRef, assignments: PriorityAssignment[]): Pri
   return [...mine.filter((a) => a.status === "proposed"), ...mine.filter((a) => a.status === "onhold")];
 }
 
+// ---- a priority's sub-pillar, asked year by year (2026-11-18) ---------------------
+// The priority form asks for the sub-pillar of the START year, and again
+// only for a later year in which that choice cannot carry: its sub-pillar
+// ended and no one sub-pillar follows it. A year where the same row is
+// still in force, or exactly one row that follows it is, asks nothing.
+// (The form used to offer one sub-pillar from the year in view and never
+// looked at the years the priority runs through: one that ran into a
+// year without its sub-pillar dropped out of its column, unannounced.)
+
+/** One row of the form's sub-pillar block. */
+export interface SubPillarRow {
+  /** The row decides the sub-pillar FROM this year on. */
+  year: string;
+  /** The choice; "" = still to choose. */
+  pillarId: string;
+  /** That year's sub-pillars. */
+  options: Pillar[];
+  /** Asked because the earlier choice cannot carry into this year — as
+   *  against the start year's row, or a move the person chose to make. */
+  forced: boolean;
+}
+
+/** The latest year in which the set of pillars CHANGES: one starts, or
+ *  the year after one ends. "" = none ever does. The form looks no
+ *  further ahead than this — the years beyond are as the last one. */
+export function lastSetUpYear(settings: PeriodSettings, pillars: Pillar[]): string {
+  let last = "";
+  const consider = (y: string) => {
+    if (y !== "" && (last === "" || comparePeriods(settings, y, last) > 0)) last = y;
+  };
+  for (const p of pillars) {
+    consider(p.fromPeriod);
+    if (p.toPeriod !== "") consider(nextPeriod(settings, p.toPeriod));
+  }
+  return last;
+}
+
+/** The sub-pillars a sub-pillar that STARTS in a year may be said to
+ *  follow (Settings, 2026-11-18): those of its company that ended the
+ *  year before it starts, and that no other row already follows — one
+ *  follows one. The one it follows now is always among them. Until this,
+ *  only a rename or a move "from a year" linked two rows; a sub-pillar
+ *  added new for a year had no way to say what it replaced, and the
+ *  priorities under the old one dropped out of their column. */
+export function followCandidates(settings: PeriodSettings, pillars: Pillar[], p: Pillar): Pillar[] {
+  if (p.level !== 2 || p.fromPeriod === "") return [];
+  const before = prevPeriod(settings, p.fromPeriod);
+  const taken = new Set(pillars.filter((x) => x !== p && x.id !== p.id && (x.succeedsId ?? "") !== "").map((x) => x.succeedsId ?? ""));
+  return pillars.filter(
+    (x) => x.level === 2 && x.id !== p.id && x.company === p.company && (x.id === (p.succeedsId ?? "") || (before !== "" && x.toPeriod === before && !taken.has(x.id)))
+  );
+}
+
+/** The sub-pillars in force in `year`, in column order. */
+function liveSubPillars(settings: PeriodSettings, pillars: Pillar[], year: string): Pillar[] {
+  return objectiveColumns(pillarsLiveIn(settings, pillars, year), null);
+}
+
+/**
+ * The rows the form shows, given what has been picked so far. `picks`:
+ * year → the sub-pillar chosen from that year on (the start year, and any
+ * later year the person was asked about or chose to move it from).
+ * `until`: the last year to look at ("" = no further than the pillars'
+ * own last change). The walk stops at the first row left unanswered —
+ * the years after it depend on the answer.
+ */
+export function subPillarPlan(settings: PeriodSettings, pillars: Pillar[], start: string, until: string, picks: Record<string, string>): { rows: SubPillarRow[]; complete: boolean } {
+  const rows: SubPillarRow[] = [];
+  if (start === "") return { rows, complete: false };
+  const liveIn = (y: string) => liveSubPillars(settings, pillars, y);
+  const pickedIn = (y: string, live: Pillar[]) => (live.some((x) => x.id === (picks[y] ?? "")) ? picks[y] : "");
+  const first = liveIn(start);
+  let cur = pickedIn(start, first);
+  rows.push({ year: start, pillarId: cur, options: first, forced: false });
+  let y = start;
+  for (let guard = 0; guard < 60 && cur !== ""; guard++) {
+    y = nextPeriod(settings, y);
+    if (y === "" || (until !== "" && comparePeriods(settings, y, until) > 0)) break;
+    const live = liveIn(y);
+    const carried = pillarVersions(cur, pillars).filter((v) => live.some((x) => x.id === v.id));
+    if (y in picks) {
+      // a row of its own for this year: forced, or a move the person made
+      cur = pickedIn(y, live);
+      rows.push({ year: y, pillarId: cur, options: live, forced: carried.length !== 1 });
+    } else if (carried.length === 1) {
+      cur = carried[0].id;
+    } else {
+      rows.push({ year: y, pillarId: "", options: live, forced: true });
+      cur = "";
+    }
+  }
+  return { rows, complete: rows.every((r) => r.pillarId !== "") };
+}
+
+/** The rows as the record keeps them: the LAST row's sub-pillar is the
+ *  priority's home, and each earlier row a placement "up to and
+ *  including" the year before the next row's. Rows that change nothing
+ *  are dropped. */
+export function placementsFromRows(settings: PeriodSettings, rows: Pick<SubPillarRow, "year" | "pillarId">[]): { pillarId: string; placements: PriorityPlacement[] } {
+  const chosen = rows.filter((r) => r.pillarId !== "");
+  if (chosen.length === 0) return { pillarId: "", placements: [] };
+  const placements: PriorityPlacement[] = [];
+  for (let i = 0; i + 1 < chosen.length; i++) {
+    const to = prevPeriod(settings, chosen[i + 1].year);
+    if (to === "" || chosen[i].pillarId === chosen[i + 1].pillarId) continue;
+    placements.push({ pillarId: chosen[i].pillarId, to });
+  }
+  return { pillarId: chosen[chosen.length - 1].pillarId, placements };
+}
+
+/** The picks a saved priority opens the form with: its home in its
+ *  start year, and one for each year its recorded home changes. */
+export function picksOf(settings: PeriodSettings, p: Pick<Priority, "pillarId" | "placements" | "period">, pillars: Pillar[]): Record<string, string> {
+  const picks: Record<string, string> = {};
+  if (p.period === "") return picks;
+  if (p.pillarId !== "" || p.placements.length > 0) picks[p.period] = pillarIdIn(settings, p, p.period, pillars);
+  for (const pl of p.placements) {
+    const from = nextPeriod(settings, pl.to);
+    if (from !== "" && comparePeriods(settings, from, p.period) > 0) picks[from] = pillarIdIn(settings, p, from, pillars);
+  }
+  return picks;
+}
+
 // ---- the decision zone (2026-11-18) ------------------------------------------------
 // One place at the foot of the page for what waits on this org: what was
 // PROPOSED to it from below, what was CASCADED to it from above, and the

@@ -710,6 +710,8 @@ export async function customiseInto(
     title,
     priority: draft,
     pillars: data.pillars,
+    periodSettings: ctx.settings.period,
+    viewYear: ctx.currentPeriod,
     periods: ctx.periodsOnOffer(),
     roster: ctx.roster,
     // a proposal is not cascaded: that waits for its acceptance
