@@ -463,6 +463,22 @@ Metrics on a priority. App-only: no schema.
   become the metric's value and state. Dev's rows happened to be in
   date order, so nothing on screen was wrong.
 
+## Ben's test walk on dev (2026-11-19)
+
+Twelve checks, one at a time, on `v0.96.0-6` then `v0.96.0-7`.
+
+| # | Check | Result |
+|---|---|---|
+| 1 | Objectives switch, charts on the tile | Pass |
+| 2 | The decision zone: cascade, hold, accept | Pass |
+| 3 | The Unplaced band, "Place under…" | Pass |
+| 4 | Sub-pillar year by year in the priority form | Pass |
+| 5 | A new sub-pillar follows one that ended | Pass |
+| 6 | Raise an action from the tile | Pass, after the action count came off the tile |
+| 7 | Popup "Add action", Actions tab, Gantt | Pass |
+| 8 | Complete / Archive warning, executive summary | Pass |
+| 9 | Adopted tile, company view, hub label, message | Steps 1–5 taken as passed; step 6 (a person who does not manage the site) UNTESTED — no second person |
+
 ## Not in this round
 
 - The phone layout (decision 15).
