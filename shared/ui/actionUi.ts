@@ -1709,6 +1709,18 @@ function buildLinkField(o: ActionDialogOptions, body: () => HTMLElement, onTouch
         const home = (o.action.instanceId !== "" ? o.action.instanceId : (o.linkTarget ?? c.openHome)).split(":")[0];
         if (home !== "" && home === (c.openBoardId ?? o.openBoardId ?? "")) origin = { ...origin, target: boardOnlyTarget(home, c.openBoardTitle ?? "") };
       }
+      // on a priority the list does not carry: the host names it
+      if (origin.kind === "priority" && origin.target === null && c.resolve) {
+        const key = o.action.instanceId !== "" ? o.action.instanceId : (o.linkTarget ?? c.openHome);
+        void c.resolve(key).then(
+          (t) => {
+            if (t === null || origin === null || origin.kind !== "priority" || origin.target !== null) return;
+            origin = { ...origin, target: t };
+            paint();
+          },
+          () => undefined
+        );
+      }
       if (o.isNew && o.linkToOpenBoard === true) {
         // the open board, whether or not the list carries it (findings 1–3)
         const openId = c.openBoardId ?? o.openBoardId ?? null;

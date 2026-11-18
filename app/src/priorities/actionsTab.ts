@@ -16,7 +16,7 @@ import { el } from "../../../shared/ui/dom";
 import type { Initiative } from "../improvement/initiativeModel";
 import type { RosterPerson } from "../store/mappers";
 import { upsertActions } from "../store/actions";
-import { actionsOfInitiatives, changedSince, homesFor, initiativeOf, snapshotOf, stampNew } from "./actionsTabModel";
+import { changedSince, homesFor, initiativeOf, OWN_LABEL, snapshotOf, stampNew, tabActions } from "./actionsTabModel";
 
 export interface PriorityActionsOpts {
   host: HTMLElement;
@@ -33,14 +33,29 @@ export interface PriorityActionsOpts {
   onOpenBoard: (boardId: string) => void;
   /** An action was written: the screen's tallies are stale. */
   onWritten: () => void;
+  /** The priority's OWN actions (decision 1 of the 2026-11-18 proposal):
+   *  listed first under "This priority". Absent on a surface that shows
+   *  initiatives only. */
+  own?: {
+    /** The key they carry — this priority, at the org in view. */
+    key: string;
+    /** The org's name, kept on the action for the lists that show it. */
+    orgName: string;
+    /** The screen's shared array of every priority action. */
+    actions: LtkAction[];
+    /** Org managers only may raise one (decision 3). */
+    canRaise: boolean;
+  };
 }
 
 /** The view each priority's tab was left on, for the session. */
 let lastView: "list" | "kanban" | "gantt" | null = null;
 
 export function mountPriorityActions(o: PriorityActionsOpts): () => void {
-  const mine = actionsOfInitiatives(o.initiatives, o.actions);
-  const homes = homesFor(o.initiatives);
+  const ownKey = o.own?.key ?? "";
+  const isOwn = (a: LtkAction): boolean => ownKey !== "" && a.instanceId === ownKey;
+  const mine = tabActions(o.own ? o.own.actions.filter(isOwn) : [], o.initiatives, o.actions);
+  const homes = homesFor(o.initiatives, o.own?.canRaise ? ownKey : "");
   let seen = snapshotOf(mine);
   let writing: Promise<void> = Promise.resolve();
 
@@ -51,7 +66,10 @@ export function mountPriorityActions(o: PriorityActionsOpts): () => void {
         // raised here: its home, its initiative, and a place in the
         // screen's own list
         stampNew(a, homes);
-        if (!o.actions.includes(a)) o.actions.push(a);
+        if (isOwn(a) && o.own) {
+          a.context = { source: "priority", sourceId: o.own.orgName.slice(0, 80) };
+          if (!o.own.actions.includes(a)) o.own.actions.push(a);
+        } else if (!o.actions.includes(a)) o.actions.push(a);
       }
       const changed = changedSince(seen, now);
       seen = snapshotOf(now);
@@ -70,8 +88,12 @@ export function mountPriorityActions(o: PriorityActionsOpts): () => void {
   editor.setPeople(assigneePeople([...near.values()], o.roster, "search"));
   editor.setActor(o.actor);
   editor.setReadOnly(o.actor.whoId === "");
+  // nowhere to raise one: no initiative, and the priority's own actions
+  // are for the people who manage its org
+  editor.setAddable(homes.length > 0);
   editor.setOptions({ view: "list", groupBy: "status", verifyColumn: true });
   editor.setSections((a) => {
+    if (isOwn(a)) return { key: "priority", label: OWN_LABEL, first: true };
     const i = initiativeOf(o.initiatives, a);
     return i ? { key: i.id, label: i.title } : null;
   });
@@ -79,7 +101,7 @@ export function mountPriorityActions(o: PriorityActionsOpts): () => void {
   editor.setLinkTargets(
     homes.map((h) => ({ key: h.key, label: h.label })),
     homes[0]?.key ?? "",
-    "Initiative"
+    "Linked to"
   );
   editor.setActions(mine);
   editor.setUserView(lastView, (v) => {
@@ -99,6 +121,7 @@ export function mountPriorityActions(o: PriorityActionsOpts): () => void {
           host,
           scopes: [{ key: "org", label: "All initiatives" }],
           initiatives: o.initiatives,
+          extraGroup: ownKey !== "" ? { id: "priority", title: OWN_LABEL, owns: isOwn } : undefined,
           actions: g.actions,
           palette: o.palette,
           edgeColour: o.edgeColour,

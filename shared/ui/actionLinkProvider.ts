@@ -22,6 +22,10 @@ export interface ActionLinkContext {
   /** The open board's title, so the chip can NAME an initiative the
    *  viewer's list does not carry (action-link-review-2026-10-30). */
   openBoardTitle?: string;
+  /** Name a home the list does not carry, from its key alone — a
+   *  PRIORITY (2026-11-18): the list holds rituals and initiatives, and
+   *  an action raised on a priority is named by one row read on demand. */
+  resolve?: (instanceId: string) => Promise<LinkTarget | null>;
 }
 
 let provider: (() => Promise<ActionLinkContext>) | null = null;

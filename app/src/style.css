@@ -5194,6 +5194,14 @@ button.app-cp-hcchip.app-cp-hcchip-stale:hover { background: rgba(255,255,255,0.
 .app-st-counts-l .app-st-dot { width: 42px; height: 42px; font-size: 20px; }
 .app-st-chip { display: inline-flex; align-items: center; border: 1px solid currentColor; border-radius: 999px; padding: 1px 8px; font-size: 11.5px; font-weight: 600; white-space: nowrap; background: #fff; }
 .app-cp-tallies .app-st-counts { vertical-align: middle; }
+/* a priority's own actions, beside its initiative circles */
+.app-cp-ownactions { align-self: center; font-size: 11.5px; color: #6d675c; white-space: nowrap; }
+.app-cp-ownactions-late { font-weight: 700; }
+.app-xs-countspair { display: flex; align-items: flex-start; gap: 26px; }
+/* the action dialog raised from a priority: over the priority popup */
+.app-quickadd-host.app-cp-actionhost { z-index: 9200; }
+/* Complete / Archive: its own actions are still open */
+.app-cp-openwarn { padding: 8px 10px; border: 1px solid #e6cf9a; border-radius: 6px; background: #fdf6e3; color: #5c4a12; font-size: 13px; }
 /* the popup's initiative row: why it is where it is */
 .app-cp-ov-init-why { font-size: 12.5px; margin-top: 2px; }
 .app-cp-ov-init-sub { font-weight: 700; }

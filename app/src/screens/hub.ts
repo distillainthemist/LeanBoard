@@ -11,6 +11,7 @@ import {
   parseProtectedTimes,
 } from "../../../controls/LeanHub/types";
 import { boardChannelKey, LtkAction, parseActionsJson } from "../../../shared/schema/actions";
+import { priorityOfKey } from "../../../shared/schema/actionLinks";
 import { effectiveTabs } from "../../../shared/schema/hubTabs";
 import { parseOrgTree } from "../../../shared/schema/meeting";
 import { parsePeople } from "../../../shared/schema/people";
@@ -128,6 +129,16 @@ async function fetchHubData(viewer: {
       // actions carry instanceId = boardId:cardId (the app's action key)
       sourceLabels[`${b.boardId}:${slot.cardId}`] =
         `${b.name} · ${slot.title || cardLabel(slot.cardType)}`;
+    }
+  }
+  // actions raised on a priority: named by its statement, one row each
+  const priorityIds = [...new Set(myActions.map((a) => priorityOfKey(a.instanceId)).filter((id) => id !== ""))];
+  if (priorityIds.length > 0) {
+    const { priorityStatement } = await import("../store/priorities");
+    const named = await Promise.all(priorityIds.map((id) => priorityStatement(id).catch(() => "")));
+    for (const a of myActions) {
+      const at = priorityIds.indexOf(priorityOfKey(a.instanceId));
+      if (at >= 0 && named[at] !== "") sourceLabels[a.instanceId] = `Priority · ${named[at]}`;
     }
   }
   return {

@@ -149,6 +149,9 @@ export type GanttRenderer = (
 export interface ActionSection {
   key: string;
   label: string;
+  /** Stands ahead of the alphabetical ones (a priority's own actions
+   *  above its initiatives'). */
+  first?: boolean;
 }
 
 /** The people a list of actions is assigned to, by name — the options of
@@ -162,14 +165,16 @@ export function assigneeOptions(actions: LtkAction[]): { whoId: string; who: str
 /** Actions under their sections, in the sections' label order; actions
  *  with no section last, under "". Pure. */
 export function sectioned(actions: LtkAction[], sectionOf: (a: LtkAction) => ActionSection | null): { key: string; label: string; items: LtkAction[] }[] {
-  const groups = new Map<string, { key: string; label: string; items: LtkAction[] }>();
+  const groups = new Map<string, { key: string; label: string; first: boolean; items: LtkAction[] }>();
   for (const a of actions) {
     const sec = sectionOf(a) ?? { key: "", label: "" };
-    const g = groups.get(sec.key) ?? { key: sec.key, label: sec.label, items: [] };
+    const g = groups.get(sec.key) ?? { key: sec.key, label: sec.label, first: sec.first === true, items: [] };
     g.items.push(a);
     groups.set(sec.key, g);
   }
-  return [...groups.values()].sort((a, b) => (a.key === "" ? 1 : b.key === "" ? -1 : a.label.localeCompare(b.label)));
+  return [...groups.values()]
+    .sort((a, b) => (a.first !== b.first ? (a.first ? -1 : 1) : a.key === "" ? 1 : b.key === "" ? -1 : a.label.localeCompare(b.label)))
+    .map((g) => ({ key: g.key, label: g.label, items: g.items }));
 }
 
 /** The card's actions as a view shows them: cancelled never; completed
@@ -197,6 +202,7 @@ export class ActionBoardEditor {
   private defaultLink = "";
   /** What the link targets are, for the dialog's caption ("" = cards). */
   private linkLabel = "";
+  private noAdd = false;
   /** The view the PERSON chose on the card's own switch; null = the
    *  card's configured default (2026-09-30). */
   private userView: BoardView | null = null;
@@ -384,6 +390,19 @@ export class ActionBoardEditor {
       this.readOnly = ro;
       this.render();
     }
+  }
+
+  /** Editable but with nowhere to raise a new action (the host offers no
+   *  home for one): the Add roads are left out, the rest stays. */
+  setAddable(on: boolean): void {
+    if (this.noAdd === on) {
+      this.noAdd = !on;
+      this.render();
+    }
+  }
+
+  private canAdd(): boolean {
+    return !this.readOnly && !this.noAdd;
   }
 
   setOptions(opts: {
@@ -593,7 +612,7 @@ export class ActionBoardEditor {
       tools.appendChild(this.completedToggle());
       const sel = this.assigneeSelect();
       if (sel) tools.appendChild(sel);
-      if (!this.readOnly) tools.appendChild(this.addButton());
+      if (this.canAdd()) tools.appendChild(this.addButton());
       body.appendChild(tools);
       body.appendChild(el("div", "ltk-ab-narrownote", "No actions for this person"));
       return;
@@ -602,7 +621,7 @@ export class ActionBoardEditor {
       // every action is complete and hidden: say so, offer the switch
       const tools = this.toolsRow();
       tools.appendChild(this.completedToggle());
-      if (!this.readOnly) tools.appendChild(this.addButton());
+      if (this.canAdd()) tools.appendChild(this.addButton());
       body.appendChild(tools);
       body.appendChild(el("div", "ltk-ab-narrownote", `All ${this.hiddenDone()} actions are complete`));
       return;
@@ -613,9 +632,9 @@ export class ActionBoardEditor {
         : DEFAULT_GHOST;
       const ghost = renderGhost(
         body,
-        this.readOnly ? lines : [...lines, "Tap to add an action"]
+        this.canAdd() ? [...lines, "Tap to add an action"] : lines
       );
-      if (!this.readOnly) {
+      if (this.canAdd()) {
         ghost.addEventListener("click", () => this.addAction());
       }
       return;
@@ -684,7 +703,7 @@ export class ActionBoardEditor {
       tools.classList.add("ltk-ab-tools-slot");
       tools.appendChild(ganttSlot);
     }
-    if (!this.readOnly) tools.appendChild(this.addButton());
+    if (this.canAdd()) tools.appendChild(this.addButton());
     body.appendChild(tools);
     // something the card has to say (a drop it would not take)
     if (this.notice !== "") {
@@ -839,7 +858,7 @@ export class ActionBoardEditor {
       const title = el("div", "ltk-ab-col-title");
       title.appendChild(el("span", "ltk-ab-col-name", col.label));
       title.appendChild(el("span", "ltk-ab-col-count", String(col.items.length)));
-      if (!this.readOnly) {
+      if (this.canAdd()) {
         // straight into THIS column (2026-09-30)
         const add = el("button", "ltk-ab-col-add", "＋") as HTMLButtonElement;
         add.type = "button";

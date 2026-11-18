@@ -110,6 +110,9 @@ export function sourceLabel(
   const exact = labels[instanceId];
   if (exact !== undefined) return exact;
   if (source === "leanhub" || instanceId.startsWith("hub")) return "Personal";
+  // raised on a priority (2026-11-18): the host names it in the label
+  // map; without that, the kind alone — never the key
+  if (instanceId.startsWith("priority:")) return "Priority";
   if (instanceId === "") return "Other";
   const title = boardTitle(instanceId.split(":")[0]);
   return title !== undefined ? `${title} · card` : "Unknown board · card";

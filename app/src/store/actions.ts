@@ -5,7 +5,7 @@
 import { actionBelongsTo, actionVisibleTo, Assignee, holdOpenUntilAllParts, LtkAction, mergeComments, mergeParts, stampCompletion, visibleSetFor, settleFromParts } from "../../../shared/schema/actions";
 import { applyEndorsementRule } from "../../../shared/schema/actionEndorsement";
 import { ACTION_RULED_EVENT } from "../../../shared/ui/actionLinkProvider";
-import { homeBoardOf, homeCardOf, homeForStamp } from "../../../shared/schema/actionLinks";
+import { homeBoardOf, homeCardOf, homeForStamp, PRIORITY_KEY_PREFIX } from "../../../shared/schema/actionLinks";
 import { bumpChange } from "./changes";
 import { whenSettled } from "./inflight";
 import { Ben_ltkactionsService } from "../generated/services/Ben_ltkactionsService";
@@ -80,7 +80,8 @@ async function initiativeIdForBoard(boardId: string): Promise<string> {
 function boardOf(action: LtkAction, boardId?: string): string {
   if (boardId) return boardId;
   const k = action.instanceId;
-  if (k.includes(":") && !k.startsWith("hub")) return k.split(":")[0];
+  // a priority's key names no board (2026-11-18)
+  if (k.includes(":") && !k.startsWith("hub") && !k.startsWith(PRIORITY_KEY_PREFIX)) return k.split(":")[0];
   return "";
 }
 
@@ -90,7 +91,8 @@ function boardOf(action: LtkAction, boardId?: string): string {
  *  may roll up another board), and keeps the stamped one when the caller
  *  gives none (hub edits across boards). */
 function stampedBoard(instanceId: string, boardId?: string): string | undefined {
-  if (instanceId.startsWith("hub")) return "";
+  // a personal key and a priority's key live on no board
+  if (instanceId.startsWith("hub") || instanceId.startsWith(PRIORITY_KEY_PREFIX)) return "";
   if (homeCardOf(instanceId) === "" && homeBoardOf(instanceId) !== "") return homeBoardOf(instanceId);
   return boardId;
 }
@@ -122,6 +124,15 @@ export async function actionsForInitiatives(): Promise<LtkAction[]> {
   // rows that lacked the id but resolved to one: write it back once
   void healInitiativeIds(actions.filter((a) => a.initiativeId && !rows.find((r) => r.ben_actionid === a.id)?.ben_initiativeid)).catch(() => undefined);
   return visible(actions);
+}
+
+/** Every action raised directly on a PRIORITY (2026-11-18): one small
+ *  read for the Priorities page — its status rule and its Actions tabs.
+ *  Each is keyed to the priority and the org it was raised at. */
+export async function actionsForPriorities(): Promise<LtkAction[]> {
+  await whenSettled();
+  const rows = await allWhere(Ben_ltkactionsService.getAll, `startswith(ben_instanceid,'${PRIORITY_KEY_PREFIX}')`);
+  return visible(rows.map(actionFromRow));
 }
 
 /** The viewer's rollup for LeanHub — their whoId appears in assignees,

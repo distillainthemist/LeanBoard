@@ -14,7 +14,7 @@ import { parseManifest } from "../store/mappers";
 import { viewerPerson } from "../store/people";
 import { changeVersion } from "../store/changes";
 import { parseMeetingInfo, orgLabel } from "../../../shared/schema/meeting";
-import { LinkTarget } from "../../../shared/schema/actionLinks";
+import { LinkTarget , priorityOfKey } from "../../../shared/schema/actionLinks";
 import { ActionLinkContext } from "../../../shared/ui/actionLinkProvider";
 import { cardLabel } from "../../../controls/CardSettings/registry";
 import { openBoardId, openCardKey } from "./openBoard";
@@ -114,5 +114,18 @@ export async function loadLinkContext(): Promise<ActionLinkContext> {
     const b = (await listBoards(true).catch(() => [])).find((x) => x.boardId === open);
     openBoardTitle = b?.name ?? "";
   }
-  return { targets: await cached.value, personalWho: whoId, openBoardId: open, openHome: openCardKey(window.location.hash), openBoardTitle };
+  return {
+    targets: await cached.value,
+    personalWho: whoId,
+    openBoardId: open,
+    openHome: openCardKey(window.location.hash),
+    openBoardTitle,
+    // an action raised on a priority (2026-11-18): the one row, on demand
+    resolve: async (instanceId) => {
+      const id = priorityOfKey(instanceId);
+      if (id === "") return null;
+      const statement = await import("../store/priorities").then((m) => m.priorityStatement(id)).catch(() => "");
+      return statement === "" ? null : { kind: "priority", id, boardId: instanceId, title: statement, detail: "", keywords: "", mine: false, near: false, cards: {} };
+    },
+  };
 }

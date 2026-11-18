@@ -14,8 +14,28 @@ import { orgKey, orgRef } from "../src/priorities/model";
 import { seed } from "./prioritiesSeed";
 import { rememberShared } from "../src/sessionView";
 import { mountPriorities } from "../src/priorities/prioritiesScreen";
+import { setActionLinkProvider, setActionViewerProvider } from "../../shared/ui/actionLinkProvider";
+import { priorityOfKey, priorityTarget } from "../../shared/schema/actionLinks";
+import { priorityStatement } from "../src/store/priorities";
 
 const q = new URLSearchParams(location.search);
+
+// the action dialog's "Linked to" names a priority through the provider,
+// as the app's own does (actions/linkTargets.ts)
+setActionViewerProvider(() => ({ whoId: q.get("as") ?? "u1", who: "Harness viewer" }));
+setActionLinkProvider(() =>
+  Promise.resolve({
+    targets: [],
+    personalWho: q.get("as") ?? "u1",
+    openBoardId: null,
+    openHome: "",
+    resolve: async (instanceId: string) => {
+      const id = priorityOfKey(instanceId);
+      const statement = id !== "" ? await priorityStatement(id) : "";
+      return statement !== "" ? { ...priorityTarget(id, statement, "", ""), boardId: instanceId } : null;
+    },
+  })
+);
 
 void (async () => {
   await detectHost();

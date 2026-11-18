@@ -27,6 +27,7 @@ import { popupTabFor, rememberPopupTab } from "../sessionView";
 import { promptConfirm } from "../prompts";
 import { initiativeRow, initiativeRowHead, rowRank } from "../improvement/initiativeRow";
 import { offerStepMessage } from "./stepMessage";
+import { openOwn } from "./actionsTabModel";
 import {
   CLOSE_REASONS,
   CloseReason,
@@ -89,6 +90,21 @@ export interface LifecycleCtx {
   /** The status of every initiative counted under a priority (its own
    *  and its counted descendants'), by the ONE status rule. */
   statusesFor: (p: Priority) => import("../improvement/status").StatusResult[];
+  /** The priority's own status: its initiatives', and what it carries of
+   *  its own — late actions, metrics off plan (2026-11-18). */
+  statusOf: (p: Priority) => import("../improvement/status").PriorityStatus;
+  /** Actions raised ON a priority, at the org in view (2026-11-18). */
+  own: {
+    /** The key such an action carries for `p` here. */
+    keyFor: (p: Priority) => string;
+    /** The org they are raised at — its name rides the action. */
+    orgNameFor: (p: Priority) => string;
+    /** The screen's shared array of every priority action. */
+    all: import("../../../shared/schema/actions").LtkAction[];
+    of: (p: Priority) => import("../../../shared/schema/actions").LtkAction[];
+    /** Org managers only, on an active priority (decision 3). */
+    canRaise: (p: Priority) => boolean;
+  };
   /** The initiatives behind a priority (direct + through children), for
    *  the overlay's Initiatives/Actions tabs (P6b). */
   initiativesFor: (p: Priority) => {
@@ -194,10 +210,17 @@ export function reasonDialog(host: HTMLElement, title: string, note: string, pla
 export function closeDialog(
   host: HTMLElement,
   p: Priority,
-  mode: "complete" | "archive"
+  mode: "complete" | "archive",
+  /** Its own actions still open: said first, and they stay open. */
+  openActions = 0
 ): Promise<{ reason: CloseReason; note: string } | null> {
   return new Promise((resolve) => {
     const m = modal(host, mode === "complete" ? "Complete priority" : "Archive priority", `“${p.statement.slice(0, 120)}”`);
+    if (openActions > 0) {
+      m.body.appendChild(
+        el("div", "app-cp-openwarn", `${openActions} action${openActions === 1 ? "" : "s"} on this priority ${openActions === 1 ? "is" : "are"} still open. ${openActions === 1 ? "It stays" : "They stay"} open.`)
+      );
+    }
     m.body.appendChild(el("div", "app-cp-q", "Why is this closing?"));
     const list = el("div", "app-cp-reasons");
     let chosen: CloseReason | null = null;
@@ -990,6 +1013,22 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
       close();
       window.location.hash = "#/improvement";
     });
+    // an action on the priority itself: outline, left of the one solid
+    // button — for the people who manage the org it is raised at
+    const addAction = ctx.own.canRaise(live) ? btn("Add action", "app-btn") : null;
+    if (addAction) {
+      addAction.title = "Raise an action on this priority";
+      addAction.addEventListener("click", () => {
+        void import("./priorityActions").then((m) =>
+          m.raisePriorityAction(ctx, live, () => {
+            if (!scrim.isConnected) return;
+            tab = "actions";
+            rememberPopupTab(p.id, "actions");
+            paint();
+          })
+        );
+      });
+    }
     if (waiting !== null && decideAt !== null) {
       // ONE solid button: Accept. The rest are outline, and Hold and
       // Decline ask why. Nothing to link an initiative to until it is
@@ -1022,6 +1061,8 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
         headBtns.appendChild(accept);
       }
     } else {
+      // on the Actions tab the card's own "＋ Add action" is the one
+      if (addAction && tab !== "actions") headBtns.appendChild(addAction);
       headBtns.appendChild(add);
     }
     // adopted as-is at the viewed org: its managers may customise it into
@@ -1504,8 +1545,9 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
       // List | Kanban | Gantt, the full dialog, Add action — over every
       // initiative's actions, a heading per initiative
       const g = ctx.ganttFor(live);
-      if (g.initiatives.length === 0) {
-        body.appendChild(el("div", "app-cp-muted", "No initiatives linked yet — their actions show here."));
+      const mayRaise = ctx.own.canRaise(live);
+      if (g.initiatives.length === 0 && ctx.own.of(live).length === 0 && !mayRaise) {
+        body.appendChild(el("div", "app-cp-muted", "No actions yet. Actions raised on this priority, and its initiatives' actions, show here."));
       } else {
         const host = el("div", "app-cp-ov-gantthost app-cp-ov-actionshost");
         body.appendChild(host);
@@ -1515,6 +1557,7 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
             host,
             initiatives: g.initiatives,
             actions: g.actions,
+            own: { key: ctx.own.keyFor(live), orgName: ctx.own.orgNameFor(live), actions: ctx.own.all, canRaise: mayRaise },
             roster: ctx.roster,
             palette: ctx.palette,
             edgeColour: (i) => ctx.stateColour(g.stateFor(i)),
@@ -1654,7 +1697,7 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
   };
 
   const doClose = async (live: Priority, mode: "complete" | "archive") => {
-    const r = await closeDialog(ctx.host, live, mode);
+    const r = await closeDialog(ctx.host, live, mode, openOwn(ctx.own.of(live)));
     if (!r) return;
     await closePriority(ctx, live, mode, r);
     events = null;

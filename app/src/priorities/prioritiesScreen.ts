@@ -24,6 +24,7 @@ import { changeVersion } from "../store/changes";
 import { el, clear } from "../../../shared/ui/dom";
 import { paletteMap } from "../../../shared/palette";
 import { todayIso } from "../../../shared/schema/id";
+import { openOwn } from "./actionsTabModel";
 import { showLoading } from "../loading";
 import { promptChoice } from "../prompts";
 import { currentViewer } from "../runtime";
@@ -72,7 +73,9 @@ import { prioritiesViewUrl, takePendingPrioritiesView } from "../links";
 import { decodePrioritiesView, encodePrioritiesView } from "./viewLink";
 import { cascadeDialog, cascadeReview, closeDialog, closePriority, LifecycleCtx, moveBackToProposed, openPriorityOverlay, pullFromAbove, reopenPriority, sendCascade } from "./lifecycle";
 import { Initiative, adminScopeFor, initiativesByPriority, ownersLabel, ownersTitle, statusOf } from "../improvement/initiativeModel";
-import { actionCountsFor, PriorityState, priorityStatus, PriorityStatus, statusColour, StatusResult } from "../improvement/status";
+import { actionCounts, actionCountsFor, PriorityOwn, PriorityState, priorityStatus, PriorityStatus, statusColour, StatusResult } from "../improvement/status";
+import { priorityKey } from "../../../shared/schema/actionLinks";
+import type { LtkAction } from "../../../shared/schema/actions";
 import { priorityCounts, statusLegend } from "../improvement/statusUi";
 import { objectiveCharts } from "../improvement/initiativeRow";
 import { offerStepMessage } from "./stepMessage";
@@ -294,11 +297,13 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
     // initiatives + their actions + metric values (P6b/c): the tallies'
     // live inputs. A failure leaves the tallies grey, never blocks the matrix.
     // eslint-disable-next-line prefer-const
-    let [initiativeList, initiativeActions, initBoards, initRows] = await Promise.all([
+    let [initiativeList, initiativeActions, initBoards, initRows, priorityActions] = await Promise.all([
       memo("initiatives", () => import("../store/initiatives").then((m) => m.listInitiatives())).catch(() => []),
       memo("initActions", () => import("../store/actions").then((m) => m.actionsForInitiatives())).catch(() => []),
       memo("initBoards", () => import("../store/boards").then((m) => m.listBoards())).catch(() => []),
       memo("initRows", () => import("../store/cards").then((m) => m.rowsForInitiativeBoards())).catch(() => []),
+      // the actions raised directly on priorities (2026-11-18)
+      memo("priActions", () => import("../store/actions").then((m) => m.actionsForPriorities())).catch(() => [] as LtkAction[]),
     ]);
     const metricState = buildMetricState(initiativeList, initBoards, initRows, await loadMetricLasts(initiativeList, initBoards).catch(() => new Map()));
     if (dead) return;
@@ -388,7 +393,26 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
     // from its initiatives. Every painter below asks these two.
     const statusOfInitiative = (i: Initiative): StatusResult => statusOf(i, initiativeActions, statusMetricsOf(metricState.get(i.id)), settings.status, today);
     const statusesFor = makeStatusesFor(byPriority, () => data.priorities, statusOfInitiative);
-    const pStatus = (p: Priority): PriorityStatus => priorityStatus(statusesFor(p).map((x) => x.state));
+    /** The key of an action raised on `p` at the org in view: a priority
+     *  adopted as-is is one row at several orgs, and an action raised on
+     *  it shows only where it was raised (Ben, 2026-11-18). */
+    /** Where an action on `p` is raised from this board: the org in view
+     *  when it shows here ADOPTED, its own org otherwise. */
+    const actionOrgOf = (p: Priority): OrgRef =>
+      !sameOrg(p.org, state.org) && prioritiesForOrg(state.org, data.priorities, data.assignments).adopted.some((x) => x.id === p.id) ? state.org : p.org;
+    const priorityActionKey = (p: Priority): string => priorityKey(p.id, orgKey(actionOrgOf(p)));
+    const priorityActionsOf = (p: Priority): LtkAction[] => {
+      const key = priorityActionKey(p);
+      return priorityActions.filter((a) => a.instanceId === key);
+    };
+    /** What a priority carries of its own: its actions here, and (when
+     *  they are built) its own metrics. Both count toward its status. */
+    const ownOf = (p: Priority): PriorityOwn => ({ actions: actionCounts(priorityActionsOf(p), today), metrics: [] });
+    const pStatus = (p: Priority): PriorityStatus => priorityStatus(statusesFor(p).map((x) => x.state), ownOf(p));
+    /** Org managers only, on an active priority (decision 3). */
+    const canRaiseOn = (p: Priority): boolean => p.status === "active" && viewer.whoId !== "" && canManageOrg(viewer, actionOrgOf(p), owners);
+    /** Raise an action on `p` from its tile's ⋮. */
+    const addActionTo = (p: Priority) => void import("./priorityActions").then((m) => m.raisePriorityAction(ctx, p));
     const stateHex = (st: PriorityState): string => statusColour(st, settings.status, palette);
     /** An initiative write from the popup (issue 32): re-read the list
      *  and refill the SAME map, so every closure over it sees the change. */
@@ -512,6 +536,14 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       periodsOnOffer: () => periodsOnOffer(),
       currentPeriod,
       statusesFor,
+      statusOf: pStatus,
+      own: {
+        keyFor: priorityActionKey,
+        orgNameFor: (p) => orgName(actionOrgOf(p)),
+        all: priorityActions,
+        of: priorityActionsOf,
+        canRaise: canRaiseOn,
+      },
       primaryOf: (p) => {
         const id = primaryIdOf(p);
         const i = id !== "" ? initiativeList.find((x) => x.id === id) : undefined;
@@ -1693,6 +1725,16 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       // …and they ARE the count: no "· n" beside them (Ben, 2026-11-17 —
       // the total only repeated their sum)
       meta.appendChild(priorityCounts(ps, stateHex, density === "compact" ? "xs" : "s", false));
+      // its own actions (2026-11-18): how many are open, in the off-track
+      // colour when one is late — the count the status rule reads
+      const mine = ownOf(p).actions;
+      if (mine.future + mine.late > 0) {
+        const open = mine.future + mine.late;
+        const chip = el("span", "app-cp-ownactions" + (mine.late > 0 ? " app-cp-ownactions-late" : ""), mine.late > 0 ? `${mine.late} late` : `${open} action${open === 1 ? "" : "s"}`);
+        if (mine.late > 0) chip.style.color = stateHex("bad");
+        chip.title = `Actions on this priority: ${mine.done} done · ${mine.future} future · ${mine.late} late`;
+        meta.appendChild(chip);
+      }
       card.appendChild(meta);
       // its objectives, as charts under the circles (Ben, 2026-11-18 —
       // they were a row of their own): titled by the objective's words,
@@ -1706,10 +1748,10 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       if (parentClosed(p, data.priorities)) card.appendChild(el("div", "app-cp-flag app-cp-flag-amber", "▲ Parent completed — decide"));
       if (reviewDue(settings.period, p, state.period)) card.appendChild(el("div", "app-cp-flag app-cp-flag-amber", `⟳ Past its planned end (${p.plannedEnd}) — review`));
       // owner actions (⋮): P1 offers Edit + reorder; Cascade to… / Complete arrive with P2
-      if (canManage() && !adopted) {
+      if ((canManage() && !adopted) || (adopted && canRaiseOn(p))) {
         const kebab = el("button", "app-cp-kebab", "⋮") as HTMLButtonElement;
         kebab.type = "button";
-        kebab.title = "Edit · cascade · reorder · complete";
+        kebab.title = adopted ? "Add action" : "Edit · cascade · reorder · complete";
         kebab.addEventListener("click", (e) => {
           e.stopPropagation();
           openCardMenu(kebab, p);
@@ -1736,7 +1778,26 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
         });
         menu.appendChild(b);
       };
+      // shown here adopted: the row is its own org's — an action raised
+      // on it HERE is all this org may add
+      if (!sameOrg(p.org, state.org)) {
+        item("Add action…", () => addActionTo(p), !canRaiseOn(p));
+        const ar = anchor.getBoundingClientRect();
+        menu.style.top = `${ar.bottom + 4}px`;
+        menu.style.left = `${Math.min(ar.left, window.innerWidth - 240)}px`;
+        document.body.appendChild(menu);
+        const shut = (e: PointerEvent) => {
+          if (!menu.contains(e.target as Node)) {
+            menu.remove();
+            document.removeEventListener("pointerdown", shut, true);
+          }
+        };
+        setTimeout(() => document.addEventListener("pointerdown", shut, true), 0);
+        cleanups.push(() => menu.remove());
+        return;
+      }
       item("Edit…", () => void editPriority(p));
+      item("Add action…", () => addActionTo(p), !canRaiseOn(p));
       const siblings = visibleFor(state.org).filter((x) => colOf(x) === colOf(p) && orgKey(x.org) === orgKey(state.org));
       const i = siblings.indexOf(p);
       item("Move up", () => void reorder(siblings, i, i - 1), i <= 0);
@@ -1762,7 +1823,7 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
     };
 
     const closeFromCard = async (p: Priority, mode: "complete" | "archive") => {
-      const r = await closeDialog(wrap, p, mode);
+      const r = await closeDialog(wrap, p, mode, openOwn(priorityActionsOf(p)));
       if (r) await closePriority(ctx, p, mode, r);
     };
 

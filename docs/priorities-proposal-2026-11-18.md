@@ -349,6 +349,58 @@ sentences are label tooltips.
 
 UAT: PRI-011 rewritten.
 
+## As built — tranche 3 (2026-11-18, on dev, NOT released)
+
+Actions on a priority. App-only: no schema.
+
+- **The key.** `priority:<priorityId>@<org mark>` in `ben_instanceid`
+  (`shared/schema/actionLinks.ts` `priorityKey`, `priorityOfKey`,
+  `orgMark` — eight hex of the org key, so the key stays short). The
+  org's NAME rides `context.sourceId`, `context.source` is `"priority"`.
+  No initiative id, no board stamp (`store/actions.ts` `boardOf`,
+  `stampedBoard`), read by `actionsForPriorities()`.
+- **Which org.** `actionOrgOf(p)`: the org in view when the priority
+  shows there ADOPTED, its own org otherwise. So an action raised at
+  Weipa on an adopted company priority shows at Weipa only (decision 2),
+  and one raised on a site's own priority shows wherever that priority
+  is opened.
+- **Who.** `ctx.own.canRaise(p)`: an active priority, and the viewer
+  manages that org (`canManageOrg`). Anyone signed in may still open and
+  edit an action they can see, as on a board.
+- **Where it is raised.** Popup title row: outline "Add action" left of
+  the solid "Add initiative" (left out while the Actions tab shows — the
+  card's own ＋ Add action is the one there). Tile ⋮: "Add action…"
+  under "Edit…". An adopted tile gets a ⋮ holding that item alone.
+  `priorities/priorityActions.ts` opens the standard dialog with the
+  action already keyed, so "Linked to" reads PRIORITY · the statement
+  (named through `ActionLinkContext.resolve`, one row read on demand).
+- **Actions tab.** Always mounts when there is anything to show or
+  raise. "This priority" first (`ActionSection.first`), then a heading
+  per initiative. The new-action select is "Linked to" (was
+  "Initiative") and offers "This priority" first to who may raise. With
+  no home to offer, the card hides its Add roads
+  (`ActionBoardEditor.setAddable`). Gantt: one more group ahead of the
+  initiatives (`GanttOpts.extraGroup`).
+- **Status.** `priorityStatus(states, own)`: a late own action makes the
+  priority off track; a priority with no initiatives is on track once it
+  has an action of its own. The reason rides the circles' tooltip
+  ("… · 1 late priority action"). The tile shows "N actions", or "N
+  late" in the off-track colour. The executive summary row shows
+  "Priority actions" Done / Future / Late beside the initiative circles.
+- **No roll-up.** A priority's own actions count toward THAT priority at
+  THAT org. They do not count toward the priority it was cascaded from,
+  unlike initiatives. This follows decision 2.
+- **Complete / Archive.** "N actions on this priority are still open.
+  They stay open." above the reasons; nothing is closed.
+- **Elsewhere.** Hub group "Priority · <statement>" (`screens/hub.ts`;
+  `sourceLabel` falls back to "Priority", never the key). A message
+  about the action links to Priorities (the key holds an org mark, not
+  the org, so it cannot open that org's board).
+- **Not seen in the hosted player.** Checked in the harness
+  (`priorities.html`): raise from tile and popup, the chip, late status,
+  Actions tab list and Gantt, the warning, the summary row, an adopted
+  tile, a plain user. UAT-PRI-015.
+
 ## Not in this round
 
 - The phone layout (decision 15).

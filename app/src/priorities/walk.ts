@@ -21,8 +21,9 @@ import { el, clear } from "../../../shared/ui/dom";
 import { rememberBoardOrigin } from "../improvement/boardOrigin";
 import type { MetricValue } from "../improvement/metricValues";
 import { initiativeRow, initiativeRowHead, metricTiles, rowRank } from "../improvement/initiativeRow";
-import { priorityStatus } from "../improvement/status";
-import { priorityCounts } from "../improvement/statusUi";
+import { actionCounts } from "../improvement/status";
+import { actionCircles, priorityCounts } from "../improvement/statusUi";
+import { todayIso } from "../../../shared/schema/id";
 import { LifecycleCtx, renderReviewList } from "./lifecycle";
 import { OrgRef, orgName, parentClosed, pendingCascades, Pillar, Priority, ragPaletteKey } from "./model";
 
@@ -241,7 +242,7 @@ export function mountWalk(o: WalkOpts): () => void {
    *  initiatives. */
   const row = (p: Priority): HTMLElement => {
     const data = o.ctx.data();
-    const ps = priorityStatus(o.ctx.statusesFor(p).map((x) => x.state));
+    const ps = o.ctx.statusOf(p);
     const open = o.expanded.has(p.id);
     const card = el("div", "app-xs-card" + (open ? " app-xs-card-open" : ""));
     card.style.borderLeftColor = o.ctx.stateColour(ps.state);
@@ -274,7 +275,18 @@ export function mountWalk(o: WalkOpts): () => void {
     const counts = el("div", "app-xs-countsbox");
     counts.appendChild(el("div", "app-xs-collabel", ps.total === 0 ? "No initiatives" : "Initiatives"));
     counts.appendChild(priorityCounts(ps, o.ctx.stateColour, "l", true));
-    head.appendChild(counts);
+    // the priority's own actions beside its initiatives (2026-11-18)
+    const own = actionCounts(o.ctx.own.of(p), todayIso());
+    if (own.total > 0) {
+      const pair = el("div", "app-xs-countspair");
+      const mine = el("div", "app-xs-countsbox");
+      mine.appendChild(el("div", "app-xs-collabel", "Priority actions"));
+      mine.appendChild(actionCircles(own, o.ctx.stateColour, "l", true));
+      pair.append(counts, mine);
+      head.appendChild(pair);
+    } else {
+      head.appendChild(counts);
+    }
 
     // the priority's key metrics — shown while it is closed; open, each
     // initiative carries its own and these would only repeat them

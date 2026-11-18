@@ -13,8 +13,8 @@ import { el, clear } from "../../../shared/ui/dom";
 import { markDialog } from "../../../shared/ui/focusTrap";
 import type { ActionMessageRequest } from "../../../shared/ui/actionLinkProvider";
 import { newComment } from "../../../shared/schema/actions";
-import { homeBoardOf } from "../../../shared/schema/actionLinks";
-import { appLinkUrl, boardUrl } from "../links";
+import { homeBoardOf, PRIORITY_KEY_PREFIX } from "../../../shared/schema/actionLinks";
+import { appLinkUrl, boardUrl, prioritiesViewUrl } from "../links";
 import { currentViewer } from "../runtime";
 import { defaultRecipients, messageDraft, MessageRecipient, sentLine } from "./messageModel";
 
@@ -279,7 +279,8 @@ export async function openActionMessage(req: ActionMessageRequest): Promise<void
     recipients: (emailOf) => defaultRecipients(a.assignees, emailOf, me?.objectId ?? ""),
     subject: draft.subject,
     body: draft.body,
-    link: home !== "" ? boardUrl(home) : appLinkUrl(),
+    // an action on a priority has no board: the link opens Priorities
+    link: home !== "" ? boardUrl(home) : a.instanceId.startsWith(PRIORITY_KEY_PREFIX) ? prioritiesViewUrl("{}") : appLinkUrl(),
     onSent: async (to, how, say) => {
       // the trail: one comment on the action, written through the one
       // write path; the open dialog adopts it so its Save keeps it

@@ -257,20 +257,47 @@ export function reasonsLine(s: Pick<StatusResult, "reasons">, max = 4): string {
 
 export interface PriorityStatus {
   state: PriorityState;
+  /** Its INITIATIVES, by state — the three circles. */
   counts: Record<StatusState, number>;
   total: number;
+  /** Why the priority ITSELF is off track (2026-11-18): a late action
+   *  raised on it, a metric of its own short of plan or outside its
+   *  limits. Empty when nothing of its own is wrong. */
+  own: StatusReason[];
 }
 
-/** Flagged wins, then off track, then on track; nothing counted → none. */
-export function priorityStatus(states: StatusState[]): PriorityStatus {
+/** What a priority carries of its own, apart from its initiatives: the
+ *  actions raised directly on it (at the org in view) and the metrics
+ *  defined on it. Both count toward its status (Ben, 2026-11-18). */
+export interface PriorityOwn {
+  actions: ActionCounts;
+  metrics: StatusMetric[];
+}
+
+/** Flagged wins, then off track, then on track; nothing counted → none.
+ *  Off track: any initiative is, or something of the priority's own is —
+ *  a late action, a metric short of plan or outside its limits. A
+ *  priority with no initiatives is on track on its own actions and
+ *  metrics once it has any. */
+export function priorityStatus(states: StatusState[], mine?: PriorityOwn): PriorityStatus {
   const counts: Record<StatusState, number> = { good: 0, flagged: 0, bad: 0 };
   for (const s of states) counts[s]++;
-  const state: PriorityState = counts.flagged > 0 ? "flagged" : counts.bad > 0 ? "bad" : counts.good > 0 ? "good" : "none";
-  return { state, counts, total: states.length };
+  const own: StatusReason[] = [];
+  if (mine) {
+    if (mine.actions.late > 0) own.push({ kind: "late", text: `${mine.actions.late} late priority action${mine.actions.late === 1 ? "" : "s"}` });
+    for (const m of mine.metrics) {
+      if (m.rag === "red") own.push({ kind: "metric", text: `${m.name} outside its limits` });
+      else if (m.rag === "amber") own.push({ kind: "metric", text: `${m.name} short of plan` });
+    }
+  }
+  const hasOwn = mine !== undefined && (mine.actions.total > 0 || mine.metrics.some((m) => m.rag !== null));
+  const state: PriorityState = counts.flagged > 0 ? "flagged" : counts.bad > 0 || own.length > 0 ? "bad" : counts.good > 0 || hasOwn ? "good" : "none";
+  return { state, counts, total: states.length, own };
 }
 
 /** "2 on track · 1 flagged · 1 off track" — for a tooltip or a line. */
 export function countsWords(p: PriorityStatus): string {
-  if (p.total === 0) return STATE_LABELS.none;
-  return COUNT_ORDER.map((s) => `${p.counts[s]} ${STATE_LABELS[s].toLowerCase()}`).join(" · ");
+  const base = p.total === 0 ? STATE_LABELS.none : COUNT_ORDER.map((s) => `${p.counts[s]} ${STATE_LABELS[s].toLowerCase()}`).join(" · ");
+  // what the priority itself is off track for, after its initiatives
+  return p.own.length > 0 ? `${base} · ${p.own.map((r) => r.text).join(" · ")}` : base;
 }

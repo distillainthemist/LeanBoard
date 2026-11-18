@@ -62,6 +62,9 @@ export interface GanttOpts {
   initiative?: Initiative;
   /** Org scope: every initiative in view (group rows). */
   initiatives: Initiative[];
+  /** Org scope: one more group ahead of the initiatives, for actions no
+   *  initiative holds (a priority's own actions). */
+  extraGroup?: { id: string; title: string; owns: (a: LtkAction) => boolean };
   actions: LtkAction[];
   /** State palette (ragPaletteKey → colour). */
   palette: Record<string, string>;
@@ -200,6 +203,20 @@ export function mountGantt(opts: GanttOpts): () => void {
     actionBelongsTo(i, a);
   const byInitiative = (i: Initiative): LtkAction[] => opts.actions.filter((a) => owns(i, a));
   const initOf = (a: LtkAction): Initiative | null => opts.initiatives.find((i) => owns(i, a)) ?? null;
+  const inExtra = (a: LtkAction): boolean => opts.extraGroup?.owns(a) === true;
+  /** The org scope's groups: the extra one first, then each initiative. */
+  interface OrgGroup {
+    id: string;
+    title: string;
+    i: Initiative | null;
+    rows: LtkAction[];
+  }
+  const orgGroups = (order: (rows: LtkAction[]) => LtkAction[]): OrgGroup[] => {
+    const out: OrgGroup[] = [];
+    if (opts.extraGroup) out.push({ id: opts.extraGroup.id, title: opts.extraGroup.title, i: null, rows: order(opts.actions.filter((a) => inExtra(a) && visibleAction(a))) });
+    for (const i of opts.initiatives) out.push({ id: i.id, title: i.title, i, rows: order(byInitiative(i).filter(visibleAction)) });
+    return out.filter((g) => g.rows.length > 0);
+  };
 
   const visibleAction = (a: LtkAction): boolean => {
     // the state is on every bar and chip — the only filter is completed
@@ -216,7 +233,7 @@ export function mountGantt(opts: GanttOpts): () => void {
       scope === "initiative" && opts.initiative
         ? byInitiative(opts.initiative)
         : scope === "org"
-          ? opts.actions.filter((a) => initOf(a) !== null)
+          ? opts.actions.filter((a) => initOf(a) !== null || inExtra(a))
           : opts.actions;
     const dates: string[] = [];
     for (const a of rows.filter(visibleAction)) dates.push(a.start, a.due);
@@ -561,12 +578,10 @@ export function mountGantt(opts: GanttOpts): () => void {
         if (rows.length === 0) listBox.appendChild(el("div", "app-gx-empty", "No actions on this initiative yet. Add one from the Action plan card."));
         for (const a of rows) listBox.appendChild(listRow(a));
       } else {
-        const groups = opts.initiatives
-          .map((i) => ({ i, rows: sortRows(byInitiative(i).filter(visibleAction)) }))
-          .filter((g) => g.rows.length > 0);
+        const groups = orgGroups(sortRows);
         if (groups.length === 0) listBox.appendChild(el("div", "app-gx-empty", "No open actions."));
         for (const g of groups) {
-          listBox.appendChild(el("div", "app-gx-listgroup", `${g.i.title} · ${g.rows.length}`));
+          listBox.appendChild(el("div", "app-gx-listgroup", `${g.title} · ${g.rows.length}`));
           for (const a of g.rows) listBox.appendChild(listRow(a));
         }
       }
@@ -850,20 +865,19 @@ export function mountGantt(opts: GanttOpts): () => void {
       for (const a of rows) grid.appendChild(actionRow(a));
     } else {
       // org scope: a group per initiative
-      const groups = opts.initiatives
-        .map((i) => ({ i, rows: byInitiative(i).filter(visibleAction).sort((a, b) => ((a.due || "9999") < (b.due || "9999") ? -1 : 1)) }))
-        .filter((g) => g.rows.length > 0);
+      const groups = orgGroups((rows) => rows.sort((a, b) => ((a.due || "9999") < (b.due || "9999") ? -1 : 1)));
       if (groups.length === 0) {
         grid.appendChild(el("div", "app-gx-empty", "No open actions."));
       }
       for (const g of groups) {
-        const open = expanded.has(g.i.id);
+        const open = expanded.has(g.id);
         const gr = el("div", "app-gx-row app-gx-grouprow");
         const label = el("div", "app-gx-label app-gx-grouplabel");
-        label.style.borderLeft = `3px solid ${opts.edgeColour?.(g.i) ?? opts.palette.neutral ?? "#9a948a"}`;
+        label.style.borderLeft = `3px solid ${(g.i ? opts.edgeColour?.(g.i) : undefined) ?? opts.palette.neutral ?? "#9a948a"}`;
         const caret = el("span", "app-gx-caret", open ? "▾" : "▸");
-        label.append(caret, el("span", "app-gx-group-name", g.i.title));
-        const st = g.i.snapshot.stages.find((s) => s.id === g.i.stageId);
+        label.append(caret, el("span", "app-gx-group-name", g.title));
+        const gi = g.i;
+        const st = gi ? gi.snapshot.stages.find((s) => s.id === gi.stageId) : undefined;
         if (st) {
           const chip = el("span", "app-im-stagechip", st.name);
           chip.style.color = PDCA_TOKENS[st.pdca].fg;
@@ -873,8 +887,8 @@ export function mountGantt(opts: GanttOpts): () => void {
         label.appendChild(el("span", "app-gx-group-count", `· ${g.rows.length}`));
         label.style.cursor = "pointer";
         label.addEventListener("click", () => {
-          if (open) expanded.delete(g.i.id);
-          else expanded.add(g.i.id);
+          if (open) expanded.delete(g.id);
+          else expanded.add(g.id);
           render();
         });
         gr.appendChild(label);
@@ -883,23 +897,24 @@ export function mountGantt(opts: GanttOpts): () => void {
         gr.appendChild(tl);
         grid.appendChild(gr);
         if (open) {
-          const cap = uncapped.has(g.i.id) ? g.rows.length : 3;
+          const cap = uncapped.has(g.id) ? g.rows.length : 3;
+          const boardId = g.i?.boardId ?? "";
           for (const a of g.rows.slice(0, cap)) grid.appendChild(actionRow(a));
           if (g.rows.length > cap) {
             const moreRow = el("div", "app-gx-row");
             const l = el("div", "app-gx-label");
             const b = el("button", "app-link app-gx-more-link", `${g.rows.length - cap} more ›`) as HTMLButtonElement;
             b.type = "button";
-            b.title = g.i.boardId !== "" ? "Show all — or open the initiative board" : "Show all";
+            b.title = boardId !== "" ? "Show all — or open the initiative board" : "Show all";
             b.addEventListener("click", () => {
-              uncapped.add(g.i.id);
+              uncapped.add(g.id);
               render();
             });
             l.appendChild(b);
-            if (opts.onOpenBoard && g.i.boardId !== "") {
+            if (opts.onOpenBoard && boardId !== "") {
               const ob = el("button", "app-link app-gx-more-link", "Open board ›") as HTMLButtonElement;
               ob.type = "button";
-              ob.addEventListener("click", () => opts.onOpenBoard?.(g.i.boardId));
+              ob.addEventListener("click", () => opts.onOpenBoard?.(boardId));
               l.appendChild(ob);
             }
             moreRow.appendChild(l);
@@ -952,7 +967,7 @@ export function mountGantt(opts: GanttOpts): () => void {
     const rows: string[][] = [["Initiative", "Action", "Issue", "Assignees", "Support", "Start", "Due", "State"]];
     for (const a of opts.actions.filter(visibleAction)) {
       const i = initOf(a);
-      rows.push([i?.title ?? "", titleOf(a), issueTag(a), a.assignees.map((x) => x.who).join("; "), (a.supporters ?? []).map((x) => x.who).join("; "), a.start, a.due, barState(a, today)]);
+      rows.push([i?.title ?? (inExtra(a) ? (opts.extraGroup?.title ?? "") : ""), titleOf(a), issueTag(a), a.assignees.map((x) => x.who).join("; "), (a.supporters ?? []).map((x) => x.who).join("; "), a.start, a.due, barState(a, today)]);
     }
     const csv = rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(",")).join("\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));

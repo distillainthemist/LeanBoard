@@ -24,8 +24,13 @@ you, Unplaced — with cascades answered in the priority's popup and a
 message offered after each step (UAT-PRI-014). App-only. **Tranche 2:**
 Edit priority asks for the sub-pillar year by year, only where the
 choice cannot carry, and Settings lets a new sub-pillar follow one that
-ended (UAT-PRI-011). Tranches 3–4 follow: actions on a priority,
-metrics on a priority. The harness can now run the real Priorities page
+ended (UAT-PRI-011). **Tranche 3:** actions raised ON a priority — an
+outline "Add action" in the popup, "Add action…" on the tile's ⋮, a
+"This priority" section in the Actions tab and the Gantt, a late one
+makes the priority off track, shown only at the org it was raised at
+(UAT-PRI-015); an older build reads the new action key as an unknown
+board, so production locks older builds with the release. Tranche 4
+follows: metrics on a priority. The harness can now run the real Priorities page
 (`harness/priorities.html` on an in-memory Dataverse).
 
 **v0.96.0 (2026-11-18, app-only):** the review of the full 2026-11-17

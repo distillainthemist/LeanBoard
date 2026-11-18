@@ -1,5 +1,7 @@
 // What an action is linked to (2026-09-29): nothing (personal), ONE
-// ritual or ONE initiative — never both (Ben). The link is read from what
+// ritual or ONE initiative — never both (Ben) — or, since 2026-11-18, a
+// PRIORITY: an executive action raised on it during a review, at the
+// org where it was raised ("priority:<id>@<org>"). The link is read from what
 // the action already carries — its instance key ("board:card", a board's
 // channel "board:board", the personal "hub…", the legacy
 // "improvement:<id>") and its initiative id — so no new column. Pure: the
@@ -7,7 +9,41 @@
 
 import { boardChannelKey, LtkAction } from "./actions";
 
-export type LinkKind = "ritual" | "initiative";
+export type LinkKind = "ritual" | "initiative" | "priority";
+
+// ---- an action on a priority (2026-11-18) -----------------------------------
+// Its key is "priority:<priorityId>@<org>", where <org> is a short stable
+// mark of the org it was RAISED at. A priority adopted as-is is one row
+// shown at several orgs, and an action raised on it at one of them shows
+// only there (Ben) — so the org is part of the key, not looked up. No new
+// column: the key rides the instance id, as the legacy "improvement:<id>"
+// does, and names no board.
+
+export const PRIORITY_KEY_PREFIX = "priority:";
+
+/** A short stable mark of an org key (FNV-1a, 8 hex): the org's names can
+ *  be long and the instance id holds 80 characters. */
+export function orgMark(orgKey: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < orgKey.length; i++) {
+    h ^= orgKey.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(16).padStart(8, "0");
+}
+
+/** The key of an action raised on priority `priorityId` at the org `orgKey`. */
+export function priorityKey(priorityId: string, orgKey: string): string {
+  return `${PRIORITY_KEY_PREFIX}${priorityId}@${orgMark(orgKey)}`;
+}
+
+/** The priority an instance key names; "" when it is not a priority key. */
+export function priorityOfKey(instanceId: string): string {
+  if (!instanceId.startsWith(PRIORITY_KEY_PREFIX)) return "";
+  const rest = instanceId.slice(PRIORITY_KEY_PREFIX.length);
+  const at = rest.indexOf("@");
+  return at < 0 ? rest : rest.slice(0, at);
+}
 
 export interface LinkTarget {
   kind: LinkKind;
@@ -42,7 +78,7 @@ const CHANNEL = "board";
 
 /** The board an instance key names; "" for the personal and legacy keys. */
 export function homeBoardOf(instanceId: string): string {
-  if (!instanceId.includes(":") || instanceId.startsWith("hub") || instanceId.startsWith("improvement:")) return "";
+  if (!instanceId.includes(":") || instanceId.startsWith("hub") || instanceId.startsWith("improvement:") || instanceId.startsWith(PRIORITY_KEY_PREFIX)) return "";
   return instanceId.split(":")[0];
 }
 
@@ -64,6 +100,10 @@ export function isCardKeyed(instanceId: string): boolean {
  *  exclusive may carry both. */
 export function currentLink(a: Pick<LtkAction, "instanceId" | "initiativeId">, targets: LinkTarget[], contextHome = ""): ActionLink {
   const key = a.instanceId !== "" ? a.instanceId : contextHome;
+  // on a priority: named by the list when it carries the priority (the
+  // host resolves the one row — see the dialog), else by its kind alone
+  const priorityId = priorityOfKey(key);
+  if (priorityId !== "") return { kind: "priority", target: targets.find((x) => x.kind === "priority" && x.id === priorityId) ?? null, cardId: "", cardLabel: "" };
   const board = homeBoardOf(key);
   const card = homeCardOf(key);
   const initId = a.initiativeId ?? (key.startsWith("improvement:") ? key.slice("improvement:".length) : "");
@@ -89,6 +129,14 @@ export function applyLink(a: LtkAction, target: LinkTarget | null, personalWho: 
     delete a.initiativeId;
     a.instanceId = `hub:${personalWho}`;
     a.context = { source: "leanhub", sourceId: "" };
+    return;
+  }
+  if (target.kind === "priority") {
+    // raised on a priority: the target's key carries the org it was
+    // raised at (`boardId` holds the whole key — a priority has no board)
+    delete a.initiativeId;
+    a.instanceId = target.boardId;
+    a.context = { source: "priority", sourceId: target.detail.slice(0, 80) };
     return;
   }
   if (target.kind === "initiative") {
@@ -168,7 +216,16 @@ export function searchLinkTargets(targets: LinkTarget[], query: string, cap = 5)
 /** The chip's words: the kind, the title, the card. */
 export function linkLabel(l: ActionLink): { kind: string; text: string } {
   if (l.kind === "personal") return { kind: "Personal", text: "not linked" };
-  const kind = l.kind === "ritual" ? "Ritual" : "Initiative";
+  const kind = l.kind === "ritual" ? "Ritual" : l.kind === "priority" ? "Priority" : "Initiative";
   if (l.target === null) return { kind, text: "not available to you" };
   return { kind, text: l.cardLabel !== "" ? `${l.target.title} · ${l.cardLabel}` : l.target.title };
 }
+
+/** A priority as a link target: `boardId` carries the action key (the
+ *  priority at the org it is raised at), `detail` that org's name. Shown
+ *  on the chip; the "Linked to" search does not offer priorities — an
+ *  action is raised on one from the priority itself. */
+export function priorityTarget(priorityId: string, statement: string, orgKey: string, orgName: string): LinkTarget {
+  return { kind: "priority", id: priorityId, boardId: priorityKey(priorityId, orgKey), title: statement, detail: orgName, keywords: "", mine: false, near: false, cards: {} };
+}
+
