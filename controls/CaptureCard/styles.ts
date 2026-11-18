@@ -81,6 +81,9 @@ export const CAPTURE_CSS = `
   white-space: nowrap;
 }
 .ltk-cc-chip img { width: 14px; height: 14px; object-fit: contain; }
+/* a person column: names as chips; its dialog field stacks chips over the search */
+.ltk-cc-person { white-space: nowrap; }
+.ltk-cc-people { display: flex; flex-direction: column; gap: 6px; }
 .ltk-cc-empty { color: var(--ltk-muted); }
 .ltk-cc-flag { color: var(--ltk-accent); font-size: 15px; }
 .ltk-cc-add {

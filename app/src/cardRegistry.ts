@@ -130,7 +130,7 @@ import {
   writeBackCanvasField,
   writeBackRow,
 } from "./store/rollup";
-import { ActionBoardEditor, parseKanbanColumns } from "../../controls/ActionBoard/editor";
+import { ActionBoardEditor, kanbanGroupOf, parseKanbanColumns } from "../../controls/ActionBoard/editor";
 import { EscalationViewerEditor } from "../../controls/EscalationViewer/editor";
 import { parseSources } from "../../controls/EscalationViewer/types";
 import { EmbedView } from "../../controls/EmbedCard/editor";
@@ -391,6 +391,8 @@ function pal(opts: CardMount): Record<string, string> {
  *  by the card's key, for the session. The card's configured view is its
  *  default; this is what they switched to. */
 const chosenActionView = new Map<string, "list" | "kanban" | "gantt">();
+/** The grouping the person chose on an action card, for the session. */
+const chosenActionGroup = new Map<string, "status" | "issue" | "person">();
 
 /** The board a surface is configured to roll up ("" = its own). */
 function linkSourceBoard(settings: Record<string, unknown>): string {
@@ -1123,6 +1125,8 @@ const REGISTRY: Record<string, CardMounter> = {
     editor.setTheme(opts.theme);
     editor.setChrome(opts.title, promptsRaw(opts));
     editor.setReadOnly(opts.readOnly);
+    // a person column's search (2026-11-18)
+    editor.setPeople(opts.people);
     const rows = parseCaptureRows(cfgRaw(opts, "rowsJSON"));
     editor.setConfig(
       parseCaptureColumns(cfgRaw(opts, "columnsJSON")),
@@ -1246,6 +1250,7 @@ const REGISTRY: Record<string, CardMounter> = {
     editor.setTheme(opts.theme);
     editor.setChrome(opts.title, promptsRaw(opts));
     editor.setReadOnly(opts.readOnly);
+    editor.setPeople(opts.people);
     editor.setState({
       names,
       rows: [],
@@ -1406,10 +1411,10 @@ const REGISTRY: Record<string, CardMounter> = {
     editor.setOptions({
       view: (["list", "kanban", "gantt"].includes(view) ? view : "list") as never,
       // the accepted values are the ones the registry OFFERS and the editor
-      // understands — "status" | "issue". This used to validate against
+      // understands — "status" | "issue" | "person". This used to validate against
       // ["status","assignee","due"], so choosing "By issue" fell through to
       // status and the setting silently did nothing.
-      groupBy: (groupBy === "issue" ? "issue" : "status") as never,
+      groupBy: kanbanGroupOf(groupBy) as never,
       columns: parseKanbanColumns(cfgRaw(opts, "kanbanColumns")),
       verifyColumn: config(opts).verifyColumn === true,
     });
@@ -1428,6 +1433,7 @@ const REGISTRY: Record<string, CardMounter> = {
     // the view the person chose on this card, for the session — the
     // overview's tile and the opened card agree
     editor.setUserView(chosenActionView.get(opts.instanceKey) ?? null, (v) => chosenActionView.set(opts.instanceKey, v));
+    editor.setUserGroup(chosenActionGroup.get(opts.instanceKey) ?? null, (g) => chosenActionGroup.set(opts.instanceKey, g));
     // ONE Gantt: the card's Gantt view is the component the priority
     // popup and the initiative's Gantt use (2026-09-30). An initiative
     // board shows its stage bands; any other board a flat chart.

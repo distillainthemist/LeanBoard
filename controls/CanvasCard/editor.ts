@@ -1070,7 +1070,7 @@ export class CanvasEditor {
    *  row = null adds; an existing row edits and can delete. */
   private openMiniRow(field: CanvasField, row: CaptureRow | null): void {
     const fields = field.columns.map((col) =>
-      buildCaptureField(col, row?.cells[col.key], "")
+      buildCaptureField(col, row?.cells[col.key], "", this.people)
     );
     const buttons = [];
     if (row) {

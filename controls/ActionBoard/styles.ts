@@ -84,6 +84,11 @@ export const ACTIONBOARD_CSS = `
 .ltk-ab-viewbtn:hover { color: var(--ltk-fg); }
 .ltk-ab-viewbtn-on, .ltk-ab-viewbtn-on:hover { background: var(--ltk-accent); color: #fff; font-weight: 600; }
 .ltk-tile .ltk-ab-views { display: none; }
+/* what the kanban's columns stand for: a small select beside the views */
+.ltk-ab-groupsel.ltk-input { flex: none; width: auto; min-height: 32px; padding: 4px 26px 4px 10px; font-size: 12.5px; }
+.ltk-tile .ltk-ab-groupsel { display: none; }
+/* by person: a shared action whose column's person has done their part */
+.ltk-ab-partdone { font-size: 11.5px; font-weight: 600; color: #107c10; white-space: nowrap; }
 /* a line the card says for a few seconds (a drop it refused) */
 .ltk-ab-notice { margin: 0 0 8px; padding: 8px 12px; border-radius: 6px; background: #fff4ce; color: #5c4400; font-size: 13px; }
 /* the tools row: the view switch and Show completed (every view, 2026-10-31) */

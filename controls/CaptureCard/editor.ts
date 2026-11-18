@@ -18,7 +18,9 @@ import {
   DEFAULT_COLUMNS,
   RowHeader,
   SCHEMA_ID,
+  peopleText,
 } from "./types";
+import type { Person } from "../../shared/schema/people";
 import {
   buildCaptureField,
   FieldEditor,
@@ -49,6 +51,8 @@ export class CaptureEditor {
   private prompts: Prompts = { general: [], fields: {} };
   private lastPromptsRaw: string | null = null;
   private readOnly = false;
+  /** Who a person column's search offers (the board's people). */
+  private people: Person[] = [];
   /** Header-click sort — presentation only, never part of the document. */
   private sort: { key: string; dir: 1 | -1 } | null = null;
   private readonly snapshots: SnapshotScheduler;
@@ -119,6 +123,12 @@ export class CaptureEditor {
     this.render();
   }
 
+  /** The people a person column picks from. Nothing is drawn from it
+   *  until a row dialog opens, so there is no repaint. */
+  setPeople(people: Person[]): void {
+    this.people = people;
+  }
+
   setReadOnly(ro: boolean): void {
     if (this.readOnly !== ro) {
       this.readOnly = ro;
@@ -150,6 +160,8 @@ export class CaptureEditor {
         const first = Array.isArray(v) ? (v[0] ?? "") : String(v);
         return (col.options.find((o) => o.value === first)?.label ?? first).toLowerCase();
       }
+      // a person column sorts by its first person's name
+      if (col && col.type === "person") return peopleText(v).toLowerCase();
       // text / date / datetime: ISO strings sort correctly as strings
       return String(v).toLowerCase();
     };
@@ -306,7 +318,7 @@ export class CaptureEditor {
 
   private editRow(row: CaptureRow | null): void {
     const fields: FieldEditor[] = this.columns.map((col) =>
-      buildCaptureField(col, row?.cells[col.key], hintFor(this.prompts, col.key, ""))
+      buildCaptureField(col, row?.cells[col.key], hintFor(this.prompts, col.key, ""), this.people)
     );
     wireDependentFields(fields);
 

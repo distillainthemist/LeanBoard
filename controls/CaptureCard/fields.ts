@@ -6,7 +6,9 @@
 
 import { checkItem, checklist, fieldRow, textInput } from "../../shared/ui/dialog";
 import { el } from "../../shared/ui/dom";
-import { CaptureColumn, CellValue, ListOption } from "./types";
+import { personTypeAhead } from "../../shared/ui/personTypeAhead";
+import type { Person } from "../../shared/schema/people";
+import { CaptureColumn, CellPerson, CellValue, ListOption, decodePeople, encodePeople } from "./types";
 
 /** An icon is rendered as an image when it's a data URI or a URL. */
 export function isImageIcon(icon: string): boolean {
@@ -73,7 +75,13 @@ export function renderCaptureCellInto(
     }
     return;
   }
-  td.textContent = String(value);
+  if (col.type === "person") {
+    const people = decodePeople(value);
+    if (people.length === 0) td.appendChild(el("span", "ltk-cc-empty", "—"));
+    for (const p of people) td.appendChild(el("span", "ltk-cc-chip ltk-cc-person", p.who !== "" ? p.who : "(no name)"));
+    return;
+  }
+  td.textContent = Array.isArray(value) ? value.join(", ") : String(value);
 }
 
 /** A field editor inside the row dialog. */
@@ -88,12 +96,72 @@ export interface FieldEditor {
   onChanged?: () => void; // wired by the dialog to cascade re-filters
 }
 
-/** Build one dialog field for a column, seeded with the row's value. */
+/** Build one dialog field for a column, seeded with the row's value.
+ *  `people` feeds a person column's search; without any, names are typed. */
 export function buildCaptureField(
   col: CaptureColumn,
   value: CellValue | undefined,
-  textPlaceholder: string
+  textPlaceholder: string,
+  people: Person[] = []
 ): FieldEditor {
+  if (col.type === "person") {
+    // the standing search-and-pick: a type-ahead, the chosen as chips
+    let chosen: CellPerson[] = decodePeople(value);
+    const same = (a: CellPerson, b: CellPerson) => (a.whoId !== "" && b.whoId !== "" ? a.whoId === b.whoId : a.who.toLowerCase() === b.who.toLowerCase());
+    const wrap = el("div", "ltk-cc-people");
+    wrap.appendChild(el("div", "ltk-field-label", col.label));
+    const chips = el("div", "ltk-sup-chips");
+    const paint = () => {
+      while (chips.firstChild) chips.removeChild(chips.firstChild);
+      for (const p of chosen) {
+        const chip = el("span", "ltk-sup-chip", p.who !== "" ? p.who : "(no name)");
+        const x = el("button", "ltk-sup-x", "✕") as HTMLButtonElement;
+        x.type = "button";
+        x.title = `Remove ${p.who}`;
+        x.setAttribute("aria-label", x.title);
+        x.addEventListener("click", () => {
+          chosen = chosen.filter((y) => y !== p);
+          paint();
+        });
+        chip.appendChild(x);
+        chips.appendChild(chip);
+      }
+      chips.style.display = chosen.length > 0 ? "" : "none";
+    };
+    const add = (p: CellPerson) => {
+      if (!col.multi) chosen = [p];
+      else if (!chosen.some((y) => same(y, p))) chosen = [...chosen, p];
+      paint();
+    };
+    const placeholder = col.multi ? "Add a person…" : "Choose a person…";
+    if (people.length > 0) {
+      const box = personTypeAhead(
+        placeholder,
+        (q) => people.filter((x) => x.who.toLowerCase().includes(q) && !chosen.some((y) => same(y, x))).slice(0, 10),
+        (person) => {
+          add({ whoId: person.whoId, who: person.who });
+          box.input.value = "";
+        }
+      );
+      wrap.append(chips, box.el);
+    } else {
+      // no people list (a standalone control): a typed name stands
+      const typed = textInput("", { placeholder: "Name, then Enter" });
+      typed.setAttribute("aria-label", col.label);
+      typed.addEventListener("keydown", (e) => {
+        if (e.key !== "Enter") return;
+        e.preventDefault();
+        const name = typed.value.trim();
+        if (name === "") return;
+        typed.value = "";
+        add({ whoId: "", who: name });
+      });
+      wrap.append(chips, typed);
+    }
+    paint();
+    return { column: col, el: wrap, read: () => (chosen.length === 0 ? undefined : encodePeople(chosen)) };
+  }
+
   if (col.type === "yesno" || col.type === "flag") {
     const chk = checkItem(col.type === "flag" ? `⚑ ${col.label}` : col.label);
     chk.box.checked = value === true || value === "true";

@@ -2895,6 +2895,60 @@
        "expected": "step 1 the range buttons (‹ 2w 4w 8w 13w 26w 52w All ›) and the ⋮ sit on the same row as ＋ Add action, to its left, with no row of their own under it; step 2 each shows that many weeks around the meeting's week (today when the board has no meeting), the header names months with the year on the first and on each January, the whole window is in view without scrolling sideways, and the dates under the chart carry the year once the window leaves this one; step 3 each arrow moves the window six weeks (its tooltip says so), a Today button appears once the window has left today and brings it back; step 4 every dated action is in view at once from the earliest start to the latest due date with today inside, the chart fills the card's width, and the arrows are greyed; step 5 after the save the Gantt is still on 52w at the place it was moved to, not back on 4w; step 6 on a narrow card the range buttons drop to the row below, right-aligned, and ＋ Add action keeps the top right",
        "hash": "9cd2571d",
        "changed": "2026-11-11"
+      },
+      {
+       "id": "UAT-RIT-013",
+       "title": "The action card by person",
+       "journey": "Journey 2 — The Action card's views",
+       "persona": "participant",
+       "modules": [
+        "controls/ActionBoard/editor.ts",
+        "controls/ActionBoard/personGroup.ts",
+        "controls/ActionBoard/styles.ts",
+        "controls/CardSettings/registry.ts",
+        "cardRegistry.ts",
+        "improvement/gantt.ts"
+       ],
+       "preconditions": "a board whose Action card holds open actions held by three or more people, one action with nobody on it, and one action SHARED by two people with one part done; you may edit actions",
+       "steps": [
+        "Open the card on the Kanban view. Beside List | Kanban | Gantt choose \"By person\" in the small select.",
+        "Read the columns, their counts, the shared action and the unassigned one.",
+        "Drag a one-person action from its column to another person's. Then drag the unassigned action onto a person, and an action onto Unassigned.",
+        "Drag the shared action to a third person's column.",
+        "Press ＋ at the top of a person's column and raise an action without touching Who.",
+        "Switch to Gantt; then back to Kanban and choose \"By status\". Leave the card and open it again in the same session.",
+        "[Owner] In the card's settings set Kanban grouping to \"By person\"; open the card as someone who has not chosen a grouping."
+       ],
+       "expected": "step 1 the select reads By status / By issue / By person and changes only your own view; step 2 one column per person holding an action, by name, then \"Unassigned\"; the shared action stands in BOTH its people's columns reading \"with 1 other\", and \"✓ part done\" under the person whose part is done; a column's count is that person's actions; step 3 the dragged action is theirs afterwards (its Who shows the new person) and the counts follow; dropping on Unassigned leaves nobody on it; step 4 the shared action stays where it was and the card says it is shared and that who is on it changes in the action itself; step 5 the new action is raised for that column's person; step 6 the Gantt's rows are grouped under the same people (a shared action under each of them); \"By status\" returns the status columns and the Gantt to one flat list; the grouping you chose is remembered for the session; step 7 the card opens by person for them; the tile shows the same grouping with no select",
+       "hash": "68376a24",
+       "changed": "2026-11-18"
+      },
+      {
+       "id": "UAT-RIT-014",
+       "title": "A person column in a capture card",
+       "journey": "Journey 2 — The Action card's views",
+       "persona": "owner",
+       "modules": [
+        "controls/CaptureCard/types.ts",
+        "controls/CaptureCard/fields.ts",
+        "controls/CaptureCard/editor.ts",
+        "controls/CardSettings/captureColumns.ts",
+        "controls/CaptureRollup/editor.ts",
+        "controls/CanvasCard/editor.ts",
+        "shared/ui/personTypeAhead.ts",
+        "cardRegistry.ts"
+       ],
+       "preconditions": "a board you own with a Capture card (for example \"Celebrate success\") and a roll-up card that reads it; the board has participants",
+       "steps": [
+        "Card settings → Columns: add a column \"Who\", type \"Person\", tick \"Several people\"; add \"Noticed by\", type \"Person\", unticked. Save.",
+        "In the meeting, add a row: under Who type part of a participant's name, pick with ↓ and Enter; add a second person; under Noticed by pick one person, then pick another.",
+        "Save; read the row, sort by the Who column, and reopen the row.",
+        "Remove one person with their ✕; Save. Read the roll-up card and open the row from it.",
+        "Read the card's tile on the board, and the same card on a phone."
+       ],
+       "expected": "step 1 \"Person\" is among the column types and \"Several people\" shows only for it; step 2 the search is the standing type-ahead (one list under the box, Enter picks without saving the dialog); people already chosen are not offered again; Who gathers chips, Noticed by keeps only the last pick; step 3 the cells show the names as chips, the column sorts by name, and the dialog reopens with the same people; step 4 the removal holds; the roll-up shows the same chips and its edit dialog offers the same search; step 5 the tile and the phone show the names; nobody is notified by being named",
+       "hash": "0e47f05c",
+       "changed": "2026-11-18"
       }
      ]
     }

@@ -75,6 +75,11 @@ export class RollupEditor {
   private prompts: Prompts = { general: [], fields: {} };
   private lastPromptsRaw: string | null = null;
   private readOnly = false;
+  /** Who a person column's search offers in the full-edit dialog. */
+  private people: import("../../shared/schema/people").Person[] = [];
+  setPeople(people: import("../../shared/schema/people").Person[]): void {
+    this.people = people;
+  }
   private readonly snapshots: SnapshotScheduler;
 
   constructor(
@@ -296,7 +301,7 @@ export class RollupEditor {
   private openEdit(row: RollupRow): void {
     const src = this.sourceFor(row);
     const cols = src?.columns ?? [];
-    const fields = cols.map((col) => buildCaptureField(col, row.row.cells[col.key], ""));
+    const fields = cols.map((col) => buildCaptureField(col, row.row.cells[col.key], "", this.people));
     wireDependentFields(fields);
 
     const dlg = openDialog({

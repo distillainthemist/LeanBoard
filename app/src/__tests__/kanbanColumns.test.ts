@@ -4,7 +4,7 @@
 // actions happen to be tagged with.
 
 import { describe, expect, it } from "vitest";
-import { parseKanbanColumns } from "../../../controls/ActionBoard/editor";
+import { kanbanGroupOf, parseKanbanColumns } from "../../../controls/ActionBoard/editor";
 import { cardSpec } from "../../../controls/CardSettings/registry";
 import { parseDraft, serializeDraft } from "../../../controls/CardSettings/types";
 
@@ -23,8 +23,8 @@ function storedConfig(settings: Record<string, unknown>): Record<string, unknown
   return doc.config ?? {};
 }
 
-/** The fixed validation from the ActionBoard mounter. */
-const groupByOf = (v: string) => (v === "issue" ? "issue" : "status");
+/** The ActionBoard mounter's own validation. */
+const groupByOf = kanbanGroupOf;
 
 describe("kanban group-by reaches the card", () => {
   it("the registry offers exactly what the mounter accepts", () => {
@@ -32,7 +32,7 @@ describe("kanban group-by reaches the card", () => {
     const offered = spec.config
       .find((f) => f.key === "kanbanGroupBy")!
       .options!.map((o) => o.value);
-    expect(offered).toEqual(["status", "issue"]);
+    expect(offered).toEqual(["status", "issue", "person"]);
     // every offered value must survive the mounter's validation — the bug
     // was that "issue" did not, so the setting did nothing at all
     for (const value of offered) expect(groupByOf(value)).toBe(value);

@@ -16,7 +16,7 @@ import {
 
 export const SCHEMA_ID = "ltk/capture@1";
 
-export type ColumnType = "text" | "number" | "decimal" | "date" | "datetime" | "yesno" | "flag" | "list";
+export type ColumnType = "text" | "number" | "decimal" | "date" | "datetime" | "yesno" | "flag" | "list" | "person";
 
 export interface ListOption {
   value: string;
@@ -29,7 +29,7 @@ export interface CaptureColumn {
   key: string;
   label: string;
   type: ColumnType;
-  multi: boolean; // list columns: allow multiple selections
+  multi: boolean; // list and person columns: allow several
   parent: string; // key of the parent column for dependent lists ("" = none)
   options: ListOption[];
   /** Fixed column width in px (0 / absent = auto). */
@@ -42,6 +42,43 @@ export interface RowHeader {
 }
 
 export type CellValue = string | number | boolean | string[];
+
+// ---- a PERSON column's cell (Alicia, 2026-11-06; built 2026-11-18) ----------
+// The people are kept WITH their identity — "<whoId>|<name>" each — so
+// they can later be notified or reported on, not only read. The cell is
+// a string[] on purpose: that is a shape every build already carries, so
+// an older build saving the row keeps the people it cannot draw (an
+// object-valued cell would be DROPPED by its parser and lost on save).
+
+export interface CellPerson {
+  /** "" = a typed name with no account behind it. */
+  whoId: string;
+  who: string;
+}
+
+export function encodePeople(people: CellPerson[]): string[] {
+  return people.filter((p) => p.who.trim() !== "" || p.whoId !== "").map((p) => `${p.whoId}|${p.who.trim()}`);
+}
+
+/** The people in a cell. A bare string (no "|") reads as a name — a
+ *  column changed from text to person keeps what was typed. */
+export function decodePeople(value: CellValue | undefined): CellPerson[] {
+  const raw = Array.isArray(value) ? value : typeof value === "string" && value.trim() !== "" ? [value] : [];
+  const out: CellPerson[] = [];
+  for (const s of raw) {
+    const at = s.indexOf("|");
+    const person = at < 0 ? { whoId: "", who: s.trim() } : { whoId: s.slice(0, at).trim(), who: s.slice(at + 1).trim() };
+    if (person.who === "" && person.whoId === "") continue;
+    if (out.some((x) => (x.whoId !== "" && x.whoId === person.whoId) || (x.whoId === "" && person.whoId === "" && x.who.toLowerCase() === person.who.toLowerCase()))) continue;
+    out.push(person);
+  }
+  return out;
+}
+
+/** The names in a person cell, as one line. */
+export function peopleText(value: CellValue | undefined): string {
+  return decodePeople(value).map((p) => p.who).join(", ");
+}
 
 export interface CaptureRow {
   id: string;
@@ -109,7 +146,8 @@ export function parseColumns(raw: string | null | undefined): CaptureColumn[] {
         o.type === "datetime" ||
         o.type === "yesno" ||
         o.type === "flag" ||
-        o.type === "list"
+        o.type === "list" ||
+        o.type === "person"
           ? o.type
           : "text";
       const options = parseListOptions(o.options);

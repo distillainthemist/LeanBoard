@@ -23,6 +23,7 @@ const COLUMN_TYPES = [
   { value: "yesno", label: "Yes / no" },
   { value: "flag", label: "Flag" },
   { value: "list", label: "Picklist" },
+  { value: "person", label: "Person" },
 ];
 
 interface OptDraft {
@@ -108,7 +109,8 @@ function loadDrafts(v: unknown): ColDraft[] {
         o.type === "datetime" ||
         o.type === "yesno" ||
         o.type === "flag" ||
-        o.type === "list"
+        o.type === "list" ||
+        o.type === "person"
           ? (o.type as string)
           : "text",
       multi: o.multi === true,
@@ -130,6 +132,7 @@ function serializeDrafts(cols: ColDraft[]): unknown[] | undefined {
     if (c.type !== "text") o.type = c.type;
     const w = Number(c.width);
     if (c.width.trim() !== "" && Number.isFinite(w) && w > 0) o.width = Math.round(w);
+    if (c.type === "person" && c.multi) o.multi = true;
     if (c.type === "list") {
       if (c.multi) o.multi = true;
       if (c.parent !== "") o.parent = c.parent;
@@ -389,6 +392,23 @@ export function captureColumnsEditor(
       headRow.appendChild(x);
     }
     block.appendChild(headRow);
+
+    if (col.type === "person") {
+      // one person, or several — picked from the board's people by a
+      // search, kept with who they are
+      const foot = el("div", "ltk-cs-col-foot");
+      const several = checkItem("Several people");
+      several.box.checked = col.multi;
+      several.wrap.classList.toggle("ltk-check-on", col.multi);
+      several.box.disabled = host.readOnly;
+      several.box.addEventListener("change", () => {
+        col.multi = several.box.checked;
+        several.wrap.classList.toggle("ltk-check-on", col.multi);
+        push();
+      });
+      foot.appendChild(several.wrap);
+      block.appendChild(foot);
+    }
 
     if (col.type === "list") {
       block.appendChild(optionsTable(col));

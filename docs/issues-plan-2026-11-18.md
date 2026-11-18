@@ -330,6 +330,32 @@ Ben cuts releases.
   it paints pills.
 - UAT: IMP-011 added; ACT-006, ACT-009, DOC-076, DOC-093 extended.
 
+## As built — tranche 3 (2026-11-18, on dev, NOT released)
+
+- **5** `controls/ActionBoard/personGroup.ts` (tested) and the editor.
+  "By person" is a third kanban grouping: a card setting (Kanban
+  grouping) AND a small select beside List | Kanban | Gantt that
+  changes it for the person looking, remembered for the session. I
+  added the select because the idea was for a view anyone can flip to
+  in a meeting; a setting alone would need the card edited. A column
+  per person holding an action, by name, then Unassigned. A shared
+  action stands in each of its people's columns ("with n others",
+  "✓ part done"). Dragging a one-person action to another column
+  reassigns it; a shared one is refused with the reason; ＋ on a
+  column raises an action for that person. The Gantt groups the same
+  way. Harness: columns, a reassign by drag and the refusal all seen.
+- **34** a "Person" column type in capture cards ("Several people"
+  optional), picked through the shared type-ahead, shown as chips,
+  sorted by name; in canvas mini-tables and the roll-up's edit dialog
+  too. **Identity is kept** as "<whoId>|<name>" strings in a string
+  array. That shape was chosen so an older build SAVING the row keeps
+  the people (an object in the cell would be dropped by its parser):
+  the lock on older builds is still wanted, because an older build
+  shows the raw strings and would spoil a cell it is used to EDIT.
+  Nobody is notified by being named; that is a later build on top of
+  the stored ids. Harness (`capture.html`): picked, saved and re-read.
+- UAT: RIT-013 and RIT-014 added.
+
 ## 6. Questions for Ben
 
 1. 23: owners, approvers and reviewers land on every status too?

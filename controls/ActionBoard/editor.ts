@@ -5,6 +5,7 @@
 import { applyThemeVars, defaultTheme, Theme } from "../../shared/tokens";
 import { LTK_BASE_CSS } from "../../shared/ui/baseCss";
 import { clear, el, ensureStylesheet } from "../../shared/ui/dom";
+import { selectInput } from "../../shared/ui/dialog";
 import { parsePrompts, Prompts, renderGhost, renderTitleBar } from "../../shared/ui/chrome";
 import { renderKebab } from "../../shared/ui/menu";
 import {
@@ -18,6 +19,7 @@ import { endorsementFor } from "../../shared/ui/actionLinkProvider";
 import { Person } from "../../shared/schema/people";
 import { ACTIONBOARD_CSS } from "./styles";
 import { tileShown } from "./tileFit";
+import { UNASSIGNED_KEY, partDoneBy, personColumns, reassignTo } from "./personGroup";
 
 export type BoardView = "list" | "kanban" | "gantt";
 
@@ -37,7 +39,15 @@ export function viewFor(narrow: boolean, userView: BoardView | null, configured:
   const v = narrow ? "list" : (userView ?? configured);
   return v === "gantt" && !ganttRoom ? "list" : v;
 }
-export type KanbanGroupBy = "status" | "issue";
+export type KanbanGroupBy = "status" | "issue" | "person";
+
+/** A stored "Kanban grouping" as the card understands it — the values
+ *  the settings registry offers; anything else is by status. The mounter
+ *  and the test read this ONE rule (they once disagreed, and "By issue"
+ *  silently did nothing). */
+export function kanbanGroupOf(raw: string): KanbanGroupBy {
+  return raw === "issue" || raw === "person" ? raw : "status";
+}
 
 /**
  * The configured kanban columns, from a JSON array or comma-separated text
@@ -190,6 +200,15 @@ export class ActionBoardEditor {
   /** The view the PERSON chose on the card's own switch; null = the
    *  card's configured default (2026-09-30). */
   private userView: BoardView | null = null;
+  /** The grouping the person last chose for this card (null = the
+   *  card's own setting), and where to tell the host. */
+  private userGroup: KanbanGroupBy | null = null;
+  private onGroupChosen: ((group: KanbanGroupBy) => void) | null = null;
+  /** By person: the people behind the columns, by column key. */
+  private columnPeople = new Map<string, { whoId: string; who: string } | null>();
+  /** By person: the column a drag started in (a shared action stands in
+   *  several). */
+  private dragFrom: string | undefined;
   /** Show ALL completed — off on every view until the person switches
    *  it (per card, for the session). Off, the recently completed still
    *  show (`recentDays`). */
@@ -309,6 +328,21 @@ export class ActionBoardEditor {
     if (view === "gantt") this.ganttAutoFit = true;
     this.userView = view;
     this.render();
+  }
+
+  /** The grouping the person last chose for this card (status / issue /
+   *  person), and where to tell the host when they choose another. */
+  setUserGroup(group: KanbanGroupBy | null, onChosen?: (group: KanbanGroupBy) => void): void {
+    this.onGroupChosen = onChosen ?? null;
+    if (this.userGroup === group) return;
+    this.userGroup = group;
+    this.render();
+  }
+
+  /** What the columns stand for now: the person's choice, else the
+   *  card's setting. */
+  private grouping(): KanbanGroupBy {
+    return this.userGroup ?? this.groupBy;
   }
 
   /** Show several homes on one card: `sectionOf` names an action's. */
@@ -621,6 +655,25 @@ export class ActionBoardEditor {
     // long list it had to be scrolled to)
     const tools = this.toolsRow();
     if (!this.narrow) tools.appendChild(views);
+    // what the kanban's columns stand for — the person's own switch
+    // (Ben, 2026-10-22: "By person"); the Gantt groups the same way
+    if (!this.narrow && view === "kanban") {
+      const group = selectInput(this.grouping(), [
+        { value: "status", label: "By status" },
+        { value: "issue", label: "By issue" },
+        { value: "person", label: "By person" },
+      ]);
+      group.classList.add("ltk-ab-groupsel");
+      group.setAttribute("aria-label", "Group the columns");
+      group.title = "What each column stands for. The Gantt groups its rows the same way.";
+      group.addEventListener("change", () => {
+        const g = group.value as KanbanGroupBy;
+        this.userGroup = g;
+        this.onGroupChosen?.(g);
+        this.render();
+      });
+      tools.appendChild(group);
+    }
     tools.appendChild(this.completedToggle());
     const whoSel = this.assigneeSelect();
     if (whoSel) tools.appendChild(whoSel);
@@ -647,7 +700,8 @@ export class ActionBoardEditor {
         const host = el("div", "ltk-ab-ganttx");
         body.appendChild(host);
         // the kanban's columns group the Gantt too (Ben, 2026-10-31)
-        const groups = this.groupBy === "issue" ? this.columns(visible).filter((c) => c.items.length > 0) : undefined;
+        // by issue or by person; by status the Gantt is one flat list
+        const groups = this.grouping() !== "status" ? this.columns(visible).filter((c) => c.items.length > 0) : undefined;
         this.ganttTeardown = this.ganttRenderer(host, {
           actions: visible,
           readOnly: this.readOnly,
@@ -717,7 +771,14 @@ export class ActionBoardEditor {
   // ---- kanban ----
 
   private columns(visible: LtkAction[]): { key: string; label: string; items: LtkAction[] }[] {
-    if (this.groupBy === "status") {
+    if (this.grouping() === "person") {
+      // a column per person holding an action; a shared action stands
+      // in each of its people's columns (personGroup.ts)
+      const cols = personColumns(visible);
+      this.columnPeople = new Map(cols.map((c) => [c.key, c.person]));
+      return cols.map((c) => ({ key: c.key, label: c.label, items: c.items }));
+    }
+    if (this.grouping() === "status") {
       // initiative boards get the fourth column (design 2.4); elsewhere
       // "verify" keeps showing in Done with its marker
       const defs = this.verifyColumn
@@ -790,9 +851,9 @@ export class ActionBoardEditor {
       colEl.appendChild(title);
       const cards = el("div", "ltk-ab-cards");
       for (const a of this.sorted(col.items)) {
-        cards.appendChild(this.renderKanbanCard(a));
+        cards.appendChild(this.renderKanbanCard(a, col.key));
       }
-      if (this.groupBy === "status" && col.key === "done" && this.hiddenDone() > 0) {
+      if (this.grouping() === "status" && col.key === "done" && this.hiddenDone() > 0) {
         // the column stays as the drop target; the note says what it
         // holds beyond the recently completed
         const note = el("button", "ltk-ab-col-hidden", `${this.hiddenDone()} older completed hidden`) as HTMLButtonElement;
@@ -811,7 +872,7 @@ export class ActionBoardEditor {
     return board;
   }
 
-  private renderKanbanCard(a: LtkAction): HTMLElement {
+  private renderKanbanCard(a: LtkAction, columnKey = ""): HTMLElement {
     const card = el("div", "ltk-ab-card");
     if (this.readOnly) card.classList.add("ltk-readonly");
     // left edge colour signals state (inline for Safari)
@@ -834,7 +895,7 @@ export class ActionBoardEditor {
     if (moved) head.appendChild(moved);
     const said = commentGlyph(a);
     if (said) head.appendChild(said);
-    if (this.groupBy !== "issue" && a.issue.trim() !== "") {
+    if (this.grouping() !== "issue" && a.issue.trim() !== "") {
       head.appendChild(el("div", "ltk-ab-card-issue", a.issue));
     }
     card.appendChild(head);
@@ -854,8 +915,17 @@ export class ActionBoardEditor {
     card.appendChild(desc);
 
     const meta = el("div", "ltk-ab-card-meta");
-    const whoEl = el("span", undefined, assigneesLabel(a, "Unassigned"));
+    // by person the column already names them: a shared action says who
+    // ELSE is on it and whether this person's own part is done
+    const byPerson = this.grouping() === "person";
+    const whoEl = el("span", undefined, byPerson ? (isShared(a) ? `with ${a.assignees.length - 1} other${a.assignees.length === 2 ? "" : "s"}` : "") : assigneesLabel(a, "Unassigned"));
+    if (byPerson && isShared(a)) whoEl.title = assigneesLabel(a, "Unassigned");
     meta.appendChild(whoEl);
+    if (byPerson && isShared(a) && a.status !== "done" && partDoneBy(a, columnKey)) {
+      const mine = el("span", "ltk-ab-partdone", "✓ part done");
+      mine.title = "This person has done their part; the action closes when everyone has";
+      meta.appendChild(mine);
+    }
     // a shared action: how many parts are done, who is still to do it
     const parts = partsChip(a);
     if (parts) meta.appendChild(parts);
@@ -884,7 +954,7 @@ export class ActionBoardEditor {
     }
     card.appendChild(meta);
 
-    if (!this.readOnly) this.attachDrag(card, a);
+    if (!this.readOnly) this.attachDrag(card, a, columnKey);
     return card;
   }
 
@@ -1136,10 +1206,11 @@ export class ActionBoardEditor {
 
   // ---- kanban drag: move cards between columns ----
 
-  private attachDrag(card: HTMLElement, a: LtkAction): void {
+  private attachDrag(card: HTMLElement, a: LtkAction, columnKey: string): void {
     makeInteractive(card, {
       onTap: () => this.editAction(a),
       onStart: (e) => {
+        this.dragFrom = columnKey;
         const rect = card.getBoundingClientRect();
         this.dragOffsetX = e.clientX - rect.left;
         this.dragOffsetY = e.clientY - rect.top;
@@ -1167,7 +1238,11 @@ export class ActionBoardEditor {
   }
 
   private currentKey(a: LtkAction): string {
-    return this.groupBy === "status" ? a.status : a.issue.trim();
+    const g = this.grouping();
+    // by person a shared action stands in several columns: "where it is"
+    // is the column the drag started in
+    if (g === "person") return this.dragFrom ?? UNASSIGNED_KEY;
+    return g === "status" ? a.status : a.issue.trim();
   }
 
   private updateDropTarget(x: number, y: number, dragging: LtkAction): void {
@@ -1195,7 +1270,17 @@ export class ActionBoardEditor {
   }
 
   private dropInColumn(a: LtkAction, key: string): void {
-    if (this.groupBy === "status") {
+    if (this.grouping() === "person") {
+      // dropped on another person: theirs now — one holder only
+      const refused = reassignTo(a, this.columnPeople.get(key) ?? null);
+      if (refused !== null) {
+        this.say(refused);
+        return;
+      }
+      this.commit();
+      return;
+    }
+    if (this.grouping() === "status") {
       const wasVerify = a.status === "verify";
       const prior = a.status;
       const wasClosed = prior === "done" || prior === "verify";
@@ -1260,7 +1345,11 @@ export class ActionBoardEditor {
   private addAction(columnKey?: string): void {
     const action = newAction({ source: "actionboard", sourceId: "" });
     if (columnKey !== undefined && columnKey !== "") {
-      if (this.groupBy === "status") {
+      if (this.grouping() === "person") {
+        // raised from a person's column: theirs
+        const person = this.columnPeople.get(columnKey) ?? null;
+        if (person !== null) action.assignees = [{ whoId: person.whoId, who: person.who, done: false }];
+      } else if (this.grouping() === "status") {
         const status = columnKey as ActionStatus;
         action.status = status;
         // the PDCA state the dialog opens on follows the column

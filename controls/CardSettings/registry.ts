@@ -288,8 +288,9 @@ export const CARDS: CardSpec[] = [
         options: [
           { value: "status", label: "By status" },
           { value: "issue", label: "By issue" },
+          { value: "person", label: "By person" },
         ],
-        help: "What each kanban column represents (Kanban view only).",
+        help: "What each kanban column stands for when the card opens: a status, an issue, or a person holding actions. Anyone can switch it for themselves on the card; the Gantt groups its rows the same way.",
       },
       {
         key: "verifyColumn",

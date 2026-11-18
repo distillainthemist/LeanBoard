@@ -24,8 +24,12 @@ initiative card switches read once and in parallel (45; UAT-IMP-011);
 one people search for Who and Support (40); cascaded people as grid
 boxes, two levels at most (43); the Default filters tick tree with the
 member's own site leading (42; UAT-DOC-076); "Show all n" on short
-filter vocabularies and pills that wait for the profile (38). Tranche 3
-(By person kanban grouping, a person column in capture cards) follows. Owed by
+filter vocabularies and pills that wait for the profile (38). **Tranche 3, same day:** the action card "By person"
+(a setting and a per-person select; drag reassigns a one-person action;
+UAT-RIT-013) and a Person column in capture cards kept with identity
+(UAT-RIT-014). After the release that carries tranche 3, LOCK OLDER
+BUILDS: an older build shows a person cell as raw text and would spoil
+one it edits. Owed by
 Ben: the replies in the plan's section 1, the UAT library's Linked
 documents column, Kat's Dataverse role, Casting's featured document
 types, and whether canvas labels get a style (33).
