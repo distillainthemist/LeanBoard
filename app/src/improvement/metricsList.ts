@@ -32,6 +32,21 @@ export interface MetricsListOpts {
   /** An existing initiative: linking/promoting migrates its card's series. */
   onLinked?: (m: TemplateMetric) => Promise<void>;
   onChanged?: () => void;
+  /** What the metrics belong to, in the words shown: "initiative" (the
+   *  default) or "priority" (its own metrics, 2026-11-18). */
+  noun?: "initiative" | "priority";
+  /** No ★: every metric shows (a priority's own). */
+  noStar?: boolean;
+  /** No value driver tree to pick from (a company-level priority has no
+   *  site): metrics are typed. */
+  noTree?: boolean;
+  /** An own metric stays own: no Link… / Promote… (the host has no
+   *  series to carry across). */
+  noRelink?: boolean;
+  /** How many metrics at most; the adders close at it. */
+  max?: number;
+  /** More links on a row, ahead of × ("Values…"). */
+  rowTools?: (m: TemplateMetric) => HTMLElement[];
 }
 
 export function renderMetricsList(o: MetricsListOpts): { refresh: () => void } {
@@ -47,10 +62,19 @@ export function renderMetricsList(o: MetricsListOpts): { refresh: () => void } {
     drivers = await listDrivers(site).catch(() => []);
   };
 
+  const noun = o.noun ?? "initiative";
   const changed = () => {
-    normalizeMetrics(o.metrics).forEach((m, i) => {
-      o.metrics[i] = m;
-    });
+    if (o.noStar === true) {
+      // no starring here: only the kind is settled
+      for (const m of o.metrics) {
+        m.kind = m.kind ?? (m.driverId ? "driver" : "own");
+        delete m.primary;
+      }
+    } else {
+      normalizeMetrics(o.metrics).forEach((m, i) => {
+        o.metrics[i] = m;
+      });
+    }
     o.onChanged?.();
     paint();
   };
@@ -72,7 +96,9 @@ export function renderMetricsList(o: MetricsListOpts): { refresh: () => void } {
 
   const paint = () => {
     clear(box);
-    if (o.metrics.length === 0) box.appendChild(el("div", "app-cp-muted", "No metrics yet — pick one from the value driver tree, or propose one for this initiative."));
+    if (o.metrics.length === 0) {
+      box.appendChild(el("div", "app-cp-muted", o.noTree === true || noun === "priority" ? `No metrics on this ${noun} yet.` : `No metrics yet — pick one from the value driver tree, or propose one for this ${noun}.`));
+    }
     o.metrics.forEach((m, idx) => {
       const row = el("div", "app-im-metricrow");
       // ★ starred (several may be): the starred set headlines the
@@ -84,7 +110,7 @@ export function renderMetricsList(o: MetricsListOpts): { refresh: () => void } {
         else m.primary = true;
         changed();
       });
-      row.appendChild(star);
+      if (o.noStar !== true) row.appendChild(star);
       const main = el("div", "app-im-metricmain");
       const name = el("div", "app-im-metricname");
       name.appendChild(el("span", undefined, m.name));
@@ -92,7 +118,7 @@ export function renderMetricsList(o: MetricsListOpts): { refresh: () => void } {
         const p = m.driverId ? pathOf(drivers, m.driverId) : [];
         name.appendChild(el("span", "app-im-metrickind app-im-metrickind-vdt", `· VDT${m.driverLink === "leads" ? " (leads)" : ""}`));
         if (p.length > 0) name.title = p.join(" › ");
-      } else name.appendChild(el("span", "app-im-metrickind", "· initiative-specific"));
+      } else name.appendChild(el("span", "app-im-metrickind", `· ${noun}-specific`));
       main.appendChild(name);
       // objective: a short sentence, edited in place
       const obj = el("input", "app-input app-im-metricobj") as HTMLInputElement;
@@ -162,6 +188,8 @@ export function renderMetricsList(o: MetricsListOpts): { refresh: () => void } {
         edit.title = "Change the name, unit, plan and limits, tracking, cadence or rows";
         edit.addEventListener("click", () => openOwnForm(m));
         acts.appendChild(edit);
+      }
+      if (kindOf(m) === "own" && o.noRelink !== true) {
         const link = btn("Link…", "app-link");
         link.title = "Link to an existing driver — its series takes this metric's points";
         link.addEventListener("click", () => void linkOwn(m));
@@ -172,6 +200,7 @@ export function renderMetricsList(o: MetricsListOpts): { refresh: () => void } {
         promote.addEventListener("click", () => void promoteOwn(m));
         acts.appendChild(promote);
       }
+      for (const tool of o.rowTools?.(m) ?? []) acts.appendChild(tool);
       const x = btn("×", "app-im-link-x");
       x.title = "Remove metric";
       x.addEventListener("click", () => {
@@ -185,21 +214,28 @@ export function renderMetricsList(o: MetricsListOpts): { refresh: () => void } {
     const adders = el("div", "app-im-metricadders");
     const fromTree = btn("＋ From the value driver tree");
     fromTree.addEventListener("click", () => void addFromTree());
-    const own = btn("＋ Initiative-specific metric");
+    const own = btn(noun === "priority" ? "＋ Add metric" : "＋ Initiative-specific metric");
     own.addEventListener("click", () => openOwnForm());
-    adders.append(fromTree, own);
+    const full = o.max !== undefined && o.metrics.length >= o.max;
+    if (full) {
+      fromTree.disabled = true;
+      own.disabled = true;
+      fromTree.title = own.title = `A ${noun} carries up to ${o.max} metrics of its own`;
+    }
+    if (o.noTree !== true) adders.appendChild(fromTree);
+    adders.appendChild(own);
     box.appendChild(adders);
   };
 
   /** Pick a leaf or leading node; the metric IS the driver. */
   const addFromTree = async () => {
     await loadDrivers();
-    const r = await openDriverLinkPicker(document.body, o.site(), { name: "this initiative's metric", unit: "" }, null);
+    const r = await openDriverLinkPicker(document.body, o.site(), { name: `this ${noun}'s metric`, unit: "" }, null);
     if (r === null || r === "clear") return;
     const n = drivers.find((d) => d.id === r.driverId) ?? null;
     if (!n) return;
     if (n.kind === "driver" && !isLeaf(drivers, n)) {
-      await promptConfirm({ title: `${n.name} comes from its formula`, note: "A computed driver can't be an initiative's metric — the initiative can't own its actuals. Pick one of the drivers beneath it.", confirmLabel: "OK" });
+      await promptConfirm({ title: `${n.name} comes from its formula`, note: `A computed driver can't be ${noun === "priority" ? "a priority's" : "an initiative's"} metric — the ${noun} can't own its actuals. Pick one of the drivers beneath it.`, confirmLabel: "OK" });
       return;
     }
     if (o.metrics.some((m) => m.driverId === n.id)) return;
@@ -222,8 +258,8 @@ export function renderMetricsList(o: MetricsListOpts): { refresh: () => void } {
   const openOwnForm = (existing?: TemplateMetric) => {
     const scrim = el("div", "app-modal-overlay");
     const dlg = el("div", "app-modal");
-    dlg.appendChild(el("div", "app-modal-title", existing ? `Edit metric — ${existing.name}` : "Initiative-specific metric"));
-    dlg.appendChild(el("div", "app-modal-note", "Measured on this initiative's own KPI card. It can be linked to, or promoted into, the value driver tree later."));
+    dlg.appendChild(el("div", "app-modal-title", existing ? `Edit metric — ${existing.name}` : noun === "priority" ? "Add metric" : "Initiative-specific metric"));
+    if (noun === "initiative") dlg.appendChild(el("div", "app-modal-note", "Measured on this initiative's own KPI card. It can be linked to, or promoted into, the value driver tree later."));
     const field = (label: string, control: HTMLElement) => {
       const f = el("div", "app-field");
       f.append(el("span", "app-field-label", label), control);
@@ -232,6 +268,11 @@ export function renderMetricsList(o: MetricsListOpts): { refresh: () => void } {
     const nameIn = el("input", "app-input") as HTMLInputElement;
     nameIn.placeholder = "e.g. Changeover time";
     field("Name", nameIn);
+    // required: a small red asterisk, and the primary button waits for it
+    const star = el("sup", "app-req-star", "*");
+    star.title = "Required";
+    star.setAttribute("aria-label", "required");
+    nameIn.closest(".app-field")?.querySelector(".app-field-label")?.appendChild(star);
     const unitIn = el("input", "app-input") as HTMLInputElement;
     unitIn.placeholder = "min, %, $, kL";
     field("Unit", unitIn);
@@ -267,9 +308,17 @@ export function renderMetricsList(o: MetricsListOpts): { refresh: () => void } {
       rowsBox.appendChild(lab);
     }
     const rowsField = el("div", "app-field");
-    rowsField.append(el("span", "app-field-label", "Rows"), rowsBox, el("div", "app-field-hint", "What the grid enters per period, besides Actual."));
+    // on a priority the three hints are tooltips, not sentences under
+    // the fields (lean dialog chrome, Ben, 2026-11-17)
+    const lean = noun === "priority";
+    const rowsLabel = el("span", "app-field-label", "Rows");
+    rowsField.append(rowsLabel, rowsBox);
+    if (lean) rowsLabel.title = "What the grid enters per period, besides Actual.";
+    else rowsField.appendChild(el("div", "app-field-hint", "What the grid enters per period, besides Actual."));
     dlg.insertBefore(rowsField, rowInputs.plan as HTMLElement);
-    dlg.appendChild(el("div", "app-field-hint", "Direction follows the limits: a lower limit only means higher is better; an upper only, lower is better; both, within range."));
+    const directionHint = "Direction follows the limits: a lower limit only means higher is better; an upper only, lower is better; both, within range.";
+    if (lean) for (const f of [rowInputs.lsl, rowInputs.usl]) f?.querySelector(".app-field-label")?.setAttribute("title", directionHint);
+    else dlg.appendChild(el("div", "app-field-hint", directionHint));
     const trk = el("select", "app-input") as HTMLSelectElement;
     for (const [v, l] of [["value", "Value vs target"], ["goodbad", "Good / bad"], ["picklist", "Status picklist"]] as const) {
       const op = el("option", "", l) as HTMLOptionElement;
@@ -332,7 +381,8 @@ export function renderMetricsList(o: MetricsListOpts): { refresh: () => void } {
       cad.appendChild(op);
     }
     field("Cadence", cad);
-    dlg.appendChild(el("div", "app-field-hint", "The period the KPI card's grid enters values by — a column per day, week, month or year."));
+    if (lean) cad.title = "The period values are entered by: a column per day, week, month or year.";
+    else dlg.appendChild(el("div", "app-field-hint", "The period the KPI card's grid enters values by — a column per day, week, month or year."));
     // editing: the form opens on the metric as it stands
     if (existing) {
       nameIn.value = existing.name;
@@ -388,6 +438,12 @@ export function renderMetricsList(o: MetricsListOpts): { refresh: () => void } {
       scrim.remove();
       changed();
     });
+    const ready = () => {
+      add.disabled = nameIn.value.trim() === "";
+      add.title = add.disabled ? "Still needed: Name" : "";
+    };
+    nameIn.addEventListener("input", ready);
+    ready();
     foot.append(cancel, add);
     dlg.appendChild(foot);
     scrim.appendChild(dlg);

@@ -81,7 +81,8 @@ import { objectiveCharts } from "../improvement/initiativeRow";
 import { offerStepMessage } from "./stepMessage";
 import { REOPEN_PRIORITY_KEY } from "../improvement/boardOrigin";
 import { PDCA_TOKENS } from "../improvement/templateModel";
-import { buildMetricState, loadMetricLasts, statusMetricsOf } from "../improvement/metricValues";
+import { buildMetricState, loadMetricLasts, loadOwnMetricLasts, ownMetricValues, statusMetricsOf } from "../improvement/metricValues";
+import type { DriverLast, MetricValue } from "../improvement/metricValues";
 import {
   canApproveAt,
   canCustomiseAt,
@@ -405,9 +406,30 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       const key = priorityActionKey(p);
       return priorityActions.filter((a) => a.instanceId === key);
     };
-    /** What a priority carries of its own: its actions here, and (when
-     *  they are built) its own metrics. Both count toward its status. */
-    const ownOf = (p: Priority): PriorityOwn => ({ actions: actionCounts(priorityActionsOf(p), today), metrics: [] });
+    // metrics defined ON a priority (2026-11-18): their last readings,
+    // keyed `<priorityId>|<metricKey>`, read once per metric
+    const ownLasts = new Map<string, DriverLast>();
+    const ownAsked = new Set<string>();
+    const loadOwnLasts = async (list: Priority[], again = false): Promise<void> => {
+      const items = list
+        .map((p) => ({ id: p.id, site: p.org.site, metrics: (p.ownMetrics ?? []).filter((m) => again || !ownAsked.has(`${p.id}|${m.key}`)) }))
+        .filter((x) => x.metrics.length > 0);
+      if (items.length === 0) return;
+      for (const x of items) for (const m of x.metrics) ownAsked.add(`${x.id}|${m.key}`);
+      const got = await loadOwnMetricLasts(items).catch(() => new Map<string, DriverLast>());
+      for (const x of items) {
+        for (const m of x.metrics) {
+          const k = `${x.id}|${m.key}`;
+          const v = got.get(k);
+          if (v) ownLasts.set(k, v);
+          else ownLasts.delete(k);
+        }
+      }
+    };
+    const ownValuesOf = (p: Priority): MetricValue[] => ownMetricValues(p.id, p.ownMetrics ?? [], ownLasts);
+    /** What a priority carries of its own: its actions here and its own
+     *  metrics. Both count toward its status. */
+    const ownOf = (p: Priority): PriorityOwn => ({ actions: actionCounts(priorityActionsOf(p), today), metrics: ownValuesOf(p).map((v) => ({ name: v.name, rag: v.rag })) });
     const pStatus = (p: Priority): PriorityStatus => priorityStatus(statusesFor(p).map((x) => x.state), ownOf(p));
     /** Org managers only, on an active priority (decision 3). */
     const canRaiseOn = (p: Priority): boolean => p.status === "active" && viewer.whoId !== "" && canManageOrg(viewer, actionOrgOf(p), owners);
@@ -426,6 +448,7 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       render();
     };
     let data: CascadeData = await memo(`cascade|${state.org.company}`, () => loadCascade(state.org.company));
+    await loadOwnLasts(data.priorities);
     if (dead) return;
     stopLoading();
     if (cardL1) state.l1 = cardL1(data.pillars);
@@ -448,6 +471,8 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       const top = sc.scrollTop;
       data = await loadCascade(state.org.company);
       memoSet(`cascade|${state.org.company}`, data);
+      // a metric defined since the last read: its readings
+      await loadOwnLasts(data.priorities);
       if (dead) return;
       render();
       sc.scrollTop = top;
@@ -516,7 +541,7 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
     const valuesOf = (initiativeId: string) => metricState.get(initiativeId)?.values ?? [];
     const underPriority = (p: Priority, initiativeId: string): boolean =>
       [p, ...countedDescendants(p, data.priorities)].some((pr) => (byPriority.get(pr.id) ?? []).some((i) => i.id === initiativeId));
-    const objectivesOf = (p: Priority) => objectiveValues(p, primaryIdOf(p), valuesOf, (id) => underPriority(p, id));
+    const objectivesOf = (p: Priority) => objectiveValues(p, primaryIdOf(p), valuesOf, (id) => underPriority(p, id), ownValuesOf(p));
     const ctx: LifecycleCtx = {
       host: wrap,
       data: () => data,
@@ -543,6 +568,15 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
         all: priorityActions,
         of: priorityActionsOf,
         canRaise: canRaiseOn,
+      },
+      ownMetrics: {
+        valuesOf: ownValuesOf,
+        // the OWNING org's managers; an org that adopted it reads them
+        canEdit: (p) => (p.status === "active" || p.status === "proposed") && viewer.whoId !== "" && canManageOrg(viewer, p.org, owners),
+        refresh: async (p) => {
+          await loadOwnLasts([data.priorities.find((x) => x.id === p.id) ?? p], true);
+          if (!dead) render();
+        },
       },
       primaryOf: (p) => {
         const id = primaryIdOf(p);

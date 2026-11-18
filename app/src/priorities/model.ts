@@ -10,6 +10,8 @@
  *  higher node. Names, not ids — the app's org dictionary is name-keyed
  *  (site settings rows), and renames cascade by name. */
 import { DEFAULT_STATUS_SETTINGS, parseStatusSettings, StatusSettings } from "../improvement/status";
+import type { TemplateMetric } from "../improvement/templateModel";
+import { orgMark } from "../../../shared/schema/actionLinks";
 
 export interface OrgRef {
   company: string;
@@ -232,6 +234,11 @@ export interface Priority {
   /** With no primary initiative: the metrics picked from the linked
    *  initiatives as this priority's objectives (issue 8, 2026-11-16). */
   objectives: PriorityObjective[];
+  /** Metrics defined ON the priority (2026-11-18): its own objectives,
+   *  shown ahead of its initiatives'. Stored beside the picks in the one
+   *  objectives column; their readings live in the series table at
+   *  `OWN_SERIES_BOARD` / `ownSeriesCard`. Absent = none. */
+  ownMetrics?: TemplateMetric[];
   /** The sub-pillars it sat under in EARLIER years (issue 4, 2026-11-16);
    *  `pillarId` stays its current home. Oldest first. */
   placements: PriorityPlacement[];
@@ -268,6 +275,70 @@ export function parseObjectives(raw: unknown): PriorityObjective[] {
     out.push({ initiativeId: o.initiativeId, metricKey: o.metricKey });
   }
   return out;
+}
+
+/** How many metrics a priority may carry of its own — the objectives
+ *  column holds them all, with the picks, in one 4,000-character note. */
+export const OWN_METRIC_CAP = 8;
+/** The longest the objectives column may be written. */
+export const OBJECTIVES_JSON_MAX = 3900;
+
+/** The metrics defined on the priority itself: the `{ own: … }` entries
+ *  of the objectives column. A build older than 2026-11-18 reads only
+ *  the picks and drops these when it saves — lock older builds. */
+export function parseOwnMetrics(raw: unknown): TemplateMetric[] {
+  let v: unknown = raw;
+  if (typeof v === "string") {
+    try {
+      v = JSON.parse(v || "[]");
+    } catch {
+      return [];
+    }
+  }
+  if (!Array.isArray(v)) return [];
+  const out: TemplateMetric[] = [];
+  for (const x of v) {
+    if (!x || typeof x !== "object") continue;
+    const m = (x as Record<string, unknown>).own as Record<string, unknown> | undefined;
+    if (!m || typeof m !== "object" || typeof m.key !== "string" || m.key === "" || typeof m.name !== "string" || m.name === "") continue;
+    if (out.some((y) => y.key === m.key)) continue;
+    const tracking = m.tracking === "goodbad" || m.tracking === "picklist" ? m.tracking : "value";
+    out.push({
+      ...(m as unknown as TemplateMetric),
+      unit: typeof m.unit === "string" ? m.unit : "",
+      target: typeof m.target === "number" ? m.target : null,
+      goodDirection: m.goodDirection === "down" || m.goodDirection === "range" ? m.goodDirection : "up",
+      tracking,
+      kind: m.driverId ? "driver" : "own",
+    });
+    if (out.length >= OWN_METRIC_CAP) break;
+  }
+  // every own metric shows: none is "the starred one"
+  for (const m of out) delete m.primary;
+  return out;
+}
+
+/** The objectives column as written: the priority's own metrics first,
+ *  then the picks. "" when it has neither. */
+export function objectivesJson(p: Pick<Priority, "objectives" | "ownMetrics">): string {
+  const own = (p.ownMetrics ?? []).slice(0, OWN_METRIC_CAP).map((m) => {
+    const { primary: _starred, ...rest } = m;
+    return { own: rest };
+  });
+  return own.length + p.objectives.length > 0 ? JSON.stringify([...own, ...p.objectives]) : "";
+}
+
+/** The series table's "board" for a priority's own readings (the value
+ *  driver tree uses "vdt" the same way). */
+export const OWN_SERIES_BOARD = "priority";
+
+/** …and the "card": `<priorityId>/<metricKey>`, as the Metrics card keys
+ *  an initiative's (`<cardId>/<metricKey>`). The column holds 80
+ *  characters: a longer pair keeps a readable head and a mark of the key. */
+export function ownSeriesCard(priorityId: string, metricKey: string): string {
+  const full = `${priorityId}/${metricKey}`;
+  if (full.length <= 80) return full;
+  return `${full.slice(0, 71)}~${orgMark(metricKey)}`;
 }
 
 export function parsePlacements(raw: unknown): PriorityPlacement[] {
@@ -332,10 +403,13 @@ export function objectiveValues<V extends { key: string; starred: boolean }>(
   p: Pick<Priority, "objectives">,
   livePrimary: string,
   valuesOf: (initiativeId: string) => V[],
-  linked: (initiativeId: string) => boolean
+  linked: (initiativeId: string) => boolean,
+  /** The priority's OWN metrics, as values: always first (2026-11-18 —
+   *  they add to its initiatives' objectives, they do not replace them). */
+  own: V[] = []
 ): V[] {
-  if (livePrimary !== "") return valuesOf(livePrimary).filter((v) => v.starred);
-  const out: V[] = [];
+  if (livePrimary !== "") return [...own, ...valuesOf(livePrimary).filter((v) => v.starred)];
+  const out: V[] = [...own];
   for (const o of p.objectives) {
     if (!linked(o.initiativeId)) continue;
     const v = valuesOf(o.initiativeId).find((x) => x.key === o.metricKey);

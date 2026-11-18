@@ -4,6 +4,8 @@
 import { saveCompanies, saveSiteCompany, saveSiteDepartments, saveSiteOwners, saveCompanyOwners, savePrioritySettingsJson } from "../src/store/config";
 import { upsertPerson } from "../src/store/people";
 import { loadCascade, newPriority, saveAssignment, savePillar, savePriority } from "../src/store/priorities";
+import { seed as seedSeries } from "./seriesStub";
+import { OWN_SERIES_BOARD, ownSeriesCard } from "../src/priorities/model";
 import { orgRef, Pillar, Priority } from "../src/priorities/model";
 
 const person = (whoId: string, who: string, site: string, role = "user") => ({ whoId, who, email: `${whoId}@example.test`, site, department: "", area: "", role, active: true });
@@ -52,7 +54,17 @@ export async function seed(): Promise<void> {
     return p;
   };
   await pri("pr-w1", weipa, "Zero Harm - Critical Risk Management (CRM) Maturity Uplift", "S1");
-  await pri("pr-w2", weipa, "Improve Everyday Respect for Our Teams", "S2");
+  // a metric of its own (2026-11-18), with a few weekly readings: the
+  // last is short of plan, so the priority reads off track on it alone
+  await pri("pr-w2", weipa, "Improve Everyday Respect for Our Teams", "S2", {
+    ownMetrics: [{ key: "respect_index", name: "Respect index", objective: "Above 80 by year end", unit: "%", target: 80, lsl: 60, goodDirection: "up", tracking: "value", kind: "own", cadence: "weekly" }],
+  });
+  // (the harness keeps series in seriesStub, not the Dataverse stub)
+  seedSeries(OWN_SERIES_BOARD, ownSeriesCard("pr-w2", "respect_index"), [
+    { key: "k1", date: "2026-10-26", shift: "-", value: "66" },
+    { key: "k2", date: "2026-11-02", shift: "-", value: "71" },
+    { key: "k3", date: "2026-11-09", shift: "-", value: "74" },
+  ]);
   await pri("pr-w3", weipa, "Leadership Capability Uplift", "S2");
   await pri("pr-w4", weipa, "Andoom: Optimise haulage and maintain yield", "S3");
   await pri("pr-w5", weipa, "Fixed Cost Improvement Plan", "S4");

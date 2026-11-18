@@ -131,9 +131,12 @@ model section) — the canvas/PCF sections there are historical.
   have one living instance plus gate snapshots) → `ben_ltkcarddata`
   (per card per instance: output JSON + tile SVG). `ben_ltkcardcatalog`
   holds the card-type catalog and default tiles; `ben_ltkcardseries`
-  holds every dated series (card readings, value-driver actuals and the
-  per-period `spec:*` plan / forecast / limit points — §3.3);
-  `ben_ltkaction` is the central actions register (§3.4;
+  holds every dated series (card readings, value-driver actuals at board
+  `"vdt"`, a priority's own metric readings at board `"priority"`, and
+  the per-period `spec:*` plan / forecast / limit points — §3.3);
+  `ben_ltkaction` is the central actions register (§3.4; an action
+  raised ON a priority carries `ben_instanceid` =
+  `priority:<priorityId>@<org mark>` and no board, 2026-11-18;
   `ben_supportersjson` = people who support an action without owing a
   part of it, 2026-11-16; `ben_doneat` = when it was completed, and
   `ben_assigneesjson` widened to 100 000 characters for a shared action
@@ -159,7 +162,11 @@ model section) — the canvas/PCF sections there are historical.
   (2026-10-02); `ben_primaryinitiativeid` = the ★ primary initiative
   whose charter / metrics headline it — counted only while still linked
   and active or completed; `ben_objectivesjson` = the metrics picked as
-  objectives when it has none; `ben_placementsjson` = the sub-pillars it
+  objectives when it has none, and — as `{ own: … }` entries ahead of
+  the picks, at most eight — the metrics defined ON the priority, whose
+  readings sit in `ben_ltkcardseries` at board `"priority"`, card
+  `<priorityId>/<metricKey>` (2026-11-18; a build older than that drops
+  the own entries when it saves a priority); `ben_placementsjson` = the sub-pillars it
   sat under in earlier years; `ben_status` may be "proposed": added by
   someone who may add but not approve, off the board and out of every
   tally until its owner or an admin accepts — all 2026-11-16),

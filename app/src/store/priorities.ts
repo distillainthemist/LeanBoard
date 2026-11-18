@@ -18,7 +18,7 @@ import {
   AssignmentStatus,
   isAssignmentStatus,
   isPriorityStatus,
-  parseObjectives,
+  parseObjectives, parseOwnMetrics, objectivesJson,
   parsePlacements,
   OrgRef,
   Pillar,
@@ -138,6 +138,7 @@ function priorityFromRow(
     order: typeof row.ben_order === "number" ? row.ben_order : 0,
     notes: row.ben_notes ?? "",
     objectives: parseObjectives(row.ben_objectivesjson),
+    ownMetrics: parseOwnMetrics(row.ben_objectivesjson),
     placements: parsePlacements(row.ben_placementsjson),
   };
 }
@@ -215,7 +216,7 @@ export async function savePriority(p: Priority, data: CascadeData): Promise<stri
     ben_order: p.order,
     ben_primaryinitiativeid: p.primaryInitiativeId,
     ben_notes: p.notes,
-    ben_objectivesjson: p.objectives.length > 0 ? JSON.stringify(p.objectives) : "",
+    ben_objectivesjson: objectivesJson(p),
     ben_placementsjson: p.placements.length > 0 ? JSON.stringify(p.placements) : "",
     "ben_Pillar@odata.bind": pillar?.rowId ? `/ben_ltkpillars(${pillar.rowId})` : undefined,
     // an UPDATE without a parent sends null — that is how the Web API

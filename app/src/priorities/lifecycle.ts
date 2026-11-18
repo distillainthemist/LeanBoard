@@ -147,6 +147,14 @@ export interface LifecycleCtx {
   primaryOf: (p: Priority) => { id: string; title: string; completed: boolean } | null;
   /** A stored primary that no longer counts, and why. */
   stalePrimaryOf: (p: Priority) => { id: string; title: string; why: "archived" | "unlinked" | "gone" } | null;
+  /** Metrics defined ON a priority (2026-11-18). */
+  ownMetrics: {
+    valuesOf: (p: Priority) => import("../improvement/metricValues").MetricValue[];
+    /** Manages the OWNING org, on an active or proposed priority. */
+    canEdit: (p: Priority) => boolean;
+    /** Its readings changed: read them again and repaint. */
+    refresh: (p: Priority) => Promise<void>;
+  };
   /** With no primary: the metrics its objectives may be picked from —
    *  the initiatives under the priority that carry any (issue 8). */
   metricChoicesFor: (p: Priority) => {
@@ -1312,7 +1320,9 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
       ["initiatives", `Initiatives ${rags.length}`],
       ["actions", "Actions"],
       ["commentary", "Commentary"],
-      ["metrics", primary !== null ? "Metrics" : "Objectives"],
+      // "Objectives", always (2026-11-18): the priority's own metrics
+      // lead, its primary initiative's or the picked ones follow
+      ["metrics", "Objectives"],
       ["cascade", "Cascade"],
       ["charter", "Charter"],
       ["history", "History"],
@@ -1486,15 +1496,57 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
       }
       const hidden = rows.length - shown.length;
       if (hidden > 0) body.appendChild(el("div", "app-cp-muted", `+ ${hidden} confidential initiative${hidden === 1 ? "" : "s"}`));
-    } else if ((tab === "charter" || tab === "metrics") && primary !== null) {
+    } else if (tab === "charter" && primary !== null) {
       const host = el("div", "app-cp-ov-charter");
       body.appendChild(host);
-      void mountPrimaryCard(host, primary.id, tab === "charter" ? "CanvasCard" : "MetricsCard", { actor: ctx.actor(), adminScope: ctx.viewerAdminScope, priorityId: live.id });
+      void mountPrimaryCard(host, primary.id, "CanvasCard", { actor: ctx.actor(), adminScope: ctx.viewerAdminScope, priorityId: live.id });
     } else if (tab === "metrics") {
+      // "This priority" first: the metrics defined on it. Its managers
+      // edit them here; everyone else reads them (an adopting org too).
+      const mayOwn = ctx.ownMetrics.canEdit(live);
+      const hasOwn = (live.ownMetrics ?? []).length > 0;
+      if (mayOwn || hasOwn) {
+        const head = el("div", "app-cp-ov-group");
+        head.appendChild(el("span", undefined, "This priority"));
+        body.appendChild(head);
+        const host = el("div", "app-cp-ov-ownmetrics");
+        body.appendChild(host);
+        void import("./ownMetricsTab").then((m) => {
+          if (!host.isConnected) return;
+          m.mountOwnMetrics({
+            host,
+            priority: live,
+            canEdit: mayOwn,
+            values: () => ctx.ownMetrics.valuesOf(live),
+            palette: ctx.palette,
+            // the popup is not repainted under the editor: the screen
+            // behind it is, and the popup when the tab is next opened
+            save: async () => {
+              await savePriority(live, ctx.data());
+              await ctx.changed();
+            },
+            valuesChanged: () => ctx.ownMetrics.refresh(live),
+          });
+        });
+      }
+      if (primary !== null) {
+        // then the primary initiative's metrics card, as before
+        const head = el("div", "app-cp-ov-group app-cp-ov-group-primary");
+        head.appendChild(el("span", undefined, `★ ${primary.title}`));
+        body.appendChild(head);
+        const host = el("div", "app-cp-ov-charter");
+        body.appendChild(host);
+        void mountPrimaryCard(host, primary.id, "MetricsCard", { actor: ctx.actor(), adminScope: ctx.viewerAdminScope, priorityId: live.id });
+      } else {
       // no primary initiative: the objectives are PICKED from the metrics
       // of the initiatives under the priority (issue 8, 2026-11-16)
       const may = ctx.canManage(live.org);
       const choices = ctx.metricChoicesFor(live);
+      if (mayOwn || hasOwn) {
+        const head = el("div", "app-cp-ov-group");
+        head.appendChild(el("span", undefined, "From its initiatives"));
+        body.appendChild(head);
+      }
       body.appendChild(
         el(
           "div",
@@ -1535,6 +1587,7 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
           });
           body.appendChild(row);
         }
+      }
       }
     } else if (tab === "commentary" && primary !== null) {
       const host = el("div", "app-cp-ov-charter");

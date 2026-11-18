@@ -29,8 +29,12 @@ outline "Add action" in the popup, "Add action…" on the tile's ⋮, a
 "This priority" section in the Actions tab and the Gantt, a late one
 makes the priority off track, shown only at the org it was raised at
 (UAT-PRI-015); an older build reads the new action key as an unknown
-board, so production locks older builds with the release. Tranche 4
-follows: metrics on a priority. The harness can now run the real Priorities page
+board, so production locks older builds with the release. **Tranche
+4:** metrics defined ON a priority — the Objectives tab leads with "This
+priority" (add, edit, Values…), they show first wherever objectives
+show, and one off plan makes the priority off track (UAT-PRI-016); an
+older build drops them when it saves a priority, the second reason to
+lock older builds. All four tranches are built; nothing is released. The harness can now run the real Priorities page
 (`harness/priorities.html` on an in-memory Dataverse).
 
 **v0.96.0 (2026-11-18, app-only):** the review of the full 2026-11-17

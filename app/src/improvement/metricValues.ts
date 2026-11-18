@@ -5,6 +5,8 @@
 // RAG rollups and the tab's metric column both use.
 
 import { directionOf } from "./templateModel";
+import type { TemplateMetric } from "./templateModel";
+import { OWN_SERIES_BOARD, ownSeriesCard } from "../priorities/model";
 import { parseKpiTrend } from "../../../controls/KpiTrendCard/types";
 import { parseManifest } from "../store/mappers";
 import type { BoardSummary } from "../store/mappers";
@@ -12,6 +14,7 @@ import type { CardRow } from "../store/cards";
 import { Initiative, MetricReading, metricRag, worstMetricRag } from "./initiativeModel";
 import { EMPTY_SPEC_SERIES, specFor, SpecSeries } from "../../../shared/schema/specSeries";
 import { metricLocation, trackingDisplay } from "./metricLocation";
+import type { MetricLocation } from "./metricLocation";
 import type { DriverNode } from "./vdt/model";
 
 /** A metric's last reading + its spec history (grid entry: per-period
@@ -67,6 +70,57 @@ export interface InitiativeMetricState {
   rag: "green" | "amber" | "red" | null;
 }
 
+/** One metric as a value: its last reading against the spec in force.
+ *  `ml`: where its readings live (the driver's series or its own
+ *  location); `doc`: the seeded single KPI card's in-card document, on
+ *  the older boards that have one. Shared by an initiative's metrics and
+ *  a priority's own. */
+export function metricValueOf(
+  def: TemplateMetric,
+  ml: DriverLast | null,
+  doc: { points: { value: number }[]; target?: number | null; usl?: number | null; lsl?: number | null; unit?: string } | null = null
+): MetricValue {
+  const key = def.key;
+  if (ml?.display) {
+    return { key, name: def.name, unit: "", last: null, display: ml.display.label, target: null, rag: ml.display.rag, starred: def.primary === true, objective: def.objective ?? "", tail: [], usl: null, lsl: null, direction: directionOf(def) };
+  }
+  if (def.tracking !== "value") {
+    const disp = trackingDisplay(def, ml?.raw ?? "");
+    return { key, name: def.name, unit: "", last: null, display: disp.label, target: null, rag: disp.rag, starred: def.primary === true, objective: def.objective ?? "", tail: [], usl: null, lsl: null, direction: directionOf(def) };
+  }
+  const points = doc?.points ?? [];
+  const last = ml ? ml.last : points.length > 0 ? points[points.length - 1].value : null;
+  // the in-card target wins (owners tune it there); the definition's
+  // target is the fallback — and a per-period spec point in force on
+  // the reading's date beats both
+  const level = {
+    target: doc?.target ?? def.target ?? null,
+    usl: doc?.usl ?? def.usl ?? null,
+    lsl: doc?.lsl ?? def.lsl ?? null,
+  };
+  const spec = ml && ml.date !== "" ? specFor(ml.spec, ml.date, level) : specFor(EMPTY_SPEC_SERIES, "", level);
+  const reading: MetricReading = {
+    last,
+    ...spec,
+    goodDirection: directionOf(def),
+  };
+  return {
+    key,
+    name: def.name,
+    unit: def.unit ?? doc?.unit ?? "",
+    last,
+    display: last === null ? "" : `${last}${def.unit}`,
+    target: reading.target,
+    rag: metricRag(reading),
+    starred: def.primary === true,
+    objective: def.objective ?? "",
+    tail: ml ? (ml.tail ?? []) : points.slice(-SPARK_POINTS).map((pt) => pt.value),
+    usl: reading.usl,
+    lsl: reading.lsl,
+    direction: reading.goodDirection,
+  };
+}
+
 export function buildMetricState(
   initiatives: Initiative[],
   boards: Pick<BoardSummary, "boardId" | "manifestRaw">[],
@@ -90,47 +144,8 @@ export function buildMetricState(
       const slot = slots.find((sl) => sl.cardType === "KpiTrendCard" && String(((sl.settings.metric ?? {}) as Record<string, unknown>).key ?? "") === key) ?? null;
       const row = slot ? rowByCard.get(`${i.boardId}|${slot.cardId}`) : undefined;
       const doc = row ? parseKpiTrend(row.outputJson).envelope.data : null;
-      const points = doc?.points ?? [];
       const ml = driverLast.get(`${i.id}|${key}`) ?? (def.driverId && def.driverLink !== "leads" ? driverLast.get(def.driverId) : undefined) ?? null;
-      if (ml?.display) {
-        values.push({ key, name: def.name, unit: "", last: null, display: ml.display.label, target: null, rag: ml.display.rag, starred: def.primary === true, objective: def.objective ?? "", tail: [], usl: null, lsl: null, direction: directionOf(def) });
-        continue;
-      }
-      if (def.tracking !== "value") {
-        const disp = trackingDisplay(def, ml?.raw ?? "");
-        values.push({ key, name: def.name, unit: "", last: null, display: disp.label, target: null, rag: disp.rag, starred: def.primary === true, objective: def.objective ?? "", tail: [], usl: null, lsl: null, direction: directionOf(def) });
-        continue;
-      }
-      const last = ml ? ml.last : points.length > 0 ? points[points.length - 1].value : null;
-      // the in-card target wins (owners tune it there); the definition's
-      // target is the fallback — and a per-period spec point in force on
-      // the reading's date beats both
-      const level = {
-        target: doc?.target ?? def.target ?? null,
-        usl: doc?.usl ?? def.usl ?? null,
-        lsl: doc?.lsl ?? def.lsl ?? null,
-      };
-      const spec = ml && ml.date !== "" ? specFor(ml.spec, ml.date, level) : specFor(EMPTY_SPEC_SERIES, "", level);
-      const reading: MetricReading = {
-        last,
-        ...spec,
-        goodDirection: directionOf(def),
-      };
-      values.push({
-        key,
-        name: def.name,
-        unit: def.unit ?? doc?.unit ?? "",
-        last,
-        display: last === null ? "" : `${last}${def.unit}`,
-        target: reading.target,
-        rag: metricRag(reading),
-        starred: def.primary === true,
-        objective: def.objective ?? "",
-        tail: ml ? (ml.tail ?? []) : points.slice(-SPARK_POINTS).map((pt) => pt.value),
-        usl: reading.usl,
-        lsl: reading.lsl,
-        direction: reading.goodDirection,
-      });
+      values.push(metricValueOf(def, ml, doc));
     }
     // ★ starred first (definition order within) — the register, tiles and
     // roll-up read values[0]; the Objectives row reads every starred one
@@ -141,6 +156,75 @@ export function buildMetricState(
   return out;
 }
 
+/** One metric's last reading and spec history, from its location: a
+ *  good / bad or picklist driver's latest label, a driver's series, or
+ *  the metric's own cells. */
+async function readLast(loc: MetricLocation, d: DriverNode | null): Promise<DriverLast> {
+  const { listDriverPoints, listDriverRaw, listSpecSeries } = await import("../store/driverSeries");
+  if (loc.driverId !== "" && d && d.tracking.kind !== "value") {
+    // a good / bad or picklist driver: the latest label + its state
+    const { stateOf } = await import("./vdt/model");
+    const raw = await listDriverRaw(loc.driverId, "1900-01-01", "2999-12-31");
+    const lastPt = [...raw].sort((a, b) => (a.date + a.shift < b.date + b.shift ? -1 : 1)).pop() ?? null;
+    const st = stateOf(d.tracking, lastPt ? lastPt.value : "");
+    return { last: null, raw: lastPt ? lastPt.value : "", date: lastPt ? lastPt.date : "", spec: EMPTY_SPEC_SERIES, display: st };
+  }
+  if (loc.driverId !== "") {
+    const [pts, spec] = await Promise.all([listDriverPoints(loc.driverId, "1900-01-01", "2999-12-31"), listSpecSeries("vdt", loc.driverId, "2999-12-31").catch(() => EMPTY_SPEC_SERIES)]);
+    const lastPt = pts.length > 0 ? pts[pts.length - 1] : null;
+    return { last: lastPt ? lastPt.value : null, raw: lastPt ? String(lastPt.value) : "", date: lastPt ? lastPt.date : "", spec, tail: pts.slice(-SPARK_POINTS).map((pt) => pt.value) };
+  }
+  const { listSeries } = await import("../store/series");
+  const [cells, spec] = await Promise.all([listSeries(loc.boardId, loc.cardId, "1900-01-01", "2999-12-31"), listSpecSeries(loc.boardId, loc.cardId, "2999-12-31").catch(() => EMPTY_SPEC_SERIES)]);
+  const pts = cells.filter((c) => loc.isActual(c.key) && c.value !== "").sort((a, b) => (a.date + a.shift < b.date + b.shift ? -1 : 1));
+  const lastPt = pts.length > 0 ? pts[pts.length - 1] : null;
+  const n = lastPt ? Number(lastPt.value) : NaN;
+  const tail = pts.slice(-SPARK_POINTS).map((c) => Number(c.value)).filter((x) => Number.isFinite(x));
+  return { last: Number.isFinite(n) ? n : null, raw: lastPt ? lastPt.value : "", date: lastPt ? lastPt.date : "", spec, tail };
+}
+
+/** Where a priority's own metric keeps its readings: the driver's series
+ *  when it is one from the tree, else the series table at the priority's
+ *  own location. */
+export function ownMetricLocation(priorityId: string, m: TemplateMetric, driver: DriverNode | null): MetricLocation {
+  const loc = metricLocation(m, OWN_SERIES_BOARD, priorityId, [], driver);
+  return loc.driverId !== "" ? loc : { ...loc, cardId: ownSeriesCard(priorityId, m.key) };
+}
+
+/** The last reading of every metric defined ON these priorities, keyed
+ *  `<priorityId>|<metricKey>`. `site`: whose value driver tree a linked
+ *  metric reads ("" = none: a company-level priority's are typed). */
+export async function loadOwnMetricLasts(items: { id: string; site: string; metrics: TemplateMetric[] }[]): Promise<Map<string, DriverLast>> {
+  const out = new Map<string, DriverLast>();
+  const withMetrics = items.filter((x) => x.metrics.length > 0);
+  if (withMetrics.length === 0) return out;
+  const { listDrivers } = await import("../store/valueDrivers");
+  const driverCache = new Map<string, Promise<DriverNode[]>>();
+  const driversFor = (site: string) => {
+    if (!driverCache.has(site)) driverCache.set(site, listDrivers(site).catch(() => []));
+    return driverCache.get(site)!;
+  };
+  await Promise.all(
+    withMetrics.map(async (p) => {
+      const drivers = p.site !== "" && p.metrics.some((m) => m.driverId) ? await driversFor(p.site) : [];
+      await Promise.all(
+        p.metrics.map(async (m) => {
+          const d = m.driverId ? (drivers.find((x) => x.id === m.driverId) ?? null) : null;
+          const v = await readLast(ownMetricLocation(p.id, m, d), d).catch(() => null);
+          if (v !== null) out.set(`${p.id}|${m.key}`, v);
+        })
+      );
+    })
+  );
+  return out;
+}
+
+/** A priority's own metrics as values, in definition order. Every one
+ *  shows — there is no starring on a priority. */
+export function ownMetricValues(priorityId: string, metrics: TemplateMetric[], lasts: Map<string, DriverLast>): MetricValue[] {
+  return metrics.map((m) => ({ ...metricValueOf(m, lasts.get(`${priorityId}|${m.key}`) ?? null), starred: true }));
+}
+
 /** The last recorded reading per metric, read from wherever it lives
  *  (metricLocation): the driver's series, the seeded single card, or the
  *  Metrics card's sub-location. Reads coalesce per board. */
@@ -149,9 +233,6 @@ export async function loadMetricLasts(
   boards: Pick<BoardSummary, "boardId" | "manifestRaw">[] = []
 ): Promise<Map<string, DriverLast>> {
   const out = new Map<string, DriverLast>();
-  const { listDriverPoints, listDriverRaw, listSpecSeries } = await import("../store/driverSeries");
-  const { stateOf } = await import("./vdt/model");
-  const { listSeries } = await import("../store/series");
   const { listDrivers } = await import("../store/valueDrivers");
   const byBoard = new Map(boards.map((b) => [b.boardId, b]));
   const driverCache = new Map<string, Promise<DriverNode[]>>();
@@ -170,32 +251,10 @@ export async function loadMetricLasts(
         i.metrics.map(async (m) => {
           const d = m.driverId ? (drivers.find((x) => x.id === m.driverId) ?? null) : null;
           const loc = metricLocation(m, i.boardId, metricsCardId, slots, d);
-          try {
-            if (loc.driverId !== "" && d && d.tracking.kind !== "value") {
-              // a good / bad or picklist driver: the latest label + its state
-              const raw = await listDriverRaw(loc.driverId, "1900-01-01", "2999-12-31");
-              const lastPt = [...raw].sort((a, b) => (a.date + a.shift < b.date + b.shift ? -1 : 1)).pop() ?? null;
-              const st = stateOf(d.tracking, lastPt ? lastPt.value : "");
-              const v: DriverLast = { last: null, raw: lastPt ? lastPt.value : "", date: lastPt ? lastPt.date : "", spec: EMPTY_SPEC_SERIES, display: st };
-              out.set(`${i.id}|${m.key}`, v);
-              out.set(loc.driverId, v);
-            } else if (loc.driverId !== "") {
-              const [pts, spec] = await Promise.all([listDriverPoints(loc.driverId, "1900-01-01", "2999-12-31"), listSpecSeries("vdt", loc.driverId, "2999-12-31").catch(() => EMPTY_SPEC_SERIES)]);
-              const lastPt = pts.length > 0 ? pts[pts.length - 1] : null;
-              const v = { last: lastPt ? lastPt.value : null, raw: lastPt ? String(lastPt.value) : "", date: lastPt ? lastPt.date : "", spec, tail: pts.slice(-SPARK_POINTS).map((pt) => pt.value) };
-              out.set(`${i.id}|${m.key}`, v);
-              out.set(loc.driverId, v);
-            } else {
-              const [cells, spec] = await Promise.all([listSeries(loc.boardId, loc.cardId, "1900-01-01", "2999-12-31"), listSpecSeries(loc.boardId, loc.cardId, "2999-12-31").catch(() => EMPTY_SPEC_SERIES)]);
-              const pts = cells.filter((c) => loc.isActual(c.key) && c.value !== "").sort((a, b) => (a.date + a.shift < b.date + b.shift ? -1 : 1));
-              const lastPt = pts.length > 0 ? pts[pts.length - 1] : null;
-              const n = lastPt ? Number(lastPt.value) : NaN;
-              const tail = pts.slice(-SPARK_POINTS).map((c) => Number(c.value)).filter((x) => Number.isFinite(x));
-              out.set(`${i.id}|${m.key}`, { last: Number.isFinite(n) ? n : null, raw: lastPt ? lastPt.value : "", date: lastPt ? lastPt.date : "", spec, tail });
-            }
-          } catch {
-            /* no reading */
-          }
+          const v = await readLast(loc, d).catch(() => null);
+          if (v === null) return;
+          out.set(`${i.id}|${m.key}`, v);
+          if (loc.driverId !== "") out.set(loc.driverId, v);
         })
       );
     })

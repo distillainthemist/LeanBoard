@@ -401,6 +401,51 @@ Actions on a priority. App-only: no schema.
   Actions tab list and Gantt, the warning, the summary row, an adopted
   tile, a plain user. UAT-PRI-015.
 
+## As built — tranche 4 (2026-11-18, on dev, NOT released)
+
+Metrics on a priority. App-only: no schema.
+
+- **Stored.** `Priority.ownMetrics` (`TemplateMetric[]`), written as
+  `{ own: … }` entries AHEAD of the picks in `ben_objectivesjson`
+  (`priorities/model.ts` `parseOwnMetrics`, `objectivesJson`). At most
+  eight (`OWN_METRIC_CAP`), and the column is refused past 3,900
+  characters with a plain message.
+- **Readings.** `ben_ltkcardseries` at board `"priority"`, card
+  `<priorityId>/<metricKey>` (`ownSeriesCard`, kept inside the column's
+  80 characters); a metric picked from the value driver tree reads the
+  driver's series instead (`improvement/metricValues.ts`
+  `ownMetricLocation`, `loadOwnMetricLasts`, `ownMetricValues`). The
+  value rule is one function now, `metricValueOf`, shared with an
+  initiative's metrics.
+- **Objectives tab.** Always named "Objectives". "This priority" first:
+  the initiative metric editor (`renderMetricsList` with `noun:
+  "priority"`, no ★, no Link… / Promote…) and "Values…" on each row
+  opening the values grid. Then "★ <primary>" with its metrics card, or
+  "From its initiatives" with the tick list.
+- **Who.** The OWNING org's managers, on an active or proposed
+  priority. Everyone else, an adopting org included, reads them: a
+  light, "Name: objective", plan and actual, and a read-only grid.
+- **Company level.** No site, so no tree: "＋ Add metric" alone.
+- **Everywhere objectives show.** The priority's own metrics lead, then
+  the primary's starred or the ticked ones (`objectiveValues` is
+  additive): tile charts, executive summary, poster.
+- **Status.** An own metric short of plan or outside its limits makes
+  the priority off track, at every org that shows it (the metric is the
+  priority's, not the org's). The reason rides the circles' tooltip.
+- **The metric form.** On a priority it is titled "Add metric", its
+  three hint sentences are tooltips, Name carries the red asterisk and
+  the button waits for it (both forms). Found on the way: a form field
+  hidden by its form still showed (`.app-field` set `display: flex`
+  over the `hidden` attribute), so "Options" showed for every tracking
+  and unticking a Row did not hide its field, on the initiative form
+  too. Fixed with one rule, `.app-field[hidden]`.
+- **Left as found.** Removing a metric leaves its readings in the series
+  table, as removing an initiative metric does. The values grid's note
+  still says "this card's own readings".
+- **Not seen in the hosted player.** Checked in the harness: add a
+  metric, enter values, the tile chart and status, the read-only view.
+  UAT-PRI-016.
+
 ## Not in this round
 
 - The phone layout (decision 15).

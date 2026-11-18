@@ -1009,6 +1009,9 @@ body.app-update-gated > #app { filter: blur(2px); pointer-events: none; user-sel
 
 /* stacked form field: caption / control / hint */
 .app-field { display: flex; flex-direction: column; gap: 5px; max-width: 440px; }
+/* a field hidden by its form stays hidden (display: flex above beat the
+   attribute — the metric form's Options showed for every tracking) */
+.app-field[hidden] { display: none; }
 .app-field > .app-input { width: 100%; }
 .app-field-label {
   font-size: 11px;
@@ -5200,6 +5203,11 @@ button.app-cp-hcchip.app-cp-hcchip-stale:hover { background: rgba(255,255,255,0.
 .app-xs-countspair { display: flex; align-items: flex-start; gap: 26px; }
 /* the action dialog raised from a priority: over the priority popup */
 .app-quickadd-host.app-cp-actionhost { z-index: 9200; }
+/* the Objectives tab: the priority's own metrics */
+.app-cp-ov-ownmetrics { margin-bottom: 6px; }
+.app-cp-ov-ownmetrics .app-im-metricslist { display: flex; flex-direction: column; gap: 6px; }
+.app-cp-ov-objrow.app-cp-ov-ownrow { cursor: default; }
+.app-cp-ov-ownrow .app-cp-ov-objtext { flex: 1; min-width: 0; }
 /* Complete / Archive: its own actions are still open */
 .app-cp-openwarn { padding: 8px 10px; border: 1px solid #e6cf9a; border-radius: 6px; background: #fdf6e3; color: #5c4a12; font-size: 13px; }
 /* the popup's initiative row: why it is where it is */
