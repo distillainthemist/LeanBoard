@@ -21,6 +21,7 @@ import { Ben_ltkissuemessagesService } from "../generated/services/Ben_ltkissuem
 import { Ben_ltkissuewatchsService } from "../generated/services/Ben_ltkissuewatchsService";
 import type { Ben_ltkissues } from "../generated/models/Ben_ltkissuesModel";
 import { AudienceMember, audienceLine, issueAudience, sendLabel } from "./audience";
+import { queueOrder } from "./queueOrder";
 
 const OPEN_STATUSES = ["new", "triaged", "inprogress"] as const;
 const STATUS_WORDS: Record<string, string> = {
@@ -339,8 +340,8 @@ export async function renderIssuesAdmin(body: HTMLElement): Promise<void> {
       listHost.appendChild(note(`Issues could not be read: ${res.error?.message ?? ""}`));
       return;
     }
-    // priority rank first (unranked last), then oldest first — the
-    // queue reads top-to-bottom as "work on this next"
+    // priority rank first (unranked last), then NEWEST first
+    // (queueOrder.ts — it was oldest first until 2026-11-18)
     const uatRun = uatSel.value;
     const fromRun = (i: Issue): boolean => {
       if (uatRun === "all") return true;
@@ -350,12 +351,7 @@ export async function renderIssuesAdmin(body: HTMLElement): Promise<void> {
         return false;
       }
     };
-    const rows = [...(res.data ?? [])].filter(fromRun).sort((a, b) => {
-      const pa = a.ben_priority ?? Number.POSITIVE_INFINITY;
-      const pb = b.ben_priority ?? Number.POSITIVE_INFINITY;
-      if (pa !== pb) return pa - pb;
-      return Date.parse(a.createdon ?? "") - Date.parse(b.createdon ?? "");
-    });
+    const rows = queueOrder([...(res.data ?? [])].filter(fromRun));
     shown = rows;
     if (rows.length === 0) {
       listHost.appendChild(note("Nothing here — adjust the filters, or enjoy the silence."));

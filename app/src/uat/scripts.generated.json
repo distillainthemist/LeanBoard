@@ -4230,6 +4230,25 @@
        "expected": "the report's status reads Withdrawn with your reason on its thread; the Withdraw link shows only on your own open reports (never on one in progress, fixed or closed); the admin list shows it under Withdrawn and the PDF export carries the status",
        "hash": "a3cdcf08",
        "changed": "2026-10-26"
+      },
+      {
+       "id": "UAT-ISS-002",
+       "title": "The queue reads newest first",
+       "journey": "Journey 1 — Raising and following a report",
+       "persona": "superadmin",
+       "modules": [
+        "issues/adminTab.ts",
+        "issues/queueOrder.ts"
+       ],
+       "preconditions": "Settings → Issues with reports raised weeks apart; one older report given a priority rank",
+       "steps": [
+        "Open Settings → Issues and read the list from the top.",
+        "Raise a new report from the ? button; refresh the list.",
+        "Tick three issues of different ages and Export."
+       ],
+       "expected": "step 1 any ranked issues lead, by rank; under them the reports run from the most recent to the oldest; step 2 the new report is at the top of the unranked ones; step 3 the export lists the ticked issues in the same order",
+       "hash": "7b1bd995",
+       "changed": "2026-11-18"
       }
      ]
     }

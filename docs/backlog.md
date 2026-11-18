@@ -14,6 +14,9 @@ v0.92.0 carries the Utilities app in the managed solution, and v0.94.0
 and v0.95.0 are SOLUTION-CARRYING — import the solution first, then
 lock older builds from Settings once the new one runs.
 
+**On dev, NOT released (2026-11-18):** Settings → Issues reads newest
+first under any ranked issues (it was oldest first) — UAT-ISS-002.
+
 **On dev, NOT released (2026-11-18):** a new action needs its Action,
 a person and a due date, each marked with a red asterisk, and Raise /
 Save is disabled until they are filled (Raise used to do nothing,
