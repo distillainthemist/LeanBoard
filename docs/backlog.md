@@ -610,8 +610,8 @@ did not look like the same metric's chart). Nothing here is built.
   evenly spaced, whatever their age. The Metrics card chart draws the
   13-week page around today. Same series, different spans: the Yield
   driver on dev showed an 11-point climb on the tile and two points on
-  the card. Decide: leave it, or draw the sparkline over the chart's
-  span on a time axis. Ben has not chosen.
+  the card. **Decided (Ben, 2026-11-19): leave it** — the sparkline
+  stays the last 12 readings. Kept here as the explanation, not as work.
 - **A stale metric looks current.** The status rule judges the LAST
   reading whatever its age, and the sparkline shows no gap. A metric
   not filled in for nine weeks still reads on track. Offered: a "no

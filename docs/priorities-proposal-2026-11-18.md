@@ -455,8 +455,8 @@ Metrics on a priority. App-only: no schema.
   not the same span** (test 6, the Yield driver on dev: 11 weekly
   readings, 6 Jul to 14 Sep). The sparkline draws the last 12 READINGS
   whatever their age; the card's chart draws the 13-week page around
-  today, so only the two readings since 7 Sep fall in it. Not changed —
-  Ben to say whether the two should share a span.
+  today, so only the two readings since 7 Sep fall in it. Not changed:
+  Ben chose to leave the sparkline as it is (2026-11-19).
 - **Driver readings are sorted by date** (`store/seriesMap.ts`
   `sortPoints`, used by `listDriverPoints`). The read promised no order and the callers took the
   last row as the latest reading; a week filled in late would have
