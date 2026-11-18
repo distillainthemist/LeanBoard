@@ -3238,6 +3238,31 @@
        "expected": "step 1 each action's words stop at three lines; a column that holds more than fits shows whole cards only and ends \"+N more\" (N = the actions not shown), with no card cut through at the tile's bottom edge; a column that fits has no such line; step 2 the count follows the tile's height; step 3 the list ends \"+N more\" the same way; step 4 the opened card shows every action and scrolls, with no \"+N more\" — a tile still cannot be scrolled or clicked into",
        "hash": "b7fbdc84",
        "changed": "2026-11-18"
+      },
+      {
+       "id": "UAT-ACT-012",
+       "title": "What an action needs before it can be raised",
+       "journey": "Journey 4 — Shared actions, support, duplicate and message (2026-11-17)",
+       "persona": "assignee",
+       "modules": [
+        "shared/ui/actionUi.ts",
+        "shared/ui/baseCss.ts",
+        "controls/FiveWhys/editor.ts",
+        "controls/FaultTree/editor.ts",
+        "controls/RiskMatrix/editor.ts",
+        "controls/HeatmapCard/editor.ts"
+       ],
+       "preconditions": "a board with an Action card you may add to; an existing action with no due date (or one whose date you may clear); a 5 Whys, fault tree, risk matrix or heatmap card",
+       "steps": [
+        "Press ＋ Add action. Read the labels. Press Raise with nothing filled in.",
+        "Type the action; then tick a person; then set a due date. Read the line beside the buttons after each.",
+        "Press Raise.",
+        "Open the existing action: read its labels; clear its due date and Save. Open it again, clear both the Issue and the Action and press Save.",
+        "On the 5 Whys (or other) card add an entry, press \"＋ Add action\" inside the dialog, type an action only, and press Add."
+       ],
+       "expected": "step 1 Action, Who and Due each carry a \"Required\" tag (Issue, Start and Support do not); Raise does not close the dialog: the three fields are outlined in red, the cursor goes to Action, and beside the buttons it reads \"Required before Raise: Action, Who, Due\"; step 2 each field leaves the line as it is filled (\"… Who, Due\", then \"… Due\", then nothing) and loses its outline; step 3 the action is raised; step 4 an existing action shows no Required tags and saves without a due date or a person; with no Issue and no Action it is refused, \"Required before Save: Action\"; step 5 the entry is not added until the action has a person and a due date (\"Required before Add: Who, Due\"); leaving the action's text empty adds the entry with no action, as before",
+       "hash": "3f2df6ad",
+       "changed": "2026-11-18"
       }
      ]
     }

@@ -565,6 +565,8 @@ export class FaultTreeEditor {
           onClick: () => {
             const text = ta.value.trim();
             if (text === "") return;
+            // an action raised with the entry needs what, who and when
+            if (inline && inline.form.hasContent() && !inline.form.checkRequired({ verb: "Add" })) return;
             const created = newCause({
               text,
               parentId,

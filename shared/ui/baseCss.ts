@@ -168,6 +168,17 @@ export const LTK_BASE_CSS = `
 .ltk-dialog-footer {
   display: flex; justify-content: flex-end; gap: 8px; padding: 10px 16px 14px;
 }
+/* a field that must be filled says so on its label; one left empty is
+   outlined and named beside the buttons (the action form, 2026-11-18) */
+.ltk-req-tag {
+  display: inline-block; margin-left: 8px; font-size: 10.5px; font-weight: 600; letter-spacing: 0.02em;
+  text-transform: uppercase; color: #a4262c; background: #fde7e9; border-radius: 4px; padding: 1px 6px; vertical-align: middle;
+}
+.ltk-field-missing, .ltk-input.ltk-field-missing { border-color: #d13438 !important; box-shadow: 0 0 0 1px #d13438; }
+.ltk-checklist.ltk-field-missing { border-radius: 8px; box-shadow: 0 0 0 2px #d13438; }
+.ltk-act-missing { font-size: 13px; font-weight: 600; color: #a4262c; text-align: left; }
+.ltk-act-missing:empty { display: none; }
+.ltk-dialog-footer .ltk-act-missing { margin-right: auto; align-self: center; }
 /* destructive actions sit apart, far left, away from Cancel/Save */
 .ltk-dialog-footer .ltk-btn-danger { margin-right: auto; }
 

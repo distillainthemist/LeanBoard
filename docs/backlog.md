@@ -14,6 +14,11 @@ v0.92.0 carries the Utilities app in the managed solution, and v0.94.0
 and v0.95.0 are SOLUTION-CARRYING — import the solution first, then
 lock older builds from Settings once the new one runs.
 
+**On dev, NOT released (2026-11-18):** a new action needs its Action,
+a person and a due date, each tagged Required, and Raise names what is
+missing (it used to do nothing, silently) — UAT-ACT-012; existing
+actions are not held to it.
+
 **On dev, NOT released (2026-11-18):** the owner / role picker kept
 moving under the pointer as a name was typed (the dialog re-centred with
 every change of its list); the list now keeps one height (UAT-IMP-006).

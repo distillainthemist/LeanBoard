@@ -421,6 +421,8 @@ export class HeatmapEditor {
       onClick: () => {
         const note = ta.value.trim();
         if (note === "") return;
+        // an action raised with the entry needs what, who and when
+        if (inline && inline.form.hasContent() && !inline.form.checkRequired({ verb: "Add" })) return;
         if (pin) {
           pin.note = note;
           pin.severity = Number(sevSel.value);

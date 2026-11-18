@@ -449,6 +449,8 @@ export class RiskMatrixEditor {
         const riskText = riskField.value.trim();
         const hazardText = hazard.value.trim();
         if (riskText === "" && hazardText === "") return;
+        // an action raised with the entry needs what, who and when
+        if (inline && inline.form.hasContent() && !inline.form.checkRequired({ verb: "Add" })) return;
         const pl = plSel.value === "" ? null : Number(plSel.value);
         const pc = pcSel.value === "" ? null : Number(pcSel.value);
         if (risk) {

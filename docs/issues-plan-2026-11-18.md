@@ -372,6 +372,23 @@ same top and height at every step, desktop and phone width. The same
 pickers serve a priority's owner. UAT-IMP-006 extended. On dev, not
 released.
 
+## Added the same day — what an action needs to be raised
+
+Ben, 2026-11-18: "it isn't clear what fields need to be completed to be
+saved/raised." The only rule was that the Issue OR the Action had
+text; with both empty, Raise did nothing and said nothing; no field was
+marked. Ben's rule: a NEW action needs **Action, Who and Due**. Built
+in `buildActionForm` (`checkRequired`, `missingLine`): a "Required" tag
+on those three labels, and a press on Raise that outlines what is
+missing, puts the cursor in the first and says "Required before Raise:
+…" beside the buttons; each field leaves the line as it is filled. An
+action that already exists is NOT held to it (old actions with no
+owner or date stay editable): it only cannot lose both its Issue and
+its Action. The four card dialogs that raise an action with an entry
+(5 Whys, fault tree, risk matrix, heatmap) ask the same once the
+action has text. An Issue alone no longer raises an action. Every
+raise goes through this one form. UAT-ACT-012. On dev, not released.
+
 ## 6. Questions for Ben
 
 1. 23: owners, approvers and reviewers land on every status too?

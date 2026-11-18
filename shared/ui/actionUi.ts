@@ -44,6 +44,16 @@ export interface ActionForm {
   pickedCount: () => number;
   /** The people or their parts changed. */
   onPeople: (listener: () => void) => void;
+  /** Is everything an action needs filled in? When not, the fields that
+   *  are missing are marked, the first takes the focus and `missingLine`
+   *  names them. A NEW action needs what, who and when (Ben,
+   *  2026-11-18); an existing one only keeps some words — its Action,
+   *  or failing that the `issue` the host passes. */
+  checkRequired: (opts?: { issue?: string; verb?: string }) => boolean;
+  /** "Required before Raise: Who, Due" — empty while nothing is missing.
+   *  It sits at the foot of the form; a host may move it (the action
+   *  dialog puts it beside its buttons). */
+  missingLine: HTMLElement;
 }
 
 /** One row of a people search's list. */
@@ -535,11 +545,22 @@ export function buildActionForm(
   layoutSupport();
 
   wrap.classList.add("ltk-act-form");
-  wrap.appendChild(fieldRow("Action", desc));
+  // REQUIRED to raise (Ben, 2026-11-18): what, who and when — each says
+  // so on its label. Raise used to do nothing, silently, when both the
+  // Issue and the Action were empty, and nothing said which fields
+  // counted. An action that already exists is not held to it (old
+  // actions without an owner or a date must stay editable).
+  const raising = initial === undefined || fresh;
+  const requiredTag = (): HTMLElement => el("span", "ltk-req-tag", "Required");
+  const actionRow = fieldRow("Action", desc);
+  if (raising) actionRow.querySelector(".ltk-field-label")?.appendChild(requiredTag());
+  wrap.appendChild(actionRow);
   // Who: a label like any other field's, then the grid — the search box
   // its first cell, the people of the meeting or initiative after it
   const whoBlock = el("div", "ltk-who");
-  whoBlock.appendChild(el("div", "ltk-field-label", "Who"));
+  const whoLabel = el("div", "ltk-field-label", "Who");
+  if (raising) whoLabel.appendChild(requiredTag());
+  whoBlock.appendChild(whoLabel);
   if (whoBox) whoWrap.insertBefore(whoBox, whoWrap.firstChild);
   whoBlock.appendChild(whoWrap);
   wrap.appendChild(whoBlock);
@@ -748,8 +769,50 @@ export function buildActionForm(
   startRow.classList.add("ltk-act-date");
   const dueRow = fieldRow("Due", due);
   dueRow.classList.add("ltk-act-date");
+  if (raising) dueRow.querySelector(".ltk-field-label")?.appendChild(requiredTag());
   dates.append(startRow, dueRow);
   wrap.appendChild(dates);
+
+  // what is missing, said in one line and shown on the fields
+  const missingLine = el("div", "ltk-act-missing");
+  missingLine.setAttribute("role", "alert");
+  wrap.appendChild(missingLine);
+  const whoMark: HTMLElement = freeWho ?? whoWrap;
+  const anyWho = (): boolean => (freeWho ? freeWho.value.trim() !== "" : picked().length > 0);
+  let missingVerb = "Raise";
+  // the line follows the fields: each one filled leaves it at once
+  const clearMissing = () => {
+    if (missingLine.textContent === "") return;
+    if (desc.value.trim() !== "") desc.classList.remove("ltk-field-missing");
+    if (anyWho()) whoMark.classList.remove("ltk-field-missing");
+    if (due.value !== "") due.classList.remove("ltk-field-missing");
+    const left = [
+      ["Action", desc],
+      ["Who", whoMark],
+      ["Due", due],
+    ].filter(([, m]) => (m as HTMLElement).classList.contains("ltk-field-missing")).map(([label]) => label as string);
+    missingLine.textContent = left.length > 0 ? `Required before ${missingVerb}: ${left.join(", ")}` : "";
+  };
+  desc.addEventListener("input", clearMissing);
+  due.addEventListener("change", clearMissing);
+  due.addEventListener("input", clearMissing);
+  freeWho?.addEventListener("input", clearMissing);
+  peopleListeners.push(clearMissing);
+  const checkRequired = (opts: { issue?: string; verb?: string } = {}): boolean => {
+    const missing: { label: string; mark: HTMLElement; focus: () => void }[] = [];
+    const noAction = desc.value.trim() === "";
+    if (raising ? noAction : noAction && (opts.issue ?? "").trim() === "") missing.push({ label: "Action", mark: desc, focus: () => desc.focus() });
+    if (raising && !anyWho()) {
+      missing.push({ label: "Who", mark: whoMark, focus: () => (freeWho ?? whoWrap.querySelector<HTMLElement>("input"))?.focus() });
+    }
+    if (raising && due.value === "") missing.push({ label: "Due", mark: due, focus: () => due.focus() });
+    for (const m of [desc, whoMark, due]) m.classList.remove("ltk-field-missing");
+    for (const m of missing) m.mark.classList.add("ltk-field-missing");
+    missingVerb = opts.verb ?? (raising ? "Raise" : "Save");
+    missingLine.textContent = missing.length > 0 ? `Required before ${missingVerb}: ${missing.map((m) => m.label).join(", ")}` : "";
+    missing[0]?.focus();
+    return missing.length === 0;
+  };
 
   return {
     el: wrap,
@@ -768,6 +831,8 @@ export function buildActionForm(
     onPeople: (listener) => {
       peopleListeners.push(listener);
     },
+    checkRequired,
+    missingLine,
     apply: (action) => {
       action.description = desc.value.trim();
       action.start = start.value;
@@ -1750,7 +1815,9 @@ export function openActionDialog(o: ActionDialogOptions): void {
 
   let asking = false;
   const save = () => {
-    if (o.isNew && !form.hasContent() && issue.value.trim() === "") return;
+    // what, who and when for a new action; some words for an old one —
+    // said beside the buttons, never a press that does nothing
+    if (!form.checkRequired({ issue: issue.value })) return;
     const nextDue = form.due();
     if (prevDue === "" || nextDue === prevDue) return commit(null);
     if (asking) return;
@@ -1857,6 +1924,8 @@ export function openActionDialog(o: ActionDialogOptions): void {
     maxWidth: 940,
   });
   dlg.body.classList.add("ltk-act-body");
+  // what is missing is said beside the buttons that were pressed
+  dlg.root.querySelector(".ltk-dialog-footer")?.prepend(form.missingLine);
   // the title row's tools: "✉ Message" on a saved action (issue 6 — tell
   // someone about it by Teams or email, the host's own notify panel),
   // then "⚑ Flag for support"
