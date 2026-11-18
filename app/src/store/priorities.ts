@@ -185,6 +185,15 @@ export async function loadCascade(company: string): Promise<CascadeData> {
   };
 }
 
+/** One priority's statement, by its id — a single row. A charter field
+ *  that shows the primary priority used to load the whole cascade (every
+ *  pillar, priority and assignment of every company) for this one line. */
+export async function priorityStatement(priorityId: string): Promise<string> {
+  if (priorityId === "") return "";
+  const rows = await allWhere(Ben_ltkprioritiesService.getAll, eq("ben_priorityid", priorityId));
+  return rows[0] ? (rows[0].ben_statement ?? rows[0].ben_name ?? "") : "";
+}
+
 /** Create or update a priority. Lookups bind by the referenced rows'
  *  GUIDs, resolved from `data` (which must include them). Returns the
  *  row GUID. */

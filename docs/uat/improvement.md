@@ -117,3 +117,15 @@ steps:
 3. Go back to the board and read the Charter tile.
 4. Read the field whose label is a full sentence, on the tile and in the focused view.
 expected: step 1 Scope In grows to show its lines and the card scrolls; step 2 Title and Owner stay one line tall (about the height of their text and label), not as tall as Scope In; step 3 the tile's text is never smaller than three-quarters of its normal size — a charter too long for the tile is cut off at the tile's bottom edge rather than shrunk further; step 4 the long label wraps onto a second line and nothing of it is cut off (the board designer still shows labels on one line)
+
+### UAT-IMP-011 — Moving between an initiative's cards is as quick as a meeting's
+persona: member
+modules: screens/cardEditor.ts improvement/binding.ts store/priorities.ts
+preconditions: an initiative linked to a primary priority, whose board has a Charter with fields bound to the header (title, a role, a custom field and "Primary priority"), an Action Plan and a Metrics card; a meeting board with three cards, for comparison
+steps:
+1. Open the meeting board's first card and step through its cards with NEXT › and the tabs. Note the wait.
+2. Open the initiative's Charter and step through its cards the same way, forward and back, several times.
+3. On the Charter, edit a bound text field and a role (pick a person); step to the Action Plan and back.
+4. On the Action Plan, add an action and read the people offered first in Who.
+expected: step 2 after the first card each step is about as quick as the meeting's — the old card stays under the spinner for a moment, never several seconds; step 3 the Charter shows the edits on return, the role picker lists the roster, and the "Primary priority" field reads the priority's statement; step 4 the initiative's role-holders lead the Who list, as before
+

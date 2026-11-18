@@ -123,6 +123,187 @@ function personTypeAhead(placeholder: string, find: (q: string) => Person[], onP
   return { el: box, input };
 }
 
+/** One row of a people search's list. */
+interface PeopleOption {
+  label: string;
+  sub: string;
+  run: () => void;
+}
+
+/**
+ * THE people search of the action dialog (2026-11-18): Who and Support
+ * are the same box. One list opens under it as you type — the people of
+ * the app first (`local` decides which and what a pick does), then,
+ * where the host offers it (admins), the directory, searched by itself
+ * after a short pause; a directory pick adds the person to the app.
+ * ↑ ↓ move, Enter picks (never the dialog's Save), Escape closes.
+ * Until then Support searched the app's people only, so a name Who
+ * found in the directory was "not found" one row down (Sue, 2026-11-17).
+ */
+function peopleSearchBox(opts: {
+  placeholder: string;
+  label: string;
+  /** The app's people matching the lower-cased query, best first. */
+  local: (ql: string) => PeopleOption[];
+  /** Ids the app already knows: directory hits among them are not offered. */
+  known: () => Set<string>;
+  /** A directory person, now added to the app. */
+  onAdded: (person: { whoId: string; who: string }) => void;
+  /** After any pick (the box is already cleared and closed). */
+  onPicked: () => void;
+}): { el: HTMLElement; input: HTMLInputElement; setRoad: (r: ActionDirectoryRoad | null) => void } {
+  const query = textInput("", { placeholder: opts.placeholder });
+  query.setAttribute("aria-label", opts.label);
+  query.setAttribute("role", "combobox");
+  query.setAttribute("aria-autocomplete", "list");
+  query.autocomplete = "off";
+  const pop = el("div", "ltk-who-pop");
+  pop.setAttribute("role", "listbox");
+  pop.style.display = "none";
+  const box = el("div", "ltk-who-box");
+  box.append(query, pop);
+  let road: ActionDirectoryRoad | null = null;
+  let dir: { q: string; state: "idle" | "busy" | "done" | "failed"; hits: { objectId: string; displayName: string; mail: string }[] } = { q: "", state: "idle", hits: [] };
+  let dirSeq = 0;
+  let dirTimer: ReturnType<typeof setTimeout> | null = null;
+  let active = 0;
+  let options: { el: HTMLButtonElement; run: () => void }[] = [];
+  const DIR_MIN = 3;
+  const close = () => {
+    pop.style.display = "none";
+    query.setAttribute("aria-expanded", "false");
+    options = [];
+  };
+  // a pick ADDS; the box clears
+  const selectOnly = (pick: () => void) => {
+    pick();
+    query.value = "";
+    close();
+    opts.onPicked();
+  };
+  const paintActive = () => {
+    options.forEach((o, n) => {
+      o.el.classList.toggle("ltk-who-opt-on", n === active);
+      o.el.setAttribute("aria-selected", String(n === active));
+    });
+    options[active]?.el.scrollIntoView({ block: "nearest" });
+  };
+  const option = (label: string, sub: string, run: () => void): HTMLButtonElement => {
+    const b = el("button", "ltk-who-opt") as HTMLButtonElement;
+    b.type = "button";
+    b.setAttribute("role", "option");
+    b.appendChild(el("span", "ltk-who-opt-name", label));
+    if (sub !== "") b.appendChild(el("span", "ltk-who-opt-sub", sub));
+    // mousedown, not click: the box keeps its focus and the list its place
+    b.addEventListener("mousedown", (e) => e.preventDefault());
+    b.addEventListener("click", run);
+    options.push({ el: b, run });
+    return b;
+  };
+  const render = () => {
+    while (pop.firstChild) pop.removeChild(pop.firstChild);
+    options = [];
+    const q = query.value.trim();
+    if (q === "") return close();
+    const found = opts.local(q.toLowerCase());
+    for (const o of found) pop.appendChild(option(o.label, o.sub, () => selectOnly(o.run)));
+    if (road !== null) {
+      if (q.length < DIR_MIN) {
+        if (found.length === 0) pop.appendChild(el("div", "ltk-who-pop-note", `Keep typing to search the directory (${DIR_MIN} letters).`));
+      } else if (dir.q === q && dir.state === "done") {
+        const known = opts.known();
+        const fresh = dir.hits.filter((h) => !known.has(h.objectId)).slice(0, 8);
+        if (fresh.length > 0) pop.appendChild(el("div", "ltk-who-pop-h", "In the directory — adds them to the app"));
+        for (const h of fresh) {
+          const b = option(h.displayName, h.mail, () => {
+            b.disabled = true;
+            b.firstElementChild!.textContent = `Adding ${h.displayName}…`;
+            void road!.add(h).then(
+              (added) => selectOnly(() => opts.onAdded({ whoId: added.whoId, who: added.who })),
+              (err) => {
+                b.disabled = false;
+                b.firstElementChild!.textContent = h.displayName;
+                const sub = b.querySelector(".ltk-who-opt-sub") ?? b.appendChild(el("span", "ltk-who-opt-sub", ""));
+                sub.textContent = err instanceof Error ? err.message : "Could not add them";
+                sub.classList.add("ltk-who-opt-err");
+              }
+            );
+          });
+          pop.appendChild(b);
+        }
+        if (fresh.length === 0 && found.length === 0) pop.appendChild(el("div", "ltk-who-pop-note", "No one matches, in the app or the directory."));
+      } else if (dir.q === q && dir.state === "failed") {
+        pop.appendChild(el("div", "ltk-who-pop-note", "The directory search failed. Check the connection and type again."));
+      } else {
+        pop.appendChild(el("div", "ltk-who-pop-note", "Searching the directory…"));
+      }
+    } else if (found.length === 0) {
+      pop.appendChild(el("div", "ltk-who-pop-note", "No one matches."));
+    }
+    active = Math.min(active, Math.max(0, options.length - 1));
+    pop.style.display = "";
+    query.setAttribute("aria-expanded", "true");
+    paintActive();
+  };
+  const searchDirectory = () => {
+    if (dirTimer !== null) clearTimeout(dirTimer);
+    const q = query.value.trim();
+    if (road === null || q.length < DIR_MIN) return;
+    if (dir.q === q && dir.state !== "idle") return;
+    dir = { q, state: "busy", hits: [] };
+    // a pause in the typing, then ONE call for what is in the box
+    dirTimer = setTimeout(() => {
+      const seq = ++dirSeq;
+      void road!.search(q).then(
+        (hits) => {
+          if (seq !== dirSeq) return;
+          dir = { q, state: "done", hits };
+          if (query.value.trim() === q) render();
+        },
+        () => {
+          if (seq !== dirSeq) return;
+          dir = { q, state: "failed", hits: [] };
+          if (query.value.trim() === q) render();
+        }
+      );
+    }, 350);
+  };
+  query.addEventListener("input", () => {
+    active = 0;
+    searchDirectory();
+    render();
+  });
+  query.addEventListener("focus", () => {
+    if (query.value.trim() !== "") render();
+  });
+  query.addEventListener("blur", () => setTimeout(() => {
+    if (document.activeElement !== query) close();
+  }, 150));
+  query.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      if (options.length === 0) return;
+      e.preventDefault();
+      active = (active + (e.key === "ArrowDown" ? 1 : options.length - 1)) % options.length;
+      paintActive();
+    } else if (e.key === "Enter") {
+      // never the dialog's Save: Enter picks the highlighted person
+      e.preventDefault();
+      options[active]?.run();
+    } else if (e.key === "Escape" && pop.style.display !== "none") {
+      e.preventDefault();
+      query.value = "";
+      close();
+    }
+  });
+  return {
+    el: box,
+    input: query,
+    setRoad: (r) => {
+      road = r;
+    },
+  };
+}
+
 /** The action fields: description, who (one person or several — a
  *  shared action, a part each), support, the dates. */
 export function buildActionForm(
@@ -148,10 +329,12 @@ export function buildActionForm(
   // reopens every part (mergeAssignees)
   const initialClosed = initial !== undefined && (initial.status === "done" || initial.status === "verify");
   const keyOf = (p: { whoId: string; who: string }): string => (p.whoId !== "" ? p.whoId : `name:${p.who.toLowerCase()}`);
-  /** People assigned who are NOT a tick box in the grid (a team added in
-   *  one go, assignees from outside the meeting): removable chips under
-   *  it — a hundred tick boxes would bury the form. */
-  let extras: { whoId: string; who: string }[] = [];
+  // People assigned from OUTSIDE the grid's own people (a team cascaded
+  // in one go, assignees from outside the meeting) are boxes in the same
+  // grid as everyone else, marked `extra` (Ben, 2026-11-17: they were
+  // pills under it, a second format for the same thing). Past
+  // EXTRAS_SHOWN of them the rest fold behind "+n more" — a hundred
+  // boxes would bury the form.
   /** Parts ticked or unticked here, by person (issue 10). */
   const staged = new Map<string, boolean>();
   let refreshShared: () => void = () => undefined;
@@ -180,7 +363,7 @@ export function buildActionForm(
   const primary = savedShared ? split.upFront.filter(onAction) : split.upFront;
   const secondary = savedShared ? [...split.upFront.filter((x) => !onAction(x)), ...split.behindSearch] : split.behindSearch;
   const whoWrap = people.length > 0 ? checklist() : el("div");
-  const checks: { box: HTMLInputElement; wrap: HTMLElement; person: Person; part: HTMLButtonElement }[] = [];
+  const checks: { box: HTMLInputElement; wrap: HTMLElement; person: Person; part: HTMLButtonElement; extra: boolean }[] = [];
   /** A person's PART, as a small circle on their own box (Ben,
    *  2026-11-17 — it was a second list of the same names under the
    *  first): empty = still to do, ticked = done. Shown only on a shared
@@ -201,7 +384,7 @@ export function buildActionForm(
   let freeWho: HTMLInputElement | null = null;
   const isCurrent = (person: { whoId: string; who: string }) =>
     initialAssignees.some((x) => (x.whoId !== "" && x.whoId === person.whoId) || x.who === person.who);
-  const addChip = (person: Person, checked: boolean) => {
+  const addChip = (person: Person, checked: boolean, extra = false) => {
     if (signOff) {
       // a SAVED shared action (Ben, 2026-11-17): the box IS the person's
       // sign-off — a press anywhere on it records their part — and taking
@@ -243,7 +426,7 @@ export function buildActionForm(
       });
       wrap.append(box, part, el("span", "ltk-signoff-name", person.who), x);
       whoWrap.appendChild(wrap);
-      checks.push({ box, wrap, person, part });
+      checks.push({ box, wrap, person, part, extra });
       return;
     }
     const item = checkItem(person.who);
@@ -255,15 +438,14 @@ export function buildActionForm(
     const part = partButton(person);
     item.wrap.appendChild(part);
     whoWrap.appendChild(item.wrap);
-    checks.push({ box: item.box, wrap: item.wrap, person, part });
+    checks.push({ box: item.box, wrap: item.wrap, person, part, extra });
   };
   if (people.length > 0) {
     for (const person of primary) addChip(person, isCurrent(person));
-    // assignees who are not among the chips: one alone is pinned as a
-    // ticked chip (as before); several sit as removable chips below
+    // assignees who are not among the chips join the grid as boxes of
+    // their own: one alone as before, several as the foldable extras
     const outside = initialAssignees.filter((x) => !checks.some((c) => c.box.checked && ((x.whoId !== "" && c.person.whoId === x.whoId) || c.person.who === x.who)));
-    if (outside.length === 1) addChip({ whoId: outside[0].whoId, who: outside[0].who, initials: "" }, true);
-    else extras = outside.map((x) => ({ whoId: x.whoId, who: x.who }));
+    for (const x of outside) addChip({ whoId: x.whoId, who: x.who, initials: "" }, true, outside.length > 1);
   } else {
     freeWho = textInput(currentWho?.who ?? "", { placeholder: "Who" });
     whoWrap.appendChild(freeWho);
@@ -276,173 +458,45 @@ export function buildActionForm(
   // where the host offers it (admins), the directory, searched by itself
   // after a short pause. ↑ ↓ move, Enter picks, Escape closes.
   let whoBox: HTMLElement | null = null;
+  /** Both searches of the dialog, for the one directory road. */
+  const searches: { setRoad: (r: ActionDirectoryRoad | null) => void }[] = [];
   if (people.length > 0) {
-    const query = textInput("", { placeholder: "Search everyone…" });
-    query.setAttribute("aria-label", "Search everyone");
-    query.setAttribute("role", "combobox");
-    query.setAttribute("aria-autocomplete", "list");
-    query.autocomplete = "off";
-    const pop = el("div", "ltk-who-pop");
-    pop.setAttribute("role", "listbox");
-    pop.style.display = "none";
+    const whoSearch = peopleSearchBox({
+      placeholder: "Search everyone…",
+      label: "Search everyone",
+      // the app's people: the chips already shown, then the wider roster
+      local: (ql) => {
+        const shownIds = new Set(checks.map((c) => c.person.whoId));
+        const among = checks.filter((c) => c.person.who.toLowerCase().includes(ql)).slice(0, 6);
+        const behind = secondary.filter((x) => !shownIds.has(x.whoId) && x.who.toLowerCase().includes(ql)).slice(0, 8);
+        return [
+          ...among.map((c) => ({
+            label: c.person.who,
+            sub: c.box.checked ? "assigned" : "",
+            run: () => {
+              c.box.checked = true;
+              c.wrap.classList.add("ltk-check-on");
+            },
+          })),
+          ...behind.map((person) => ({ label: person.who, sub: "", run: () => addChip(person, true) })),
+        ];
+      },
+      known: () => new Set([...checks.map((c) => c.person.whoId), ...secondary.map((x) => x.whoId)]),
+      onAdded: (added) => addChip({ whoId: added.whoId, who: added.who, initials: "" }, true),
+      // several people may share the action
+      onPicked: () => refreshShared(),
+    });
+    searches.push(whoSearch);
     // the box is the FIRST cell of the people grid (Ben, 2026-11-16) —
     // "find someone" sits where the people are, the same size as one of
     // them; its list opens under it, over the grid
-    const box = el("div", "ltk-who-box");
-    box.append(query, pop);
+    const box = whoSearch.el;
     whoBox = box;
-    let road: ActionDirectoryRoad | null = null;
-    let dir: { q: string; state: "idle" | "busy" | "done" | "failed"; hits: { objectId: string; displayName: string; mail: string }[] } = { q: "", state: "idle", hits: [] };
-    let dirSeq = 0;
-    let dirTimer: ReturnType<typeof setTimeout> | null = null;
-    let active = 0;
-    let options: { el: HTMLButtonElement; run: () => void }[] = [];
-    const DIR_MIN = 3;
-    // a pick ADDS (several people may share the action); the box clears
-    const selectOnly = (pick: () => void) => {
-      pick();
-      query.value = "";
-      close();
-      refreshShared();
-    };
-    const close = () => {
-      pop.style.display = "none";
-      query.setAttribute("aria-expanded", "false");
-      options = [];
-    };
-    const paintActive = () => {
-      options.forEach((o, n) => {
-        o.el.classList.toggle("ltk-who-opt-on", n === active);
-        o.el.setAttribute("aria-selected", String(n === active));
-      });
-      options[active]?.el.scrollIntoView({ block: "nearest" });
-    };
-    const option = (label: string, sub: string, run: () => void): HTMLButtonElement => {
-      const b = el("button", "ltk-who-opt") as HTMLButtonElement;
-      b.type = "button";
-      b.setAttribute("role", "option");
-      b.appendChild(el("span", "ltk-who-opt-name", label));
-      if (sub !== "") b.appendChild(el("span", "ltk-who-opt-sub", sub));
-      // mousedown, not click: the box keeps its focus and the list its place
-      b.addEventListener("mousedown", (e) => e.preventDefault());
-      b.addEventListener("click", run);
-      options.push({ el: b, run });
-      return b;
-    };
-    const render = () => {
-      while (pop.firstChild) pop.removeChild(pop.firstChild);
-      options = [];
-      const q = query.value.trim();
-      if (q === "") return close();
-      const ql = q.toLowerCase();
-      // the app's people: the chips already shown, then the wider roster
-      const shownIds = new Set(checks.map((c) => c.person.whoId));
-      const among = checks.filter((c) => c.person.who.toLowerCase().includes(ql)).slice(0, 6);
-      const behind = secondary.filter((x) => !shownIds.has(x.whoId) && x.who.toLowerCase().includes(ql)).slice(0, 8);
-      for (const c of among) {
-        pop.appendChild(
-          option(c.person.who, c.box.checked ? "assigned" : "", () =>
-            selectOnly(() => {
-              c.box.checked = true;
-              c.wrap.classList.add("ltk-check-on");
-            })
-          )
-        );
-      }
-      for (const person of behind) pop.appendChild(option(person.who, "", () => selectOnly(() => addChip(person, true))));
-      const known = new Set([...shownIds, ...secondary.map((x) => x.whoId)]);
-      if (road !== null) {
-        if (q.length < DIR_MIN) {
-          if (among.length + behind.length === 0) pop.appendChild(el("div", "ltk-who-pop-note", `Keep typing to search the directory (${DIR_MIN} letters).`));
-        } else if (dir.q === q && dir.state === "done") {
-          const fresh = dir.hits.filter((h) => !known.has(h.objectId)).slice(0, 8);
-          if (fresh.length > 0) pop.appendChild(el("div", "ltk-who-pop-h", "In the directory — adds them to the app"));
-          for (const h of fresh) {
-            const b = option(h.displayName, h.mail, () => {
-              b.disabled = true;
-              b.firstElementChild!.textContent = `Adding ${h.displayName}…`;
-              void road!.add(h).then(
-                (added) => selectOnly(() => addChip({ whoId: added.whoId, who: added.who, initials: "" }, true)),
-                (err) => {
-                  b.disabled = false;
-                  b.firstElementChild!.textContent = h.displayName;
-                  const sub = b.querySelector(".ltk-who-opt-sub") ?? b.appendChild(el("span", "ltk-who-opt-sub", ""));
-                  sub.textContent = err instanceof Error ? err.message : "Could not add them";
-                  sub.classList.add("ltk-who-opt-err");
-                }
-              );
-            });
-            pop.appendChild(b);
-          }
-          if (fresh.length === 0 && among.length + behind.length === 0) pop.appendChild(el("div", "ltk-who-pop-note", "No one matches, in the app or the directory."));
-        } else if (dir.q === q && dir.state === "failed") {
-          pop.appendChild(el("div", "ltk-who-pop-note", "The directory search failed. Check the connection and type again."));
-        } else {
-          pop.appendChild(el("div", "ltk-who-pop-note", "Searching the directory…"));
-        }
-      } else if (among.length + behind.length === 0) {
-        pop.appendChild(el("div", "ltk-who-pop-note", "No one matches."));
-      }
-      active = Math.min(active, Math.max(0, options.length - 1));
-      pop.style.display = "";
-      query.setAttribute("aria-expanded", "true");
-      paintActive();
-    };
-    const searchDirectory = () => {
-      if (dirTimer !== null) clearTimeout(dirTimer);
-      const q = query.value.trim();
-      if (road === null || q.length < DIR_MIN) return;
-      if (dir.q === q && dir.state !== "idle") return;
-      dir = { q, state: "busy", hits: [] };
-      // a pause in the typing, then ONE call for what is in the box
-      dirTimer = setTimeout(() => {
-        const seq = ++dirSeq;
-        void road!.search(q).then(
-          (found) => {
-            if (seq !== dirSeq) return;
-            dir = { q, state: "done", hits: found };
-            if (query.value.trim() === q) render();
-          },
-          () => {
-            if (seq !== dirSeq) return;
-            dir = { q, state: "failed", hits: [] };
-            if (query.value.trim() === q) render();
-          }
-        );
-      }, 350);
-    };
-    query.addEventListener("input", () => {
-      active = 0;
-      searchDirectory();
-      render();
-    });
-    query.addEventListener("focus", () => {
-      if (query.value.trim() !== "") render();
-    });
-    query.addEventListener("blur", () => setTimeout(() => {
-      if (document.activeElement !== query) close();
-    }, 150));
-    query.addEventListener("keydown", (e) => {
-      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-        if (options.length === 0) return;
-        e.preventDefault();
-        active = (active + (e.key === "ArrowDown" ? 1 : options.length - 1)) % options.length;
-        paintActive();
-      } else if (e.key === "Enter") {
-        // never the dialog's Save: Enter picks the highlighted person
-        e.preventDefault();
-        options[active]?.run();
-      } else if (e.key === "Escape" && pop.style.display !== "none") {
-        e.preventDefault();
-        query.value = "";
-        close();
-      }
-    });
     // with nobody behind the chips and no directory, there is nothing to
     // search: the box shows only once one of the two exists
     box.style.display = secondary.length > 0 ? "" : "none";
     void actionDirectory().then((r) => {
-      road = r;
+      for (const x of searches) x.setRoad(r);
       if (r !== null) box.style.display = "";
     });
   }
@@ -454,9 +508,6 @@ export function buildActionForm(
   const supWrap = el("div", "ltk-sup");
   const supChips = el("div", "ltk-sup-chips");
   const supSearch = el("div", "ltk-who-search");
-  const supQuery = textInput("", { placeholder: people.length > 0 ? "Add someone in support…" : "Name, then Enter" });
-  supQuery.setAttribute("aria-label", "Add someone in support");
-  const supResults = el("div", "ltk-who-results");
   const sameWho = (a: { whoId: string; who: string }, b: { whoId: string; who: string }) =>
     a.whoId !== "" && b.whoId !== "" ? a.whoId === b.whoId : a.who.toLowerCase() === b.who.toLowerCase();
   const paintSupport = () => {
@@ -480,32 +531,59 @@ export function buildActionForm(
   const addSupporter = (p: Supporter) => {
     if (!supporters.some((y) => sameWho(y, p))) supporters = [...supporters, p];
     supSearching = false;
-    supQuery.value = "";
-    paintSupportResults();
     paintSupport();
   };
-  const paintSupportResults = () => {
-    while (supResults.firstChild) supResults.removeChild(supResults.firstChild);
-    const q = supQuery.value.trim().toLowerCase();
-    if (q === "" || people.length === 0) return;
-    const matches = people.filter((p) => p.who.toLowerCase().includes(q) && !supporters.some((y) => sameWho(y, p))).slice(0, 8);
-    for (const person of matches) {
-      const hit = el("button", "ltk-check ltk-who-hit", person.who) as HTMLButtonElement;
-      hit.type = "button";
-      hit.addEventListener("click", () => addSupporter({ whoId: person.whoId, who: person.who }));
-      supResults.appendChild(hit);
+  /** Everyone the dialog knows: the boxes in the grid (a person an admin
+   *  has just added through Who among them), then the roster behind. */
+  const everyone = (): Person[] => {
+    const seen = new Set<string>();
+    const out: Person[] = [];
+    for (const person of [...checks.map((c) => c.person), ...secondary, ...people]) {
+      const k = keyOf(person);
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push(person);
     }
+    return out;
   };
-  supQuery.addEventListener("input", paintSupportResults);
-  supQuery.addEventListener("keydown", (e) => {
-    if (e.key !== "Enter") return;
-    e.preventDefault();
+  let supInput: HTMLInputElement;
+  if (people.length > 0) {
+    // the SAME search as Who (2026-11-18): the app's people, then the
+    // directory for those who may add from it
+    const supBox = peopleSearchBox({
+      placeholder: "Add someone in support…",
+      label: "Add someone in support",
+      local: (ql) =>
+        everyone()
+          .filter((person) => person.who.toLowerCase().includes(ql) && !supporters.some((y) => sameWho(y, person)))
+          .slice(0, 8)
+          .map((person) => ({ label: person.who, sub: "", run: () => addSupporter({ whoId: person.whoId, who: person.who }) })),
+      known: () => new Set(everyone().map((person) => person.whoId)),
+      onAdded: (added) => {
+        // in the app now: Who finds them too
+        if (!secondary.some((y) => y.whoId === added.whoId)) secondary.push({ whoId: added.whoId, who: added.who, initials: "" });
+        addSupporter({ whoId: added.whoId, who: added.who });
+      },
+      onPicked: () => undefined,
+    });
+    searches.push(supBox);
+    supInput = supBox.input;
+    supSearch.appendChild(supBox.el);
+  } else {
     // no roster (a standalone control): a typed name stands
-    const typed = supQuery.value.trim();
-    if (people.length === 0 && typed !== "") addSupporter({ whoId: "", who: typed });
-    else (supResults.firstChild as HTMLButtonElement | null)?.click();
-  });
-  supSearch.append(supQuery, supResults);
+    const typed = textInput("", { placeholder: "Name, then Enter" });
+    typed.setAttribute("aria-label", "Add someone in support");
+    typed.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+      const name = typed.value.trim();
+      if (name === "") return;
+      typed.value = "";
+      addSupporter({ whoId: "", who: name });
+    });
+    supInput = typed;
+    supSearch.appendChild(typed);
+  }
   // one line until it is used (2026-11-16 layout): "＋ Add support" opens
   // the search; with supporters, their chips and a "＋ Add" beside them
   const supOpen = el("button", "ltk-sup-open", "＋ Add support") as HTMLButtonElement;
@@ -526,7 +604,7 @@ export function buildActionForm(
   supOpen.addEventListener("click", () => {
     supSearching = true;
     layoutSupport();
-    supQuery.focus();
+    supInput.focus();
   });
   supHead.append(supLabel, supChips, supOpen);
   supWrap.append(supHead, supSearch);
@@ -571,59 +649,55 @@ export function buildActionForm(
       host.classList.toggle("ltk-signoff-done", done);
     }
   };
-  const picked = (): { whoId: string; who: string }[] => [...checks.filter((c) => c.box.checked).map((c) => ({ whoId: c.person.whoId, who: c.person.who })), ...extras];
+  const picked = (): { whoId: string; who: string }[] => checks.filter((c) => c.box.checked).map((c) => ({ whoId: c.person.whoId, who: c.person.who }));
   const sharedBox = el("div", "ltk-shared");
   /** "1 / 2 people completed" — at the right of the Cascade / Add
    *  support line (Ben, 2026-11-17: in place of a sentence under the
    *  PDCA row). */
   const partsCount = el("span", "ltk-parts-count");
   partsCount.style.display = "none";
-  const extraChips = el("div", "ltk-sup-chips ltk-shared-extras");
+  // the fold over the extra boxes: "+n more" / "Show fewer", "Remove all"
+  const foldRow = el("div", "ltk-shared-fold");
   const sharedNote = el("div", "ltk-shared-note");
   let extrasOpen = false;
   const EXTRAS_SHOWN = 12;
-  const paintExtras = () => {
-    while (extraChips.firstChild) extraChips.removeChild(extraChips.firstChild);
-    const list = extrasOpen ? extras : extras.slice(0, EXTRAS_SHOWN);
-    for (const person of list) {
-      const chip = el("span", "ltk-sup-chip", person.who);
-      // their part, on their chip — the same circle the boxes above carry
-      const part = partButton(person);
-      paintPart(part, person, true);
-      chip.appendChild(part);
-      const x = el("button", "ltk-sup-x", "✕") as HTMLButtonElement;
-      x.type = "button";
-      x.title = `Take ${person.who} off this action`;
-      x.setAttribute("aria-label", x.title);
-      x.addEventListener("click", () => {
-        extras = extras.filter((y) => y !== person);
-        refreshShared();
-      });
-      chip.appendChild(x);
-      extraChips.appendChild(chip);
-    }
-    if (extras.length > EXTRAS_SHOWN) {
-      const more = el("button", "ltk-sup-open", extrasOpen ? "Show fewer" : `+${extras.length - EXTRAS_SHOWN} more`) as HTMLButtonElement;
+  const paintFold = () => {
+    while (foldRow.firstChild) foldRow.removeChild(foldRow.firstChild);
+    const extra = checks.filter((c) => c.extra);
+    extra.forEach((c, n) => {
+      c.wrap.style.display = !extrasOpen && n >= EXTRAS_SHOWN ? "none" : "";
+    });
+    if (extra.length > EXTRAS_SHOWN) {
+      const more = el("button", "ltk-sup-open", extrasOpen ? "Show fewer" : `+${extra.length - EXTRAS_SHOWN} more`) as HTMLButtonElement;
       more.type = "button";
       more.addEventListener("click", () => {
         extrasOpen = !extrasOpen;
-        paintExtras();
+        paintFold();
       });
-      extraChips.appendChild(more);
+      foldRow.appendChild(more);
     }
-    if (extras.length > 1) {
+    if (extra.filter((c) => c.box.checked).length > 1) {
       const none = el("button", "ltk-sup-open", "Remove all") as HTMLButtonElement;
       none.type = "button";
+      none.title = "Take everyone added as a team off this action";
       none.addEventListener("click", () => {
-        extras = [];
+        for (const c of extra) {
+          const at = checks.indexOf(c);
+          if (at >= 0) checks.splice(at, 1);
+          c.wrap.remove();
+          staged.delete(keyOf(c.person));
+          // back behind the search, where they can be found and added again
+          if (!secondary.some((y) => keyOf(y) === keyOf(c.person))) secondary.push(c.person);
+        }
+        extrasOpen = false;
         refreshShared();
       });
-      extraChips.appendChild(none);
+      foldRow.appendChild(none);
     }
-    extraChips.style.display = extras.length > 0 ? "" : "none";
+    foldRow.style.display = foldRow.childElementCount > 0 ? "" : "none";
   };
   refreshShared = () => {
-    paintExtras();
+    paintFold();
     const all = picked();
     const n = all.length;
     for (const c of checks) paintPart(c.part, c.person, c.box.checked);
@@ -640,8 +714,8 @@ export function buildActionForm(
     for (const l of peopleListeners) l();
   };
 
-  // "＋ Add a team…" (issue 10): a leader's reports, direct or all the
-  // way down, read from the directory. People already in the app are
+  // "＋ Cascade to team…" (issue 10): a leader's direct reports, or
+  // those and their own reports, read from the directory. People already in the app are
   // added; the rest are named — adding them stays an admin's act.
   const teamOpen = el("button", "ltk-sup-open", "＋ Cascade to team…") as HTMLButtonElement;
   teamOpen.type = "button";
@@ -657,9 +731,11 @@ export function buildActionForm(
       leaderBox.input.value = person.who;
       teamNote.textContent = "";
     });
+    // two levels at most (Ben, 2026-11-18): a cascade is for a team,
+    // not for a site — "Everyone below" walked the whole line
     const deepSel = selectInput("direct", [
       { value: "direct", label: "Direct reports" },
-      { value: "all", label: "Everyone below" },
+      { value: "two", label: "Direct reports and their reports" },
     ]);
     deepSel.setAttribute("aria-label", "Which reports");
     const incl = checkItem("Include the leader");
@@ -682,19 +758,19 @@ export function buildActionForm(
       const who = leader;
       add.disabled = true;
       teamNote.textContent = `Reading ${who.who}'s reporting line…`;
-      void road.reports(who.whoId, deepSel.value === "all").then(
+      void road.reports(who.whoId, deepSel.value === "two" ? 2 : 1).then(
         (r) => {
           add.disabled = false;
           const list = incl.box.checked ? [{ whoId: who.whoId, who: who.who }, ...r.people] : r.people;
           let added = 0;
           for (const person of list) {
             if (picked().some((x) => keyOf(x) === keyOf(person))) continue;
-            const chip = checks.find((c) => c.person.whoId === person.whoId);
+            const chip = checks.find((c) => keyOf(c.person) === keyOf(person));
             if (chip) {
               chip.box.checked = true;
               chip.wrap.classList.add("ltk-check-on");
             } else {
-              extras = [...extras, person];
+              addChip({ whoId: person.whoId, who: person.who, initials: "" }, true, true);
             }
             added++;
           }
@@ -726,7 +802,7 @@ export function buildActionForm(
       if (r !== null) teamOpen.style.display = "";
     });
   }
-  sharedBox.append(extraChips, sharedNote, teamPanel);
+  sharedBox.append(foldRow, sharedNote, teamPanel);
   wrap.appendChild(sharedBox);
   // "＋ Cascade to team…" and "＋ Add support" share one line (Ben,
   // 2026-11-17); once there are supporters, "＋ Add" sits with their

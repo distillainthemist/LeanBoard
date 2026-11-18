@@ -69,12 +69,12 @@ if (shared) {
   // Jane's team: three in the app, two who are not
   setActionTeamProvider(() =>
     Promise.resolve({
-      reports: (leader: string, deep: boolean) =>
+      reports: (leader: string, levels: 1 | 2) =>
         new Promise((resolve) =>
           setTimeout(
             () =>
               resolve({
-                people: Array.from({ length: deep ? 18 : 3 }, (_, n) => (n < 3 ? { whoId: `u${n + 3}`, who: crew[n + 2].who } : { whoId: `t${n}`, who: `Team member ${n}, ${leader}` })),
+                people: Array.from({ length: levels === 2 ? 18 : 3 }, (_, n) => (n < 3 ? { whoId: `u${n + 3}`, who: crew[n + 2].who } : { whoId: `t${n}`, who: `Team member ${n}, ${leader}` })),
                 skipped: ["Forsyth, Hayden", "Munro, Alister"],
                 partial: false,
               }),

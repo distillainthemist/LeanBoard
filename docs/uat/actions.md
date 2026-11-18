@@ -67,7 +67,7 @@ expected: step 2 only your own comment from the last 24 hours shows ✎ and ✕ 
 ### UAT-ACT-006 — Supporters: named, seen, never owing a part
 persona: owner
 modules: shared/ui/actionUi.ts shared/schema/actions.ts store/actions.ts store/mappers.ts controls/LeanHub/editor.ts controls/ActionBoard/editor.ts improvement/gantt.ts
-preconditions: an action assigned to person A; person B and person C on the roster; B able to sign in
+preconditions: an action assigned to person A; person B and person C on the roster; B able to sign in; for step 7 an admin (site or super) and a person D who is in the directory but not yet a LeanBoard user
 steps:
 1. Open the action. Press "＋ Add support", type part of B's name, pick B; press "＋ Add" and add C the same way; remove C with its ✕; Save.
 2. Read the action's row in the list view, its card on the kanban, its line on the Gantt, and the Gantt's CSV export.
@@ -75,7 +75,8 @@ steps:
 4. As B, open the action from "Supporting". As A, complete it.
 5. Make the action confidential. As B, find it again. As B's manager (not otherwise involved), look for it.
 6. Open the action, pick B as the person it is assigned to, and Save.
-expected: step 1 the search offers people not already chosen and each choice becomes a chip; step 2 the list row reads "support: B", the kanban card shows ＋1 with B in its tooltip, the Gantt line and the export's Support column name B; step 3 the action is NOT in B's My day, does not count in the Actions badge or the overdue filter of B's own list, and sits under "Supporting · 1" with no tick; step 4 B can open and comment; the action closes when A completes it — B owed nothing; step 5 B still sees the confidential action, B's manager does not; step 6 B is now assigned and no longer listed in support (nobody is both)
+7. As the admin: open an action, press "＋ Add support" and type three letters of D's name; pick D. Then type the same letters in "Search everyone…" under Who. As a person who is not an admin, type the same letters under Support.
+expected: step 1 the search is the same type-ahead as Who's — one list under the box, ↑ ↓ and Enter pick without saving the dialog — it offers people not already chosen and each choice becomes a chip; step 2 the list row reads "support: B", the kanban card shows ＋1 with B in its tooltip, the Gantt line and the export's Support column name B; step 3 the action is NOT in B's My day, does not count in the Actions badge or the overdue filter of B's own list, and sits under "Supporting · 1" with no tick; step 4 B can open and comment; the action closes when A completes it — B owed nothing; step 5 B still sees the confidential action, B's manager does not; step 6 B is now assigned and no longer listed in support (nobody is both); step 7 Support searches what Who searches: the app's people first, then for an admin "In the directory — adds them to the app" after a short pause; picking D adds them to LeanBoard and to support, and Who then finds D among the app's people; a person an admin added through Who is found under Support the same way; a non-admin is offered the app's people only, under both
 
 ## Journey 4 — The dialog itself
 
@@ -110,12 +111,12 @@ expected: step 1 ticking a second person does NOT untick the first (no explanato
 ### UAT-ACT-009 — Cascade an action to a leader's team
 persona: owner
 modules: shared/ui/actionUi.ts actions/team.ts actions/teamModel.ts store/directoryWalk.ts shared/ui/actionLinkProvider.ts
-preconditions: a leader in LeanBoard whose direct reports include at least two LeanBoard users and one person who is NOT a LeanBoard user; one of those reports has reports of their own
+preconditions: a leader in LeanBoard whose direct reports include at least two LeanBoard users and one person who is NOT a LeanBoard user; one of those reports has reports of their own, and one of THOSE has reports too (a third level)
 steps:
 1. ＋ Add action → "＋ Cascade to team…" (on the same line as "＋ Add support"); type part of the leader's name and pick them with ↓ and Enter; leave "Direct reports"; press Add them.
-2. Change to "Everyone below"; tick "Include the leader"; press Add them again.
+2. Change to "Direct reports and their reports"; tick "Include the leader"; press Add them again.
 3. Remove one person with their ✕; press "Remove all"; add the team again and Raise.
-expected: step 1 the list under the box narrows as you type and Enter picks without saving the dialog; after a moment the direct reports who are in LeanBoard are on the action — ticked in the grid where they have a box there, as removable chips under it otherwise — and the note says how many were added and NAMES the ones not in the app ("ask an admin to add them"); nobody is added to LeanBoard; step 2 the people further down the line and the leader are added, anyone already on the action is not added twice, and past twelve chips the rest sit behind "+n more"; step 3 a ✕ takes one person off, "Remove all" clears the chips (ticked boxes stay), and the raised action carries everyone shown, each with their own part; a directory that cannot be read says so and adds nobody
+expected: step 1 the list under the box narrows as you type and Enter picks without saving the dialog; after a moment the direct reports who are in LeanBoard are on the action — ticked in the grid where they have a box there, as further boxes of the SAME shape in the same grid otherwise (no pills) — and the note says how many were added and NAMES the ones not in the app ("ask an admin to add them"); nobody is added to LeanBoard; the note does not say the directory "answered only in part" unless a read failed; step 2 the choice reads "Direct reports" or "Direct reports and their reports" — there is no "Everyone below"; the second level and the leader are added, the third level is NOT, anyone already on the action is not added twice, and past twelve added boxes the rest sit behind "+n more" ("Show fewer" folds them again); step 3 unticking takes one person off, "Remove all" clears the boxes the cascade added (the meeting's own boxes stay), and the raised action carries everyone ticked, each with their own part; a directory that cannot be read says so and adds nobody
 
 ### UAT-ACT-010 — Support required, Duplicate, and Message about this action
 persona: assignee

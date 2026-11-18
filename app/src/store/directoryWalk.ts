@@ -58,7 +58,7 @@ export async function walkReports(
   rootIds: string[],
   onProgress?: (p: WalkProgress) => void,
   caps: { maxPeople?: number; maxDepth?: number; concurrency?: number } = {}
-): Promise<WalkResult & { failed: string[] }> {
+): Promise<WalkResult & { failed: string[]; capped: boolean }> {
   const maxPeople = caps.maxPeople ?? WALK_MAX_PEOPLE;
   const maxDepth = caps.maxDepth ?? WALK_MAX_DEPTH;
   const concurrency = caps.concurrency ?? WALK_CONCURRENCY;
@@ -66,6 +66,8 @@ export async function walkReports(
   const seen = new Set<string>();
   const failed: string[] = [];
   let truncated = false;
+  /** The PEOPLE cap was hit (as against stopping at the depth asked for). */
+  let capped = false;
   let managers = 0;
 
   // roots first, as people of depth 0
@@ -100,6 +102,7 @@ export async function walkReports(
             if (!dp || seen.has(dp.id)) continue; // cycles and dotted lines: first road wins
             if (people.length >= maxPeople) {
               truncated = true;
+              capped = true;
               break;
             }
             seen.add(dp.id);
@@ -117,5 +120,5 @@ export async function walkReports(
   }
   if (frontier.length > 0 && level >= maxDepth) truncated = true;
   report();
-  return { rootIds, people, truncated, failed };
+  return { rootIds, people, truncated, failed, capped };
 }

@@ -127,7 +127,9 @@ export interface ActionTeamResult {
   partial: boolean;
 }
 export interface ActionTeamRoad {
-  reports: (leaderWhoId: string, deep: boolean) => Promise<ActionTeamResult>;
+  /** The leader's direct reports (1), or those and THEIR direct reports
+   *  (2) — never further down (Ben, 2026-11-18). */
+  reports: (leaderWhoId: string, levels: 1 | 2) => Promise<ActionTeamResult>;
 }
 let teamProvider: (() => Promise<ActionTeamRoad | null>) | null = null;
 

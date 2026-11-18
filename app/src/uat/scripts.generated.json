@@ -2087,17 +2087,21 @@
        "persona": "superadmin",
        "modules": [
         "docs/settingsTab.ts",
+        "docs/filterModel.ts",
+        "docs/docsScreen.ts",
         "docs/writeProbe.ts",
         "docs/moveProbe.ts"
        ],
-       "preconditions": "Settings → Documents open",
+       "preconditions": "Settings → Documents open; an Organisation term set with a company level holding two or more top-level terms (a company with several sites, and one other); a reader whose profile names site S of that company and who has never opened Documents in this browser",
        "steps": [
-        "Default filters: set a default organisation; Save; open the register as a reader.",
+        "Default filters: choose site S; read the tick list.",
+        "Tick ONLY the company that holds S; Save site default; open the register as the reader. Read the Folders pane and the filter chip.",
+        "Back in Settings: Edit the row; also tick a site under the OTHER top-level term; Save; open the register as the reader in a fresh browser profile.",
         "Write access: run the probe. Move road: run the probe."
        ],
-       "expected": "the reader's register opens on the default organisation; each probe reports what it tried and what SharePoint answered, in plain words",
-       "hash": "1faf2eb7",
-       "changed": "2026-10-19"
+       "expected": "step 1 the list is a tree — each company or top-level unit in bold with its SITES indented beneath it, no departments; every one can be ticked; step 2 the register opens filtered to S alone (the chip names S, not the company); the pane shows the company with S open to its departments and the company's other sites folded beneath it, one click away; \"Show other sites\" still reveals the rest; step 3 the extra site sits in the pane folded, after the reader's own; step 4 each probe reports what it tried and what SharePoint answered, in plain words",
+       "hash": "bb0bbac5",
+       "changed": "2026-11-18"
       },
       {
        "id": "UAT-DOC-077",
@@ -2323,11 +2327,12 @@
         "[Controller] Settings → Documents → the column list: on the Document type row press ★ in the Filter cell. Leave \"For\" on Everyone; add two terms by typing part of each name; choose the Casting department in \"For\" and add three deeper terms in a chosen order (use ↑ ↓); Done; Save the settings.",
         "[R1, then R2] Documents → Filters → Document type.",
         "[Reader] Filters → Process area: open a branch with ▸; tick a term three levels down and a second term in another branch; tick a parent; type part of a deep term's name in the search box.",
-        "[Controller] Settings → Documents: untick Filter on a column and read its ★; reopen ★ on Document type and remove every term for Casting; Done; Save."
+        "[Controller] Settings → Documents: untick Filter on a column and read its ★; reopen ★ on Document type and remove every term for Casting; Done; Save.",
+        "[R1] On a column whose term set holds 14 terms or fewer and has a featured list for Casting: reload Documents and open Filters at once, before anything else; read the pills, then press \"Show all n\"."
        ],
-       "expected": "step 1 the groups read Status (or \"Showing approved documents only\" with its button), then Document type, then Process area, then the rest — Importance / risk is below Process area; the phone's selects are unchanged; step 2 the ★ opens \"Featured terms — Document type\" with a \"For\" list of Everyone, each site and each department; the list under the box narrows as you type, shows each term's path, and Enter adds without closing; the ★ turns on once a list exists; nothing is saved until the settings' Save; step 3 R1 sees Casting's three terms leading the pills in the order set; R2 sees the two set for everyone; a term at any depth can be featured; picked terms that are not featured stay in sight ahead of them; step 4 Process area is a tree, opened at the reader's own site and department with other branches closed; ticks at any level add to the filter chips and the register follows; a ticked parent shows everything under it ticked and greyed (\"included by the level above\") and matches documents on any of them; the search shows the matching terms with the path down to each; the \"compare across sites\" picker is still above it; step 5 ★ is disabled on a column that is not a filter; with Casting's list emptied R1 falls back to the list for everyone",
-       "hash": "dcdc9793",
-       "changed": "2026-11-17"
+       "expected": "step 6 the pills are Casting's own from the first paint, never the Everyone list for a moment; \"Show all n\" follows them and brings out every other term of the set after the featured ones, each pickable; \"Show fewer\" folds them again; a longer set keeps its search box or tree and has no such link; step 1 the groups read Status (or \"Showing approved documents only\" with its button), then Document type, then Process area, then the rest — Importance / risk is below Process area; the phone's selects are unchanged; step 2 the ★ opens \"Featured terms — Document type\" with a \"For\" list of Everyone, each site and each department; the list under the box narrows as you type, shows each term's path, and Enter adds without closing; the ★ turns on once a list exists; nothing is saved until the settings' Save; step 3 R1 sees Casting's three terms leading the pills in the order set; R2 sees the two set for everyone; a term at any depth can be featured; picked terms that are not featured stay in sight ahead of them; step 4 Process area is a tree, opened at the reader's own site and department with other branches closed; ticks at any level add to the filter chips and the register follows; a ticked parent shows everything under it ticked and greyed (\"included by the level above\") and matches documents on any of them; the search shows the matching terms with the path down to each; the \"compare across sites\" picker is still above it; step 5 ★ is disabled on a column that is not a filter; with Casting's list emptied R1 falls back to the list for everyone",
+       "hash": "5502382e",
+       "changed": "2026-11-18"
       },
       {
        "id": "UAT-DOC-094",
@@ -3040,18 +3045,19 @@
         "controls/ActionBoard/editor.ts",
         "improvement/gantt.ts"
        ],
-       "preconditions": "an action assigned to person A; person B and person C on the roster; B able to sign in",
+       "preconditions": "an action assigned to person A; person B and person C on the roster; B able to sign in; for step 7 an admin (site or super) and a person D who is in the directory but not yet a LeanBoard user",
        "steps": [
         "Open the action. Press \"＋ Add support\", type part of B's name, pick B; press \"＋ Add\" and add C the same way; remove C with its ✕; Save.",
         "Read the action's row in the list view, its card on the kanban, its line on the Gantt, and the Gantt's CSV export.",
         "As B, open the hub: read My day, the Actions tab's badge and list, and the group at its foot.",
         "As B, open the action from \"Supporting\". As A, complete it.",
         "Make the action confidential. As B, find it again. As B's manager (not otherwise involved), look for it.",
-        "Open the action, pick B as the person it is assigned to, and Save."
+        "Open the action, pick B as the person it is assigned to, and Save.",
+        "As the admin: open an action, press \"＋ Add support\" and type three letters of D's name; pick D. Then type the same letters in \"Search everyone…\" under Who. As a person who is not an admin, type the same letters under Support."
        ],
-       "expected": "step 1 the search offers people not already chosen and each choice becomes a chip; step 2 the list row reads \"support: B\", the kanban card shows ＋1 with B in its tooltip, the Gantt line and the export's Support column name B; step 3 the action is NOT in B's My day, does not count in the Actions badge or the overdue filter of B's own list, and sits under \"Supporting · 1\" with no tick; step 4 B can open and comment; the action closes when A completes it — B owed nothing; step 5 B still sees the confidential action, B's manager does not; step 6 B is now assigned and no longer listed in support (nobody is both)",
-       "hash": "fb5dda6b",
-       "changed": "2026-11-16"
+       "expected": "step 1 the search is the same type-ahead as Who's — one list under the box, ↑ ↓ and Enter pick without saving the dialog — it offers people not already chosen and each choice becomes a chip; step 2 the list row reads \"support: B\", the kanban card shows ＋1 with B in its tooltip, the Gantt line and the export's Support column name B; step 3 the action is NOT in B's My day, does not count in the Actions badge or the overdue filter of B's own list, and sits under \"Supporting · 1\" with no tick; step 4 B can open and comment; the action closes when A completes it — B owed nothing; step 5 B still sees the confidential action, B's manager does not; step 6 B is now assigned and no longer listed in support (nobody is both); step 7 Support searches what Who searches: the app's people first, then for an admin \"In the directory — adds them to the app\" after a short pause; picking D adds them to LeanBoard and to support, and Who then finds D among the app's people; a person an admin added through Who is found under Support the same way; a non-admin is offered the app's people only, under both",
+       "hash": "2b9fe8fc",
+       "changed": "2026-11-18"
       }
      ]
     },
@@ -3123,15 +3129,15 @@
         "store/directoryWalk.ts",
         "shared/ui/actionLinkProvider.ts"
        ],
-       "preconditions": "a leader in LeanBoard whose direct reports include at least two LeanBoard users and one person who is NOT a LeanBoard user; one of those reports has reports of their own",
+       "preconditions": "a leader in LeanBoard whose direct reports include at least two LeanBoard users and one person who is NOT a LeanBoard user; one of those reports has reports of their own, and one of THOSE has reports too (a third level)",
        "steps": [
         "＋ Add action → \"＋ Cascade to team…\" (on the same line as \"＋ Add support\"); type part of the leader's name and pick them with ↓ and Enter; leave \"Direct reports\"; press Add them.",
-        "Change to \"Everyone below\"; tick \"Include the leader\"; press Add them again.",
+        "Change to \"Direct reports and their reports\"; tick \"Include the leader\"; press Add them again.",
         "Remove one person with their ✕; press \"Remove all\"; add the team again and Raise."
        ],
-       "expected": "step 1 the list under the box narrows as you type and Enter picks without saving the dialog; after a moment the direct reports who are in LeanBoard are on the action — ticked in the grid where they have a box there, as removable chips under it otherwise — and the note says how many were added and NAMES the ones not in the app (\"ask an admin to add them\"); nobody is added to LeanBoard; step 2 the people further down the line and the leader are added, anyone already on the action is not added twice, and past twelve chips the rest sit behind \"+n more\"; step 3 a ✕ takes one person off, \"Remove all\" clears the chips (ticked boxes stay), and the raised action carries everyone shown, each with their own part; a directory that cannot be read says so and adds nobody",
-       "hash": "6523b7cd",
-       "changed": "2026-11-17"
+       "expected": "step 1 the list under the box narrows as you type and Enter picks without saving the dialog; after a moment the direct reports who are in LeanBoard are on the action — ticked in the grid where they have a box there, as further boxes of the SAME shape in the same grid otherwise (no pills) — and the note says how many were added and NAMES the ones not in the app (\"ask an admin to add them\"); nobody is added to LeanBoard; the note does not say the directory \"answered only in part\" unless a read failed; step 2 the choice reads \"Direct reports\" or \"Direct reports and their reports\" — there is no \"Everyone below\"; the second level and the leader are added, the third level is NOT, anyone already on the action is not added twice, and past twelve added boxes the rest sit behind \"+n more\" (\"Show fewer\" folds them again); step 3 unticking takes one person off, \"Remove all\" clears the boxes the cascade added (the meeting's own boxes stay), and the raised action carries everyone ticked, each with their own part; a directory that cannot be read says so and adds nobody",
+       "hash": "52de0b2d",
+       "changed": "2026-11-18"
       },
       {
        "id": "UAT-ACT-010",
@@ -3426,6 +3432,27 @@
        ],
        "expected": "step 1 Scope In grows to show its lines and the card scrolls; step 2 Title and Owner stay one line tall (about the height of their text and label), not as tall as Scope In; step 3 the tile's text is never smaller than three-quarters of its normal size — a charter too long for the tile is cut off at the tile's bottom edge rather than shrunk further; step 4 the long label wraps onto a second line and nothing of it is cut off (the board designer still shows labels on one line)",
        "hash": "51fecd58",
+       "changed": "2026-11-18"
+      },
+      {
+       "id": "UAT-IMP-011",
+       "title": "Moving between an initiative's cards is as quick as a meeting's",
+       "journey": "Journey 2 — Initiatives",
+       "persona": "member",
+       "modules": [
+        "screens/cardEditor.ts",
+        "improvement/binding.ts",
+        "store/priorities.ts"
+       ],
+       "preconditions": "an initiative linked to a primary priority, whose board has a Charter with fields bound to the header (title, a role, a custom field and \"Primary priority\"), an Action Plan and a Metrics card; a meeting board with three cards, for comparison",
+       "steps": [
+        "Open the meeting board's first card and step through its cards with NEXT › and the tabs. Note the wait.",
+        "Open the initiative's Charter and step through its cards the same way, forward and back, several times.",
+        "On the Charter, edit a bound text field and a role (pick a person); step to the Action Plan and back.",
+        "On the Action Plan, add an action and read the people offered first in Who."
+       ],
+       "expected": "step 2 after the first card each step is about as quick as the meeting's — the old card stays under the spinner for a moment, never several seconds; step 3 the Charter shows the edits on return, the role picker lists the roster, and the \"Primary priority\" field reads the priority's statement; step 4 the initiative's role-holders lead the Who list, as before",
+       "hash": "3787f2e8",
        "changed": "2026-11-18"
       }
      ]

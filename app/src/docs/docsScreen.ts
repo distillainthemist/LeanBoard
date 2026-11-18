@@ -86,7 +86,7 @@ import {
 import { openDialog } from "../../../shared/ui/dialog";
 import { currentViewer } from "../runtime";
 import { viewerPerson } from "../store/people";
-import { featuredFor, leadTerms, openBranches, orderFilterColumns, termTree, TermTreeNode, TREE_FILTER_MIN_DEPTH, treeSearch, vocabularyDepth } from "./filterModel";
+import { defaultBranchRoots, featuredFor, firstVisitFolds, leadTerms, restAfterLead, openBranches, orderFilterColumns, termTree, TermTreeNode, TREE_FILTER_MIN_DEPTH, treeSearch, vocabularyDepth } from "./filterModel";
 import {
   docLinkUrl,
   docLinkUrlMobile,
@@ -568,15 +568,20 @@ export function mountDocs(
      *  featured terms lead a filter and where a vocabulary's tree opens
      *  (issues 7 and 8, 2026-11-17). */
     let myProfile = { site: "", department: "" };
-    if (whoId !== "") {
-      void viewerPerson(whoId).then(
-        (p) => {
-          meIsSuper = p?.role === "superadmin";
-          myProfile = { site: p?.site ?? "", department: p?.department ?? "" };
-        },
-        () => {}
-      );
-    }
+    /** Settled once the profile has been read (or could not be): the
+     *  Filters pane waits for it, since a pane opened first painted the
+     *  Everyone list for a person whose department has its own
+     *  (2026-11-18). */
+    const myProfileReady: Promise<void> =
+      whoId !== ""
+        ? viewerPerson(whoId).then(
+            (p) => {
+              meIsSuper = p?.role === "superadmin";
+              myProfile = { site: p?.site ?? "", department: p?.department ?? "" };
+            },
+            () => {}
+          )
+        : Promise.resolve();
     /** The status set's terms, id + real-cased label — filled by
      *  readStatusTerms; what termForStage resolves a write against. */
     const statusTermList: { id: string; label: string }[] = [];
@@ -2528,14 +2533,10 @@ export function mountDocs(
         app.defaultOrgFilter[siteKeyL] ?? // legacy name-keyed entries
         [];
       if (mapped.length > 0) {
-        const wanted = new Set(mapped.map((id) => id.toLowerCase()));
-        const roots = nodes.filter((n) => wanted.has(n.id.toLowerCase()));
-        // the user's own site first (Ben, 2026-08-14), mapping order after
-        roots.sort((a, b) =>
-          (siteTerm !== null && a.id === siteTerm.id ? 0 : 1) -
-          (siteTerm !== null && b.id === siteTerm.id ? 0 : 1)
-        );
-        return roots;
+        // the user's own site first (Ben, 2026-08-14) — ticked or not
+        // (2026-11-18) — the mapped branches after
+        const roots = defaultBranchRoots(nodes, siteTerm, mapped);
+        if (roots.length > 0) return roots;
       }
       const single = await viewerNode();
       return single !== null ? [single] : [];
@@ -2819,21 +2820,10 @@ export function mountDocs(
         // departments, and MY OWN department opened one level more
         // (Ben, 2026-08-14). A user's saved carets always win.
         if (groupBy === "" && uiState.collapsed[setId] === undefined && myRoots.length > 0) {
-          const mySite = myRoots[0];
-          const def = new Set<string>();
-          for (const r of myRoots.slice(1)) def.add(key(r.labels));
           const meP = await viewerPerson(currentViewer()?.objectId ?? "").catch(() => null);
-          const myDept = (meP?.department ?? "").trim().toLowerCase();
-          for (const n of nodes) {
-            if (
-              n.labels.length === mySite.labels.length + 1 &&
-              isPrefix(mySite.labels, n.labels) &&
-              n.labels[n.labels.length - 1].toLowerCase() !== myDept
-            ) {
-              def.add(key(n.labels));
-            }
-          }
-          collapsed = def;
+          // a mapped company that holds my site is not folded itself —
+          // the sites beside mine are (filterModel.firstVisitFolds)
+          collapsed = new Set(firstVisitFolds(nodes, myRoots, meP?.department ?? "").map((labels) => key(labels)));
         }
         paintCollapse();
         paintTreeSelection();
@@ -3354,6 +3344,8 @@ export function mountDocs(
     /** The typed text per filter column (tags, big sets) — lives while
      *  the popover is open. */
     const termQuery = new Map<string, string>();
+    /** Short vocabularies showing every term ("Show all n"), by column. */
+    const allTerms = new Set<string>();
     filtersBtn.addEventListener("click", () => {
       if (menu) {
         closeMenu();
@@ -3401,6 +3393,8 @@ export function mountDocs(
             const { error } = walk;
             // the organisation's terms in the app's order (issue 12)
             const nodes = col === "" ? termTreeOrder(walk.nodes, await orgTermCompare()) : walk.nodes;
+            // whose featured terms lead depends on who is looking
+            await myProfileReady;
             if (dead || !menu || !menu.contains(pills)) return;
             clear(pills);
             if (error !== "" || nodes.length === 0) {
@@ -3522,13 +3516,22 @@ export function mountDocs(
               const offLead = (active?.nodes ?? []).filter((p) => !leadIds.has(p.id));
               const pickedIds = new Set((active?.nodes ?? []).map((n) => n.id));
               const matches = (n: TermNode) => n.labels.some((l) => l.toLowerCase().includes(q));
+              // a SHORT vocabulary has no search box and no tree, so the
+              // terms that do not lead (the rest behind a featured list,
+              // or a third level) had no way in at all: "Show all n"
+              // brings every term out, the leading ones still first
+              const rest = !searched ? restAfterLead(nodes, [...offLead, ...lead]) : [];
+              const showingAll = rest.length > 0 && allTerms.has(col);
               let shown = asTree
                 ? // the tree carries the vocabulary: pills are the picks and the featured
                   [...offLead, ...(hasFeatured ? lead : lead.filter((n) => pickedIds.has(n.id)))]
                 : q !== ""
                   ? [...(active?.nodes ?? []), ...nodes.filter((n) => !pickedIds.has(n.id) && matches(n))]
-                  : [...offLead, ...lead];
-              const capped = shown.length > CAP;
+                  : showingAll
+                    ? [...offLead, ...lead, ...rest]
+                    : [...offLead, ...lead];
+              // every term of a short vocabulary fits: the cap is for the searched ones
+              const capped = !showingAll && shown.length > CAP;
               if (capped) shown = shown.slice(0, CAP);
               for (const n of shown) {
                 const on = (active?.nodes ?? []).some((p) => p.id === n.id);
@@ -3547,6 +3550,16 @@ export function mountDocs(
                 pills.appendChild(pb);
               }
               if (capped && !asTree) pills.appendChild(el("span", "app-field-hint", "Type to find the rest"));
+              if (rest.length > 0) {
+                const all = el("button", "app-link app-docs-fpill-all", showingAll ? "Show fewer" : `Show all ${nodes.length}`) as HTMLButtonElement;
+                all.type = "button";
+                all.addEventListener("click", () => {
+                  if (allTerms.has(col)) allTerms.delete(col);
+                  else allTerms.add(col);
+                  paintPills();
+                });
+                pills.appendChild(all);
+              }
               pills.style.display = shown.length > 0 ? "" : "none";
               paintTree();
             };

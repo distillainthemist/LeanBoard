@@ -94,6 +94,7 @@ import { companies, orgJson } from "../store/config";
 import { renderListPage, searchPage } from "./data";
 import { openDialog } from "../../../shared/ui/dialog";
 import { buildRenderViewXml, taxonomySearchProperty } from "./rows";
+import { defaultFilterRows } from "./filterModel";
 
 interface Ctx {
   markDirty: () => void;
@@ -2409,11 +2410,11 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
   body.appendChild(
     note(
       "Which SITES a site's members see in the folders pane: their own plus the " +
-        "corporate/functional sites ticked here — sites only, never departments; the " +
-        "pane's expansion handles the levels below. Only their OWN site is filtered by " +
-        "default; the rest sit collapsed, and Show-other-sites reveals everything else. " +
-        "Pick the site from the organisation's defined sites; an unmapped site falls back " +
-        "to name-matching its org branch."
+        "companies and sites ticked here — a company shows all of its sites; never " +
+        "departments, the pane's expansion handles the levels below. Only their OWN site " +
+        "is filtered by default, ticked or not; the rest sit collapsed, and " +
+        "Show-other-sites reveals everything else. Pick the site from the organisation's " +
+        "defined sites; an unmapped site falls back to name-matching its org branch."
     )
   );
   const dofBox = el("div", "");
@@ -2454,20 +2455,20 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
       if (orgSites.length === 0) dofBox.appendChild(note("No sites are defined under Settings → Organisation yet."));
       const boxes = new Map<string, HTMLInputElement>();
       const tree = el("div", "app-docs-doftree");
-      // SITES only (Ben, 2026-08-14): depth 1, or depth 2 under a
-      // single company-level root — departments are an expansion
-      // concern, not a mapping one
-      const siteDepth =
-        walk.nodes.filter((n) => n.labels.length === 1).length === 1 &&
-        walk.nodes.some((n) => n.labels.length === 2)
-          ? 2
-          : 1;
-      for (const n of walk.nodes.filter((x) => x.labels.length === siteDepth)) {
-        const row = el("label", "app-docs-dofrow");
+      // companies with their SITES beneath (2026-11-18) — never
+      // departments (Ben, 2026-08-14): an expansion concern, not a
+      // mapping one. A set with no company level lists its sites. The
+      // older single-root set (one company above the sites, the switch
+      // never set) reads as a company level too.
+      const companyLevel =
+        app.orgSetCompanyLevel ||
+        (walk.nodes.filter((n) => n.labels.length === 1).length === 1 && walk.nodes.some((n) => n.labels.length === 2));
+      for (const r of defaultFilterRows(walk.nodes, companyLevel)) {
+        const row = el("label", `app-docs-dofrow${r.depth === 2 ? " app-docs-dofrow-site" : companyLevel ? " app-docs-dofrow-company" : ""}`);
         const cb = el("input", "") as HTMLInputElement;
         cb.type = "checkbox";
-        boxes.set(n.id, cb);
-        row.append(cb, el("span", "", n.labels[n.labels.length - 1]));
+        boxes.set(r.id, cb);
+        row.append(cb, el("span", "", r.label));
         tree.appendChild(row);
       }
       const saveBtn = el("button", "app-btn", "Save site default") as HTMLButtonElement;

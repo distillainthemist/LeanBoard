@@ -349,7 +349,8 @@ export const LTK_BASE_CSS = `
    open on demand; a leader's team is added from a small panel */
 .ltk-shared { display: flex; flex-direction: column; gap: 6px; }
 .ltk-shared:empty { display: none; }
-.ltk-shared-extras { align-items: center; }
+/* the fold over a cascaded team's boxes: "+n more", "Remove all" */
+.ltk-shared-fold { display: flex; flex-wrap: wrap; gap: 4px 22px; align-items: center; }
 .ltk-shared-note { font-size: 12.5px; color: var(--ltk-muted); }
 /* "＋ Cascade to team…" and "＋ Add support" on one line; "x / y people
    completed" at its right end */
@@ -396,7 +397,6 @@ export const LTK_BASE_CSS = `
 }
 .ltk-part:hover, .ltk-part:focus-visible { border-color: #107c10; outline: none; }
 .ltk-part-done { background: #107c10; border-color: #107c10; color: #fff; }
-.ltk-sup-chip .ltk-part { width: 18px; height: 18px; font-size: 10.5px; margin-left: 6px; border-width: 1.5px; }
 .ltk-team { display: flex; flex-direction: column; gap: 6px; padding: 10px; border: 1px solid var(--ltk-hairline); border-radius: 8px; }
 .ltk-team-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .ltk-team-row .ltk-who-box { flex: 1 1 200px; min-width: 180px; }

@@ -288,6 +288,48 @@ Ben cuts releases.
   "+8 more". Tiles stay inert.
 - UAT: IMP-010 and ACT-011 added, DOC-026 extended.
 
+## As built — tranche 2 (2026-11-18, on dev, NOT released)
+
+- **45** `improvement/binding.ts`, `screens/cardEditor.ts`,
+  `store/priorities.ts`. An initiative card switch now reads the
+  initiative's row, the settings and the template ONCE (the last two
+  together), keeps them for the walk (any write to an initiative drops
+  them), builds the charter binding only for a canvas card, reads the
+  primary priority as ONE row and only when the card shows it (it was
+  the whole cascade), asks for the roster only when a role picker
+  opens, and all of it travels BESIDE the card's own row and actions
+  instead of in front of them. Counted in `initiativeBinding.test.ts`:
+  three reads for the first card, none more for a later canvas card.
+  The settings and template were NOT put behind a cache of their own:
+  their writers do not go through `writing()`, and a stale charter was
+  the 2026-10-01 fault. No timing readout (Ben). **Not timed anywhere;
+  the hosted player is the proof.**
+- **40** `shared/ui/actionUi.ts`: one `peopleSearchBox` for Who and
+  Support (the app's people, then the directory for admins). A person
+  added through either is found by the other. Harness: Support found
+  and added a directory person; Who then listed them.
+- **43** people added by a cascade, and assignees from outside the
+  grid, are boxes in the same grid (`extra`), folded past twelve behind
+  "+n more", with "Remove all". The choice is "Direct reports" or
+  "Direct reports and their reports" (`reports(leader, 1 | 2)`); no
+  ceiling on the count beyond the action's own 500. The note no longer
+  says "answered only in part" for stopping at the depth asked for
+  (`walkReports` now returns `capped`). Harness: 16 added as boxes,
+  "+4 more", no pills.
+- **42** `docs/filterModel.ts` (`defaultFilterRows`,
+  `defaultBranchRoots`, `firstVisitFolds`, tested), Settings and the
+  register. The tick list is a tree of companies with their sites; the
+  member's own site always leads; a mapped company that holds the
+  member's site is not folded over it. **Saved rows change meaning:**
+  "Operational Excellence → RTAL PacOps" now opens on Operational
+  Excellence alone with the company's other sites folded beside it,
+  where it opened on the whole company. **The Settings section has not
+  been seen in a browser** (no harness page for Settings).
+- **38** short vocabularies get "Show all n" (their other terms had no
+  way in), and the Filters pane waits for the person's profile before
+  it paints pills.
+- UAT: IMP-011 added; ACT-006, ACT-009, DOC-076, DOC-093 extended.
+
 ## 6. Questions for Ben
 
 1. 23: owners, approvers and reviewers land on every status too?

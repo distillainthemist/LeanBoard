@@ -45,6 +45,8 @@ import { listPeople } from "../store/people";
 import { isActionSurface } from "../store/policies";
 import { showLoading } from "../loading";
 import { acquireFrame, frameKey, placeFrame } from "../embedFrames";
+import { changeVersion } from "../store/changes";
+import { parseCanvasConfig } from "../../../controls/CanvasCard/types";
 
 /**
  * "Tuesday 21 July · 06:00 · Day shift · Crew A" for the walk header —
@@ -85,6 +87,14 @@ function occurrenceMeta(
   }
   if (instance.isAdhoc) parts.push("ad hoc");
   return parts.join(" · ");
+}
+
+/** The header targets a canvas card's fields bind (its layout rides the
+ *  slot's config as `canvasJSON`, a string or an object). */
+function canvasBinds(settings: { config?: unknown }): string[] {
+  const v = ((settings.config ?? {}) as Record<string, unknown>).canvasJSON;
+  const raw = typeof v === "string" ? v : v === undefined || v === null ? "" : JSON.stringify(v);
+  return parseCanvasConfig(raw).fields.map((f) => f.bound).filter((b) => b !== "");
 }
 
 /**
@@ -202,13 +212,6 @@ export function mountCardEditor(
     // initiative boards: the role-holders front the assignee picker,
     // like a meeting's participants (the roster stays behind the search)
     let initiativePeople: { whoId: string; who: string }[] = [];
-    if (board && board.boardId.startsWith("init-")) {
-      const { makeInitiativeBinding, initiativeAssignees } = await import("../improvement/binding");
-      // the card re-renders itself after a bound write; nothing else here
-      // shows the header, so no reload (2026-09-15)
-      charterBinding = (await makeInitiativeBinding(board.boardId, () => undefined)) ?? undefined;
-      initiativePeople = await initiativeAssignees(board.boardId).catch(() => []);
-    }
     // an adjusted meeting's cards live in its override manifest, not
     // (necessarily) the board's own
     const manifest = board
@@ -302,6 +305,24 @@ export function mountCardEditor(
       wrap.appendChild(bar);
     }
 
+    // an initiative board's own reads START here and travel beside the
+    // card's row and actions; they used to finish first, ten reads in a
+    // row, on every card switch (Ben, 2026-11-17). The initiative's row,
+    // settings and template are kept for the walk — any write to an
+    // initiative drops them; the binding is built only for a canvas card
+    // (the card re-renders itself after a bound write, 2026-09-15).
+    const initiativeSide = board.boardId.startsWith("init-")
+      ? import("../improvement/binding").then(async ({ initiativeContext, initiativeCardSide }) =>
+          initiativeCardSide(board.boardId, {
+            context: await memo(`initctx|${board.boardId}|${changeVersion("initiatives")}`, () => initiativeContext(board.boardId)),
+            canvas: slot.cardType === "CanvasCard",
+            binds: slot.cardType === "CanvasCard" ? canvasBinds(slot.settings) : [],
+            roster: () => memo("roster", () => listPeople()),
+          })
+        )
+      : Promise.resolve(null);
+    // awaited further down: a failure there must not surface here first
+    initiativeSide.catch(() => undefined);
     const surface = isActionSurface(slot);
     // rollup scope: an action surface reads its configured source board
     // (empty = the board it sits on); a normal card reads its own actions
@@ -353,11 +374,14 @@ export function mountCardEditor(
       return;
     }
 
-    const [roster, actions, palettes] = await Promise.all([
+    const [roster, actions, palettes, side] = await Promise.all([
       memo("roster", () => listPeople()),
       surface ? actionsForBoard(sourceBoardId) : actionsForInstance(instanceKey),
       memo("palettes", () => appPalettes()),
+      initiativeSide.catch(() => null),
     ]);
+    charterBinding = side?.binding;
+    initiativePeople = side?.assignees ?? [];
     stopLoading(); // everything below builds synchronously
     const viewer = currentViewer();
     const palette = paletteMap(palettes.states);

@@ -9,16 +9,19 @@ import { splitTeam } from "./teamModel";
 
 export function teamRoad(): ActionTeamRoad {
   return {
-    reports: async (leaderWhoId: string, deep: boolean): Promise<ActionTeamResult> => {
-      const [{ walkReports, WALK_MAX_DEPTH }, { listPeople }] = await Promise.all([import("../store/directoryWalk"), import("../store/people")]);
+    reports: async (leaderWhoId: string, levels: 1 | 2): Promise<ActionTeamResult> => {
+      const [{ walkReports }, { listPeople }] = await Promise.all([import("../store/directoryWalk"), import("../store/people")]);
       const [walk, roster] = await Promise.all([
         // the cap leaves room for the people who turn out not to be in
         // the app: the action itself holds MAX_ASSIGNEES at most
-        walkReports([leaderWhoId], undefined, { maxDepth: deep ? WALK_MAX_DEPTH : 1, maxPeople: MAX_ASSIGNEES * 2 }),
+        walkReports([leaderWhoId], undefined, { maxDepth: levels, maxPeople: MAX_ASSIGNEES * 2 }),
         listPeople(),
       ]);
       const split = splitTeam(walk.people, roster, leaderWhoId);
-      return { people: split.people, skipped: split.skipped, partial: walk.truncated || walk.failed.length > 0 };
+      // stopping at the depth asked for is the answer, not a cut-off: only
+      // the people cap or a failed read makes it partial (it used to say
+      // "answered only in part" on every cascade)
+      return { people: split.people, skipped: split.skipped, partial: walk.capped || walk.failed.length > 0 };
     },
   };
 }

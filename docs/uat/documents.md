@@ -782,12 +782,14 @@ expected: the lifecycle commands appear on documents according to their status; 
 
 ### UAT-DOC-076 — Default filters, write access and the move road
 persona: superadmin
-modules: docs/settingsTab.ts docs/writeProbe.ts docs/moveProbe.ts
-preconditions: Settings → Documents open
+modules: docs/settingsTab.ts docs/filterModel.ts docs/docsScreen.ts docs/writeProbe.ts docs/moveProbe.ts
+preconditions: Settings → Documents open; an Organisation term set with a company level holding two or more top-level terms (a company with several sites, and one other); a reader whose profile names site S of that company and who has never opened Documents in this browser
 steps:
-1. Default filters: set a default organisation; Save; open the register as a reader.
-2. Write access: run the probe. Move road: run the probe.
-expected: the reader's register opens on the default organisation; each probe reports what it tried and what SharePoint answered, in plain words
+1. Default filters: choose site S; read the tick list.
+2. Tick ONLY the company that holds S; Save site default; open the register as the reader. Read the Folders pane and the filter chip.
+3. Back in Settings: Edit the row; also tick a site under the OTHER top-level term; Save; open the register as the reader in a fresh browser profile.
+4. Write access: run the probe. Move road: run the probe.
+expected: step 1 the list is a tree — each company or top-level unit in bold with its SITES indented beneath it, no departments; every one can be ticked; step 2 the register opens filtered to S alone (the chip names S, not the company); the pane shows the company with S open to its departments and the company's other sites folded beneath it, one click away; "Show other sites" still reveals the rest; step 3 the extra site sits in the pane folded, after the reader's own; step 4 each probe reports what it tried and what SharePoint answered, in plain words
 
 ### UAT-DOC-077 — Access control groups
 persona: superadmin
@@ -906,7 +908,8 @@ steps:
 3. [R1, then R2] Documents → Filters → Document type.
 4. [Reader] Filters → Process area: open a branch with ▸; tick a term three levels down and a second term in another branch; tick a parent; type part of a deep term's name in the search box.
 5. [Controller] Settings → Documents: untick Filter on a column and read its ★; reopen ★ on Document type and remove every term for Casting; Done; Save.
-expected: step 1 the groups read Status (or "Showing approved documents only" with its button), then Document type, then Process area, then the rest — Importance / risk is below Process area; the phone's selects are unchanged; step 2 the ★ opens "Featured terms — Document type" with a "For" list of Everyone, each site and each department; the list under the box narrows as you type, shows each term's path, and Enter adds without closing; the ★ turns on once a list exists; nothing is saved until the settings' Save; step 3 R1 sees Casting's three terms leading the pills in the order set; R2 sees the two set for everyone; a term at any depth can be featured; picked terms that are not featured stay in sight ahead of them; step 4 Process area is a tree, opened at the reader's own site and department with other branches closed; ticks at any level add to the filter chips and the register follows; a ticked parent shows everything under it ticked and greyed ("included by the level above") and matches documents on any of them; the search shows the matching terms with the path down to each; the "compare across sites" picker is still above it; step 5 ★ is disabled on a column that is not a filter; with Casting's list emptied R1 falls back to the list for everyone
+6. [R1] On a column whose term set holds 14 terms or fewer and has a featured list for Casting: reload Documents and open Filters at once, before anything else; read the pills, then press "Show all n".
+expected: step 6 the pills are Casting's own from the first paint, never the Everyone list for a moment; "Show all n" follows them and brings out every other term of the set after the featured ones, each pickable; "Show fewer" folds them again; a longer set keeps its search box or tree and has no such link; step 1 the groups read Status (or "Showing approved documents only" with its button), then Document type, then Process area, then the rest — Importance / risk is below Process area; the phone's selects are unchanged; step 2 the ★ opens "Featured terms — Document type" with a "For" list of Everyone, each site and each department; the list under the box narrows as you type, shows each term's path, and Enter adds without closing; the ★ turns on once a list exists; nothing is saved until the settings' Save; step 3 R1 sees Casting's three terms leading the pills in the order set; R2 sees the two set for everyone; a term at any depth can be featured; picked terms that are not featured stay in sight ahead of them; step 4 Process area is a tree, opened at the reader's own site and department with other branches closed; ticks at any level add to the filter chips and the register follows; a ticked parent shows everything under it ticked and greyed ("included by the level above") and matches documents on any of them; the search shows the matching terms with the path down to each; the "compare across sites" picker is still above it; step 5 ★ is disabled on a column that is not a filter; with Casting's list emptied R1 falls back to the list for everyone
 
 ### UAT-DOC-094 — A tall window loads past the first 20 documents
 persona: reader

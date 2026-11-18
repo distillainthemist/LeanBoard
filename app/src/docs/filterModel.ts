@@ -87,6 +87,14 @@ export function leadTerms<T extends TermLike>(nodes: T[], featuredIds: string[])
   return featured.length > 0 ? featured : nodes.filter((n) => n.labels.length <= 2);
 }
 
+/** The terms of a vocabulary that the leading pills do NOT show, in the
+ *  vocabulary's own order — what "Show all" adds on a short vocabulary
+ *  (one with no search box and no tree, where they had no way in). */
+export function restAfterLead<T extends TermLike>(nodes: T[], shown: T[]): T[] {
+  const have = new Set(shown.map((n) => n.id.toLowerCase()));
+  return nodes.filter((n) => !have.has(n.id.toLowerCase()));
+}
+
 // ---- the tree (issue 8) ----------------------------------------------------------
 
 /** How deep a vocabulary must go before its filter is a tree rather
@@ -152,3 +160,85 @@ export function openBranches<T extends TermLike>(nodes: T[], profile: { site: st
   }
   return open;
 }
+
+// ---- a site's default branches (Settings → Documents → Default filters) -----
+
+/** Is `a` the label path of `b` or of one of its ancestors? Case-blind. */
+function isPathPrefix(a: string[], b: string[]): boolean {
+  return a.length <= b.length && a.every((l, i) => l.toLowerCase() === b[i].toLowerCase());
+}
+
+/** A row of the Default filters tick tree. */
+export interface DefaultFilterRow {
+  id: string;
+  label: string;
+  /** 1 = a company or top-level unit, 2 = a site beneath one. */
+  depth: 1 | 2;
+}
+
+/**
+ * What a site's default may tick. With a company level in the
+ * Organisation set the tree is two deep: each company (or top-level
+ * unit) with ITS SITES beneath — so a site under another company can be
+ * ticked. Without one the sites are the top level. Never departments
+ * (Ben, 2026-08-14, confirmed 2026-11-18).
+ *
+ * Until 2026-11-18 the list was ONE depth, sites only when the set had a
+ * single top-level term; a second company turned it into a list of
+ * companies and no site could be ticked at all.
+ */
+export function defaultFilterRows(nodes: TermLike[], companyLevel: boolean): DefaultFilterRow[] {
+  const tops = nodes.filter((n) => n.labels.length === 1);
+  if (!companyLevel) return tops.map((n) => ({ id: n.id, label: n.labels[0], depth: 1 }));
+  const out: DefaultFilterRow[] = [];
+  for (const top of tops) {
+    out.push({ id: top.id, label: top.labels[0], depth: 1 });
+    for (const n of nodes) {
+      if (n.labels.length === 2 && isPathPrefix(top.labels, n.labels)) out.push({ id: n.id, label: n.labels[1], depth: 2 });
+    }
+  }
+  return out;
+}
+
+/**
+ * The branches a member's folders pane opens on: their OWN site first —
+ * always, ticked or not, as the setting has always said ("their own
+ * plus…") — then the mapped branches in the walk's order. It used to
+ * lead with the site only when the site itself was ticked, so a default
+ * of just a company made the whole company the member's default filter.
+ */
+export function defaultBranchRoots<T extends TermLike>(nodes: T[], siteTerm: T | null, mapped: string[]): T[] {
+  const wanted = new Set(mapped.map((id) => id.toLowerCase()));
+  const rest = nodes.filter((n) => wanted.has(n.id.toLowerCase()) && (siteTerm === null || n.id !== siteTerm.id));
+  return siteTerm !== null ? [siteTerm, ...rest] : rest;
+}
+
+/**
+ * What a first visit folds (label paths): every other mapped branch;
+ * under a mapped branch that CONTAINS the member's site (their company)
+ * the sites beside theirs, never the path down to it; and their site's
+ * departments other than their own.
+ */
+export function firstVisitFolds(nodes: TermLike[], roots: TermLike[], myDepartment: string): string[][] {
+  if (roots.length === 0) return [];
+  const mine = roots[0].labels;
+  const dept = myDepartment.trim().toLowerCase();
+  const folds: string[][] = [];
+  for (const r of roots.slice(1)) {
+    if (!(r.labels.length < mine.length && isPathPrefix(r.labels, mine))) {
+      folds.push(r.labels);
+      continue;
+    }
+    // an ancestor of my site: fold what branches off the path to it
+    for (const n of nodes) {
+      const d = n.labels.length;
+      if (d <= r.labels.length || d > mine.length) continue;
+      if (isPathPrefix(mine.slice(0, d - 1), n.labels) && !isPathPrefix(n.labels, mine)) folds.push(n.labels);
+    }
+  }
+  for (const n of nodes) {
+    if (n.labels.length === mine.length + 1 && isPathPrefix(mine, n.labels) && n.labels[n.labels.length - 1].toLowerCase() !== dept) folds.push(n.labels);
+  }
+  return folds;
+}
+

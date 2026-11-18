@@ -25,7 +25,7 @@ import { orgName as priorityOrgName } from "../priorities/model";
  *  for a template board (`tpl-<id>`) and an initiative board (`init-`,
  *  via the initiative's template). Labels are the fields' display
  *  labels; the group says where each is defined. */
-export async function headerFieldsForBoard(boardId: string): Promise<{ key: string; label: string; group: string; field: TemplateField }[]> {
+export async function headerFieldsForBoard(boardId: string): Promise<HeaderField[]> {
   const imp = parseImprovementSettings(await improvementSettingsJson().catch(() => ""));
   let templateId = boardId.startsWith("tpl-") ? boardId.slice(4) : "";
   if (boardId.startsWith("init-")) {
@@ -35,7 +35,17 @@ export async function headerFieldsForBoard(boardId: string): Promise<{ key: stri
   let tpl = templateId !== "" ? await getTemplate(templateId).catch(() => null) : null;
   // a template board whose id is not tpl-<templateId>: find it by boardId
   if (!tpl && boardId.startsWith("tpl-")) tpl = (await listTemplates().catch(() => [])).find((t) => t.boardId === boardId) ?? null;
-  const out: { key: string; label: string; group: string; field: TemplateField }[] = [];
+  return headerFieldsFrom(imp, tpl);
+}
+
+type HeaderField = { key: string; label: string; group: string; field: TemplateField };
+type ImprovementSettings = ReturnType<typeof parseImprovementSettings>;
+type Template = NonNullable<Awaited<ReturnType<typeof getTemplate>>>;
+type Initiative = Awaited<ReturnType<typeof listInitiatives>>[number];
+
+/** The header fields from settings and a template already in hand. */
+function headerFieldsFrom(imp: ImprovementSettings, tpl: Template | null): HeaderField[] {
+  const out: HeaderField[] = [];
   const seen = new Set<string>();
   const add = (fs: TemplateField[], group: string) => {
     for (const f of fs) {
@@ -96,9 +106,32 @@ export async function bindingTargetsForBoard(boardId: string): Promise<{ value: 
  *  boards (Ben, 2026-08-27) — the rest of the roster stays behind the
  *  search box, as on meetings. */
 export async function initiativeAssignees(boardId: string): Promise<{ whoId: string; who: string }[]> {
+  const ctx = await initiativeContext(boardId);
+  return ctx ? assigneesFrom(ctx.i, ctx.imp) : [];
+}
+
+/** What every card on an `init-` board reads about its initiative: the
+ *  row, the improvement settings and the template — ONE load, the last
+ *  two together. A card switch used to fetch the settings twice, the
+ *  template twice, the roster and the whole priority cascade, one after
+ *  another, before any card painted (Ben, 2026-11-17). */
+export interface InitiativeContext {
+  i: Initiative;
+  imp: ImprovementSettings;
+  tpl: Template | null;
+}
+
+export async function initiativeContext(boardId: string): Promise<InitiativeContext | null> {
   const i = (await listInitiatives()).find((x) => x.boardId === boardId) ?? null;
-  if (!i) return [];
-  const imp = parseImprovementSettings(await improvementSettingsJson().catch(() => ""));
+  if (!i) return null;
+  const [impRaw, tpl] = await Promise.all([
+    improvementSettingsJson().catch(() => ""),
+    i.templateId !== "" ? getTemplate(i.templateId).catch(() => null) : Promise.resolve(null),
+  ]);
+  return { i, imp: parseImprovementSettings(impRaw), tpl };
+}
+
+function assigneesFrom(i: Initiative, imp: ImprovementSettings): { whoId: string; who: string }[] {
   const seen = new Set<string>();
   const out: { whoId: string; who: string }[] = [];
   const add = (p: { whoId: string; who: string }) => {
@@ -116,19 +149,37 @@ export async function initiativeAssignees(boardId: string): Promise<{ whoId: str
   return out;
 }
 
-export async function makeInitiativeBinding(boardId: string, onChanged: () => void): Promise<CanvasBinding | null> {
-  const all = await listInitiatives();
-  const i = all.find((x) => x.boardId === boardId) ?? null;
-  if (!i) return null;
-  const roster = await listPeople().catch(() => []);
-  const host = document.body;
+export interface InitiativeBindingOpts {
+  /** The initiative's row, settings and template, when the caller has
+   *  them (the card walk keeps one per board). */
+  context?: InitiativeContext | null;
+  /** The roster for the role pickers — asked for only when a picker
+   *  opens, never to paint. */
+  roster?: () => Promise<Awaited<ReturnType<typeof listPeople>>>;
+  /** The targets this card binds, when known: the primary priority's
+   *  statement is fetched only if "priority" is among them. Unknown
+   *  (several cards share the binding) = fetch it. */
+  binds?: string[];
+}
+
+export async function makeInitiativeBinding(boardId: string, onChanged: () => void, opts: InitiativeBindingOpts = {}): Promise<CanvasBinding | null> {
+  const ctx = opts.context !== undefined ? opts.context : await initiativeContext(boardId);
+  if (!ctx) return null;
+  const { i, tpl } = ctx;
+  // the primary priority's statement (a read-only target): ONE row, and
+  // only for a card that shows it
+  const primaryPriorityId = i.priorities.find((l) => l.primary)?.priorityId ?? "";
+  const wantsPriority = primaryPriorityId !== "" && (opts.binds === undefined || opts.binds.includes("priority"));
+  const priorityLabel: string | null = wantsPriority
+    ? await import("../store/priorities").then(({ priorityStatement }) => priorityStatement(primaryPriorityId)).catch(() => "")
+    : null;
+  const rosterNow = opts.roster ?? (() => listPeople());
   // the header's custom fields: labels for the edit prompt, kinds for the
   // typed editors
-  const headerFields = await headerFieldsForBoard(boardId).catch(() => []);
+  const headerFields = headerFieldsFrom(ctx.imp, tpl);
   const fieldLabel = new Map(headerFields.map((f) => [f.key, f.label]));
   const fieldDef = new Map(headerFields.map((f) => [f.key, f.field]));
 
-  const tpl = i.templateId !== "" ? await getTemplate(i.templateId).catch(() => null) : null;
   const roleDefs = new Map((tpl ? activeRoles(tpl) : []).map((r) => [r.key, r]));
   const roleKeyOf = (bound: string): string | null => (bound === "owner" ? "owner" : bound.startsWith("role:") ? bound.slice(5) : null);
   const roleLabel = (key: string) => roleDefs.get(key)?.label ?? i.snapshot.roleLabels[key] ?? key;
@@ -220,6 +271,8 @@ export async function makeInitiativeBinding(boardId: string, onChanged: () => vo
         const def = roleDefs.get(rk);
         const multi = def ? def.multi : rk !== "owner";
         const cur = i.roles[rk] ?? [];
+        const roster = await rosterNow().catch(() => []);
+        const host = document.body;
         if (multi) {
           const directory = await myDirectoryRoad({ site: i.org.site, department: i.org.department }, roster);
           const res = await pickPeople(host, roster, cur, roleLabel(rk), { directory });
@@ -247,17 +300,17 @@ export async function makeInitiativeBinding(boardId: string, onChanged: () => vo
     })();
   };
 
-  // the primary priority's statement (read-only target) — loaded once
-  let priorityLabel: string | null = null;
-  const primaryPriorityId = i.priorities.find((l) => l.primary)?.priorityId ?? "";
-  if (primaryPriorityId !== "") {
-    try {
-      const { loadCascade } = await import("../store/priorities");
-      priorityLabel = (await loadCascade("")).priorities.find((p) => p.id === primaryPriorityId)?.statement ?? "";
-    } catch {
-      priorityLabel = "";
-    }
-  }
-
   return { get, canEdit, edit, kind, set, typeOf, value, setValue };
+}
+
+/** Everything a focused card on an `init-` board needs, in one go: the
+ *  people who front the assignee picker and, for a canvas card only, the
+ *  charter binding. */
+export async function initiativeCardSide(
+  boardId: string,
+  opts: { context: InitiativeContext | null; canvas: boolean; binds: string[]; roster: InitiativeBindingOpts["roster"] }
+): Promise<{ binding: CanvasBinding | undefined; assignees: { whoId: string; who: string }[] }> {
+  if (!opts.context) return { binding: undefined, assignees: [] };
+  const binding = opts.canvas ? await makeInitiativeBinding(boardId, () => undefined, { context: opts.context, binds: opts.binds, roster: opts.roster }) : null;
+  return { binding: binding ?? undefined, assignees: assigneesFrom(opts.context.i, opts.context.imp) };
 }

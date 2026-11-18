@@ -1,7 +1,7 @@
 // The register's Filters pane — order, featured terms and the tree
 // (2026-11-17, issues 7, 8 and 9).
 import { describe, expect, it } from "vitest";
-import { featuredFor, featuredScopeKey, featuredScopeLabel, leadTerms, openBranches, orderFilterColumns, parseFeatured, termTree, treeSearch, vocabularyDepth } from "../docs/filterModel";
+import { featuredFor, featuredScopeKey, featuredScopeLabel, leadTerms, openBranches, orderFilterColumns, parseFeatured, restAfterLead, termTree, treeSearch, vocabularyDepth } from "../docs/filterModel";
 
 const t = (id: string, ...labels: string[]) => ({ id, labels });
 
@@ -79,3 +79,17 @@ describe("the tree", () => {
     expect(openBranches(nodes, { site: "Nowhere", department: "" }, []).size).toBe(0);
   });
 });
+
+describe("a short vocabulary's other terms", () => {
+  const terms = [t("a", "Isolation"), t("b", "Response Plan"), t("c", "Single Point Lesson"), t("d", "Type", "Sub", "Deep")];
+  it("are the ones the leading pills leave out, in the vocabulary's order", () => {
+    expect(restAfterLead(terms, [terms[2], terms[0]]).map((n) => n.id)).toEqual(["b", "d"]);
+  });
+  it("are none when everything leads", () => {
+    expect(restAfterLead(terms, terms)).toEqual([]);
+  });
+  it("include a third level the default lead leaves out", () => {
+    expect(restAfterLead(terms, leadTerms(terms, [])).map((n) => n.id)).toEqual(["d"]);
+  });
+});
+

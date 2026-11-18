@@ -19,9 +19,13 @@ lock older builds from Settings once the new one runs.
 their own content and a tile floor of three-quarters size (issues 44,
 41; UAT-IMP-010); canvas labels wrap (33); the duplicate document-id
 check stops when it cannot be made (7; UAT-DOC-026); an action tile
-shows what fits and "+N more" (39; UAT-ACT-011). App-only. Tranche 2
-(45, 40, 43, 42, two document-filter gaps) and tranche 3 (By person
-kanban grouping, a person column in capture cards) follow. Owed by
+shows what fits and "+N more" (39; UAT-ACT-011). App-only. **Tranche 2, same day:**
+initiative card switches read once and in parallel (45; UAT-IMP-011);
+one people search for Who and Support (40); cascaded people as grid
+boxes, two levels at most (43); the Default filters tick tree with the
+member's own site leading (42; UAT-DOC-076); "Show all n" on short
+filter vocabularies and pills that wait for the profile (38). Tranche 3
+(By person kanban grouping, a person column in capture cards) follows. Owed by
 Ben: the replies in the plan's section 1, the UAT library's Linked
 documents column, Kat's Dataverse role, Casting's featured document
 types, and whether canvas labels get a style (33).
