@@ -57,7 +57,22 @@ function trackingFor(m: TemplateMetric, d: DriverNode | null): DriverTracking | 
   return null;
 }
 
-export function mountMetricsCard(opts: CardMount): () => void {
+/** Metrics from somewhere other than an initiative board (a PRIORITY's
+ *  own metrics, 2026-11-19): the same chart grid, the same Update values
+ *  road, over the metrics the host hands in. */
+export interface MetricsCardSource {
+  metrics: TemplateMetric[];
+  /** Whose value driver tree a linked metric reads ("" = none). */
+  site: string;
+  /** Where a metric's readings live. */
+  locate: (m: TemplateMetric, driver: DriverNode | null) => MetricLocation;
+  /** Shown when there are no metrics ("" = draw nothing). */
+  emptyNote: string;
+  /** Values were written: the host's own picture is stale. */
+  onValuesChanged?: () => void;
+}
+
+export function mountMetricsCard(opts: CardMount & { source?: MetricsCardSource }): () => void {
   const wrap = el("div", "app-mc");
   opts.host.appendChild(wrap);
   wrap.appendChild(el("div", "app-cp-muted app-mc-note", "Loading…"));
@@ -89,7 +104,7 @@ export function mountMetricsCard(opts: CardMount): () => void {
 
   const loadRow = async (m: TemplateMetric): Promise<Row> => {
     const d = m.driverId ? (drivers.find((x) => x.id === m.driverId) ?? null) : null;
-    const loc = metricLocation(m, opts.boardId, opts.cardId, slots, d);
+    const loc = opts.source ? opts.source.locate(m, d) : metricLocation(m, opts.boardId, opts.cardId, slots, d);
     const source = sourceFor(m, loc, d);
     const origin = pageOriginAround(today, loc.cadence);
     const cols = pageColumns(loc.cadence, origin);
@@ -106,10 +121,22 @@ export function mountMetricsCard(opts: CardMount): () => void {
   };
 
   const load = async () => {
-    const [inits, board, palettes] = await Promise.all([listInitiatives().catch(() => []), getBoard(opts.boardId).catch(() => null), appPalettes().catch(() => ({ states: [], titles: [] }))]);
+    const [inits, board, palettes] = await Promise.all([
+      opts.source ? Promise.resolve([] as Initiative[]) : listInitiatives().catch(() => []),
+      opts.source ? Promise.resolve(null) : getBoard(opts.boardId).catch(() => null),
+      appPalettes().catch(() => ({ states: [], titles: [] })),
+    ]);
     if (dead) return;
     const stateColors = paletteMap(palettes.states);
     ragColor = (rag) => stateColors[ragPaletteKey(rag)] ?? "#9a948a";
+    if (opts.source) {
+      // the host's metrics, as handed in: no initiative, no board slots
+      drivers = opts.source.site !== "" && opts.source.metrics.some((m) => m.driverId) ? await listDrivers(opts.source.site).catch(() => []) : [];
+      rows = await Promise.all(opts.source.metrics.map(loadRow));
+      if (dead) return;
+      paint();
+      return;
+    }
     initiative = inits.find((i) => i.boardId === opts.boardId) ?? null;
     if (!initiative) {
       clear(wrap);
@@ -178,7 +205,8 @@ export function mountMetricsCard(opts: CardMount): () => void {
     ed.setReadOnly(opts.readOnly);
     ed.setPeople(opts.people);
     ed.setActions(opts.actions);
-    ed.setCanRaise(opts.designTime !== true);
+    // per-reading actions belong to an initiative board's card
+    ed.setCanRaise(opts.designTime !== true && !opts.source);
     ed.setSpec({ target: r.m.target, usl: r.m.usl ?? null, lsl: r.m.lsl ?? null, unit: r.driver ? r.driver.unit : r.m.unit });
     const shifts = r.loc.cadence === "shiftly" ? ["D", "N"] : null;
     ed.setReadingMode({ cadence: r.loc.cadence, shifts });
@@ -226,7 +254,8 @@ export function mountMetricsCard(opts: CardMount): () => void {
     destroyEditors();
     clear(wrap);
     if (rows.length === 0) {
-      wrap.appendChild(el("div", "app-cp-muted app-mc-note", "No metrics on this initiative yet — add them in Edit details."));
+      const note = opts.source ? opts.source.emptyNote : "No metrics on this initiative yet — add them in Edit details.";
+      if (note !== "") wrap.appendChild(el("div", "app-cp-muted app-mc-note", note));
       return;
     }
     const cols = rows.length <= 1 ? 1 : rows.length <= 4 ? 2 : 3;
@@ -273,6 +302,7 @@ export function mountMetricsCard(opts: CardMount): () => void {
     const k = rows.findIndex((x) => x.m.key === r.m.key);
     if (k >= 0) rows[k] = fresh;
     if (!dead) paint();
+    opts.source?.onValuesChanged?.();
   };
 
   void load().catch((err) => {

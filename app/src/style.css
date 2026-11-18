@@ -5204,6 +5204,12 @@ button.app-cp-hcchip.app-cp-hcchip-stale:hover { background: rgba(255,255,255,0.
 .app-cp-ov-ownmetrics { margin-bottom: 6px; }
 .app-cp-ov-ownmetrics .app-im-metricslist { display: flex; flex-direction: column; gap: 6px; }
 .app-cp-ov-objrow.app-cp-ov-ownrow { cursor: default; }
+/* …and each one's full trend: the Metrics card's chart grid, at its own
+   height (the popup scrolls, the grid does not) */
+.app-cp-ov-owncharts { overflow: visible; margin: 10px 0 14px; }
+.app-cp-ov-owncharts:empty { display: none; }
+.app-cp-ov-owncharts .app-mc { height: auto; overflow: visible; }
+.app-cp-ov-owncharts .app-mc-chartgrid { padding: 0; min-height: 0; grid-auto-rows: 280px; }
 .app-cp-ov-ownrow .app-cp-ov-objtext { flex: 1; min-width: 0; }
 /* Complete / Archive: its own actions are still open */
 .app-cp-openwarn { padding: 8px 10px; border: 1px solid #e6cf9a; border-radius: 6px; background: #fdf6e3; color: #5c4a12; font-size: 13px; }

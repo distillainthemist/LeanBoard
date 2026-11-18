@@ -1530,10 +1530,8 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
         });
       }
       if (primary !== null) {
-        // then the primary initiative's metrics card, as before
-        const head = el("div", "app-cp-ov-group app-cp-ov-group-primary");
-        head.appendChild(el("span", undefined, `★ ${primary.title}`));
-        body.appendChild(head);
+        // then the primary initiative's metrics card, as before — it
+        // carries its own "★ <title> · Open board" line
         const host = el("div", "app-cp-ov-charter");
         body.appendChild(host);
         void mountPrimaryCard(host, primary.id, "MetricsCard", { actor: ctx.actor(), adminScope: ctx.viewerAdminScope, priorityId: live.id });

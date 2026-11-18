@@ -2,13 +2,18 @@
 // 2026-11-18 proposal, feature 2): metrics defined ON the priority. The
 // initiative metric editor for the people who manage the OWNING org
 // (name, objective, unit, plan, limits, cadence, or one from the value
-// driver tree), "Values…" on each row opening the values grid; read-only
-// rows for everyone else — an org that adopted the priority included.
+// driver tree); read-only rows for everyone else — an org that adopted
+// the priority included. Under the rows, each metric's FULL TREND (Ben,
+// 2026-11-19: the tab showed no trend, only the tile's sparkline): the
+// initiative Metrics card's own chart grid, with its "Update values" in
+// each chart's title strip and a click popping a chart out large.
 // Loaded on demand from the popup.
 
 import { el } from "../../../shared/ui/dom";
 import { todayIso } from "../../../shared/schema/id";
 import { DEFAULT_ROWS_CARD } from "../../../shared/schema/specSeries";
+import { defaultTheme } from "../../../shared/tokens";
+import { mountMetricsCard } from "../improvement/metricsCard";
 import type { MetricValue } from "../improvement/metricValues";
 import { ownMetricLocation } from "../improvement/metricValues";
 import { renderMetricsList } from "../improvement/metricsList";
@@ -16,7 +21,7 @@ import type { TemplateMetric } from "../improvement/templateModel";
 import type { DriverNode, DriverTracking } from "../improvement/vdt/model";
 import { pageColumns, pageOriginAround } from "../improvement/vdt/gridModel";
 import { listDrivers } from "../store/valueDrivers";
-import { OBJECTIVES_JSON_MAX, objectivesJson, OWN_METRIC_CAP, Priority, ragPaletteKey } from "./model";
+import { OBJECTIVES_JSON_MAX, objectivesJson, OWN_METRIC_CAP, OWN_SERIES_BOARD, Priority, ragPaletteKey } from "./model";
 
 export interface OwnMetricsOpts {
   host: HTMLElement;
@@ -80,6 +85,41 @@ export function mountOwnMetrics(o: OwnMetricsOpts): void {
     });
   };
 
+  // every metric's full trend, under the rows
+  const chartsHost = el("div", "app-cp-ov-chartercard-scroll app-cp-ov-owncharts");
+  let unmountCharts: () => void = () => undefined;
+  const mountCharts = () => {
+    unmountCharts();
+    unmountCharts = () => undefined;
+    if (!chartsHost.isConnected || metrics.length === 0) return;
+    unmountCharts = mountMetricsCard({
+      host: chartsHost,
+      title: "",
+      boardId: OWN_SERIES_BOARD,
+      cardId: p.id,
+      outputJson: "",
+      people: [],
+      theme: defaultTheme(),
+      readOnly: !o.canEdit,
+      settings: {},
+      instanceKey: "",
+      instanceWhen: "",
+      actions: [],
+      palette: o.palette,
+      sources: [],
+      viewer: { whoId: "", who: "" },
+      onSave: () => undefined,
+      onActions: () => undefined,
+      source: {
+        metrics: metrics.map((m) => ({ ...m })),
+        site,
+        locate: (m, d) => ownMetricLocation(p.id, m, d),
+        emptyNote: "",
+        onValuesChanged: () => void o.valuesChanged(),
+      },
+    });
+  };
+
   if (!o.canEdit) {
     // read-only: a light, "Name: objective", plan and actual, the values
     const values = o.values();
@@ -98,6 +138,8 @@ export function mountOwnMetrics(o: OwnMetricsOpts): void {
       row.append(light, text, open);
       o.host.appendChild(row);
     }
+    o.host.appendChild(chartsHost);
+    mountCharts();
     return;
   }
 
@@ -115,6 +157,8 @@ export function mountOwnMetrics(o: OwnMetricsOpts): void {
     err.textContent = "";
     saved = now;
     p.ownMetrics = metrics.map((m) => ({ ...m }));
+    // the charts follow the definitions (a metric added, renamed, removed)
+    mountCharts();
     writing = writing.then(o.save).catch((e) => {
       console.warn("priority metrics: save failed", e);
       err.textContent = "The metrics could not be saved. Check the connection and try again.";
@@ -122,7 +166,7 @@ export function mountOwnMetrics(o: OwnMetricsOpts): void {
   };
 
   const list = el("div");
-  o.host.append(list, err);
+  o.host.append(list, err, chartsHost);
   renderMetricsList({
     host: list,
     metrics,
@@ -134,14 +178,6 @@ export function mountOwnMetrics(o: OwnMetricsOpts): void {
     noRelink: true,
     max: OWN_METRIC_CAP,
     onChanged: persist,
-    rowTools: (m) => {
-      const b = link("Values…");
-      b.title = "Enter or read this metric's values";
-      b.addEventListener("click", () => {
-        // a metric just added is written before its values are
-        void writing.then(() => openValues(m, false));
-      });
-      return [b];
-    },
   });
+  mountCharts();
 }

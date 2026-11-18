@@ -457,6 +457,16 @@ Metrics on a priority. App-only: no schema.
   whatever their age; the card's chart draws the 13-week page around
   today, so only the two readings since 7 Sep fall in it. Not changed:
   Ben chose to leave the sparkline as it is (2026-11-19).
+- **A priority's own metrics show their full trend** (test 10; Ben:
+  "can only see a sparkline right now"). Under the rows of "This
+  priority" the Objectives tab draws the initiative Metrics card's own
+  chart grid over the priority's metrics (`mountMetricsCard` takes a
+  `source`; `priorities/ownMetricsTab.ts` hands it the metrics and
+  their location). "Update values" sits in each chart's title strip, so
+  the row's "Values…" link went for editors; a click pops a chart out
+  large. Readers see the charts too, without the button. The doubled
+  "★ <primary>" heading above the primary's metrics card is one line
+  again.
 - **Driver readings are sorted by date** (`store/seriesMap.ts`
   `sortPoints`, used by `listDriverPoints`). The read promised no order and the callers took the
   last row as the latest reading; a week filled in late would have
@@ -478,6 +488,7 @@ Twelve checks, one at a time, on `v0.96.0-6` then `v0.96.0-7`.
 | 7 | Popup "Add action", Actions tab, Gantt | Pass |
 | 8 | Complete / Archive warning, executive summary | Pass |
 | 9 | Adopted tile, company view, hub label, message | Steps 1–5 taken as passed; step 6 (a person who does not manage the site) UNTESTED — no second person |
+| 10 | Add a metric to a priority | In progress: Ben asked for the full trend; charts added on `v0.96.0-10` |
 
 ## Not in this round
 
