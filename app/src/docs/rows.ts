@@ -308,6 +308,23 @@ function renderText(v: unknown): string {
   return String(v);
 }
 
+/** The term ids a taxonomy value carries, in the order of its labels —
+ *  [] for anything that is not a taxonomy value. The feed hands a term
+ *  as { Label, TermID } (an array of them for a multi-value column);
+ *  the label is SharePoint's stored copy, which lags a rename, while the
+ *  id never changes (2026-11-22). */
+export function termIdsOf(v: unknown): string[] {
+  const one = (e: unknown): string => {
+    if (!e || typeof e !== "object") return "";
+    const o = e as Record<string, unknown>;
+    const id = o.TermID ?? o.TermGuid ?? o.termId;
+    return typeof id === "string" && typeof o.Label === "string" ? id.replace(/^\{|\}$/g, "").toLowerCase() : "";
+  };
+  const ids = Array.isArray(v) ? v.map(one) : [one(v)];
+  // every label must have its id, or the pairing cannot be trusted
+  return ids.length > 0 && ids.every((x) => x !== "") ? ids : [];
+}
+
 export interface RenderPage {
   rows: DocRow[];
   /** Opaque paging query string ("?Paged=TRUE&..."), "" when done. */
@@ -382,6 +399,10 @@ export function parseRenderPage(raw: unknown, listId: string): RenderPage {
       if ((k.startsWith("_") && !KEPT_SYSTEM_FIELDS.has(k)) || k.includes(".")) continue;
       const text = renderText(v);
       if (text !== "") values[k] = text;
+      // a term column ALSO keeps its term ids, under "<col>#termid" — a
+      // renamed term is still the same term (ingestion grid, 2026-11-22)
+      const termIds = text !== "" ? termIdsOf(v) : [];
+      if (termIds.length > 0) values[`${k}#termid`] = termIds.join(";");
       // person columns ALSO keep their emails, under "<col>#email" —
       // display names collide, and the approve gate compares the acting
       // user by address (Phase 5B), exactly as "checked out by me" does

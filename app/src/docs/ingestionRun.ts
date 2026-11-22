@@ -240,6 +240,46 @@ export function runSaver(o: RunSaverOpts): RunSaver {
   };
 }
 
+// ---- a throttled call is tried again ---------------------------------------
+
+/** The waits before the second, third and fourth try of a throttled
+ *  call (Ben, 2026-11-22). */
+export const THROTTLE_WAITS_MS = [2000, 5000, 10000];
+/** Files in flight for the rest of a run once it has been throttled. */
+export const IN_FLIGHT_THROTTLED = 4;
+/** What a file still throttled after every try is refused with. */
+export const BUSY_WORDS = "SharePoint is busy. Run again in a few minutes.";
+
+/** Does a refusal read as a THROTTLE — the service saying "too many,
+ *  not now" — and nothing else? Only these are retried: a throttled
+ *  call was not carried out, so repeating it is safe; a timeout or any
+ *  other failure may have gone through, and repeating a copy would then
+ *  collide with itself. Read from the status text, because that is all
+ *  the connector hands back; the real wording through the connector is
+ *  unseen, so the usual forms are all accepted. */
+export function isThrottled(status: string): boolean {
+  return /\b429\b|too ?many ?requests|throttl|rate ?limit|server ?(is )?(too )?busy/i.test(status);
+}
+
+/** Run a call; while it is refused as throttled, wait and run it again
+ *  (three more tries at most). `onThrottle` hears the first refusal of
+ *  each call. The last answer is returned whatever it is. */
+export async function retryThrottled<T extends { ok: boolean; status: string }>(
+  call: () => Promise<T>,
+  onThrottle: () => void = () => undefined,
+  waits: number[] = THROTTLE_WAITS_MS,
+  sleep: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms))
+): Promise<T> {
+  let r = await call();
+  for (const wait of waits) {
+    if (r.ok || !isThrottled(r.status)) return r;
+    onThrottle();
+    await sleep(wait);
+    r = await call();
+  }
+  return r;
+}
+
 // ---- the copies a stopped run left behind ---------------------------------
 
 /** Of the files about to run, the ones whose name is already in the

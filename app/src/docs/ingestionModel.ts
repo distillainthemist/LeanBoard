@@ -220,6 +220,30 @@ export function tasksForPanel(all: IngestionTask[], viewerEmail: string, isContr
   return all.filter((t) => t.status !== "closed" && canSeeTask(t, viewerEmail, isController)).sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0));
 }
 
+/** A file's term column as it reads NOW: the current name of each term
+ *  it carries, found by id. SharePoint keeps a label on the item and
+ *  updates it some time after a rename, so the stored label of a renamed
+ *  term matches nothing in the picker (the cell opened unselected and
+ *  the file looked untagged). Returns null — leave the stored label —
+ *  when the feed gave no ids or any id is unknown to the set. */
+export function currentTermLabels(values: Record<string, string>, internal: string, nameOf: (termId: string) => string | undefined): string | null {
+  const ids = (values[`${internal}#termid`] ?? "").split(";").map((x) => x.trim().toLowerCase()).filter((x) => x !== "");
+  if (ids.length === 0) return null;
+  const names = ids.map((id) => nameOf(id) ?? "");
+  return names.every((n) => n !== "") ? names.join("; ") : null;
+}
+
+/** How many closed tasks the panel lists before "Show all n". */
+export const CLOSED_SHOWN = 20;
+
+/** The CLOSED tasks a viewer may re-read (their run logs), by the same
+ *  rule as the open ones, most recently ended first (2026-11-22: an
+ *  ended task left the panel and its log could no longer be reached). */
+export function closedTasksForPanel(all: IngestionTask[], viewerEmail: string, isController: boolean): IngestionTask[] {
+  const ended = (t: IngestionTask): string => t.closedAt || t.createdAt;
+  return all.filter((t) => t.status === "closed" && canSeeTask(t, viewerEmail, isController)).sort((a, b) => (ended(a) < ended(b) ? 1 : ended(a) > ended(b) ? -1 : 0));
+}
+
 /** What a file still lacks before it may move: the required internals
  *  whose register value is blank, by label. */
 export function missingFor(values: Record<string, string>, required: { internal: string; label: string }[]): string[] {

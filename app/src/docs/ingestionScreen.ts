@@ -23,6 +23,7 @@ import { statusChip } from "../../../shared/ui/format";
 import { paletteMap } from "../../../shared/palette";
 import { appPalettes } from "../store/config";
 import { currentViewer } from "../runtime";
+import { BUSY_WORDS, IN_FLIGHT_THROTTLED, isThrottled, retryThrottled } from "./ingestionRun";
 import { alreadyThere, claimHeld, lastStart, nameList, RUN_CLAIM_WAIT_MS, RUN_POLL_MS, runSaver, RunSaver, runStamp, runState, RunState, stampAgeMs, startedEntry } from "./ingestionRun";
 import { searchEntra } from "../store/people";
 import { appLinkUrl } from "../links";
@@ -75,7 +76,7 @@ import {
 import { buildFieldEditors, editorKind } from "./fieldEditors";
 import { POOL_ROLES } from "./accessGates";
 import type { ParsedSheet, SheetColumn, SheetFile } from "./sheetRoundTrip";
-import { IngestionAssignee, IngestionTask, RunLogEntry, blanksToFill, compareByFolderThenName, dirOf, duplicateNames, folderGroups, folderLabel, ingestComment, labelsOutsideRoot, latestByFile, logSummary, missingFor, subFolderOf, taskFolderName } from "./ingestionModel";
+import { currentTermLabels, IngestionAssignee, IngestionTask, RunLogEntry, blanksToFill, compareByFolderThenName, dirOf, duplicateNames, folderGroups, folderLabel, ingestComment, labelsOutsideRoot, latestByFile, logSummary, missingFor, subFolderOf, taskFolderName } from "./ingestionModel";
 
 /** The most files one task lists (sub-folders included); past it the
  *  status line says to split the task. */
@@ -252,15 +253,17 @@ async function writeDirect(site: string, listId: string, row: DocRow, formValues
  *  for a run's eight calls a file; more would start to be throttled
  *  and lose the gain. Order of completion is not the order of items. */
 const IN_FLIGHT = 8;
-async function pool<T>(items: T[], limit: number, work: (item: T) => Promise<void>): Promise<void> {
+async function pool<T>(items: T[], limit: number, work: (item: T) => Promise<void>, lanesNow: () => number = () => limit): Promise<void> {
   let next = 0;
-  const lane = async () => {
-    while (next < items.length) {
+  // `lanesNow` may fall mid-run (a throttled run halves itself): a lane
+  // above the line finishes the file it holds and takes no more
+  const lane = async (k: number) => {
+    while (next < items.length && k < lanesNow()) {
       const item = items[next++];
       await work(item);
     }
   };
-  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, lane));
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, (_, k) => lane(k)));
 }
 
 /** Is a run alive on this task right now? Reads the row afresh. A
@@ -1300,6 +1303,23 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
       status.textContent = runView === "checking" ? "This task reads as running — checking whether the run is still going. Try again in a moment." : `${runnerWords(runner)} — wait for it to finish.`;
       return true;
     };
+    /** Each term cell reads the term's CURRENT name, found by its id
+     *  (the feed's label lags a rename): the cell then opens with the
+     *  term selected and the file is not re-tagged by hand. A set that
+     *  cannot be walked leaves the stored labels as they are. */
+    const showCurrentTermNames = async (list: DocRow[]): Promise<void> => {
+      for (const f of gridFields) {
+        if ((editorKind(f) ?? "") !== "taxonomy" || f.termSetId === "") continue;
+        if (!list.some((r) => (r.values[`${f.internal}#termid`] ?? "") !== "")) continue;
+        const walk = await cachedTermPaths(ctx.site, f.termSetId).catch(() => null);
+        if (walk === null) continue;
+        const names = new Map(walk.nodes.map((n) => [n.id.toLowerCase(), n.labels[n.labels.length - 1]]));
+        for (const r of list) {
+          const now = currentTermLabels(r.values, f.internal, (id) => names.get(id));
+          if (now !== null) r.values[f.internal] = now;
+        }
+      }
+    };
     const reload = async (): Promise<void> => {
       status.textContent = "Reading the folder…";
       // every file under the task folder, sub-folders included (Ben,
@@ -1323,6 +1343,7 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
         next = page.next;
       }
       rows = got;
+      await showCurrentTermNames(rows);
       await reloadFileFlags();
       if (dead) return;
       for (const r of rows) {
@@ -1765,17 +1786,32 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
           task.log.push({ file, outcome, detail, at: new Date().toISOString(), by });
           saver?.touch();
         };
-        // files in flight eight at a time (Ben, 2026-10-09: speed)
+        // files in flight eight at a time (Ben, 2026-10-09: speed). A call
+        // SharePoint refuses as throttled is tried again after a wait, and
+        // a run that has been throttled halves itself for what is left
+        let throttled = false;
+        const sp = <T extends { ok: boolean; status: string }>(call: () => Promise<T>): Promise<T> =>
+          retryThrottled(call, () => {
+            throttled = true;
+          });
         progress.start(ready.length, "Ingesting");
         status.textContent = "";
         const ingestOne = async (row: DocRow): Promise<void> => {
           if (dead) return;
           progress.working(row.name);
-          const refuse = (why: string) => log(row.name, "refused", why);
+          // still throttled after every try: one plain line, not the raw refusal
+          // (a refusal AFTER the copy keeps its own words — they say where the draft is)
+          const refuse = (why: string) => log(row.name, "refused", isThrottled(why) && !/^(Copied|Moved), but/.test(why) ? BUSY_WORDS : why);
           // document-ID collision: the app's own check (decision 4)
           const docId = docIdInternal !== "" ? (row.values[docIdInternal] ?? "").trim() : "";
           if (docId !== "" && carried.has(docIdInternal)) {
-            const dup = await renderListPage(ctx.site, dest.listId, buildRenderViewXml({ textEquals: [{ col: docIdInternal, value: docId }], fields: [docIdInternal], rowLimit: 2 }));
+            const dupXml = buildRenderViewXml({ textEquals: [{ col: docIdInternal, value: docId }], fields: [docIdInternal], rowLimit: 2 });
+            const dup = (
+              await sp(async () => {
+                const page = await renderListPage(ctx.site, dest.listId, dupXml);
+                return { ok: page.error === "", status: page.error, page };
+              })
+            ).page;
             // not checked is not "free" (2026-11-18): the feed answers a
             // refusal as no rows plus an error
             if (dup.error !== "") {
@@ -1805,14 +1841,14 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
             return;
           }
           const destUrl = `${destRoot}/${row.name}`;
-          const copied = await copyFileByPath(ctx.site, `${ctx.origin}${row.serverUrl}`, `${ctx.origin}${destUrl}`);
+          const copied = await sp(() => copyFileByPath(ctx.site, `${ctx.origin}${row.serverUrl}`, `${ctx.origin}${destUrl}`));
           if (!copied.ok) {
             const text = spErrorText(copied.status);
             refuse(/already exists/i.test(text) ? `A file named "${row.name}" already exists in ${libName(dest)}` : `Copy refused: ${text}`);
             return;
           }
           // the bracket on the copy: check-out → status + dates → major → publish
-          const idRes = await fetchFileItemId(ctx.site, destUrl);
+          const idRes = await sp(() => fetchFileItemId(ctx.site, destUrl));
           const itemId = Number(((idRes.data ?? {}) as { Id?: unknown }).Id ?? 0);
           if (itemId === 0) {
             refuse("Copied, but the copy's item could not be read — check the destination by hand");
@@ -1825,7 +1861,7 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
               .then((m) => m.repointFlags(ctx.site, { listId: src.listId, itemId: row.id }, { listId: dest.listId, itemId, uid: guid, name: row.name }))
               .catch(() => 0);
           }
-          const out = await checkOutFile(ctx.site, destUrl);
+          const out = await sp(() => checkOutFile(ctx.site, destUrl));
           if (!out.ok && !/already checked out/i.test(spErrorText(out.status))) {
             refuse(`Copied, but check-out was refused: ${spErrorText(out.status)}`);
             return;
@@ -1833,7 +1869,8 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
           let bracketErr = "";
           const land = landing(row);
           if (land.term !== null) {
-            const r = await connectorPatchItem(ctx.site, dest.listId, itemId, { [statusInternal]: { Value: land.term.label, TermGuid: land.term.id, WssId: -1 } });
+            const termPatch = { [statusInternal]: { Value: land.term.label, TermGuid: land.term.id, WssId: -1 } };
+            const r = await sp(() => connectorPatchItem(ctx.site, dest.listId, itemId, termPatch));
             if (!r.ok) bracketErr = `status: ${spErrorText(r.status)}`;
           }
           if (bracketErr === "" && (effInternal !== "" || reviewInternal !== "")) {
@@ -1857,7 +1894,7 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
             if (reviewInternal !== "" && carried.has(reviewInternal)) stamps.push({ FieldName: reviewInternal, FieldValue: formatDateForLocale(addMonthsYmd(effYmd, m), localeId) });
             if (cadenceInternal !== "" && carried.has(cadenceInternal)) stamps.push({ FieldName: cadenceInternal, FieldValue: String(m) });
             if (stamps.length > 0) {
-              const r = await validateUpdateListItem(ctx.site, dest.listId, itemId, stamps, false);
+              const r = await sp(() => validateUpdateListItem(ctx.site, dest.listId, itemId, stamps, false));
               const errs = validateItemErrors(r.data);
               if (!r.ok || errs.length > 0) bracketErr = `dates: ${errs.map((x) => `${x.field}: ${x.message}`).join("; ") || spErrorText(r.status)}`;
             }
@@ -1867,20 +1904,20 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
             refuse(`Copied, but ${bracketErr} — the draft is checked out in ${libName(dest)}; finish or discard it there`);
             return;
           }
-          const ci = await checkInFile(ctx.site, destUrl, ingestComment(task.name, by), land.publish);
+          const ci = await sp(() => checkInFile(ctx.site, destUrl, ingestComment(task.name, by), land.publish));
           if (!ci.ok) {
             refuse(`Copied, but the ${land.publish ? "major" : "minor"} check-in was refused: ${spErrorText(ci.status)}`);
             return;
           }
           if (moderated && land.publish) {
-            const pub = await validateUpdateListItem(ctx.site, dest.listId, itemId, [{ FieldName: "_ModerationStatus", FieldValue: "0" }], false);
+            const pub = await sp(() => validateUpdateListItem(ctx.site, dest.listId, itemId, [{ FieldName: "_ModerationStatus", FieldValue: "0" }], false));
             if (!pub.ok || validateItemErrors(pub.data).length > 0) {
               refuse(`Moved, but the publish was refused — it is PENDING in ${libName(dest)}: approve it in SharePoint`);
-              await recycleFile(ctx.site, row.serverUrl);
+              await sp(() => recycleFile(ctx.site, row.serverUrl));
               return;
             }
           }
-          const gone = await recycleFile(ctx.site, row.serverUrl);
+          const gone = await sp(() => recycleFile(ctx.site, row.serverUrl));
           log(row.name, "moved", gone.ok ? destUrl : `${destUrl} (the source copy could not be recycled: ${spErrorText(gone.status)})`);
         };
         await pool(ready, IN_FLIGHT, async (row) => {
@@ -1892,7 +1929,7 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
             log(row.name, "refused", `Stopped by an unexpected error: ${e instanceof Error ? e.message : String(e)}. Check ${libName(dest)} for a draft of this file.`);
           }
           progress.tick();
-        });
+        }, () => (throttled ? IN_FLIGHT_THROTTLED : IN_FLIGHT));
       } catch (e) {
         fault = e instanceof Error ? e.message : String(e);
       } finally {

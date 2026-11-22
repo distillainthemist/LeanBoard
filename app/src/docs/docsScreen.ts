@@ -98,7 +98,7 @@ import {
 } from "../links";
 import { rememberTaskCount } from "../taskBadge";
 import { taskGroupHeader, taskRowEl } from "./taskRows";
-import { tasksForPanel, IngestionTask } from "./ingestionModel";
+import { CLOSED_SHOWN, closedTasksForPanel, tasksForPanel, IngestionTask } from "./ingestionModel";
 import { readsRunning, runStamp } from "./ingestionRun";
 import { accessRequestPlan, notifyPlanFor } from "./notifyModel";
 import {
@@ -1337,10 +1337,14 @@ export function mountDocs(
     ingestBtn.title = "Bulk-drop tasks you prepare or oversee";
     ingestBtn.style.display = "none";
     let ingestionTasks: IngestionTask[] = [];
-    const paintIngestBtn = (tasks: IngestionTask[]) => {
+    let closedTasks: IngestionTask[] = [];
+    // the count is the OPEN tasks; the button also stays while there is
+    // a closed task to re-read (its log), without a count
+    const paintIngestBtn = (tasks: IngestionTask[], closed: IngestionTask[] = []) => {
       ingestionTasks = tasks;
-      ingestBtn.textContent = `Ingestion tasks · ${tasks.length}`;
-      ingestBtn.style.display = tasks.length > 0 ? "" : "none";
+      closedTasks = closed;
+      ingestBtn.textContent = tasks.length > 0 ? `Ingestion tasks · ${tasks.length}` : "Ingestion tasks";
+      ingestBtn.style.display = tasks.length > 0 || closed.length > 0 ? "" : "none";
       ingestBtn.classList.toggle("app-docs-actionneeded-hot", tasks.length > 0);
     };
     ingestBtn.addEventListener("click", () => {
@@ -1367,25 +1371,69 @@ export function mountDocs(
       panel.append(el("div", "app-docs-taskshead", "Ingestion tasks"), bodyEl);
       scrim.appendChild(panel);
       document.body.appendChild(scrim);
-      bodyEl.appendChild(taskGroupHeader("Open tasks", ingestionTasks.length));
-      for (const task of ingestionTasks) {
+      const destName = (task: IngestionTask): string => {
         const dest = cfg.libraries.find((l) => l.listId.toLowerCase() === task.destListId);
+        return dest ? dest.config.title || dest.name : "(library)";
+      };
+      const openTask = (task: IngestionTask) => {
+        closePanel();
+        void import("./ingestionScreen").then(({ openIngestionTask }) => openIngestionTask({ task, isController: docAdmin(), onChanged: refreshTasksBadge }));
+      };
+      bodyEl.appendChild(taskGroupHeader("Open tasks", ingestionTasks.length));
+      // closed tasks, under a heading that opens them: the run logs stay
+      // reachable after End task (2026-11-22)
+      const paintClosed = () => {
+        if (closedTasks.length === 0) return;
+        const head = el("button", "app-docs-tasksgroup app-docs-tasksgroup-fold", `▸ Closed tasks (${closedTasks.length})`) as HTMLButtonElement;
+        head.type = "button";
+        head.setAttribute("aria-expanded", "false");
+        const list = el("div");
+        list.style.display = "none";
+        let all = false;
+        const fill = () => {
+          clear(list);
+          for (const task of all ? closedTasks : closedTasks.slice(0, CLOSED_SHOWN)) {
+            list.appendChild(
+              taskRowEl({
+                pill: tonePill("✓ Closed", "green"),
+                name: task.name,
+                meta: `→ ${destName(task)}${task.closedAt !== "" ? ` · ended ${formatWhen(task.closedAt)}` : ""}`,
+                onOpen: () => openTask(task),
+              })
+            );
+          }
+          if (!all && closedTasks.length > CLOSED_SHOWN) {
+            const more = el("button", "app-link", `Show all ${closedTasks.length}`) as HTMLButtonElement;
+            more.type = "button";
+            more.addEventListener("click", () => {
+              all = true;
+              fill();
+            });
+            list.appendChild(more);
+          }
+        };
+        head.addEventListener("click", () => {
+          const open = list.style.display === "none";
+          list.style.display = open ? "" : "none";
+          head.textContent = `${open ? "▾" : "▸"} Closed tasks (${closedTasks.length})`;
+          head.setAttribute("aria-expanded", String(open));
+          if (open && list.childElementCount === 0) fill();
+        });
+        bodyEl.append(head, list);
+      };
+      for (const task of ingestionTasks) {
         bodyEl.appendChild(
           taskRowEl({
             // Running only while the run's heartbeat keeps the row fresh
             // (an interrupted run left the word on the row for ever)
             pill: tonePill(readsRunning(task.status, runStamp(task.modifiedOn, task.log)) ? "◐ Running" : "⇪ Ingest", "amber"),
             name: task.name,
-            meta: `→ ${dest ? dest.config.title || dest.name : "(library)"} · ${task.assignees.length} assignee${task.assignees.length === 1 ? "" : "s"}`,
-            onOpen: () => {
-              closePanel();
-              void import("./ingestionScreen").then(({ openIngestionTask }) =>
-                openIngestionTask({ task, isController: docAdmin(), onChanged: refreshTasksBadge })
-              );
-            },
+            meta: `→ ${destName(task)} · ${task.assignees.length} assignee${task.assignees.length === 1 ? "" : "s"}`,
+            onOpen: () => openTask(task),
           })
         );
       }
+      paintClosed();
     });
 
     interface TaskRow {
@@ -1420,6 +1468,8 @@ export function mountDocs(
       /** Open ingestion tasks the viewer prepares (assignees, the
        *  creator) or oversees (controllers see all) — 2026-10-08. */
       ingestion: IngestionTask[];
+      /** …and the closed ones they may re-read, newest first. */
+      ingestionClosed: IngestionTask[];
       /** Open document flags (issue 23): every one for a controller,
        *  the flags on documents they own for anyone else — the row
        *  fetched live so a click opens the overlay armed. */
@@ -1438,6 +1488,7 @@ export function mountDocs(
         outgoing: [],
         grantedByMe: [],
         ingestion: [],
+        ingestionClosed: [],
         flagged: [],
       };
       const nameOf = (l: DocLibrary) => l.config.title || l.name;
@@ -1512,6 +1563,7 @@ export function mountDocs(
               const all = await listIngestionTasks();
               await adminReady;
               out.ingestion = tasksForPanel(all, myEmail, docAdmin());
+              out.ingestionClosed = closedTasksForPanel(all, myEmail, docAdmin());
             } catch {
               /* the table unreadable = no ingestion rows, never a broken panel */
             }
@@ -1751,7 +1803,7 @@ export function mountDocs(
       void fetchMyTasks().then((t) => {
         if (dead || gen !== tasksBadgeGen) return;
         paintTasksBadge(taskCount(t));
-        paintIngestBtn(t.ingestion);
+        paintIngestBtn(t.ingestion, t.ingestionClosed);
       });
     };
     // (the first count is fired from the mount tail, once the status

@@ -1,5 +1,6 @@
 // Document ingestion's pure parts (ingestionModel.ts, 2026-10-08).
 import { describe, expect, it } from "vitest";
+import { closedTasksForPanel } from "../docs/ingestionModel";
 import { blanksToFill, canSeeTask, compareByFolderThenName, dirOf, duplicateNames, folderGroups, folderLabel, ingestComment, labelsOutsideRoot, latestByFile, logSummary, missingFor, rowFromTask, siteTermRoots, subFolderOf, subtreeUnder, taskFolderName, taskFromRow, tasksForPanel, IngestionTask } from "../docs/ingestionModel";
 
 const modelOf = () => ({ taskFromRow, rowFromTask, siteTermRoots, subtreeUnder, labelsOutsideRoot });
@@ -38,6 +39,18 @@ describe("canSeeTask / tasksForPanel", () => {
     expect(canSeeTask(t, "", false)).toBe(false);
     const list = tasksForPanel([task({ rowId: "old", createdAt: "2026-01-01" }), task({ rowId: "closed", status: "closed" }), task({ rowId: "new", createdAt: "2026-10-08" })], "ann@x.test", false);
     expect(list.map((x) => x.rowId)).toEqual(["new", "old"]);
+  });
+  it("lists the closed tasks a viewer may re-read, most recently ended first", () => {
+    const all = [
+      task({ rowId: "open" }),
+      task({ rowId: "c-old", status: "closed", closedAt: "2026-10-01T00:00:00Z" }),
+      task({ rowId: "c-new", status: "closed", closedAt: "2026-11-20T00:00:00Z" }),
+      task({ rowId: "c-other", status: "closed", closedAt: "2026-11-21T00:00:00Z", assignees: [], createdByEmail: "zed@x.test" }),
+    ];
+    expect(closedTasksForPanel(all, "ann@x.test", false).map((x) => x.rowId)).toEqual(["c-new", "c-old"]);
+    // a controller re-reads every one
+    expect(closedTasksForPanel(all, "sam@x.test", true).map((x) => x.rowId)).toEqual(["c-other", "c-new", "c-old"]);
+    expect(closedTasksForPanel(all, "", false)).toEqual([]);
   });
 });
 

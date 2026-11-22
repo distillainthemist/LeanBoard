@@ -4,6 +4,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { latestByFile, logSummary, RunLogEntry, taskFromRow } from "../docs/ingestionModel";
+import { isThrottled, retryThrottled, THROTTLE_WAITS_MS } from "../docs/ingestionRun";
 import { alreadyThere, claimHeld, lastStart, LOG_DETAIL_MAX, nameList, RUN_BEAT_MS, RUN_SAVE_FLOOR_MS, RUN_STALE_MS, RUN_SURELY_STALE_MS, RUN_WATCH_MS, readsRunning, runSaver, runStamp, runState, stampAgeMs, startedEntry, trimLog } from "../docs/ingestionRun";
 
 const entry = (file: string, outcome: RunLogEntry["outcome"], detail = "x", at = "2026-11-22T01:00:00.000Z"): RunLogEntry => ({ file, outcome, detail, at, by: "Ben" });
@@ -204,6 +205,47 @@ describe("a list that cannot watch", () => {
     expect(stampAgeMs("2026-11-22T01:59:00Z", now)).toBe(60000);
     expect(stampAgeMs("", now)).toBeNull();
     expect(stampAgeMs("2026-11-22T02:00:05Z", now)).toBe(0); // a server a little ahead
+  });
+});
+
+describe("a throttled call is tried again", () => {
+  const sleeps: number[] = [];
+  const sleep = (ms: number) => {
+    sleeps.push(ms);
+    return Promise.resolve();
+  };
+  it("knows a throttle from any other refusal", () => {
+    for (const s of ["429: Too Many Requests", "TooManyRequests: rate limit is exceeded", "The request was throttled", "Rate limit exceeded. Try again in 12 seconds.", "The server is busy now"]) expect(isThrottled(s)).toBe(true);
+    for (const s of ["", "A file named a.pdf already exists", "403: Access denied", "The operation has timed out", "request failed", "Item 4290 does not exist"]) expect(isThrottled(s)).toBe(false);
+  });
+  it("waits 2, 5 and 10 seconds, and returns the first answer that is not a throttle", async () => {
+    sleeps.length = 0;
+    const answers = [{ ok: false, status: "429" }, { ok: false, status: "throttled" }, { ok: true, status: "" }];
+    let calls = 0;
+    let told = 0;
+    const r = await retryThrottled(() => Promise.resolve(answers[calls++]), () => told++, THROTTLE_WAITS_MS, sleep);
+    expect(r.ok).toBe(true);
+    expect(calls).toBe(3);
+    expect(sleeps).toEqual([2000, 5000]);
+    expect(told).toBe(2);
+  });
+  it("gives up after three more tries and hands back the throttle", async () => {
+    sleeps.length = 0;
+    let calls = 0;
+    const r = await retryThrottled(() => (calls++, Promise.resolve({ ok: false, status: "429" })), undefined, THROTTLE_WAITS_MS, sleep);
+    expect(r.ok).toBe(false);
+    expect(calls).toBe(4);
+    expect(sleeps).toEqual([2000, 5000, 10000]);
+  });
+  it("never repeats a call that failed for another reason, or one that worked", async () => {
+    sleeps.length = 0;
+    let calls = 0;
+    await retryThrottled(() => (calls++, Promise.resolve({ ok: false, status: "The operation has timed out" })), undefined, THROTTLE_WAITS_MS, sleep);
+    expect(calls).toBe(1);
+    calls = 0;
+    await retryThrottled(() => (calls++, Promise.resolve({ ok: true, status: "" })), undefined, THROTTLE_WAITS_MS, sleep);
+    expect(calls).toBe(1);
+    expect(sleeps).toEqual([]);
   });
 });
 

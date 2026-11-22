@@ -2639,6 +2639,9 @@ button.app-docs-navterm.app-docs-navterm-on {
   text-transform: uppercase; color: #57534a; margin: 10px 0 4px;
 }
 /* R5 anatomy: pill · name-over-meta · chevron, one shape for every row */
+/* a group heading that opens its rows (closed ingestion tasks) */
+button.app-docs-tasksgroup-fold { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 0; font-family: inherit; cursor: pointer; }
+button.app-docs-tasksgroup-fold:hover, button.app-docs-tasksgroup-fold:focus-visible { color: #26241f; outline: none; }
 .app-docs-taskrow {
   display: flex; align-items: center; gap: 10px; width: 100%;
   border: none; background: none; cursor: pointer; text-align: left;
