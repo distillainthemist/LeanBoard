@@ -24,7 +24,7 @@ import {
   validateItemErrors, friendlySpError, isAccessRefusal, isThresholdRefusal } from "./model";
 import { DocRow, buildRenderViewXml, extOf } from "./rows";
 import { renderListPage } from "./data";
-import { BuiltEditor, buildFieldEditors, missingEditors, revealMissing } from "./fieldEditors";
+import { BuiltEditor, buildFieldEditors, missingEditors, stillNeeded } from "./fieldEditors";
 import { loadLibraryFields } from "./libraryFields";
 import { buildFilePicker } from "./filePicker";
 
@@ -381,29 +381,21 @@ export function openAddDocument(opts: AddDocumentOpts): void {
   const currentTarget = (): DocLibrary =>
     opts.targets.find((t) => t.listId === targetSel.value) ?? opts.targets[0];
 
-  /** The "Required before Add" line is up — cleared once everything
-   *  is filled, so the form says so without another click. */
-  let requiredShown = false;
   const labelOfEditor = (e: BuiltEditor) => opts.dictBy.get(e.field.internal)?.label || e.field.title;
   /** Painted after every change — the date-model hint under Importance. */
   const afterSync: (() => void)[] = [];
   const sync = () => {
     for (const f of afterSync) f();
-    // a missing required field no longer greys the button: the click
-    // scrolls to it and names it (Ben, 2026-10-26)
+    // the button waits for every required field, and says which are
+    // left when the pointer rests on it (Ben, 2026-11-22)
+    const still = missingEditors(editors).map(labelOfEditor);
     createBtn.disabled =
       creating ||
       !hasSource() ||
       sanitizeFileName(nameInput.value) === "" ||
-      uncollected.length > 0;
-    if (requiredShown) {
-      const still = missingEditors(editors);
-      if (still.length === 0) {
-        requiredShown = false;
-        status("");
-        revealMissing(metaBox, [], labelOfEditor);
-      }
-    }
+      uncollected.length > 0 ||
+      still.length > 0;
+    createBtn.title = stillNeeded(still);
   };
   nameInput.addEventListener("input", sync);
   tplSel.addEventListener("change", () => {
@@ -585,13 +577,8 @@ export function openAddDocument(opts: AddDocumentOpts): void {
     if ((mode === "device" ? dev === null : src === undefined) || clean === "") return;
     const srcExt = mode === "device" ? extOf(dev!.name) : src!.ext;
     const srcName = mode === "device" ? dev!.name : src!.name;
-    const missing = missingEditors(editors);
-    if (missing.length > 0) {
-      const names = revealMissing(metaBox, missing, labelOfEditor);
-      requiredShown = true;
-      status(`Required before Add: ${names.join(", ")}`, true);
-      return;
-    }
+    // the button is held until then; this is the backstop
+    if (missingEditors(editors).length > 0) return;
     creating = true;
     sync();
 

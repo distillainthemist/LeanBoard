@@ -156,7 +156,7 @@ export function openUpdateDialog(o: UpdateDialogOpts): void {
     box.appendChild(sect);
   } else if (o.flag && o.flag.up) {
     const sect = el("div", "app-ib-flagsect");
-    sect.appendChild(el("div", "app-field-hint", "⚐ This initiative is flagged. New Support needed text replaces what the flag says."));
+    sect.appendChild(el("div", "app-field-hint", "⚐ This initiative is marked Support needed. New text here replaces what the flag says."));
     const clearWrap = el("label", "app-check app-ib-supportflag");
     clearBox = el("input") as HTMLInputElement;
     clearBox.type = "checkbox";

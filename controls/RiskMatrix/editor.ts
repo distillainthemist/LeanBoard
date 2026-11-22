@@ -18,6 +18,7 @@ import {
   actionRow,
   addActionSection,
   openActionDialog,
+  holdEntryDialog,
 } from "../../shared/ui/actionUi";
 import { parsePrompts, Prompts, renderTitleBar, hintFor } from "../../shared/ui/chrome";
 import { renderKebab } from "../../shared/ui/menu";
@@ -450,7 +451,7 @@ export class RiskMatrixEditor {
         const hazardText = hazard.value.trim();
         if (riskText === "" && hazardText === "") return;
         // an action raised with the entry needs what, who and when
-        if (inline && inline.form.hasContent() && !inline.form.checkRequired({ verb: "Add" })) return;
+        if (inline && inline.form.missing().length > 0) return;
         const pl = plSel.value === "" ? null : Number(plSel.value);
         const pc = pcSel.value === "" ? null : Number(pcSel.value);
         if (risk) {
@@ -490,8 +491,10 @@ export class RiskMatrixEditor {
     });
     // assessment flow: hazard → risk → impact → rate the inherent risk →
     // record controls → rate the residual risk after those controls
-    dlg.body.appendChild(fieldRow("Hazard", hazard));
-    dlg.body.appendChild(fieldRow("Risk", riskField));
+    const hazardRow = fieldRow("Hazard", hazard);
+    const riskRow = fieldRow("Risk", riskField);
+    dlg.body.appendChild(hazardRow);
+    dlg.body.appendChild(riskRow);
     dlg.body.appendChild(fieldRow("Impact", impact));
 
     dlg.body.appendChild(sectionLabel("Rating before controls"));
@@ -520,6 +523,13 @@ export class RiskMatrixEditor {
     dlg.body.appendChild(post);
     dlg.body.appendChild(postClassEl);
     refreshClasses();
+    // a risk needs its hazard or its risk; an action typed with it needs
+    // who and when — the button waits (2026-11-22)
+    holdEntryDialog(
+      dlg,
+      { label: "Hazard or Risk", rows: [hazardRow, riskRow], filled: () => hazard.value.trim() !== "" || riskField.value.trim() !== "", inputs: [hazard, riskField] },
+      inline?.form ?? null
+    );
 
     if (inline) {
       dlg.body.appendChild(inline.el);

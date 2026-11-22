@@ -95,7 +95,7 @@ describe("a priority's own actions in its status", () => {
     const p = priorityStatus(["good", "good"], { actions: late, metrics: [] });
     expect(p.state).toBe("bad");
     expect(p.own.map((r) => r.text)).toEqual(["1 late priority action"]);
-    expect(countsWords(p)).toBe("2 on track · 0 flagged · 0 off track · 1 late priority action");
+    expect(countsWords(p)).toBe("2 on track · 0 support needed · 0 off track · 1 late priority action");
   });
   it("a flagged initiative still wins", () => {
     expect(priorityStatus(["flagged"], { actions: late, metrics: [] }).state).toBe("flagged");

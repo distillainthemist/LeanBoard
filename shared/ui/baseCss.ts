@@ -577,7 +577,7 @@ export const LTK_BASE_CSS = `
 [data-ltk-tier="phone"] .ltk-action-row { flex-wrap: wrap; row-gap: 6px; }
 [data-ltk-tier="phone"] .ltk-action-main { flex: 1 1 55%; min-width: 55%; }
 [data-ltk-tier="phone"] .ltk-action-right { flex-direction: row; align-items: baseline; gap: 10px; text-align: left; flex-wrap: wrap; }
-.ltk-action-flag { color: var(--ltk-accent); font-weight: 600; }
+.ltk-action-flag { color: var(--ltk-flag, var(--ltk-accent)); font-weight: 600; }
 .ltk-action-edit {
   border: none;
   background: none;

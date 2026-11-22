@@ -16,6 +16,7 @@ import {
   actionRow,
   addActionSection,
   openActionDialog,
+  holdEntryDialog,
 } from "../../shared/ui/actionUi";
 import { parsePrompts, Prompts, renderTitleBar, hintFor } from "../../shared/ui/chrome";
 import { renderKebab } from "../../shared/ui/menu";
@@ -422,7 +423,7 @@ export class HeatmapEditor {
         const note = ta.value.trim();
         if (note === "") return;
         // an action raised with the entry needs what, who and when
-        if (inline && inline.form.hasContent() && !inline.form.checkRequired({ verb: "Add" })) return;
+        if (inline && inline.form.missing().length > 0) return;
         if (pin) {
           pin.note = note;
           pin.severity = Number(sevSel.value);
@@ -451,10 +452,12 @@ export class HeatmapEditor {
       title: pin ? "Edit pin" : "Pin issue",
       buttons,
     });
-    dlg.body.appendChild(fieldRow("Issue", ta));
+    const issueRow = fieldRow("Issue", ta);
+    dlg.body.appendChild(issueRow);
     const sevRow = fieldRow("Severity", sevSel);
     sevRow.classList.add("ltk-field-half");
     dlg.body.appendChild(sevRow);
+    holdEntryDialog(dlg, { label: "Issue", rows: [issueRow], filled: () => ta.value.trim() !== "", inputs: [ta] }, inline?.form ?? null);
 
     if (inline) {
       dlg.body.appendChild(inline.el);

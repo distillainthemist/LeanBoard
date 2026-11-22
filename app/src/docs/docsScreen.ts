@@ -10,6 +10,7 @@
 // would lie about the corpus.
 
 import { mountTermCascade } from "../../../shared/ui/termCascade";
+import { requiredMark } from "./fieldEditors";
 import { el, clear } from "../../../shared/ui/dom";
 import { statusChip as tonePill } from "../../../shared/ui/format";
 import { draggableRow } from "../../../shared/ui/dragList";
@@ -4835,9 +4836,15 @@ export function mountDocs(
           },
         ],
       });
-      const submit = dlg.root.querySelector(".ltk-btn-primary") as HTMLButtonElement | null;
+      // both check-in buttons wait for the comment (2026-11-22: the
+      // "& submit" one did nothing when pressed without it)
+      const waits = Array.from(dlg.root.querySelectorAll<HTMLButtonElement>(".ltk-dialog-footer .ltk-btn")).filter((b) => /^Check in/.test(b.textContent ?? ""));
       const sync = () => {
-        if (submit) submit.disabled = comment.value.trim() === "";
+        const empty = comment.value.trim() === "";
+        for (const b of waits) {
+          b.disabled = empty;
+          b.title = empty ? "Still needed: Comment" : "";
+        }
       };
       comment.addEventListener("input", sync);
       sync();
@@ -4858,8 +4865,9 @@ export function mountDocs(
         kinds.appendChild(wrap);
       }
       const ciLabel = el("div", "app-field-label", "Comment");
-      ciLabel.appendChild(el("span", "app-field-req", "Required"));
-      dlg.body.append(ciLabel, comment, el("div", "app-field-hint", "A comment is required — it is the version's audit entry."), kinds);
+      ciLabel.title = "The comment is the version's audit entry.";
+      ciLabel.appendChild(requiredMark());
+      dlg.body.append(ciLabel, comment, kinds);
       if (submitReviewCmd === null && ciLib?.libType === "standard") {
         // UAT DOC-034 (2026-10-26): the one-flow button is for a DRAFT
         // standard you own — say why it is missing instead of nothing

@@ -26,6 +26,9 @@ export interface GridDialogOpts {
   /** The card's window — the first page opens around today anyway. */
   window: { from: string; to: string };
   readOnly: boolean;
+  /** Whose readings an own metric's are, in the note under the title
+   *  ("this priority's readings"); default "this card's own readings". */
+  ownerWords?: string;
   /** Called when the dialog closes after at least one write. */
   onClosed: (changed: boolean) => void;
 }
@@ -44,7 +47,7 @@ export async function openValueGridDialog(o: GridDialogOpts): Promise<void> {
       "app-modal-note",
       o.driver
         ? `${CADENCE_LABELS[o.driver.cadence]} · ${o.unit || "no unit"} · the value driver's own series — every linked card and the Value drivers tab read the same numbers.`
-        : `${CADENCE_LABELS[o.cadence]} · ${o.unit || "no unit"} · this card's own readings. Targets and limits set here carry forward until changed.`
+        : `${CADENCE_LABELS[o.cadence]} · ${o.unit || "no unit"} · ${o.ownerWords ?? "this card's own readings"}. Targets and limits set here carry forward until changed.`
     )
   );
   const host = el("div");

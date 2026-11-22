@@ -3539,6 +3539,7 @@ async function renderBranding(body: HTMLElement, ctx: DirtyCtx): Promise<void> {
       accent: accentGroup.value(),
     });
     await saveAppPalettes(statePal.json(), titlePal.json());
+    void import("../flagColour").then((m) => m.applyFlagColour()).catch(() => undefined);
     ctx.markClean();
   });
 

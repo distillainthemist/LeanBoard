@@ -804,7 +804,7 @@ export class ActionBoardEditor {
         ? ([
             { status: "open", label: "To do" },
             { status: "in-progress", label: "Doing" },
-            { status: "verify", label: "Verify" },
+            { status: "verify", label: "Endorse" },
             { status: "done", label: "Done" },
           ] as { status: ActionStatus; label: string }[])
         : STATUS_COLUMNS;

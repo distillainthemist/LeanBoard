@@ -55,7 +55,7 @@ export const STATUS_FALLBACK: Record<PriorityState, string> = {
 
 export const STATE_LABELS: Record<PriorityState, string> = {
   good: "On track",
-  flagged: "Flagged",
+  flagged: "Support needed",
   bad: "Off track",
   none: "No initiatives",
 };
@@ -295,7 +295,7 @@ export function priorityStatus(states: StatusState[], mine?: PriorityOwn): Prior
   return { state, counts, total: states.length, own };
 }
 
-/** "2 on track · 1 flagged · 1 off track" — for a tooltip or a line. */
+/** "2 on track · 1 support needed · 1 off track" — for a tooltip or a line. */
 export function countsWords(p: PriorityStatus): string {
   const base = p.total === 0 ? STATE_LABELS.none : COUNT_ORDER.map((s) => `${p.counts[s]} ${STATE_LABELS[s].toLowerCase()}`).join(" · ");
   // what the priority itself is off track for, after its initiatives

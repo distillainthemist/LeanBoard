@@ -119,6 +119,23 @@ export function missingEditors(editors: BuiltEditor[]): BuiltEditor[] {
   return editors.filter((e) => e.field.required && e.isEmpty());
 }
 
+/** The mark on a required field's label: a small red superscript
+ *  asterisk, the one every LeanBoard form uses (Ben, 2026-11-22 — the
+ *  Documents forms carried a "REQUIRED" word tag since 2026-10-26). The
+ *  form's button waits for the field; its tooltip names what is left. */
+export function requiredMark(): HTMLElement {
+  const star = el("sup", "app-req-star", "*");
+  star.title = "Required";
+  star.setAttribute("aria-label", "required");
+  return star;
+}
+
+/** "Still needed: Owner, Document type" — a held button's tooltip; ""
+ *  when nothing is. */
+export function stillNeeded(labels: string[]): string {
+  return labels.length > 0 ? `Still needed: ${labels.join(", ")}` : "";
+}
+
 /** Marks every missing row, scrolls the first into view and focuses
  *  its control; hands back their labels for the status line. A click
  *  on Add / Save with something missing lands HERE rather than on a
@@ -179,9 +196,10 @@ export function buildFieldEditors(opts: FieldEditorOpts): BuiltEditor[] {
     // the row is addressable by its column (revealMissing scrolls to it)
     if (f !== undefined) wrap.dataset.internal = f.internal;
     const lab = el("div", "app-field-label", label);
-    // a WORD, not a faint asterisk (Ben, 2026-10-26: uploads kept
-    // failing on required properties nobody saw marked)
-    if (f?.required === true) lab.appendChild(el("span", "app-field-req", "Required"));
+    // the red asterisk (Ben, 2026-11-22), and the form's button waits
+    // for the field — it was a word tag and a button that scrolled to
+    // the first missing field when pressed (2026-10-26)
+    if (f?.required === true) lab.appendChild(requiredMark());
     wrap.appendChild(lab);
     wrap.appendChild(control);
     return wrap;

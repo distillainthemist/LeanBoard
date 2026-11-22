@@ -173,7 +173,7 @@ preconditions: an initiative whose last status update is 20 days old and is othe
 steps:
 1. Settings → Priorities: read the sections. In Status set "No status update for (days)" to 14 and Save.
 2. Open Priorities and the initiative's board.
-3. Settings → Priorities → Status: set the Flagged colour to another palette entry; Save; open Priorities.
+3. Settings → Priorities → Status: set the Support needed colour to another palette entry; Save; open Priorities.
 4. Set the days back to 35.
-expected: step 1 the section "Period" no longer mentions a ratio rule and there is no "Ratio rule — red above (%)" field; a "Status" section explains the rule in a paragraph and carries the days and three colour pickers listing the state palette's entries (a state whose key is not in the site's palette reads "Default … colour (not in the palette)"); step 2 the initiative is Off track with "No update for 2 weeks" and its board's band says "No update for 20 days"; step 3 every flagged edge, circle and chip takes the new colour; step 4 the initiative returns to On track
+expected: step 1 the section "Period" no longer mentions a ratio rule and there is no "Ratio rule — red above (%)" field; a "Status" section explains the rule in a paragraph and carries the days and three colour pickers listing the state palette's entries (a state whose key is not in the site's palette reads "Default … colour (not in the palette)"); step 2 the initiative is Off track with "No update for 2 weeks" and its board's band says "No update for 20 days"; step 3 every Support needed edge, circle and chip takes the new colour, and so do the action dialog's "⚑ Flag for support" button and the ⚑ beside a flagged action; step 4 the initiative returns to On track
 

@@ -28,7 +28,7 @@ import {
 } from "./model";
 import { DocRow, buildRenderViewXml, formatDayMonthYear } from "./rows";
 import { renderListPage } from "./data";
-import { BuiltEditor, EditorInitial, buildFieldEditors, editorKind, missingEditors, revealMissing } from "./fieldEditors";
+import { BuiltEditor, EditorInitial, buildFieldEditors, editorKind, missingEditors, stillNeeded } from "./fieldEditors";
 import { loadLibraryFields } from "./libraryFields";
 import {
   checkInFile,
@@ -149,21 +149,16 @@ export function openEditProperties(opts: EditPropertiesOpts): void {
   /** The library's live columns, both required flags folded in —
    *  save() reads the links column's type from here. */
   let libFields: SpField[] = [];
-  let requiredShown = false;
   const labelOfEditor = (e: BuiltEditor) => opts.dictBy.get(e.field.internal)?.label || e.field.title;
   /** Painted after every change — the date-model hint under Importance. */
   const afterSync: (() => void)[] = [];
   const sync = () => {
     for (const f of afterSync) f();
-    // a missing required field no longer greys Save: the click scrolls
-    // to it and names it (Ben, 2026-10-26)
-    saveBtn.disabled = running || editors.length === 0 || (comment !== null && comment.value.trim() === "");
-    if (requiredShown && missingEditors(editors).length === 0) {
-      requiredShown = false;
-      status.textContent = "";
-      status.classList.remove("app-docs-addstatus-warn");
-      revealMissing(metaBox, [], labelOfEditor);
-    }
+    // Save waits for every required field (and the comment, where one
+    // is asked for), and says which are left (Ben, 2026-11-22)
+    const still = [...missingEditors(editors).map(labelOfEditor), ...(comment !== null && comment.value.trim() === "" ? ["Comment"] : [])];
+    saveBtn.disabled = running || editors.length === 0 || still.length > 0;
+    saveBtn.title = stillNeeded(still);
   };
   sync();
 
@@ -314,14 +309,8 @@ export function openEditProperties(opts: EditPropertiesOpts): void {
   // ---- save -------------------------------------------------------------
   const save = async () => {
     if (running || saveBtn.disabled) return;
-    const missing = missingEditors(editors);
-    if (missing.length > 0) {
-      const names = revealMissing(metaBox, missing, labelOfEditor);
-      requiredShown = true;
-      status.textContent = `Required before Save: ${names.join(", ")}`;
-      status.classList.add("app-docs-addstatus-warn");
-      return;
-    }
+    // the button is held until then; this is the backstop
+    if (missingEditors(editors).length > 0) return;
     running = true;
     sync();
     status.classList.remove("app-docs-addstatus-warn");

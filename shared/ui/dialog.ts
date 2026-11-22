@@ -6,7 +6,7 @@
 // half-filled form. Escape is swallowed rather than ignored, so an
 // overlay UNDER the dialog (the document viewer) cannot close instead.
 
-import { el } from "./dom";
+import { el, ESCAPE_RELAY } from "./dom";
 import { markDialog, trapFocus } from "./focusTrap";
 
 export interface DialogButton {
@@ -57,7 +57,11 @@ export function openDialog(opts: DialogOptions): DialogHandle {
   // Escape is SWALLOWED, not honoured: closing is the buttons' job, and
   // letting the key through would close whatever overlay sits beneath
   const onKey = (e: KeyboardEvent) => {
-    if (e.key === "Escape") e.stopPropagation();
+    if (e.key !== "Escape") return;
+    // …but the field it was typed in still hears it (a type-ahead closes
+    // its list): relayed, since the key itself stops here
+    (e.target as EventTarget | null)?.dispatchEvent(new CustomEvent(ESCAPE_RELAY));
+    e.stopPropagation();
   };
 
   for (const b of opts.buttons) {

@@ -8,6 +8,7 @@
 // nobody's chunk until a stage button is pressed.
 
 import { clear, el } from "../../../shared/ui/dom";
+import { requiredMark, stillNeeded } from "./fieldEditors";
 import { openDialog } from "../../../shared/ui/dialog";
 import { reviewerPeopleSource } from "./accessGates";
 import {
@@ -260,7 +261,7 @@ export function openLifecycleCommand(opts: LifecycleRunOpts): void {
   const reason = el("textarea", "app-input app-docs-cicomment") as HTMLTextAreaElement;
   reason.rows = 2;
   reason.placeholder = command.needsReason
-    ? "Why is revision needed? (required)"
+    ? "Why is revision needed?"
     : "Comment (optional)";
   // the successor, picked not typed (UAT DOC-041): required for Supersede
   let picked: DocLink | null = null;
@@ -268,7 +269,7 @@ export function openLifecycleCommand(opts: LifecycleRunOpts): void {
   if (needSuccessor && opts.successor !== undefined) {
     const succ = opts.successor;
     const label = el("div", "app-field-label", "Superseded by");
-    label.appendChild(el("span", "app-field-req", "Required"));
+    label.appendChild(requiredMark());
     const pickedBox = el("div", "app-docs-pplchips");
     const search = el("input", "app-input") as HTMLInputElement;
     search.placeholder = "Search the standards by name…";
@@ -338,16 +339,16 @@ export function openLifecycleCommand(opts: LifecycleRunOpts): void {
     paintPicked();
     dlg.body.append(label, pickedBox, search, hits);
   }
-  dlg.body.append(el("div", "app-field-label", "Comment"), reason);
+  const reasonLabel = el("div", "app-field-label", "Comment");
+  if (command.needsReason) reasonLabel.appendChild(requiredMark());
+  dlg.body.append(reasonLabel, reason);
   const status = el("div", "app-docs-addstatus");
   dlg.body.appendChild(status);
 
   const sync = () => {
-    goBtn.disabled =
-      running ||
-      (command.needsReason && reason.value.trim() === "") ||
-      (needSuccessor && picked === null) ||
-      (regConfirm !== null && !regConfirm.checked);
+    const still = [...(command.needsReason && reason.value.trim() === "" ? ["Comment"] : []), ...(needSuccessor && picked === null ? ["Superseded by"] : [])];
+    goBtn.disabled = running || still.length > 0 || (regConfirm !== null && !regConfirm.checked);
+    goBtn.title = stillNeeded(still);
   };
   reason.addEventListener("input", sync);
   sync();

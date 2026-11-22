@@ -565,7 +565,7 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
           procGroup.appendChild(host);
         }
         const flagPills = group("Flags");
-        pill(flagPills, "⚑ Flagged only", f.flagOnly, () => {
+        pill(flagPills, "⚑ Support needed only", f.flagOnly, () => {
           f.flagOnly = !f.flagOnly;
         });
         const foot = el("div", "app-docs-fpop-foot");

@@ -88,11 +88,11 @@ describe("an initiative's status", () => {
     const ok = st({ flagged: true });
     expect(ok.state).toBe("flagged");
     expect(ok.health).toBe("good");
-    expect(statusWords(ok)).toBe("Flagged · at risk");
+    expect(statusWords(ok)).toBe("Support needed · at risk");
     const hurt = st({ flagged: true, actions: { total: 4, done: 0, future: 1, late: 3, support: 0 } });
     expect(hurt.state).toBe("flagged");
     expect(hurt.health).toBe("bad");
-    expect(statusWords(hurt)).toBe("Flagged · recovery needed");
+    expect(statusWords(hurt)).toBe("Support needed · recovery needed");
     expect(reasonsLine(hurt)).toBe("3 late actions");
     expect(statusWords(st({}))).toBe("On track");
   });
@@ -157,7 +157,7 @@ describe("a priority's status", () => {
     const p = priorityStatus(["good", "bad", "flagged", "good"]);
     expect(p.counts).toEqual({ good: 2, flagged: 1, bad: 1 });
     expect(p.total).toBe(4);
-    expect(countsWords(p)).toBe("2 on track · 1 flagged · 1 off track");
+    expect(countsWords(p)).toBe("2 on track · 1 support needed · 1 off track");
     expect(countsWords(priorityStatus([]))).toBe("No initiatives");
   });
 });

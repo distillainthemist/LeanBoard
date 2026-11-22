@@ -668,12 +668,12 @@ async function renderPeriod(body: HTMLElement, ctx: DirtyCtx, saves: (() => Prom
   box.appendChild(labelsField);
   const statusBox = sectionTitle(
     "Status",
-    "An initiative is on track, off track or flagged. It is off track with a late action or no actions at all, with any metric outside its limits or short of plan, or with no status update inside the window below. A new initiative has the same window before “no actions” and “no update” count. Flagged is its own state: the initiative's people have asked for support. A priority is flagged if any of its initiatives is, else off track if any is, else on track."
+    "An initiative is on track, off track or marked Support needed. It is off track with a late action or no actions at all, with any metric outside its limits or short of plan, or with no status update inside the window below. A new initiative has the same window before “no actions” and “no update” count. Flagged is its own state: the initiative's people have asked for support. A priority is flagged if any of its initiatives is, else off track if any is, else on track."
   );
   body.appendChild(statusBox);
   statusBox.appendChild(field("No status update for (days)", recency, `Default ${DEFAULT_STATUS_SETTINGS.recencyDays} days (5 weeks). The initiative board's “no update” notice uses the same number.`));
   const colourRow = el("div", "app-settings-row");
-  colourRow.append(field("On track colour", colourSels.good), field("Flagged colour", colourSels.flagged), field("Off track colour", colourSels.bad));
+  colourRow.append(field("On track colour", colourSels.good), field("Support needed colour", colourSels.flagged), field("Off track colour", colourSels.bad));
   statusBox.appendChild(colourRow);
   statusBox.appendChild(el("div", "app-field-hint", "Colours are entries of the state palette (Settings → Branding). Add or recolour an entry there, then pick it here."));
   sync();
@@ -681,6 +681,7 @@ async function renderPeriod(body: HTMLElement, ctx: DirtyCtx, saves: (() => Prom
   saves.push(async () => {
     if (!dirty) return;
     await savePrioritySettingsJson(serializePrioritySettings(s));
+    void import("../flagColour").then((m) => m.applyFlagColour()).catch(() => undefined);
     dirty = false;
   });
 }

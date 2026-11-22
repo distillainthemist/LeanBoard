@@ -2,7 +2,7 @@
 // pattern (docs/ui-standard.md §2.x). Its own module so the capture
 // card's person column can use it without the action dialog (2026-11-18).
 
-import { el } from "./dom";
+import { el, onEscape } from "./dom";
 import { textInput } from "./dialog";
 import type { Person } from "../schema/people";
 
@@ -76,10 +76,12 @@ export function personTypeAhead(placeholder: string, find: (q: string) => Person
     } else if (e.key === "Enter") {
       e.preventDefault();
       options[active]?.run();
-    } else if (e.key === "Escape" && pop.style.display !== "none") {
-      e.preventDefault();
-      close();
     }
+  });
+  onEscape(input, () => {
+    if (pop.style.display === "none") return false;
+    close();
+    return true;
   });
   return { el: box, input };
 }

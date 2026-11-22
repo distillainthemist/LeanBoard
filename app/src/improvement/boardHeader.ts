@@ -676,7 +676,7 @@ export function mountInitiativePane(o: InitiativePaneOpts): InitiativePaneHandle
           await afterWrite();
           if (!raising || choice.notify === "") return;
           const { sendFlagNotice, flagOrgLine } = await import("./escalate");
-          return `✓ Saved and flagged. ${await sendFlagNotice(choice.notify, sponsorRecipients(), i.title, flagOrgLine(actor().who, i), fields.support.trim(), boardUrl(i.boardId))}`;
+          return `✓ Saved and marked Support needed. ${await sendFlagNotice(choice.notify, sponsorRecipients(), i.title, flagOrgLine(actor().who, i), fields.support.trim(), boardUrl(i.boardId))}`;
         },
       });
     const openEdit = (u: Update) =>

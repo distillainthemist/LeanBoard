@@ -19,6 +19,7 @@ import {
   actionRow,
   addActionSection,
   openActionDialog,
+  holdEntryDialog,
 } from "../../shared/ui/actionUi";
 import { parsePrompts, Prompts, renderGhost, renderTitleBar, hintFor } from "../../shared/ui/chrome";
 import { renderKebab } from "../../shared/ui/menu";
@@ -602,7 +603,7 @@ export class FiveWhysEditor {
             const text = ta.value.trim();
             if (text === "") return;
             // an action raised with the entry needs what, who and when
-            if (inline && inline.form.hasContent() && !inline.form.checkRequired({ verb: "Add" })) return;
+            if (inline && inline.form.missing().length > 0) return;
             const created = newCause({
               text,
               parentId,
@@ -618,10 +619,12 @@ export class FiveWhysEditor {
         },
       ],
     });
-    dlg.body.appendChild(fieldRow("Cause", ta));
+    const causeRow = fieldRow("Cause", ta);
+    dlg.body.appendChild(causeRow);
     dlg.body.appendChild(charCounter(ta, MAX_CAUSE_CHARS));
     dlg.body.appendChild(rootChk.wrap);
     if (inline) dlg.body.appendChild(inline.el);
+    holdEntryDialog(dlg, { label: "Cause", rows: [causeRow], filled: () => ta.value.trim() !== "", inputs: [ta] }, inline?.form ?? null);
     ta.focus();
   }
 
@@ -662,10 +665,13 @@ export class FiveWhysEditor {
         },
       ],
     });
-    dlg.body.appendChild(fieldRow("Cause", ta));
+    const causeRow = fieldRow("Cause", ta);
+    dlg.body.appendChild(causeRow);
     dlg.body.appendChild(charCounter(ta, MAX_CAUSE_CHARS));
     if (this.showStatus) dlg.body.appendChild(fieldRow("Status", statusSel));
     dlg.body.appendChild(rootChk.wrap);
+    // an edited cause keeps some words: Save waits for them
+    holdEntryDialog(dlg, { label: "Cause", rows: [causeRow], filled: () => ta.value.trim() !== "", inputs: [ta] }, null);
 
     // existing actions on this cause + raise a new one
     const existing = this.actions.filter(

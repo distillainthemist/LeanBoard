@@ -370,7 +370,7 @@ async function mountPrimaryCommentary(
             onFlagChanged?.();
             if (!raising || choice.notify === "") return;
             const [{ sendFlagNotice, flagOrgLine }, { boardUrl }] = await Promise.all([import("../improvement/escalate"), import("../links")]);
-            return `✓ Saved and flagged. ${await sendFlagNotice(choice.notify, sponsors, i.title, flagOrgLine(actor.who, i), fields.support.trim(), boardUrl(i.boardId))}`;
+            return `✓ Saved and marked Support needed. ${await sendFlagNotice(choice.notify, sponsors, i.title, flagOrgLine(actor.who, i), fields.support.trim(), boardUrl(i.boardId))}`;
           },
         })
       );

@@ -186,6 +186,8 @@ void (async () => {
     // current one? Hosted only — a dev server has no policy to read
     if (viewer) {
       void import("./release/gate").then((m) => m.startReleaseGate(viewer, me !== null)).catch(() => undefined);
+      // the Support needed colour reaches the action dialog (flagColour.ts)
+      void import("./flagColour").then((m) => m.applyFlagColour()).catch(() => undefined);
     }
     // view-as banner: a super admin previewing a lesser role always sees
     // it flagged, with a one-click way back. NO page reloads here — a raw

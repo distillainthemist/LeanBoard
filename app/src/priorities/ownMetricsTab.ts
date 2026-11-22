@@ -37,6 +37,9 @@ export interface OwnMetricsOpts {
   valuesChanged: () => Promise<void>;
 }
 
+/** The values grid's note names whose readings they are. */
+const OWNER_WORDS = "this priority's readings";
+
 const link = (label: string): HTMLButtonElement => {
   const b = el("button", "app-link", label) as HTMLButtonElement;
   b.type = "button";
@@ -78,6 +81,7 @@ export function mountOwnMetrics(o: OwnMetricsOpts): void {
       rows: m.rows ?? DEFAULT_ROWS_CARD,
       tracking: trackingFor(m, d) ?? undefined,
       window: { from: cols[0].from, to: cols[cols.length - 1].to },
+      ownerWords: OWNER_WORDS,
       readOnly,
       onClosed: (changed) => {
         if (changed) void o.valuesChanged();
@@ -115,6 +119,7 @@ export function mountOwnMetrics(o: OwnMetricsOpts): void {
         site,
         locate: (m, d) => ownMetricLocation(p.id, m, d),
         emptyNote: "",
+        ownerWords: OWNER_WORDS,
         onValuesChanged: () => void o.valuesChanged(),
       },
     });

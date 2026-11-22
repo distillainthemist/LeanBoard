@@ -15,7 +15,7 @@ import { currentRescheduleSettings, rescheduleFields } from "./reschedulePrompt"
 import { applyEndorsementRule, awaitingEndorsement, endorse, sendBack } from "../schema/actionEndorsement";
 import { Person, splitWho } from "../schema/people";
 import { textOn } from "../tokens";
-import { el } from "./dom";
+import { el, onEscape } from "./dom";
 import { personTypeAhead } from "./personTypeAhead";
 import {
   checkItem,
@@ -27,6 +27,7 @@ import {
   textInput,
   selectInput,
 } from "./dialog";
+import type { DialogHandle } from "./dialog";
 
 export interface ActionForm {
   el: HTMLElement;
@@ -228,11 +229,13 @@ function peopleSearchBox(opts: {
       // never the dialog's Save: Enter picks the highlighted person
       e.preventDefault();
       options[active]?.run();
-    } else if (e.key === "Escape" && pop.style.display !== "none") {
-      e.preventDefault();
-      query.value = "";
-      close();
     }
+  });
+  onEscape(query, () => {
+    if (pop.style.display === "none") return false;
+    query.value = "";
+    close();
+    return true;
   });
   return {
     el: box,
@@ -249,7 +252,13 @@ export function buildActionForm(
   people: Person[],
   initial?: LtkAction,
   /** `initial` fills a NEW action (a duplicate): nothing has a part yet. */
-  fresh = false
+  fresh = false,
+  /** `optional`: the form sits inside another card's entry dialog, and
+   *  an action is raised only if its Action box is filled (Ben,
+   *  2026-11-22). Nothing is required while that box is empty; once it
+   *  has words, Who and Due are — and only then do they carry the
+   *  asterisk. The Action box itself never does. */
+  formOpts: { optional?: boolean } = {}
 ): ActionForm {
   const wrap = el("div");
   wrap.style.display = "flex";
@@ -564,14 +573,25 @@ export function buildActionForm(
     star.setAttribute("aria-label", "required");
     return star;
   };
+  const optional = formOpts.optional === true;
+  /** The stars that show only while an optional action is being typed. */
+  const lateStars: HTMLElement[] = [];
+  const lateStar = (): HTMLElement => {
+    const star = requiredTag();
+    if (optional) {
+      star.style.display = "none";
+      lateStars.push(star);
+    }
+    return star;
+  };
   const actionRow = fieldRow("Action", desc);
-  if (raising) actionRow.querySelector(".ltk-field-label")?.appendChild(requiredTag());
+  if (raising && !optional) actionRow.querySelector(".ltk-field-label")?.appendChild(requiredTag());
   wrap.appendChild(actionRow);
   // Who: a label like any other field's, then the grid — the search box
   // its first cell, the people of the meeting or initiative after it
   const whoBlock = el("div", "ltk-who");
   const whoLabel = el("div", "ltk-field-label", "Who");
-  if (raising) whoLabel.appendChild(requiredTag());
+  if (raising) whoLabel.appendChild(lateStar());
   whoBlock.appendChild(whoLabel);
   if (whoBox) whoWrap.insertBefore(whoBox, whoWrap.firstChild);
   whoBlock.appendChild(whoWrap);
@@ -781,7 +801,7 @@ export function buildActionForm(
   startRow.classList.add("ltk-act-date");
   const dueRow = fieldRow("Due", due);
   dueRow.classList.add("ltk-act-date");
-  if (raising) dueRow.querySelector(".ltk-field-label")?.appendChild(requiredTag());
+  if (raising) dueRow.querySelector(".ltk-field-label")?.appendChild(lateStar());
   dates.append(startRow, dueRow);
   wrap.appendChild(dates);
 
@@ -808,6 +828,9 @@ export function buildActionForm(
   const requiredListeners: (() => void)[] = [];
   const changed = () => {
     clearMissing();
+    // an optional action's Who and Due are asked for once it has words
+    const started = desc.value.trim() !== "";
+    for (const star of lateStars) star.style.display = started ? "" : "none";
     for (const l of requiredListeners) l();
   };
   desc.addEventListener("input", changed);
@@ -824,6 +847,8 @@ export function buildActionForm(
   const missingNow = (opts: { issue?: string } = {}): { label: string; mark: HTMLElement; focus: () => void }[] => {
     const missing: { label: string; mark: HTMLElement; focus: () => void }[] = [];
     const noAction = desc.value.trim() === "";
+    // an optional action that has not been started asks for nothing
+    if (optional && noAction) return missing;
     if (raising ? noAction : noAction && (opts.issue ?? "").trim() === "") missing.push({ label: "Action", mark: desc, focus: () => desc.focus() });
     if (raising && !anyWho()) {
       missing.push({ label: "Who", mark: whoMark, focus: () => (freeWho ?? whoWrap.querySelector<HTMLElement>("input"))?.focus() });
@@ -891,7 +916,7 @@ export function addActionSection(
   people: Person[],
   label = "Action"
 ): { el: HTMLElement; form: ActionForm } {
-  const form = buildActionForm(people);
+  const form = buildActionForm(people, undefined, false, { optional: true });
   const wrap = el("div");
   wrap.style.display = "flex";
   wrap.style.flexDirection = "column";
@@ -913,6 +938,47 @@ export function addActionSection(
 
   wrap.append(btn, section);
   return { el: wrap, form };
+}
+
+/** An entry dialog that may raise an action with the entry (the Risk
+ *  matrix, Heatmap, 5 Whys and Fault tree cards) marks what it needs the
+ *  way the action dialog does (Ben, 2026-11-22): a red asterisk on the
+ *  entry's own required field(s), and the primary button held until
+ *  they are filled and any action being typed has its Who and Due — its
+ *  tooltip says what is still needed. A press used to do nothing, or
+ *  paint the fields red under a "Required before Add" line. */
+export function holdEntryDialog(
+  dlg: DialogHandle,
+  entry: {
+    /** What the tooltip calls it: "Cause", "Hazard or Risk". */
+    label: string;
+    /** The field rows that carry the asterisk. */
+    rows: HTMLElement[];
+    filled: () => boolean;
+    /** The inputs whose typing can fill it. */
+    inputs: HTMLElement[];
+  },
+  inline: ActionForm | null
+): void {
+  for (const row of entry.rows) {
+    const star = el("sup", "ltk-req-star", "*");
+    star.title = "Required";
+    star.setAttribute("aria-label", "required");
+    row.querySelector(".ltk-field-label")?.appendChild(star);
+  }
+  const primary = dlg.root.querySelector<HTMLButtonElement>(".ltk-dialog-footer .ltk-btn-primary");
+  const sync = () => {
+    if (!primary) return;
+    const missing = [...(entry.filled() ? [] : [entry.label]), ...(inline ? inline.missing() : [])];
+    primary.disabled = missing.length > 0;
+    primary.title = missing.length > 0 ? `Still needed: ${missing.join(", ")}` : "";
+  };
+  for (const input of entry.inputs) {
+    input.addEventListener("input", sync);
+    input.addEventListener("change", sync);
+  }
+  inline?.onRequiredChange(sync);
+  sync();
 }
 
 export interface ActionRowOptions {
@@ -1688,11 +1754,13 @@ function buildLinkField(o: ActionDialogOptions, body: () => HTMLElement, onTouch
         // never the dialog's Save: Enter picks the highlighted target
         e.preventDefault();
         (hits[active] as HTMLButtonElement | undefined)?.click();
-      } else if (e.key === "Escape" && results.style.display !== "none") {
-        e.preventDefault();
-        query.value = "";
-        close();
       }
+    });
+    onEscape(query, () => {
+      if (results.style.display === "none") return false;
+      query.value = "";
+      close();
+      return true;
     });
     box.append(query, results);
     wrap.appendChild(box);

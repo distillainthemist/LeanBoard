@@ -294,10 +294,10 @@ export const CARDS: CardSpec[] = [
       },
       {
         key: "verifyColumn",
-        label: "Verify column",
+        label: "Endorse column",
         kind: "boolean",
-        heading: "Verification",
-        help: "Adds a Verify column between Doing and Done (initiative boards): done work waits there for the owner; moving it to Done stamps who verified.",
+        heading: "Endorsement",
+        help: "Adds an Endorse column between Doing and Done (initiative boards): done work waits there for the owner; moving it to Done stamps who endorsed it.",
       },
       {
         key: "kanbanColumns",

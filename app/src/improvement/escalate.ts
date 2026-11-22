@@ -40,7 +40,7 @@ export async function sendFlagNotice(kind: Exclude<FlagNotify, "">, recips: Esca
   if (recips.length === 0) return "Nobody to notify — no sponsor with an email.";
   try {
     const { sendNotifyTeams, sendNotifyEmail } = await import("../docs/notify");
-    const subject = `Flagged: ${initiativeTitle}`;
+    const subject = `Support needed: ${initiativeTitle}`;
     const body = `${orgLine}: ${note}`;
     const r = kind === "teams" ? await sendNotifyTeams(recips, subject, body, link) : await sendNotifyEmail(recips, subject, body, link);
     return r.error === ""
@@ -84,7 +84,7 @@ export function openFlagDialog(o: FlagDialogOpts): void {
   // a form never closes on a click outside it (Ben, 2026-10-07)
 
   box.appendChild(el("div", "app-modal-title", "Flag this initiative"));
-  box.appendChild(el("div", "app-modal-note", "A flag says this initiative needs support. It shows as Flagged wherever the initiative is listed, with what you need. Asking early is the right call."));
+  box.appendChild(el("div", "app-modal-note", "A flag says this initiative needs support. It shows as Support needed wherever the initiative is listed, with what you need. Asking early is the right call."));
 
   const msg = el("textarea", "app-input") as HTMLTextAreaElement;
   msg.rows = 3;
@@ -147,8 +147,8 @@ export function openFlagDialog(o: FlagDialogOpts): void {
         return;
       }
       cancel.textContent = "Close";
-      outLine.textContent = "✓ Flagged. Sending…";
-      outLine.textContent = `✓ Flagged. ${await sendFlagNotice(kind, to, o.initiativeTitle, o.orgLine, note, o.link)}`;
+      outLine.textContent = "✓ Marked Support needed. Sending…";
+      outLine.textContent = `✓ Marked Support needed. ${await sendFlagNotice(kind, to, o.initiativeTitle, o.orgLine, note, o.link)}`;
     })();
   };
   plainBtn.addEventListener("click", () => run(""));

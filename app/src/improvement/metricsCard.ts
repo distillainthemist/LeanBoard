@@ -70,6 +70,9 @@ export interface MetricsCardSource {
   emptyNote: string;
   /** Values were written: the host's own picture is stale. */
   onValuesChanged?: () => void;
+  /** Whose readings these are, in the values grid's note ("this
+   *  priority's readings"). */
+  ownerWords?: string;
 }
 
 export function mountMetricsCard(opts: CardMount & { source?: MetricsCardSource }): () => void {
@@ -191,6 +194,7 @@ export function mountMetricsCard(opts: CardMount & { source?: MetricsCardSource 
             rows: r.source.rows,
             tracking: r.tracking ?? undefined,
             window,
+            ownerWords: opts.source?.ownerWords,
             readOnly: opts.readOnly,
             onClosed: (changed) => {
               if (changed) void reloadRow(r);

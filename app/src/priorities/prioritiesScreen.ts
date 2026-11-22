@@ -1540,7 +1540,7 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       const prLabel = el("div", "app-cp-label");
       prLabel.appendChild(el("div", undefined, "Priorities"));
       const key = statusLegend(stateHex, { stack: true });
-      key.title = "Each priority's initiatives: on track, flagged (support asked for), off track";
+      key.title = "Each priority's initiatives: on track, support needed, off track";
       prLabel.appendChild(key);
       grid.appendChild(prLabel);
       for (const col of columns) {

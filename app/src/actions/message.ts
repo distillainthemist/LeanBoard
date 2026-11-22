@@ -9,7 +9,7 @@
 // the documents module's (docs/notify) — reached by a dynamic import,
 // the import gate's sanctioned door.
 
-import { el, clear } from "../../../shared/ui/dom";
+import { el, clear, onEscape } from "../../../shared/ui/dom";
 import { markDialog } from "../../../shared/ui/focusTrap";
 import type { ActionMessageRequest } from "../../../shared/ui/actionLinkProvider";
 import { newComment } from "../../../shared/schema/actions";
@@ -195,12 +195,14 @@ export async function openMessagePanel(o: MessagePanelOpts): Promise<void> {
     } else if (e.key === "Enter") {
       e.preventDefault();
       options[active]?.run();
-    } else if (e.key === "Escape" && pop.style.display !== "none") {
-      e.preventDefault();
-      e.stopPropagation();
-      add.value = "";
-      closePop();
     }
+  });
+  // also by the relay: the action dialog underneath swallows the key
+  onEscape(add, () => {
+    if (pop.style.display === "none") return false;
+    add.value = "";
+    closePop();
+    return true;
   });
   const toField = el("div", "app-field");
   toField.append(el("span", "app-field-label", "To"), chips, addBox);
