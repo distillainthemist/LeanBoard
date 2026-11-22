@@ -12,7 +12,9 @@ import { parseManifest } from "../store/mappers";
 import type { BoardSummary } from "../store/mappers";
 import type { CardRow } from "../store/cards";
 import { Initiative, MetricReading, metricRag, worstMetricRag } from "./initiativeModel";
-import { EMPTY_SPEC_SERIES, specFor, SpecSeries } from "../../../shared/schema/specSeries";
+import { EMPTY_SPEC_SERIES, SPEC_SERIES_PREFIX, specFor, SpecSeries, specSeriesFromCells } from "../../../shared/schema/specSeries";
+import { todayIso } from "../../../shared/schema/id";
+import { READ_FROM_START, readFrom } from "./readWindow";
 import { metricLocation, trackingDisplay } from "./metricLocation";
 import type { MetricLocation } from "./metricLocation";
 import type { DriverNode } from "./vdt/model";
@@ -159,28 +161,55 @@ export function buildMetricState(
 /** One metric's last reading and spec history, from its location: a
  *  good / bad or picklist driver's latest label, a driver's series, or
  *  the metric's own cells. */
-async function readLast(loc: MetricLocation, d: DriverNode | null): Promise<DriverLast> {
-  const { listDriverPoints, listDriverRaw, listSpecSeries } = await import("../store/driverSeries");
-  if (loc.driverId !== "" && d && d.tracking.kind !== "value") {
-    // a good / bad or picklist driver: the latest label + its state
-    const { stateOf } = await import("./vdt/model");
-    const raw = await listDriverRaw(loc.driverId, "1900-01-01", "2999-12-31");
-    const lastPt = [...raw].sort((a, b) => (a.date + a.shift < b.date + b.shift ? -1 : 1)).pop() ?? null;
-    const st = stateOf(d.tracking, lastPt ? lastPt.value : "");
-    return { last: null, raw: lastPt ? lastPt.value : "", date: lastPt ? lastPt.date : "", spec: EMPTY_SPEC_SERIES, display: st };
-  }
-  if (loc.driverId !== "") {
-    const [pts, spec] = await Promise.all([listDriverPoints(loc.driverId, "1900-01-01", "2999-12-31"), listSpecSeries("vdt", loc.driverId, "2999-12-31").catch(() => EMPTY_SPEC_SERIES)]);
-    const lastPt = pts.length > 0 ? pts[pts.length - 1] : null;
-    return { last: lastPt ? lastPt.value : null, raw: lastPt ? String(lastPt.value) : "", date: lastPt ? lastPt.date : "", spec, tail: pts.slice(-SPARK_POINTS).map((pt) => pt.value) };
-  }
-  const { listSeries } = await import("../store/series");
-  const [cells, spec] = await Promise.all([listSeries(loc.boardId, loc.cardId, "1900-01-01", "2999-12-31"), listSpecSeries(loc.boardId, loc.cardId, "2999-12-31").catch(() => EMPTY_SPEC_SERIES)]);
-  const pts = cells.filter((c) => loc.isActual(c.key) && c.value !== "").sort((a, b) => (a.date + a.shift < b.date + b.shift ? -1 : 1));
+/** A metric's last reading and sparkline tail from its own cells (a
+ *  typed metric: every non-spec key is a reading). Pure. */
+export function lastFromCells(cells: { key: string; date: string; shift: string; value: string }[], isActual: (key: string) => boolean, spec: SpecSeries): DriverLast {
+  const pts = cells.filter((c) => isActual(c.key) && c.value !== "").sort((a, b) => (a.date + a.shift < b.date + b.shift ? -1 : 1));
   const lastPt = pts.length > 0 ? pts[pts.length - 1] : null;
   const n = lastPt ? Number(lastPt.value) : NaN;
   const tail = pts.slice(-SPARK_POINTS).map((c) => Number(c.value)).filter((x) => Number.isFinite(x));
   return { last: Number.isFinite(n) ? n : null, raw: lastPt ? lastPt.value : "", date: lastPt ? lastPt.date : "", spec, tail };
+}
+
+const FAR = "2999-12-31";
+
+/** One metric's last reading and spec history, from its location: a
+ *  good / bad or picklist driver's latest label, a driver's series, or
+ *  the metric's own cells. Readings are read in a WINDOW by cadence
+ *  (readWindow.ts, 2026-11-22); a metric with nothing inside it is
+ *  asked for its one latest reading, so it never reads as "no data". */
+async function readLast(loc: MetricLocation, d: DriverNode | null): Promise<DriverLast> {
+  const { listDriverPoints, listDriverRaw, listSpecSeries } = await import("../store/driverSeries");
+  const { listSeries, latestSeriesCell } = await import("../store/series");
+  const from = readFrom(todayIso(), loc.cadence);
+  const bounded = from !== READ_FROM_START;
+  if (loc.driverId !== "" && d && d.tracking.kind !== "value") {
+    // a good / bad or picklist driver: the latest label + its state
+    const { stateOf } = await import("./vdt/model");
+    const raw = await listDriverRaw(loc.driverId, from, FAR);
+    let lastPt: { date: string; shift: string; value: string } | null = [...raw].sort((a, b) => (a.date + a.shift < b.date + b.shift ? -1 : 1)).pop() ?? null;
+    if (lastPt === null && bounded) lastPt = await latestSeriesCell("vdt", loc.driverId, "actual").catch(() => null);
+    const st = stateOf(d.tracking, lastPt ? lastPt.value : "");
+    return { last: null, raw: lastPt ? lastPt.value : "", date: lastPt ? lastPt.date.slice(0, 10) : "", spec: EMPTY_SPEC_SERIES, display: st };
+  }
+  if (loc.driverId !== "") {
+    const [inWindow, spec] = await Promise.all([listDriverPoints(loc.driverId, from, FAR), listSpecSeries("vdt", loc.driverId, FAR).catch(() => EMPTY_SPEC_SERIES)]);
+    let pts = inWindow;
+    if (pts.length === 0 && bounded) {
+      const old = await latestSeriesCell("vdt", loc.driverId, "actual").catch(() => null);
+      const n = old ? Number(old.value) : NaN;
+      if (old && Number.isFinite(n)) pts = [{ date: old.date, shift: old.shift || "-", value: n }];
+    }
+    const lastPt = pts.length > 0 ? pts[pts.length - 1] : null;
+    return { last: lastPt ? lastPt.value : null, raw: lastPt ? String(lastPt.value) : "", date: lastPt ? lastPt.date : "", spec, tail: pts.slice(-SPARK_POINTS).map((pt) => pt.value) };
+  }
+  const [cells, spec] = await Promise.all([listSeries(loc.boardId, loc.cardId, from, FAR), listSpecSeries(loc.boardId, loc.cardId, FAR).catch(() => EMPTY_SPEC_SERIES)]);
+  let mine = cells;
+  if (bounded && !mine.some((c) => loc.isActual(c.key) && c.value !== "")) {
+    const old = await latestSeriesCell(loc.boardId, loc.cardId).catch(() => null);
+    if (old) mine = [old];
+  }
+  return lastFromCells(mine, loc.isActual, spec);
 }
 
 /** Where a priority's own metric keeps its readings: the driver's series
@@ -204,19 +233,63 @@ export async function loadOwnMetricLasts(items: { id: string; site: string; metr
     if (!driverCache.has(site)) driverCache.set(site, listDrivers(site).catch(() => []));
     return driverCache.get(site)!;
   };
+  // which metrics are TYPED (their readings sit at the priority's own
+  // location) and which read a value driver's series
+  const typed: { id: string; m: TemplateMetric; loc: MetricLocation }[] = [];
+  const linked: { id: string; m: TemplateMetric; loc: MetricLocation; d: DriverNode | null }[] = [];
   await Promise.all(
     withMetrics.map(async (p) => {
       const drivers = p.site !== "" && p.metrics.some((m) => m.driverId) ? await driversFor(p.site) : [];
-      await Promise.all(
-        p.metrics.map(async (m) => {
-          const d = m.driverId ? (drivers.find((x) => x.id === m.driverId) ?? null) : null;
-          const v = await readLast(ownMetricLocation(p.id, m, d), d).catch(() => null);
-          if (v !== null) out.set(`${p.id}|${m.key}`, v);
-        })
-      );
+      for (const m of p.metrics) {
+        const d = m.driverId ? (drivers.find((x) => x.id === m.driverId) ?? null) : null;
+        const loc = ownMetricLocation(p.id, m, d);
+        if (loc.driverId !== "") linked.push({ id: p.id, m, loc, d });
+        else typed.push({ id: p.id, m, loc });
+      }
     })
   );
+  const jobs: Promise<void>[] = linked.map(async (x) => {
+    const v = await readLast(x.loc, x.d).catch(() => null);
+    if (v !== null) out.set(`${x.id}|${x.m.key}`, v);
+  });
+  if (typed.length > 0) {
+    // ONE read for every typed metric's readings and one for their plan
+    // history (2026-11-22: it was two reads a metric), sorted out here
+    jobs.push(
+      (async () => {
+        const { listBoardSeries, listBoardSpec, latestSeriesCell } = await import("../store/series");
+        const today = todayIso();
+        const froms = typed.map((x) => readFrom(today, x.loc.cadence));
+        const earliest = froms.reduce((a, b) => (b < a ? b : a));
+        const [cells, specCells] = await Promise.all([listBoardSeries(OWN_SERIES_BOARD, earliest, FAR), listBoardSpec(OWN_SERIES_BOARD, SPEC_SERIES_PREFIX, FAR).catch(() => [])]);
+        const sorted = sortOwnCells(typed.map((x, k) => ({ card: x.loc.cardId, from: froms[k] })), cells, specCells);
+        await Promise.all(
+          typed.map(async (x, k) => {
+            let mine: { key: string; date: string; shift: string; value: string }[] = sorted[k].cells;
+            if (froms[k] !== READ_FROM_START && !mine.some((c) => x.loc.isActual(c.key) && c.value !== "")) {
+              const old = await latestSeriesCell(x.loc.boardId, x.loc.cardId).catch(() => null);
+              if (old) mine = [old];
+            }
+            out.set(`${x.id}|${x.m.key}`, lastFromCells(mine, x.loc.isActual, specSeriesFromCells(sorted[k].spec)));
+          })
+        );
+      })().catch(() => undefined)
+    );
+  }
+  await Promise.all(jobs);
   return out;
+}
+
+/** A whole board's cells, sorted out by metric: each gets the cells at
+ *  ITS card, readings from its own window on, and its own plan history.
+ *  Two priorities may carry a metric of the same name — the card is
+ *  `<priorityId>/<key>`, so they never mix. Pure. */
+export function sortOwnCells<C extends { cardId: string; date: string }>(wants: { card: string; from: string }[], cells: C[], specCells: C[]): { cells: C[]; spec: C[] }[] {
+  const byCard = new Map<string, C[]>();
+  for (const c of cells) (byCard.get(c.cardId) ?? byCard.set(c.cardId, []).get(c.cardId)!).push(c);
+  const specByCard = new Map<string, C[]>();
+  for (const c of specCells) (specByCard.get(c.cardId) ?? specByCard.set(c.cardId, []).get(c.cardId)!).push(c);
+  return wants.map((w) => ({ cells: (byCard.get(w.card) ?? []).filter((c) => c.date >= w.from), spec: specByCard.get(w.card) ?? [] }));
 }
 
 /** A priority's own metrics as values, in definition order. Every one

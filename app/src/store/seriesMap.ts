@@ -271,3 +271,11 @@ export function partitionSeries(
 export function sortPoints<P extends { date: string; shift: string }>(points: P[]): P[] {
   return [...points].sort((a, b) => (a.date + a.shift < b.date + b.shift ? -1 : a.date + a.shift > b.date + b.shift ? 1 : 0));
 }
+
+/** The newest reading among some cells: the latest by date then shift
+ *  that is a reading (the given key, or any key that is not a spec row)
+ *  and has a value; null when there is none. Pure. */
+export function latestReading(cells: SeriesCell[], key = "", specPrefix = "spec:"): SeriesCell | null {
+  const readings = cells.filter((c) => c.value !== "" && (key !== "" ? c.key === key : c.key !== "" && !c.key.startsWith(specPrefix)));
+  return sortPoints(readings).pop() ?? null;
+}

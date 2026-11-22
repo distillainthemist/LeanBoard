@@ -12,7 +12,9 @@ be worked on now. Their order, sizes and the questions each one waits
 on are in `backlog-programme-2026-11-22.md`, in eight tranches
 (roughly 190–270 hours; one item, hardened confidential actions, is
 schema-carrying). The items stay listed in their sections below until
-they are built. Nothing in it is built yet.
+they are built. **Tranche 1 is built and on dev (2026-11-22), not
+released**: thirteen small fixes — its "As built" section in the
+programme lists them and what Ben should check.
 
 ## Current state (2026-11-22, after v0.98.0)
 

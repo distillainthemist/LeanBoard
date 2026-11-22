@@ -1134,7 +1134,11 @@ Key concepts (details: [leanboard-standard-documents-plan.md](leanboard-standard
   Running with no write for 3 minutes was interrupted; a second
   controller's sheet is read-only during a live run; a step that throws
   refuses its own file and the run always ends Open; the confirmation
-  names files that already have a copy in the destination. Since the 2026-10-18 round: a **status
+  names files that already have a copy in the destination. The list
+  feed keeps a term column's ids under `<col>#termid` beside its labels
+  (`rows.ts` `termIdsOf`), and the ingestion grid reads each term's
+  current name by id — SharePoint's stored label lags a rename
+  (2026-11-22). Since the 2026-10-18 round: a **status
   column in the grid** decides the landing (approved / superseded /
   obsolete land as published majors with that status, anything else as
   a draft minor), an edited task re-reads its row before writing (no

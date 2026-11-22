@@ -242,11 +242,11 @@ modules: docs/addDocument.ts docs/fieldEditors.ts docs/docsScreen.ts
 preconditions: a working library the author may contribute to; a file to upload
 steps:
 1. Open the working library → Add document → By upload → choose the file from your device (the upload folder stays as the second road where one is configured).
-2. Leave a required field (the ones tagged "Required") empty; click Add.
+2. Leave a required field (the ones with a small red asterisk) empty; read the Add button and hover it.
 3. Fill it; Add.
 4. (Controller) Make a library column required that is not in the site dictionary; open Add document again.
 5. (Controller) Make a dictionary column required through the library's CONTENT TYPE (not the column itself); open Add document again.
-expected: the device file goes straight into the library byte-exact (a name already in the library is refused before the upload); Approval status is not a form field — the document lands as a Draft, the lifecycle moves it from there; every required column carries a red "Required" tag on its label; a click on Add with one empty scrolls to the first, outlines each missing row and says "Required before Add: Owner, Importance" under the button, and the line clears as they are filled; the document then lands in the library with its properties and opens in the viewer, with the status line saying it was added as a draft, shows when "Show only approved" is unticked, and is submitted for review from its ⋯ menu; in step 4 the form names the library-required column it cannot collect and refuses before creating anything (no checked-out orphan); in step 5 the content-type-required column is tagged and validated like any other
+expected: the device file goes straight into the library byte-exact (a name already in the library is refused before the upload); Approval status is not a form field — the document lands as a Draft, the lifecycle moves it from there; every required column carries a small red superscript asterisk on its label (no "REQUIRED" word); while one is empty the Add button is disabled and its tooltip reads "Still needed: Owner, Importance", and it enables as they are filled — nothing is written under the button; the document then lands in the library with its properties and opens in the viewer, with the status line saying it was added as a draft, shows when "Show only approved" is unticked, and is submitted for review from its ⋯ menu; in step 4 the form names the library-required column it cannot collect and refuses before creating anything (no checked-out orphan); in step 5 the content-type-required column is marked and held like any other
 
 ### UAT-DOC-026 — Add refuses a duplicate name and a duplicate document id
 persona: author
@@ -265,9 +265,9 @@ preconditions: a draft standard you own
 steps:
 1. Open the document → ⋯ → Edit properties…
 2. Change a text field, a date, a taxonomy field and a person field; read the line under Importance.
-3. Clear a required field; click Save; refill it; Save.
+3. Clear a required field; read the Save button and hover it; refill it; Save.
 4. Edit again; change the document id to one another document carries; Save.
-expected: Approval status is not in the form (Submit / Approve / Retire move it); the dialog's footer stays pinned while the body scrolls; each editor fits its column type; under Importance a line reads "Sets the review cadence — High: every 12 months. Next review 17 Aug 2027, counted from the effective date 17 Aug 2026." and updates as Importance changes, with a read-only "Next review date · Derived" row beneath it; Save with a required field empty scrolls to it and names it under the buttons; Save then writes the values and the details pane shows them without reopening; the duplicate document id is refused with the clashing document named, and the unchanged id is never re-checked
+expected: Approval status is not in the form (Submit / Approve / Retire move it); the dialog's footer stays pinned while the body scrolls; each editor fits its column type; under Importance a line reads "Sets the review cadence — High: every 12 months. Next review 17 Aug 2027, counted from the effective date 17 Aug 2026." and updates as Importance changes, with a read-only "Next review date · Derived" row beneath it; with a required field empty Save is disabled and its tooltip names it ("Still needed: Owner"); Save then writes the values and the details pane shows them without reopening; the duplicate document id is refused with the clashing document named, and the unchanged id is never re-checked
 
 ### UAT-DOC-028 — Cascading organisation and process pickers
 persona: owner
@@ -303,7 +303,7 @@ preconditions: a draft standard you own, not checked out
 steps:
 1. Open it → Check out.
 2. Read the register row and the Document tasks panel.
-3. Check in… with a comment (the Comment label is tagged Required, with the line "A comment is required — it is the version's audit entry"); then check out again and Discard check-out.
+3. Check in… with a comment (the Comment label carries the red asterisk — its tooltip says the comment is the version's audit entry — and BOTH check-in buttons are disabled until it is written); then check out again and Discard check-out.
 expected: the row shows the lock and your name; "Checked out to you" lists it in Document tasks; Check in writes a minor version with the comment (the library must keep major AND minor versions — Settings → Documents warns on a library that keeps majors only); Discard releases it without a version; after an approval the published major's card carries the step's comment, or "published from v1.1 “…”" when the forms engine had to publish it
 
 ### UAT-DOC-032 — Replace content
@@ -678,6 +678,37 @@ steps:
 2. In the destination, delete the copy (or discard its check-out). Press Run ingestion… again; read the confirmation; Run; read the status line.
 3. Run the second task. While it runs, add one more file to its folder from SharePoint itself (the task's own Open folder is held). Read the status line when the run ends.
 expected: step 1 the confirmation carries "1 file already has a copy in <library>, probably from a run that stopped: <file name>. Discard that draft there first, or it will be refused."; step 2 the sentence is gone; the run ends "Run finished — 3 moved. Every file has moved — End task when the batch is complete."; step 3 the line ends "1 file was added to the folder during the run and was not ingested."; that file is in the grid, waiting for the next run
+
+### UAT-DOC-098 — Closed ingestion tasks keep their logs
+persona: controller
+modules: docs/docsScreen.ts docs/ingestionModel.ts docs/ingestionScreen.ts
+preconditions: one open ingestion task and at least one task you have ended (End task…) whose run moved and refused files; a person who was an assignee on one closed task only
+steps:
+1. Documents → Ingestion tasks. Read the button's label and the panel.
+2. Click "▸ Closed tasks (n)". Read a row. Click it.
+3. End your last open task. Read the Ingestion tasks button.
+4. As the assignee, open Ingestion tasks.
+expected: step 1 the button counts OPEN tasks only ("Ingestion tasks · 1"); the panel lists "Open tasks (1)" and, under it, a collapsed heading "▸ Closed tasks (n)"; step 2 the heading opens to the closed tasks, most recently ended first, each with a green "✓ Closed" pill, the task's name and "→ <library> · ended <date>"; more than twenty show the first twenty and "Show all n"; a row opens the task's sheet, which reads "This task is closed — its log is below." with the run log, a "▶ Run started (name, time)" line for each run; step 3 with no open task the button stays, reading "Ingestion tasks" with no count, so the closed tasks can still be reached; step 4 the assignee sees only the closed tasks they were assigned or created
+
+### UAT-DOC-099 — A term renamed after a file was tagged
+persona: controller
+modules: docs/rows.ts docs/ingestionModel.ts docs/ingestionScreen.ts
+preconditions: an open ingestion task with a file tagged with a Document type (or another term column); rights to rename that term in the term manager
+steps:
+1. Open the task and read the file's Document type cell.
+2. In the term manager, rename that term. Return to the task and press ↻ Refresh. Read the cell.
+3. Click the cell. Read the picker. Cancel.
+4. Read the file's row and the Save changes button.
+expected: step 2 the cell shows the term's NEW name (SharePoint's own stored label may lag — the grid reads the term by its id); step 3 the picker opens with the renamed term SELECTED, not empty; step 4 the row is not marked changed and Save changes stays disabled — nothing needs setting again; a file whose term was deleted from the set keeps showing its stored label
+
+### UAT-DOC-100 — A throttled run waits and retries
+persona: controller
+modules: docs/ingestionScreen.ts docs/ingestionRun.ts
+preconditions: an open ingestion task with two hundred or more ready files (the size that has throttled before), on a TEST destination
+steps:
+1. Run the task. Watch the progress bar's pace.
+2. When it ends, read the status line and hover the ⚠ of any refused file.
+expected: the run finishes; if SharePoint throttled it, the bar slows for a few seconds at a time (a throttled call waits 2, 5 then 10 seconds and is tried again) and the rest of the run goes four files at a time, not eight; no refusal reads as a raw "429" or "TooManyRequests" — a file still throttled after every try reads "SharePoint is busy. Run again in a few minutes." and is still in the folder; a file that failed for any other reason keeps its own reason and was not retried
 
 ### UAT-DOC-068 — Message assignees and end the task
 persona: controller

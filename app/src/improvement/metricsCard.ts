@@ -20,7 +20,9 @@ import { getBoard } from "../store/boards";
 import { parseManifest } from "../store/mappers";
 import { appPalettes } from "../store/config";
 import { listDrivers } from "../store/valueDrivers";
-import { applySeries, listSeries } from "../store/series";
+import { applySeries, latestSeriesCell, listSeries } from "../store/series";
+import { parseDay } from "../../../shared/schema/buckets";
+import { chartWindow, ChartWindow, READ_FROM_START, readFrom } from "./readWindow";
 import { listSpecSeries } from "../store/driverSeries";
 import { diffPoints, pointsFromCells } from "../store/seriesMap";
 import { ragPaletteKey } from "../priorities/model";
@@ -48,6 +50,11 @@ interface Row {
   /** Non-numeric (good / bad, picklist): the driver's tracking, or the
    *  own metric's; null = a number. */
   tracking: DriverTracking | null;
+  /** What the chart reads: the last twelve readings through to today,
+   *  or the readings alone when they are too old (readWindow.ts). */
+  win: ChartWindow;
+  /** The page around today — where the values grid opens. */
+  page: { from: string; to: string };
 }
 
 /** The tracking a metric row is measured under. */
@@ -120,7 +127,17 @@ export function mountMetricsCard(opts: CardMount & { source?: MetricsCardSource 
       const last = [...raw.filter((c) => loc.isActual(c.key) && c.value !== "")].sort((a, b) => (a.date + a.shift < b.date + b.shift ? -1 : 1)).pop();
       lastRaw = last ? last.value : "";
     }
-    return { m, loc, driver: d, source, cells, lastRaw, tracking };
+    // the chart's span: when were this metric's readings? Read in the
+    // cadence's window; a metric with nothing inside it is asked for its
+    // one latest reading
+    const page = { from: cols[0].from, to: cols[cols.length - 1].to };
+    const since = readFrom(today, loc.cadence);
+    let dates = (await listSeries(loc.boardId, loc.cardId, since, "2999-12-31").catch(() => [])).filter((c) => loc.isActual(c.key) && c.value !== "").map((c) => c.date);
+    if (dates.length === 0 && since !== READ_FROM_START) {
+      const old = await latestSeriesCell(loc.boardId, loc.cardId, loc.actualKey).catch(() => null);
+      if (old) dates = [old.date];
+    }
+    return { m, loc, driver: d, source, cells, lastRaw, tracking, win: chartWindow(today, loc.cadence, dates, page), page };
   };
 
   const load = async () => {
@@ -159,7 +176,8 @@ export function mountMetricsCard(opts: CardMount & { source?: MetricsCardSource 
    *  run chart or, for good / bad and picklist, the category trend. The
    *  grid dialog ("Update values…") is the one place values are entered. */
   const mountChart = (host: HTMLElement, r: Row): KpiTrendEditor => {
-    const window = { from: r.cells[0]?.column.from ?? today, to: r.cells[r.cells.length - 1]?.column.to ?? today };
+    // the chart reads its own span; the grid still opens around today
+    const window = { from: r.win.from, to: r.win.to };
     const prefix = `${r.m.key}:`;
     let lastPoints: { id: string; date: string; value: number; shift?: string; label?: string }[] = [];
     const ed = new KpiTrendEditor(host, {
@@ -193,7 +211,7 @@ export function mountMetricsCard(opts: CardMount & { source?: MetricsCardSource 
             level: level(r.m),
             rows: r.source.rows,
             tracking: r.tracking ?? undefined,
-            window,
+            window: r.page,
             ownerWords: opts.source?.ownerWords,
             readOnly: opts.readOnly,
             onClosed: (changed) => {
@@ -205,7 +223,9 @@ export function mountMetricsCard(opts: CardMount & { source?: MetricsCardSource 
     });
     editors.push(ed);
     ed.setTheme(opts.theme);
-    ed.setChrome(`${r.m.primary ? "★ " : ""}${r.m.name}${r.driver ? " · VDT" : ""}\n${r.loc.cadence}${r.driver ? ` · from value driver ${r.driver.name}` : ""}`, "");
+    const lastSeen = r.win.asOf !== "" ? ` · last reading ${parseDay(r.win.asOf).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}` : "";
+    ed.setChrome(`${r.m.primary ? "★ " : ""}${r.m.name}${r.driver ? " · VDT" : ""}\n${r.loc.cadence}${r.driver ? ` · from value driver ${r.driver.name}` : ""}${lastSeen}`, "");
+    ed.setTrendAsOf(r.win.asOf);
     ed.setReadOnly(opts.readOnly);
     ed.setPeople(opts.people);
     ed.setActions(opts.actions);

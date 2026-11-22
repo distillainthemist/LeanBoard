@@ -129,3 +129,14 @@ steps:
 4. On the Action Plan, add an action and read the people offered first in Who.
 expected: step 2 after the first card each step is about as quick as the meeting's — the old card stays under the spinner for a moment, never several seconds; step 3 the Charter shows the edits on return, the role picker lists the roster, and the "Primary priority" field reads the priority's statement; step 4 the initiative's role-holders lead the Who list, as before
 
+### UAT-IMP-012 — A metric's chart shows its last twelve readings through to today
+persona: lead
+modules: improvement/metricsCard.ts improvement/readWindow.ts improvement/metricValues.ts store/series.ts store/seriesMap.ts store/driverSeries.ts controls/KpiTrendCard/editor.ts
+preconditions: an initiative with three weekly metrics on its Metrics card: one filled in every week up to this week; one with ten or so readings that stopped two months ago; one whose last reading is more than thirteen weeks old
+steps:
+1. Open the initiative's board and read the three charts: where each starts and ends, and the subtitle under each name.
+2. Press "Update values" on the second metric. Read which weeks the grid opens on.
+3. Open Priorities and read the same metrics' sparklines and states on the priority's tile.
+4. Open the Improvement register and read the initiative's metric values.
+expected: step 1 the first chart is as before (the thirteen weeks around today); the second starts at its twelfth-last reading and STILL ends at this week, so its whole run is drawn and the two empty months show as a gap after it; the third opens on its readings alone, ending at the last one, and its subtitle ends "· last reading <date>"; step 2 the grid opens around TODAY, where new values go, whichever span the chart shows; step 3 and 4 every value, state and sparkline is what it was — a metric whose readings are all older than the read window (six months daily, two years weekly, five years monthly) still shows its last value and state, never "No data"
+

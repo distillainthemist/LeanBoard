@@ -1002,14 +1002,14 @@
        "preconditions": "a working library the author may contribute to; a file to upload",
        "steps": [
         "Open the working library → Add document → By upload → choose the file from your device (the upload folder stays as the second road where one is configured).",
-        "Leave a required field (the ones tagged \"Required\") empty; click Add.",
+        "Leave a required field (the ones with a small red asterisk) empty; read the Add button and hover it.",
         "Fill it; Add.",
         "(Controller) Make a library column required that is not in the site dictionary; open Add document again.",
         "(Controller) Make a dictionary column required through the library's CONTENT TYPE (not the column itself); open Add document again."
        ],
-       "expected": "the device file goes straight into the library byte-exact (a name already in the library is refused before the upload); Approval status is not a form field — the document lands as a Draft, the lifecycle moves it from there; every required column carries a red \"Required\" tag on its label; a click on Add with one empty scrolls to the first, outlines each missing row and says \"Required before Add: Owner, Importance\" under the button, and the line clears as they are filled; the document then lands in the library with its properties and opens in the viewer, with the status line saying it was added as a draft, shows when \"Show only approved\" is unticked, and is submitted for review from its ⋯ menu; in step 4 the form names the library-required column it cannot collect and refuses before creating anything (no checked-out orphan); in step 5 the content-type-required column is tagged and validated like any other",
-       "hash": "c1978943",
-       "changed": "2026-10-27"
+       "expected": "the device file goes straight into the library byte-exact (a name already in the library is refused before the upload); Approval status is not a form field — the document lands as a Draft, the lifecycle moves it from there; every required column carries a small red superscript asterisk on its label (no \"REQUIRED\" word); while one is empty the Add button is disabled and its tooltip reads \"Still needed: Owner, Importance\", and it enables as they are filled — nothing is written under the button; the document then lands in the library with its properties and opens in the viewer, with the status line saying it was added as a draft, shows when \"Show only approved\" is unticked, and is submitted for review from its ⋯ menu; in step 4 the form names the library-required column it cannot collect and refuses before creating anything (no checked-out orphan); in step 5 the content-type-required column is marked and held like any other",
+       "hash": "3cfb916c",
+       "changed": "2026-11-22"
       },
       {
        "id": "UAT-DOC-026",
@@ -1045,12 +1045,12 @@
        "steps": [
         "Open the document → ⋯ → Edit properties…",
         "Change a text field, a date, a taxonomy field and a person field; read the line under Importance.",
-        "Clear a required field; click Save; refill it; Save.",
+        "Clear a required field; read the Save button and hover it; refill it; Save.",
         "Edit again; change the document id to one another document carries; Save."
        ],
-       "expected": "Approval status is not in the form (Submit / Approve / Retire move it); the dialog's footer stays pinned while the body scrolls; each editor fits its column type; under Importance a line reads \"Sets the review cadence — High: every 12 months. Next review 17 Aug 2027, counted from the effective date 17 Aug 2026.\" and updates as Importance changes, with a read-only \"Next review date · Derived\" row beneath it; Save with a required field empty scrolls to it and names it under the buttons; Save then writes the values and the details pane shows them without reopening; the duplicate document id is refused with the clashing document named, and the unchanged id is never re-checked",
-       "hash": "fd5fa181",
-       "changed": "2026-10-26"
+       "expected": "Approval status is not in the form (Submit / Approve / Retire move it); the dialog's footer stays pinned while the body scrolls; each editor fits its column type; under Importance a line reads \"Sets the review cadence — High: every 12 months. Next review 17 Aug 2027, counted from the effective date 17 Aug 2026.\" and updates as Importance changes, with a read-only \"Next review date · Derived\" row beneath it; with a required field empty Save is disabled and its tooltip names it (\"Still needed: Owner\"); Save then writes the values and the details pane shows them without reopening; the duplicate document id is refused with the clashing document named, and the unchanged id is never re-checked",
+       "hash": "9b67a818",
+       "changed": "2026-11-22"
       },
       {
        "id": "UAT-DOC-028",
@@ -1120,11 +1120,11 @@
        "steps": [
         "Open it → Check out.",
         "Read the register row and the Document tasks panel.",
-        "Check in… with a comment (the Comment label is tagged Required, with the line \"A comment is required — it is the version's audit entry\"); then check out again and Discard check-out."
+        "Check in… with a comment (the Comment label carries the red asterisk — its tooltip says the comment is the version's audit entry — and BOTH check-in buttons are disabled until it is written); then check out again and Discard check-out."
        ],
        "expected": "the row shows the lock and your name; \"Checked out to you\" lists it in Document tasks; Check in writes a minor version with the comment (the library must keep major AND minor versions — Settings → Documents warns on a library that keeps majors only); Discard releases it without a version; after an approval the published major's card carries the step's comment, or \"published from v1.1 “…”\" when the forms engine had to publish it",
-       "hash": "aa0901c1",
-       "changed": "2026-10-27"
+       "hash": "7e7207ba",
+       "changed": "2026-11-22"
       },
       {
        "id": "UAT-DOC-032",
@@ -1877,6 +1877,66 @@
        ],
        "expected": "step 1 the confirmation carries \"1 file already has a copy in <library>, probably from a run that stopped: <file name>. Discard that draft there first, or it will be refused.\"; step 2 the sentence is gone; the run ends \"Run finished — 3 moved. Every file has moved — End task when the batch is complete.\"; step 3 the line ends \"1 file was added to the folder during the run and was not ingested.\"; that file is in the grid, waiting for the next run",
        "hash": "e281d501",
+       "changed": "2026-11-22"
+      },
+      {
+       "id": "UAT-DOC-098",
+       "title": "Closed ingestion tasks keep their logs",
+       "journey": "Journey 9 — Ingestion",
+       "persona": "controller",
+       "modules": [
+        "docs/docsScreen.ts",
+        "docs/ingestionModel.ts",
+        "docs/ingestionScreen.ts"
+       ],
+       "preconditions": "one open ingestion task and at least one task you have ended (End task…) whose run moved and refused files; a person who was an assignee on one closed task only",
+       "steps": [
+        "Documents → Ingestion tasks. Read the button's label and the panel.",
+        "Click \"▸ Closed tasks (n)\". Read a row. Click it.",
+        "End your last open task. Read the Ingestion tasks button.",
+        "As the assignee, open Ingestion tasks."
+       ],
+       "expected": "step 1 the button counts OPEN tasks only (\"Ingestion tasks · 1\"); the panel lists \"Open tasks (1)\" and, under it, a collapsed heading \"▸ Closed tasks (n)\"; step 2 the heading opens to the closed tasks, most recently ended first, each with a green \"✓ Closed\" pill, the task's name and \"→ <library> · ended <date>\"; more than twenty show the first twenty and \"Show all n\"; a row opens the task's sheet, which reads \"This task is closed — its log is below.\" with the run log, a \"▶ Run started (name, time)\" line for each run; step 3 with no open task the button stays, reading \"Ingestion tasks\" with no count, so the closed tasks can still be reached; step 4 the assignee sees only the closed tasks they were assigned or created",
+       "hash": "04a525bc",
+       "changed": "2026-11-22"
+      },
+      {
+       "id": "UAT-DOC-099",
+       "title": "A term renamed after a file was tagged",
+       "journey": "Journey 9 — Ingestion",
+       "persona": "controller",
+       "modules": [
+        "docs/rows.ts",
+        "docs/ingestionModel.ts",
+        "docs/ingestionScreen.ts"
+       ],
+       "preconditions": "an open ingestion task with a file tagged with a Document type (or another term column); rights to rename that term in the term manager",
+       "steps": [
+        "Open the task and read the file's Document type cell.",
+        "In the term manager, rename that term. Return to the task and press ↻ Refresh. Read the cell.",
+        "Click the cell. Read the picker. Cancel.",
+        "Read the file's row and the Save changes button."
+       ],
+       "expected": "step 2 the cell shows the term's NEW name (SharePoint's own stored label may lag — the grid reads the term by its id); step 3 the picker opens with the renamed term SELECTED, not empty; step 4 the row is not marked changed and Save changes stays disabled — nothing needs setting again; a file whose term was deleted from the set keeps showing its stored label",
+       "hash": "c5ae44b3",
+       "changed": "2026-11-22"
+      },
+      {
+       "id": "UAT-DOC-100",
+       "title": "A throttled run waits and retries",
+       "journey": "Journey 9 — Ingestion",
+       "persona": "controller",
+       "modules": [
+        "docs/ingestionScreen.ts",
+        "docs/ingestionRun.ts"
+       ],
+       "preconditions": "an open ingestion task with two hundred or more ready files (the size that has throttled before), on a TEST destination",
+       "steps": [
+        "Run the task. Watch the progress bar's pace.",
+        "When it ends, read the status line and hover the ⚠ of any refused file."
+       ],
+       "expected": "the run finishes; if SharePoint throttled it, the bar slows for a few seconds at a time (a throttled call waits 2, 5 then 10 seconds and is tried again) and the rest of the run goes four files at a time, not eight; no refusal reads as a raw \"429\" or \"TooManyRequests\" — a file still throttled after every try reads \"SharePoint is busy. Run again in a few minutes.\" and is still in the folder; a file that failed for any other reason keeps its own reason and was not retried",
+       "hash": "51905ede",
        "changed": "2026-11-22"
       },
       {
@@ -3027,6 +3087,33 @@
        "expected": "step 1 \"Person\" is among the column types and \"Several people\" shows only for it; step 2 the search is the standing type-ahead (one list under the box, Enter picks without saving the dialog); people already chosen are not offered again; Who gathers chips, Noticed by keeps only the last pick; step 3 the cells show the names as chips, the column sorts by name, and the dialog reopens with the same people; step 4 the removal holds; the roll-up shows the same chips and its edit dialog offers the same search; step 5 the tile and the phone show the names; nobody is notified by being named",
        "hash": "0e47f05c",
        "changed": "2026-11-18"
+      },
+      {
+       "id": "UAT-RIT-015",
+       "title": "An entry dialog marks what it needs and holds its button",
+       "journey": "Journey 2 — The Action card's views",
+       "persona": "participant",
+       "modules": [
+        "shared/ui/actionUi.ts",
+        "shared/ui/dialog.ts",
+        "shared/ui/dom.ts",
+        "controls/RiskMatrix/editor.ts",
+        "controls/HeatmapCard/editor.ts",
+        "controls/FiveWhys/editor.ts",
+        "controls/FaultTree/editor.ts"
+       ],
+       "preconditions": "a board with a Risk matrix card and a 5 Whys card (Heatmap and Fault tree behave the same), with people on the meeting",
+       "steps": [
+        "On the Risk matrix press \"＋ Add risk\". Read the labels and the Add button; hover it.",
+        "Type a hazard. Read the Add button.",
+        "Press \"＋ Add action\" in the dialog. Read the Who and Due labels. Type an action. Read the labels and the Add button; hover it.",
+        "Clear the Action box. Read the labels and the button.",
+        "Type the action again, tick a person, set a due date, and Add. Open the risk again.",
+        "On the 5 Whys add a cause: read the Cause label and the Add button before typing. Edit an existing cause, clear its text and read Save."
+       ],
+       "expected": "step 1 Hazard and Risk each carry a small red asterisk; Add is disabled with the tooltip \"Still needed: Hazard or Risk\" — pressing it does nothing and nothing turns red; step 2 Add enables (either field will do); step 3 before any action is typed Who and Due carry NO asterisk; once the Action box has words both gain one and Add is disabled with \"Still needed: Who, Due\"; step 4 the asterisks go and Add enables — no action is being raised; step 5 the risk is added with its action listed under Treatments; there is no \"Required before Add\" line anywhere; step 6 Cause carries the asterisk and Add waits for it; Save on an existing cause waits the same way",
+       "hash": "87d3f803",
+       "changed": "2026-11-22"
       }
      ]
     }
@@ -3341,6 +3428,33 @@
        "expected": "step 1 Action, Who and Due each carry a small red asterisk after the label — no word, no tag (Issue, Start and Support carry none); Raise is greyed and cannot be pressed, and its tooltip reads \"Still needed: Action, Who, Due\"; step 2 the tooltip shortens as each is filled and Raise comes alive once all three are; unticking the only person greys it again; step 3 the action is raised; step 4 an existing action shows no asterisks and saves without a due date or a person; with no Issue and no Action its Save is greyed (\"Still needed: Action\"); step 5 the card's own Add button stays live, and pressing it with the action half filled does not add the entry: the missing fields are outlined and a line in the form reads \"Required before Add: Who, Due\"; leaving the action's text empty adds the entry with no action, as before",
        "hash": "99c27547",
        "changed": "2026-11-18"
+      },
+      {
+       "id": "UAT-ACT-013",
+       "title": "Endorse column, Escape in a search, and the flag's colour",
+       "journey": "Journey 4 — Shared actions, support, duplicate and message (2026-11-17)",
+       "persona": "owner",
+       "modules": [
+        "controls/ActionBoard/editor.ts",
+        "controls/CardSettings/registry.ts",
+        "shared/ui/dialog.ts",
+        "shared/ui/dom.ts",
+        "shared/ui/actionUi.ts",
+        "shared/ui/personTypeAhead.ts",
+        "shared/ui/baseCss.ts",
+        "actions/message.ts",
+        "flagColour.ts"
+       ],
+       "preconditions": "an initiative board with an Action plan card showing its kanban; a saved action; Settings → Priorities → Status with the Support needed colour set to something other than purple",
+       "steps": [
+        "Read the kanban's column names. Open the Action plan card's settings and read the switch that adds the column.",
+        "Open an action. In \"Search everyone…\" type two letters so the list opens; press Escape; press Escape again.",
+        "Press ⋮ → Message. In \"Add a person\" type two letters so the list opens; press Escape.",
+        "Read the \"⚑ Flag for support\" button's colour; press it; Save. Read the ⚑ beside the action in the list."
+       ],
+       "expected": "step 1 the column between Doing and Done reads \"Endorse\" (not \"Verify\") and the setting reads \"Endorse column\"; step 2 the first Escape closes the list and clears what was typed; the second does nothing — the dialog never closes on Escape; step 3 Escape closes the message panel's list the same way (it did nothing before) and the panel and the dialog stay open; step 4 the button is tinted in the Support needed colour chosen in Settings, fills with it once pressed, and the ⚑ beside the action is the same colour (it was the accent colour) — after a change in Settings the new colour shows the next time the app opens",
+       "hash": "ba254ef6",
+       "changed": "2026-11-22"
       }
      ]
     }
@@ -3515,9 +3629,9 @@
         "Add another update with a different Support needed line and no other change; then one with \"Clear the flag\" ticked.",
         "Open the second initiative."
        ],
-       "expected": "step 1 the menu has ONE flag item and no \"Escalate to sponsor\"; the dialog asks what you need (required) and the tick reveals the sponsor chips and \"Flag & email\" / \"Flag & send Teams\"; after Flag the header shows \"⚑ Support needed\" in the Flagged colour with the note on hover, and the initiative reads \"⚑ SUPPORT NEEDED\" wherever it is listed; step 2 the Add update dialog always shows \"⚐ Flag this initiative — it needs support\", unticked until Support needed has text, then ticked (untick it and it stays unticked); ticking with no Support text refuses to save and says why; step 3 the update saves, the flag goes up with the Support text as its note, and the dialog stays open on \"✓ Saved and flagged. Sent by Teams…\" (or \"Not sent: …\" — the flag stands either way) until closed; step 4 the first update replaces the flag's note with the new text; the second clears the flag; an EDIT of an update never offers the flag; step 5 it reads Flagged, with its escalation note kept",
-       "hash": "65a2a389",
-       "changed": "2026-11-17"
+       "expected": "step 1 the menu has ONE flag item and no \"Escalate to sponsor\"; the dialog asks what you need (required) and the tick reveals the sponsor chips and \"Flag & email\" / \"Flag & send Teams\"; after Flag the header shows \"⚑ Support needed\" in the Support needed colour with the note on hover, and the initiative reads \"⚑ SUPPORT NEEDED\" wherever it is listed; step 2 the Add update dialog always shows \"⚐ Flag this initiative — it needs support\", unticked until Support needed has text, then ticked (untick it and it stays unticked); ticking with no Support text refuses to save and says why; step 3 the update saves, the flag goes up with the Support text as its note, and the dialog stays open on \"✓ Saved and marked Support needed. Sent by Teams…\" (or \"Not sent: …\" — the flag stands either way) until closed; step 4 the first update replaces the flag's note with the new text; the second clears the flag; an EDIT of an update never offers the flag; step 5 it reads Flagged, with its escalation note kept",
+       "hash": "fcc53803",
+       "changed": "2026-11-22"
       },
       {
        "id": "UAT-IMP-008",
@@ -3611,6 +3725,31 @@
        "expected": "step 2 after the first card each step is about as quick as the meeting's — the old card stays under the spinner for a moment, never several seconds; step 3 the Charter shows the edits on return, the role picker lists the roster, and the \"Primary priority\" field reads the priority's statement; step 4 the initiative's role-holders lead the Who list, as before",
        "hash": "3787f2e8",
        "changed": "2026-11-18"
+      },
+      {
+       "id": "UAT-IMP-012",
+       "title": "A metric's chart shows its last twelve readings through to today",
+       "journey": "Journey 2 — Initiatives",
+       "persona": "lead",
+       "modules": [
+        "improvement/metricsCard.ts",
+        "improvement/readWindow.ts",
+        "improvement/metricValues.ts",
+        "store/series.ts",
+        "store/seriesMap.ts",
+        "store/driverSeries.ts",
+        "controls/KpiTrendCard/editor.ts"
+       ],
+       "preconditions": "an initiative with three weekly metrics on its Metrics card: one filled in every week up to this week; one with ten or so readings that stopped two months ago; one whose last reading is more than thirteen weeks old",
+       "steps": [
+        "Open the initiative's board and read the three charts: where each starts and ends, and the subtitle under each name.",
+        "Press \"Update values\" on the second metric. Read which weeks the grid opens on.",
+        "Open Priorities and read the same metrics' sparklines and states on the priority's tile.",
+        "Open the Improvement register and read the initiative's metric values."
+       ],
+       "expected": "step 1 the first chart is as before (the thirteen weeks around today); the second starts at its twelfth-last reading and STILL ends at this week, so its whole run is drawn and the two empty months show as a gap after it; the third opens on its readings alone, ending at the last one, and its subtitle ends \"· last reading <date>\"; step 2 the grid opens around TODAY, where new values go, whichever span the chart shows; step 3 and 4 every value, state and sparkline is what it was — a metric whose readings are all older than the read window (six months daily, two years weekly, five years monthly) still shows its last value and state, never \"No data\"",
+       "hash": "247834de",
+       "changed": "2026-11-22"
       }
      ]
     }
@@ -3895,7 +4034,7 @@
      "cases": [
       {
        "id": "UAT-PRI-012",
-       "title": "On track, flagged, off track: the wall and the popup",
+       "title": "On track, support needed, off track: the wall and the popup",
        "journey": "Journey 5 — The status rule and the executive summary (2026-11-17)",
        "persona": "viewer",
        "modules": [
@@ -3914,9 +4053,9 @@
         "Give B's late action a later due date (or close it); return to the wall.",
         "Create a new initiative under the second priority and add nothing to it; return to the wall."
        ],
-       "expected": "step 1 the first priority's edge is the Flagged colour (flagged wins over off track) and its circles read on track 1 · flagged 1 · off track 2 with the words on hover; the second is the on-track colour with every initiative in the first circle; the third is neutral with three faint zeros; no card carries a \"· n initiatives\" total beside its circles (they are the count); under the row label \"Priorities\" a small key reads On track, Flagged, Off track, each with its colour; step 2 the list has ONE header (Initiative · Stage · Actions with Done, Future, Late directly over the three circles · Key metrics) and no group headings; the cards stand in order — the primary first (a heavy border, \"PRIMARY INITIATIVE ·\" before its status, its star filled and alone), then support needed, off track, on track; each card's status is small caps above its title in its colour — \"⚑ SUPPORT NEEDED\", \"OFF TRACK\", \"ON TRACK\" — with a small i beside any that is not on track: hovering or pressing it gives B \"1 late action\", D \"No actions defined\" and \"No status update yet\", and C what was asked for and whether it is otherwise on track or also off track; the stage is its PDCA-tinted pill with a small disc leading it; the action circles and the ★ and ⋮ line up from card to card; a row with several owners names them all; nothing reads \"At risk\" amber or \"No signal\" grey; step 3 B moves to On track and the priority's circles follow; step 4 the new initiative is ON TRACK (a new initiative has the recency window as grace) and the second priority stays on track",
-       "hash": "9a6692ad",
-       "changed": "2026-11-17"
+       "expected": "step 1 the first priority's edge is the Support needed colour (support needed wins over off track) and its circles read on track 1 · support needed 1 · off track 2 with the words on hover; the second is the on-track colour with every initiative in the first circle; the third is neutral with three faint zeros; no card carries a \"· n initiatives\" total beside its circles (they are the count); under the row label \"Priorities\" a small key reads On track, Support needed, Off track, each with its colour; step 2 the list has ONE header (Initiative · Stage · Actions with Done, Future, Late directly over the three circles · Key metrics) and no group headings; the cards stand in order — the primary first (a heavy border, \"PRIMARY INITIATIVE ·\" before its status, its star filled and alone), then support needed, off track, on track; each card's status is small caps above its title in its colour — \"⚑ SUPPORT NEEDED\", \"OFF TRACK\", \"ON TRACK\" — with a small i beside any that is not on track: hovering or pressing it gives B \"1 late action\", D \"No actions defined\" and \"No status update yet\", and C what was asked for and whether it is otherwise on track or also off track; the stage is its PDCA-tinted pill with a small disc leading it; the action circles and the ★ and ⋮ line up from card to card; a row with several owners names them all; nothing reads \"At risk\" amber or \"No signal\" grey; step 3 B moves to On track and the priority's circles follow; step 4 the new initiative is ON TRACK (a new initiative has the recency window as grace) and the second priority stays on track",
+       "hash": "31f435c1",
+       "changed": "2026-11-22"
       },
       {
        "id": "UAT-PRI-013",
@@ -3939,9 +4078,9 @@
         "Open the first priority again and click initiative C's row; on its board use the crumb back to Priorities.",
         "✕ Exit summary. On a phone, open Priorities."
        ],
-       "expected": "step 1 the button reads \"Executive summary\" (no \"Present\") and the summary fills the app's window WITHOUT taking the browser full screen; each card's open / close control is a round button with a chevron, pointing right when closed and down (filled) when open; the head shows the year pill, \"Executive summary · <org>\" and \"Pillar : Sub-pillar\"; each priority is one card with its status edge, title, owner, the three labelled circles On track / Flagged / Off track and its objectives as sparkline tiles (a line over a green band where the metric is good and red where it is not; at most four, then \"+n\"); step 2 the card's own metric tiles go and the initiatives show under the SAME header and as the SAME rows as the popup and the Improvement list, larger: Initiative (status in small caps above the title, the i for the reasons — press it, nothing hovers on a wall screen; the primary first, heavy-bordered) · Stage pill · Actions Done / Future / Late · Key metrics as sparkline tiles · Support needed, which carries the note of an initiative that asked; confidential initiatives the viewer may not see are counted and summed in one \"not shown\" line; step 3 every card on the page opens, then closes; the arrows step sub-pillar by sub-pillar and a final \"Cascades to accept\" step appears when any are pending; the title opens the priority's popup; step 4 the board opens, and coming back lands in the summary on the same step with the same cards open; step 5 the wall returns; on a phone the summary IS the page, stacked, with no Exit",
-       "hash": "e26cbf5c",
-       "changed": "2026-11-17"
+       "expected": "step 1 the button reads \"Executive summary\" (no \"Present\") and the summary fills the app's window WITHOUT taking the browser full screen; each card's open / close control is a round button with a chevron, pointing right when closed and down (filled) when open; the head shows the year pill, \"Executive summary · <org>\" and \"Pillar : Sub-pillar\"; each priority is one card with its status edge, title, owner, the three labelled circles On track / Support needed / Off track and its objectives as sparkline tiles (a line over a green band where the metric is good and red where it is not; at most four, then \"+n\"); step 2 the card's own metric tiles go and the initiatives show under the SAME header and as the SAME rows as the popup and the Improvement list, larger: Initiative (status in small caps above the title, the i for the reasons — press it, nothing hovers on a wall screen; the primary first, heavy-bordered) · Stage pill · Actions Done / Future / Late · Key metrics as sparkline tiles · Support needed, which carries the note of an initiative that asked; confidential initiatives the viewer may not see are counted and summed in one \"not shown\" line; step 3 every card on the page opens, then closes; the arrows step sub-pillar by sub-pillar and a final \"Cascades to accept\" step appears when any are pending; the title opens the priority's popup; step 4 the board opens, and coming back lands in the summary on the same step with the same cards open; step 5 the wall returns; on a phone the summary IS the page, stacked, with no Exit",
+       "hash": "1c99fa60",
+       "changed": "2026-11-22"
       },
       {
        "id": "UAT-PRI-014",
@@ -4061,9 +4200,9 @@
         "Open the ADOPTED company priority at your site → Objectives. Then, as the company's owner, open the same priority at the company and add a metric; read the buttons offered. Return to the site and read the adopted tile.",
         "On the first priority press × on a metric. Read the tile."
        ],
-       "expected": "step 1 the tab is named \"Objectives\" (never \"Metrics\"); the page leads with \"This priority\" — \"No metrics on this priority yet.\" and two buttons, \"＋ From the value driver tree\" and \"＋ Add metric\" — then \"From its initiatives\" with the tick list or its note; step 2 the dialog is titled \"Add metric\" with Name, Unit, Rows, Plan, limits, Tracking and Cadence, no note under the title and no sentences under the fields; Name carries a red asterisk and \"Add metric\" is disabled until it is filled; \"Options\" shows only for the Status picklist tracking; the row reads the name, \"· priority-specific\", its unit and direction, with plan and limit boxes and the links Edit… and × — no ★, no Link…, no Promote…; step 3 under the rows each metric has its FULL TREND, the same chart the initiative Metrics card draws (title, cadence, plan and limit lines, \"No readings yet\" before the first value), with \"Update values\" in its title strip; the values grid opens titled with the metric's name, weekly, with Plan and Upper limit rows carried across; each reading shows a state dot (green, amber, red); after Done the chart draws the three readings; a click on the chart's body pops it out large, with Done to close; step 4 the tile shows the metric's chart, titled by \"Name: objective\", with NO number beside it; the tile's edge is the off-track colour and the circles' tooltip ends \"· <name> outside its limits\"; hovering the chart gives the value and plan; step 5 the edge returns to on track (\"No initiatives\" alone in the tooltip, the priority reading on track on its own metric); step 6 the driver's name is added as a \"· VDT\" row; its grid's note says the values are the value driver's own series; step 7 at eight both buttons are disabled with the tooltip \"A priority carries up to 8 metrics of its own\"; step 8 the page shows \"This priority\" with its rows and charts, then ONE line \"★ <primary's title> · Open board\" and the primary's metrics card; the tile and the summary row show the priority's own metric FIRST, then the primary's starred metric; step 9 the metrics are listed read-only — a light, \"Name: objective\", \"Plan … · Actual …\" — with each one's trend chart beneath (no \"Update values\" on it); Values… on a row opens the grid marked Read-only; no add buttons; step 10 at the site the adopted priority's Objectives tab has no add buttons (only its owning org defines its metrics); at the company only \"＋ Add metric\" is offered (a company has no value driver tree); back at the site the adopted tile shows the company's metric and follows its state; step 11 the metric leaves the tile at once and no longer counts toward the status",
-       "hash": "099535ad",
-       "changed": "2026-11-19"
+       "expected": "step 1 the tab is named \"Objectives\" (never \"Metrics\"); the page leads with \"This priority\" — \"No metrics on this priority yet.\" and two buttons, \"＋ From the value driver tree\" and \"＋ Add metric\" — then \"From its initiatives\" with the tick list or its note; step 2 the dialog is titled \"Add metric\" with Name, Unit, Rows, Plan, limits, Tracking and Cadence, no note under the title and no sentences under the fields; Name carries a red asterisk and \"Add metric\" is disabled until it is filled; \"Options\" shows only for the Status picklist tracking; the row reads the name, \"· priority-specific\", its unit and direction, with plan and limit boxes and the links Edit… and × — no ★, no Link…, no Promote…; step 3 under the rows each metric has its FULL TREND, the same chart the initiative Metrics card draws (title, cadence, plan and limit lines, \"No readings yet\" before the first value), with \"Update values\" in its title strip; the values grid opens titled with the metric's name, its note reading \"Weekly · <unit> · this priority's readings. Targets and limits set here carry forward until changed.\", with Plan and Upper limit rows carried across; each reading shows a state dot (green, amber, red); after Done the chart draws the three readings; a click on the chart's body pops it out large, with Done to close; step 4 the tile shows the metric's chart, titled by \"Name: objective\", with NO number beside it; the tile's edge is the off-track colour and the circles' tooltip ends \"· <name> outside its limits\"; hovering the chart gives the value and plan; step 5 the edge returns to on track (\"No initiatives\" alone in the tooltip, the priority reading on track on its own metric); step 6 the driver's name is added as a \"· VDT\" row; its grid's note says the values are the value driver's own series; step 7 at eight both buttons are disabled with the tooltip \"A priority carries up to 8 metrics of its own\"; step 8 the page shows \"This priority\" with its rows and charts, then ONE line \"★ <primary's title> · Open board\" and the primary's metrics card; the tile and the summary row show the priority's own metric FIRST, then the primary's starred metric; step 9 the metrics are listed read-only — a light, \"Name: objective\", \"Plan … · Actual …\" — with each one's trend chart beneath (no \"Update values\" on it); Values… on a row opens the grid marked Read-only; no add buttons; step 10 at the site the adopted priority's Objectives tab has no add buttons (only its owning org defines its metrics); at the company only \"＋ Add metric\" is offered (a company has no value driver tree); back at the site the adopted tile shows the company's metric and follows its state; step 11 the metric leaves the tile at once and no longer counts toward the status",
+       "hash": "622356f7",
+       "changed": "2026-11-22"
       }
      ]
     }
@@ -4402,12 +4541,12 @@
        "steps": [
         "Settings → Priorities: read the sections. In Status set \"No status update for (days)\" to 14 and Save.",
         "Open Priorities and the initiative's board.",
-        "Settings → Priorities → Status: set the Flagged colour to another palette entry; Save; open Priorities.",
+        "Settings → Priorities → Status: set the Support needed colour to another palette entry; Save; open Priorities.",
         "Set the days back to 35."
        ],
-       "expected": "step 1 the section \"Period\" no longer mentions a ratio rule and there is no \"Ratio rule — red above (%)\" field; a \"Status\" section explains the rule in a paragraph and carries the days and three colour pickers listing the state palette's entries (a state whose key is not in the site's palette reads \"Default … colour (not in the palette)\"); step 2 the initiative is Off track with \"No update for 2 weeks\" and its board's band says \"No update for 20 days\"; step 3 every flagged edge, circle and chip takes the new colour; step 4 the initiative returns to On track",
-       "hash": "4f275485",
-       "changed": "2026-11-17"
+       "expected": "step 1 the section \"Period\" no longer mentions a ratio rule and there is no \"Ratio rule — red above (%)\" field; a \"Status\" section explains the rule in a paragraph and carries the days and three colour pickers listing the state palette's entries (a state whose key is not in the site's palette reads \"Default … colour (not in the palette)\"); step 2 the initiative is Off track with \"No update for 2 weeks\" and its board's band says \"No update for 20 days\"; step 3 every Support needed edge, circle and chip takes the new colour, and so do the action dialog's \"⚑ Flag for support\" button and the ⚑ beside a flagged action; step 4 the initiative returns to On track",
+       "hash": "da66359d",
+       "changed": "2026-11-22"
       }
      ]
     }

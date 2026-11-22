@@ -195,4 +195,75 @@ Ben, 2026-11-22: "build tranche 1".
 
 ## As built
 
-(Filled in tranche by tranche.)
+### Tranche 1 (2026-11-22, on dev, NOT released)
+
+Thirteen items built; E9 was already built. App-only, no schema.
+
+- **E7 / C7 — words.** The kanban column and its setting read
+  "Endorse". `STATE_LABELS.flagged` is "Support needed", which carries
+  to the count circles, tooltips, the wall's key and the status chip;
+  the filter pill, the Settings colour, the flag dialog and its message
+  subject follow. A side effect: an initiative's chip now reads
+  "Support needed · recovery needed" / "· at risk" where it read
+  "Flagged · …".
+- **E3 — Escape.** `shared/ui/dialog.ts` swallows Escape at the
+  document, before the key reaches ANY field, so no type-ahead inside
+  or over a dialog ever heard it. The dialog now relays the key to the
+  focused field (`ESCAPE_RELAY`), and `onEscape` (`shared/ui/dom.ts`)
+  hears both roads: the people search, "Linked to", the person
+  type-ahead and the message panel all close their lists.
+- **D6 — the grid's note.** `GridDialogOpts.ownerWords`; a priority's
+  grid says "this priority's readings".
+- **E4 — the flag colour.** `app/src/flagColour.ts` sets `--ltk-flag`
+  on the document root from the status settings, at boot and after a
+  save of the status colours or the palette. The button already read
+  that variable; the row's ⚑ now does too.
+- **C3 — entry dialogs.** `buildActionForm(…, { optional: true })`:
+  nothing asked while the Action box is empty; Who and Due starred and
+  required once it has words. `holdEntryDialog` stars the entry's own
+  field(s) and holds the primary button. Risk matrix needs "Hazard or
+  Risk" (both starred, either will do). The separate Edit cause dialogs
+  on 5 Whys and Fault tree hold Save too — an edited cause can no
+  longer be saved empty.
+- **C4 — Documents forms.** `requiredMark()`, `stillNeeded()` in
+  `docs/fieldEditors.ts`. Add and Save are disabled while a required
+  field is empty. The check-in dialog's SECOND button ("Check in &
+  submit for review") is held too — it used to do nothing when pressed
+  without a comment. Its helper sentence became the label's tooltip.
+  **Two things Ben should know:** (1) these forms' sections are plain
+  headings, not collapsible — what I said when walking this item was
+  wrong, so there was nothing to "open by default"; (2) on 2026-10-26
+  he chose the word tag and an ENABLED button that scrolled to the
+  first missing field ("uploads kept failing on required properties
+  nobody saw marked"). Today's choice replaces that. With a disabled
+  button nothing scrolls to the missing field; its tooltip names it.
+- **F8 — closed tasks.** `closedTasksForPanel`; the button stays (with
+  no count) while only closed tasks remain.
+- **F7 — throttle retry.** `retryThrottled`, `isThrottled`,
+  `IN_FLIGHT_THROTTLED` in `docs/ingestionRun.ts`; every SharePoint
+  call of a run goes through it. A refusal AFTER the copy keeps its
+  own words (they say where the draft is). The throttle's wording
+  through the connector is still unseen.
+- **F9 — term ids.** `termIdsOf` (`docs/rows.ts`) keeps a term
+  column's ids under `<col>#termid`, as a person column keeps
+  `<col>#email`; `currentTermLabels` gives the grid each term's current
+  name at every read of the folder. NOT confirmed on dev: that the feed
+  returns `TermID` beside `Label` (the documented shape). If it does
+  not, nothing changes from today — UAT-DOC-099 step 2 tells which.
+- **D3 — read windows.** `improvement/readWindow.ts` `readFrom`;
+  `latestSeriesCell` for a metric with nothing in its window.
+- **D4 — one read.** `listBoardSeries` + `listBoardSpec` for board
+  `"priority"`, sorted out by `sortOwnCells`.
+- **D2 — the chart's span.** `chartWindow`; the chart's own time axis
+  already ran to today, so handing it the last twelve readings was
+  enough; `KpiTrendEditor.setTrendAsOf` ends the axis at the last
+  reading when it is more than thirteen periods old.
+- **Checked in the harness:** the entry dialogs (new page
+  `harness/entrydlg.html`), the wall's key, a priority's own metric
+  through the batched read, a nine-weeks-stale metric's chart (all
+  eleven readings, then the gap). **Not seen anywhere:** every
+  Documents change (the harness cannot reach SharePoint), the flag
+  colour from real settings, Escape in the hosted dialog.
+- **Ben's checks on dev:** UAT-RIT-015, UAT-ACT-013, UAT-IMP-012,
+  UAT-DOC-098, 099, 100, and the changed steps of the Add document,
+  Edit properties and check-in cases.

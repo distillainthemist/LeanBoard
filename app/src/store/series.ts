@@ -11,6 +11,7 @@ import { currentViewer } from "../runtime";
 import { allWhere, eq, firstWhere, odata } from "./dv";
 import {
   KeyedCell,
+  latestReading,
   partitionSeries,
   SeriesCell,
   SeriesWindowReq,
@@ -112,6 +113,37 @@ export async function listSeriesByPrefix(boardId: string, cardId: string, prefix
     `${eq("ben_boardid", boardId)} and ${eq("ben_cardid", cardId)} and startswith(ben_serieskey,'${odata(prefix)}') and ben_date le ${to}`
   );
   return rows.map(fromRow);
+}
+
+/** The newest READING at a location — its latest non-spec cell with a
+ *  value — or null when it has none (2026-11-22: readings are read in a
+ *  window now, and a metric with nothing inside it still shows its last
+ *  value). `key`: the one key readings are stored under (a driver's
+ *  "actual"); without it, the newest fifty cells are looked through,
+ *  because an own metric's readings carry ids of their own and the plan
+ *  rows beside them may be dated later. */
+export async function latestSeriesCell(boardId: string, cardId: string, key = ""): Promise<SeriesCell | null> {
+  const where = `${eq("ben_boardid", boardId)} and ${eq("ben_cardid", cardId)}${key !== "" ? ` and ${eq("ben_serieskey", key)}` : ""}`;
+  const r = await Ben_ltkcardseriesesService.getAll({ filter: where, orderBy: ["ben_date desc"], top: key !== "" ? 5 : 50 });
+  if (r.success === false) return null;
+  const cells = ((r.data ?? []) as Ben_ltkcardserieses[]).map(fromRow);
+  return latestReading(cells, key);
+}
+
+/** Every cell of a "board" between two dates, each with its card — ONE
+ *  read where a read per card was made (a priority's own metrics all
+ *  live at board "priority"). Spec rows inside the window come too. */
+export async function listBoardSeries(boardId: string, from: string, to: string): Promise<KeyedCell[]> {
+  const rows = await allWhere(Ben_ltkcardseriesesService.getAll, `${eq("ben_boardid", boardId)} and ben_date ge ${from} and ben_date le ${to}`);
+  return rows.map((row) => ({ ...fromRow(row), cardId: row.ben_cardid ?? "" }));
+}
+
+/** Every spec row (plan, forecast, limits) of a "board" up to a date,
+ *  each with its card: the sparse history that carries forward, so it is
+ *  read from the beginning. */
+export async function listBoardSpec(boardId: string, prefix: string, to: string): Promise<KeyedCell[]> {
+  const rows = await allWhere(Ben_ltkcardseriesesService.getAll, `${eq("ben_boardid", boardId)} and startswith(ben_serieskey,'${odata(prefix)}') and ben_date le ${to}`);
+  return rows.map((row) => ({ ...fromRow(row), cardId: row.ben_cardid ?? "" }));
 }
 
 /** True when the card has ANY series rows (migration guard). */

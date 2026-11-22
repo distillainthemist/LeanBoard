@@ -151,3 +151,16 @@ steps:
 5. Read the card's tile on the board, and the same card on a phone.
 expected: step 1 "Person" is among the column types and "Several people" shows only for it; step 2 the search is the standing type-ahead (one list under the box, Enter picks without saving the dialog); people already chosen are not offered again; Who gathers chips, Noticed by keeps only the last pick; step 3 the cells show the names as chips, the column sorts by name, and the dialog reopens with the same people; step 4 the removal holds; the roll-up shows the same chips and its edit dialog offers the same search; step 5 the tile and the phone show the names; nobody is notified by being named
 
+### UAT-RIT-015 — An entry dialog marks what it needs and holds its button
+persona: participant
+modules: shared/ui/actionUi.ts shared/ui/dialog.ts shared/ui/dom.ts controls/RiskMatrix/editor.ts controls/HeatmapCard/editor.ts controls/FiveWhys/editor.ts controls/FaultTree/editor.ts
+preconditions: a board with a Risk matrix card and a 5 Whys card (Heatmap and Fault tree behave the same), with people on the meeting
+steps:
+1. On the Risk matrix press "＋ Add risk". Read the labels and the Add button; hover it.
+2. Type a hazard. Read the Add button.
+3. Press "＋ Add action" in the dialog. Read the Who and Due labels. Type an action. Read the labels and the Add button; hover it.
+4. Clear the Action box. Read the labels and the button.
+5. Type the action again, tick a person, set a due date, and Add. Open the risk again.
+6. On the 5 Whys add a cause: read the Cause label and the Add button before typing. Edit an existing cause, clear its text and read Save.
+expected: step 1 Hazard and Risk each carry a small red asterisk; Add is disabled with the tooltip "Still needed: Hazard or Risk" — pressing it does nothing and nothing turns red; step 2 Add enables (either field will do); step 3 before any action is typed Who and Due carry NO asterisk; once the Action box has words both gain one and Add is disabled with "Still needed: Who, Due"; step 4 the asterisks go and Add enables — no action is being raised; step 5 the risk is added with its action listed under Treatments; there is no "Required before Add" line anywhere; step 6 Cause carries the asterisk and Add waits for it; Save on an existing cause waits the same way
+

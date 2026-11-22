@@ -151,3 +151,15 @@ steps:
 4. Open the existing action: read its labels; clear its due date and Save. Open it again and clear both the Issue and the Action.
 5. On the 5 Whys (or other) card add an entry, press "＋ Add action" inside the dialog, type an action only, and press Add.
 expected: step 1 Action, Who and Due each carry a small red asterisk after the label — no word, no tag (Issue, Start and Support carry none); Raise is greyed and cannot be pressed, and its tooltip reads "Still needed: Action, Who, Due"; step 2 the tooltip shortens as each is filled and Raise comes alive once all three are; unticking the only person greys it again; step 3 the action is raised; step 4 an existing action shows no asterisks and saves without a due date or a person; with no Issue and no Action its Save is greyed ("Still needed: Action"); step 5 the card's own Add button stays live, and pressing it with the action half filled does not add the entry: the missing fields are outlined and a line in the form reads "Required before Add: Who, Due"; leaving the action's text empty adds the entry with no action, as before
+
+### UAT-ACT-013 — Endorse column, Escape in a search, and the flag's colour
+persona: owner
+modules: controls/ActionBoard/editor.ts controls/CardSettings/registry.ts shared/ui/dialog.ts shared/ui/dom.ts shared/ui/actionUi.ts shared/ui/personTypeAhead.ts shared/ui/baseCss.ts actions/message.ts flagColour.ts
+preconditions: an initiative board with an Action plan card showing its kanban; a saved action; Settings → Priorities → Status with the Support needed colour set to something other than purple
+steps:
+1. Read the kanban's column names. Open the Action plan card's settings and read the switch that adds the column.
+2. Open an action. In "Search everyone…" type two letters so the list opens; press Escape; press Escape again.
+3. Press ⋮ → Message. In "Add a person" type two letters so the list opens; press Escape.
+4. Read the "⚑ Flag for support" button's colour; press it; Save. Read the ⚑ beside the action in the list.
+expected: step 1 the column between Doing and Done reads "Endorse" (not "Verify") and the setting reads "Endorse column"; step 2 the first Escape closes the list and clears what was typed; the second does nothing — the dialog never closes on Escape; step 3 Escape closes the message panel's list the same way (it did nothing before) and the panel and the dialog stay open; step 4 the button is tinted in the Support needed colour chosen in Settings, fills with it once pressed, and the ⚑ beside the action is the same colour (it was the accent colour) — after a change in Settings the new colour shows the next time the app opens
+

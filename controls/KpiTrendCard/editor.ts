@@ -92,6 +92,7 @@ export class KpiTrendEditor {
   private prompts: Prompts = { general: [], fields: {} };
   private lastPromptsRaw: string | null = null;
   private readOnly = false;
+  private trendAsOf = "";
   private people: Person[] = [];
   private actions: LtkAction[] = [];
   private canRaise = true;
@@ -179,6 +180,14 @@ export class KpiTrendEditor {
   /** Reading entry: cadence for the default date, shifts when shiftly. */
   setReadingMode(mode: ReadingMode): void {
     this.reading = mode;
+  }
+
+  /** Where the trend's time axis ENDS: "" = today, as always. A host
+   *  showing readings too old to draw through to today (the gap would
+   *  swamp them) sets the last reading's date, and says so in its
+   *  subtitle. */
+  setTrendAsOf(date: string): void {
+    this.trendAsOf = date;
   }
 
   /** Non-numeric mode (null = a run chart of numbers). */
@@ -492,7 +501,7 @@ export class KpiTrendEditor {
    *  the year even with two readings, and a missed period is a gap. */
   private timeAxis(points: KpiPoint[], left: number, plotW: number): { x: (i: number) => number; ticks: (svg: SVGSVGElement) => void } {
     const cadence = this.reading.cadence;
-    const w = trendWindow(points.map((p) => p.date), cadence, todayIso());
+    const w = trendWindow(points.map((p) => p.date), cadence, this.trendAsOf !== "" ? this.trendAsOf : todayIso());
     const t0 = parseDay(w.from).getTime();
     const t1 = parseDay(w.to).getTime();
     const pos = (date: string) =>

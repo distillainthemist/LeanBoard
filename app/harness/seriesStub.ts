@@ -19,3 +19,14 @@ export async function applySeries(boardId: string, cardId: string, put: SeriesCe
   for (const c of del) cells.delete(k(boardId, cardId, c));
   console.log("applySeries", boardId, cardId, put, del);
 }
+export async function latestSeriesCell(boardId: string, cardId: string, key = ""): Promise<SeriesCell | null> {
+  const mine = [...cells.values()].filter((c) => c.boardId === boardId && c.cardId === cardId && c.value !== "" && (key !== "" ? c.key === key : !c.key.startsWith("spec:")));
+  mine.sort((a, b) => (a.date + a.shift < b.date + b.shift ? -1 : 1));
+  return mine.pop() ?? null;
+}
+export async function listBoardSeries(boardId: string, from: string, to: string): Promise<(SeriesCell & { cardId: string })[]> {
+  return [...cells.values()].filter((c) => c.boardId === boardId && c.date >= from && c.date <= to);
+}
+export async function listBoardSpec(boardId: string, prefix: string, to: string): Promise<(SeriesCell & { cardId: string })[]> {
+  return [...cells.values()].filter((c) => c.boardId === boardId && c.key.startsWith(prefix) && c.date <= to);
+}

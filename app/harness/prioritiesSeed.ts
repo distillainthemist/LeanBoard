@@ -65,7 +65,17 @@ export async function seed(): Promise<void> {
     { key: "k2", date: "2026-11-02", shift: "-", value: "71" },
     { key: "k3", date: "2026-11-09", shift: "-", value: "74" },
   ]);
-  await pri("pr-w3", weipa, "Leadership Capability Uplift", "S2");
+  // a metric last filled in nine weeks ago (the Yield driver's shape on
+  // dev, 2026-11-19): eleven weekly readings, 6 July to 14 September —
+  // its chart reaches back for them and still ends at today
+  await pri("pr-w3", weipa, "Leadership Capability Uplift", "S2", {
+    ownMetrics: [{ key: "yield", name: "Yield", objective: "Lift yield to 90 g/L", unit: "", target: 50, goodDirection: "up", tracking: "value", kind: "own", cadence: "weekly" }],
+  });
+  seedSeries(
+    OWN_SERIES_BOARD,
+    ownSeriesCard("pr-w3", "yield"),
+    [25, 30, 35, 40, 45, 50, 55, 52, 53, 56, 51].map((v, i) => ({ key: `y${i}`, date: ["2026-07-06", "2026-07-13", "2026-07-20", "2026-07-27", "2026-08-03", "2026-08-10", "2026-08-17", "2026-08-24", "2026-08-31", "2026-09-07", "2026-09-14"][i], shift: "-", value: String(v) }))
+  );
   await pri("pr-w4", weipa, "Andoom: Optimise haulage and maintain yield", "S3");
   await pri("pr-w5", weipa, "Fixed Cost Improvement Plan", "S4");
   await pri("pr-w6", weipa, "Conveyor reliability programme", "S5old");
