@@ -5,6 +5,15 @@ its decision date and enough context to pick it up cold. The phase plans
 (`leanboard-phase5-plan.md`, `leanboard-standard-documents-plan.md`)
 stay the design detail; this is the queue.
 
+## The working set (Ben, 2026-11-22)
+
+Ben went through this whole file as a checklist and marked 50 items to
+be worked on now. Their order, sizes and the questions each one waits
+on are in `backlog-programme-2026-11-22.md`, in eight tranches
+(roughly 190–270 hours; one item, hardened confidential actions, is
+schema-carrying). The items stay listed in their sections below until
+they are built. Nothing in it is built yet.
+
 ## Current state (2026-11-22, after v0.98.0)
 
 Released through v0.98.0 (ledger: `leanboard-cascade-improvement-plan.md`;
@@ -20,23 +29,6 @@ Settings once the new one runs.
 happen, one run at a time, an interrupted run told from a live one, a
 run that always ends, nothing added or changed during a run, leftover
 copies named before a run. Owed from it:
-- **RELEASED WITHOUT BEING SEEN RUNNING.** Ben cut the release before
-  the dev checks. Before production trusts it with a real batch: run
-  UAT-DOC-095 on dev with a TEST task (close the tab mid-run; the
-  reasons survive and the task recovers), then 097 (a leftover copy
-  named). UAT-DOC-096 needs two controllers.
-- **The managed zip on the release carries the wrong app build.**
-  `LeanBoard_v0.98.0_managed.zip` was exported while Dev still held
-  `v0.97.0-2-g9b095cf` (the same code, the old stamp), so production
-  reads "v0.97.0 +2" after importing it (Ben, 2026-11-22). Dev now
-  holds the clean v0.98.0 build: Ben re-runs the "Release v0.98.0"
-  workflow on GitHub (the asset is replaced) and imports again. The
-  cause was the release ORDER, corrected in `../CLAUDE.md` → Releases;
-  the workflow now refuses such a zip (committed locally, reaches
-  GitHub with the next push).
-- **Ben, no code:** after that import, "Lock every older
-  build" — an older build's run writes no heartbeat and reads as
-  interrupted to a newer one after three minutes.
 - **Known limits:** SharePoint itself still accepts a file dropped
   into a task's folder mid-run (it is not ingested, and the run says
   so); the leftover check sees only what the running account can see.
@@ -51,15 +43,6 @@ each step (UAT-PRI-014); the sub-pillar year by year and "Follows" in
 Settings (UAT-PRI-011); actions raised ON a priority (UAT-PRI-015);
 metrics defined ON a priority with their full trend in the Objectives
 tab (UAT-PRI-016). Owed from it:
-- **Ben, no code:** install the app package in production, then "Lock
-  every older build" straight away — an older build reads a priority
-  action's key as an unknown board and drops a priority's own metrics
-  when it saves that priority. Clear the test actions and metrics left
-  on dev from the walk.
-- **Unproven, needs a second person:** what someone who does not manage
-  the site sees on a priority's actions (UAT-PRI-015 step 11) and on
-  an adopted priority's metrics (UAT-PRI-016 steps 9–10). Ben manages
-  both orgs on dev.
 - **Left as found:** phone and the executive summary's last step keep
   the old cascade list; a proposed pull put on hold shows afterwards
   under "Cascaded to you"; a priority's own actions do not roll up to
@@ -70,16 +53,6 @@ tab (UAT-PRI-016). Owed from it:
 issues export (45 reports) and its build — status of every report,
 Ben's decisions and the as-built record in `issues-plan-2026-11-18.md`.
 Owed from it:
-- **Ben, no code:** send the replies (the PDF
-  `issue-responses-2026-11-18.pdf`) and close the reports; change the
-  UAT library's Linked documents column to multiple lines of text (12,
-  26); check Kat's Dataverse role can write `ben_ltkdoclibrary` (17);
-  set Casting's featured document types (38); lock older builds in each
-  environment after installing v0.96.0.
-- **Never seen in a browser:** the Default filters tick tree
-  (UAT-DOC-076). Not tested on dev by Ben: the label wrap, the person
-  column, the duplicate-id check, the role picker, Charter edits across
-  a card switch.
 - **Open with Ben:** a style for canvas labels (33: size, bold, colour;
   4–6 h) — Alicia asked for formatting, and only wrap was built; the
   four card dialogs that raise an action with an entry (5 Whys, fault
@@ -107,24 +80,15 @@ Owed from it:
   none (remove and add again). No preview.
 - **Escape in the message panel's search** does not close its list —
   the action dialog underneath swallows the key.
-- **The Filters tree and the ★ featured-terms editor were not seen in a
-  browser** (the Documents screen needs SharePoint): UAT-DOC-093.
-- **Ellen's seven document types** may not be terms in the Document
-  type set; add them in the term manager before featuring them.
 - **The action dialog's "Flag for support" button paints the default
   purple**, not the Flagged colour chosen in Settings → Priorities →
   Status (the shared dialog has no road to the app's settings yet).
 - **"Flagged" is still the middle count's label** (the priority
   circles, the wall's key) while an initiative's own status reads
   "Support needed" — Ben has not asked for the counts to be renamed.
-- **Not yet walked by Ben** (2026-11-17): owners in the popup, Cascade
-  to team against a real reporting line, the document filters.
 - **Any editor can press another person's sign-off box** in the
   action dialog (a board's tick records only the viewer's own part).
   Left as built; Ben has not asked for it to be limited.
-- **A status preview before a release** was considered and not built:
-  release day reads mostly off track under the new rule. Tell leaders
-  first.
 
 Recent decisions of record:
 
@@ -169,8 +133,7 @@ Recent decisions of record:
   and moves, a priority's sub-pillar per year, ended not deleted);
   directory add in every picker, admins only. Schema on dev:
   `ben_supportersjson`, `ben_objectivesjson`, `ben_placementsjson`,
-  `ben_succeedsid`. Hosted checks are all Ben's — the UAT cases added
-  with it are the list. After the import: lock older builds (Settings →
+  `ben_succeedsid`. After the import: lock older builds (Settings →
   the release policy).
 - **Due-date moves: one rule** (2026-11-16, released as v0.94.0):
   Ben's three choices — a Settings switch (Improvement → Due date
@@ -182,18 +145,14 @@ Recent decisions of record:
   action dialog lists the moves and cards carry "↷ n". The per-card
   "Reschedule reasons" setting is retired and the Gantt no longer asks
   on every move. Stored in the app row's improvement settings JSON
-  (`reschedule`), no schema. Hosted checks Ben's: the Settings section,
-  the question on a real initiative action and Gantt, a ritual action
-  under "All actions". Not built: a count of moves by reason in the
+  (`reschedule`), no schema. Not built: a count of moves by reason in the
   initiative report; per-site reasons.
 - **The 2026-11-11/12 rounds** (released as v0.93.0): a re-exposed
   document library keeps its columns (levelled with SharePoint at every
   Save and every open of Settings → Documents; unused mappings shelved,
   not pruned); the tile kanban keeps its cards whole and Add action sits
   at the top right of the action card; the Gantt's range controls share
-  that row, with 26w, 52w, All and ‹ › paging. Hosted checks Ben's: the
-  damaged library healing on open, the Gantt on a real long plan and on
-  a phone. Not built: a per-column card cap ("+N more") on the tile
+  that row, with 26w, 52w, All and ‹ › paging. Not built: a per-column card cap ("+N more") on the tile
   kanban.
 
 - **The 2026-11-06 issue round** (`issues-plan-2026-11-06.md`): managing
@@ -207,9 +166,8 @@ Recent decisions of record:
 - **The release gate first fired at v0.88.1** (2026-11-02): until then
   every build stamped itself `-dirty` through the generated UAT file and
   no build could record itself as current (`release-gate-2026-10-31.md`
-  "Found 2026-11-02"). Open: a dismissible PROMPT while the app is
-  running, beside the banner — offered to Ben, not asked for; today a
-  running client gets the banner only, so no edit is ever thrown away.
+  "Found 2026-11-02"). A running client gets the
+  banner only, so no edit is ever thrown away.
 - **Controller standing keeps the group listing** (2026-11-01,
   `membership-roads-2026-11-01.md`): measured faster than the one-user
   filter query and live rather than eventually consistent; the path
@@ -221,15 +179,11 @@ Recent decisions of record:
   every other repaint restores the scroll offsets.
 - **LeanBoard Utilities** (2026-11-03/05): Outlook-only connections; the
   result emailed, Teams dropped (a chat cannot carry a file without
-  OneDrive); task links never send by themselves. Hosted checks still
-  Ben's: paging on a busy 12-month calendar, attachments arriving,
-  task-link parameters on mobile.
+  OneDrive); task links never send by themselves.
 - **Notice given in Cadence** (2026-11-09, released as v0.92.0): hours from the
   invite (or a series' creation, or a move) to the start, flagged under
   24 h; a one-off the person organised counts from the draft, a
-  forwarded invite from when it reached this calendar. Hosted checks
-  Ben's: badges on real received vs organised invites, an old series'
-  first start, a moved occurrence, the Excel date-time cells.
+  forwarded invite from when it reached this calendar.
 - **Date arithmetic by calendar fields** (2026-11-06): the weekly bucket
   walked by milliseconds and lost a day across a daylight-saving change
   once the machine sat in a DST zone — two tests green in Brisbane, red
@@ -394,8 +348,6 @@ Present-in-window + ⧉ chip + "Not showing?" hint. Open items:
   grow (logged in the canvas plan).
 - **Capture card inline add-row** — only if testers find the row dialog
   slow (decision 8 in the canvas plan: capture keeps its dialog).
-- **Computed/derived canvas fields** — deferred; needs a concrete
-  recurring case.
 - **Design-review findings** (the ⚐ Report queue) — triage drives the
   next tranche.
 
@@ -480,29 +432,19 @@ when written):
 Plan and status: user-feedback-plan-2026-10.md; walkthrough outcome:
 user-feedback-test-script-2026-10.md. Released v0.65.0 / v0.65.1.
 
-- **Parked for the pilot users to confirm on prod**: A1 the version
-  history line for a reader without View Versions; A3 the date fix for
-  an Australian-zone user; A8 the health report's review dates on the
-  library that failed; A9 Ellen's tags; B7 default columns (the ★ per
-  type); C3 a controller minting a tag against a non-controller
-  account; C5 the review-request confirmation.
-- **Guidance (C4, reports 23 / 24)**: built, then removed before
-  release — Ben to clarify with Holly what governance she wants
-  before anything is shown on the forms.
 - **Tranche D — the limited phone register**: RELEASED in v0.66.0
   (2026-10-07; search, four selects incl. library, one-column list,
-  full-bleed viewer; folders and the column set stay desktop) — Ben's
-  check on a real phone pending, then the pilot users who raised 43 / 20.
+  full-bleed viewer; folders and the column set stay desktop).
 - **Phone layout of the other tabs**: reviewed 2026-10-07
   (docs/mobile-review-2026-10.md) — M1 frame (top bar, tab strip,
   action rows), M2 ritual board, M3 priorities walk, M4 initiative
   screen, M5 cadence day view; value drivers / settings desktop-only.
   M1–M5 ALL BUILT and RELEASED in v0.66.0 (2026-10-07; M2 leaves four
   card tile layouts to narrow per card: SQDPC, RiskMatrix, RACI,
-  Fishbone) — Ben's phone pass on the hosted app follows.
+  Fishbone).
 - **Settings after v0.67.0 (2026-10-08)**: site admins no longer see a
-  Ritual categories list (it moved to the super-admin Branding tab) —
-  a read-only view on Rituals if anyone asks; the Priorities settings
+  Ritual categories list (it moved to the super-admin Branding tab);
+  the Priorities settings
   tab is super-admin only now that only pillars and the period rule
   remain. The priorities poster scales a crowded view down rather than
   paginating — a floor on the scale (and a second page) only if a site
@@ -545,16 +487,14 @@ are never removed by the sync (the manager does).
   (`ingestion-run-hardening-plan-2026-11-22.md`): refusal reasons saved
   as they happen, one run at a time with an interrupted run told apart
   from a live one, a run that cannot lock its screen, and leftover
-  copies named before a run. App-only. NOT seen running — the harness
-  cannot reach SharePoint: Ben's checks are UAT-DOC-095, 096 (two
-  controllers) and 097. Lock older builds with the release.
+  copies named before a run. App-only. The UAT cases are UAT-DOC-095,
+  096 (two controllers) and 097.
 
 Released as v0.69.0 (SOLUTION-CARRYING, `ben_ltkingestiontask`); since
 then: the spreadsheet round trip (v0.83.0), a task constrained to one
 site (v0.84.0), sub-folders walked with read-only paths and a flat
 landing (v0.86.0, `ingestion-subfolders-proposal-2026-11-01.md`), ticks
-that keep the scroll (v0.88.1). Ben's six-item pass is in the test
-script.
+that keep the scroll (v0.88.1).
 
 - **Excel round-trip** (decision 1): phase two only if SharePoint's
   grid view and the app's grid fail users in practice.
@@ -596,14 +536,8 @@ script.
 
 ## Initiative links — open items (2026-10-08)
 
-- **Folder contents for "/:f:/g/" sharing links** need Graph
-  `/shares`, which no app connector reaches; lifting it means the
-  "HTTP with Microsoft Entra ID" connector — a DLP decision, not code.
 - **Card tile layouts to narrow** per card: SQDPC, RiskMatrix, RACI,
   Fishbone (left from M2).
-- **Ben's passes pending**: the Phone pass (v0.66.0), the Settings and
-  poster pass (v0.67.0), the Initiative links pass (v0.68.0, nine
-  items), the Document ingestion pass.
 
 ## Issues — open items (2026-10-06, updated 2026-10-12)
 
@@ -612,12 +546,6 @@ script.
   Refresh on the filter row; every reporter-facing Teams card quotes
   the reporter's own description under the message ("Your report").
 
-- **Non-image attachments** in the PDF export are noted by name and
-  size, not embedded (the writer speaks JPEG only). A PDF or text
-  attachment would need its own road.
-- **The export is unpaged by size.** Fifty issues with screenshots
-  make one large file; split-by-count is a one-line change if it is
-  ever needed.
 - **The hub's "my part" tick on a multi-assignee action** completes
   the action only when the last part is ticked; there is no "mark the
   whole action done" on the hub — that is the dialog's Closed.
@@ -719,6 +647,21 @@ deferrals still open (details in leanboard-cascade-improvement-plan.md).
   details save (or Reset board to template).
 
 ## Done / no longer tracked
+
+- **Removed by Ben, 2026-11-22** (the backlog checklist): everything
+  listed as owed by him with no code — re-running the v0.98.0 release
+  workflow and re-importing, clearing dev's test data, the issue
+  replies, the UAT library's Linked documents column, Kat's Dataverse
+  role, Casting's featured types, Ellen's seven document types, the
+  governance guidance question for Holly, telling leaders before the
+  status rule — and every "released but not yet checked" entry
+  (v0.93.0 to v0.98.0, his pending passes, the Utilities checks, the
+  pilot users' seven confirmations). The release ledger and
+  `../CLAUDE.md` still record v0.98.0 as released unseen running. Also
+  removed as work: folder contents for "/:f:/g/" sharing links, the
+  issues export's non-image attachments and split by size, computed
+  canvas fields, a dismissible prompt beside the release banner, a
+  read-only Ritual categories view for site admins.
 
 - Folder counts REMOVED (Ben, 2026-08-08, UI design review): they cost
   one id-and-org query per library after every register reload, and
