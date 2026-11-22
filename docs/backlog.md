@@ -152,8 +152,8 @@ Recent decisions of record:
   Save and every open of Settings → Documents; unused mappings shelved,
   not pruned); the tile kanban keeps its cards whole and Add action sits
   at the top right of the action card; the Gantt's range controls share
-  that row, with 26w, 52w, All and ‹ › paging. Not built: a per-column card cap ("+N more") on the tile
-  kanban.
+  that row, with 26w, 52w, All and ‹ › paging. The per-column "+N more" on the tile kanban followed in
+  v0.96.0.
 
 - **The 2026-11-06 issue round** (`issues-plan-2026-11-06.md`): managing
   an org is its owner or the owner's direct reports; initiatives link only

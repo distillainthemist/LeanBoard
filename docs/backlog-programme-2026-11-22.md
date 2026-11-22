@@ -134,6 +134,64 @@ one at a time, before any of it is built. His answers:
 ### Tranche 1
 
 - **E7** — the kanban column "Verify" becomes **"Endorse"**.
+- **C7** — "Flagged" becomes **"Support needed" everywhere** it names
+  the initiative state: the summary's circle label, the tile tooltip,
+  the wall's key, the Improvement filter pill ("⚑ Support needed
+  only"), the colour's name in Settings, the flag dialog and its
+  message subject. Documents' "Flagged for review" is untouched.
+- **E3** — confirmed as proposed: Escape closes an open type-ahead
+  list over a dialog (fixed at the cause, for every such list); the
+  dialog itself still never closes on Escape.
+- **D6** — the note on a priority's grid reads "<cadence> · <unit> ·
+  this priority's readings. Targets and limits set here carry forward
+  until changed." The initiative's and the driver's lines are unchanged.
+- **E4** — BOTH the "Flag for support" button and the ⚑ on action rows
+  take the colour chosen in Settings → Priorities → Status.
+- **C3** — on the Risk matrix, Heatmap, 5 Whys and Fault tree entry
+  dialogs: the entry's own required field carries the asterisk and
+  Add / Save is disabled until it is filled (tooltip names what is
+  needed); Who and Due gain the asterisk ONLY once an action is being
+  typed, and Add then waits for them; the red marks and the "Required
+  before Add" line go.
+- **C4** — Documents forms (Add, Edit properties, ingestion defaults,
+  the check-in and lifecycle comments): the "Required" tag becomes the
+  red asterisk; the button is disabled until every required field is
+  filled, tooltip "Still needed: …"; a section holding an empty
+  required field opens by default; the "Required before Save" line
+  goes. "Derived" and the ingestion grid's ✱ stay.
+- **E9** — ALREADY BUILT (v0.96.0, `ActionBoard/tileFit.ts`: each
+  column shows the cards that fit and "+N more"). The backlog line was
+  stale. Nothing to build.
+- **F8** — the Ingestion tasks panel gains a collapsed "Closed tasks ·
+  n" heading under "Open tasks": newest first, name / destination /
+  date ended, the first 20 with "Show all n"; a row opens the task's
+  sheet and its log; the same visibility as open tasks; the badge still
+  counts open ones only.
+- **F7** — INGESTION RUNS ONLY: a call refused as throttled is retried
+  up to three times (2 s, 5 s, 10 s); nothing else is retried; a run
+  that has been throttled drops from eight files in flight to four; a
+  file still throttled is refused "SharePoint is busy. Run again in a
+  few minutes." The throttle's shape through the connector is unseen —
+  an unrecognised one behaves as today and is logged.
+- **F9** — the ingestion grid keeps each term's ID with its name: a
+  cell opens with the right term selected by ID, and SHOWS the term's
+  current name; a renamed term does not mark the file changed. To
+  confirm on dev first: that the list feed returns the term ID beside
+  the label (if not, Ben is told before anything else is built here).
+- **D4** — confirmed: one request reads the values and the plan history
+  of every priority metric; nothing visible changes.
+- **D3** — readings are read in a window by cadence: shift or daily 6
+  months, weekly 2 years, monthly 5 years, quarterly or yearly
+  everything; a metric with nothing in its window gets one small
+  request for its latest reading. Accepted edge: a rarely filled
+  metric can draw fewer than 12 sparkline points.
+- **D2** — the Metrics card chart shows the last 12 readings THROUGH TO
+  TODAY (the gap after the last reading is drawn); when the last
+  reading is more than 13 periods old it opens on the readings and the
+  subtitle says "last reading <date>". "Update values" still opens the
+  grid around today.
+
+Ben, 2026-11-22: "build tranche 1".
 
 ## As built
 
