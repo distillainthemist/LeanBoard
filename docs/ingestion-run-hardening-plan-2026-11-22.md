@@ -3,7 +3,8 @@
 Ben asked (2026-11-22) what happens when an ingestion task fails midway.
 Reading the run (`app/src/docs/ingestionScreen.ts`, `startRun`) turned up
 three gaps. This is the plan for them. **Built 2026-11-22 (see "As built" at the
-foot); on dev, not released.**
+foot) and RELEASED as v0.98.0 the same day, before the dev checks were
+run.**
 
 **App-only: no Dataverse schema change.** The task row already carries
 what the plan needs (`ben_status`, `ben_logjson`, and the system columns

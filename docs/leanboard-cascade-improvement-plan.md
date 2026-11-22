@@ -1455,6 +1455,49 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-11-22 — released as v0.98.0** (app-only, no schema; Utilities
+  unchanged). Ingestion run hardening —
+  `docs/ingestion-run-hardening-plan-2026-11-22.md` holds the three
+  gaps, Ben's decisions and "As built". **RELEASED WITHOUT BEING SEEN
+  RUNNING:** the harness cannot reach SharePoint, and Ben cut the
+  release before the dev checks (UAT-DOC-095, 096, 097) — run 095 on a
+  test task before trusting it with a real batch. AFTER the release
+  reaches an environment: "Lock every older build" — an older bundle
+  writes no heartbeat and no start mark, so its run reads as
+  interrupted to a newer build after three minutes.
+  **A run claims its task.** It pushes a `started` entry (who, when)
+  onto the log, writes Running, waits two seconds and reads the row
+  back; if the last mark is not its own it stands down
+  (`docs/ingestionRun.ts` `startedEntry`, `claimHeld`). It checks for
+  a live run before the confirmation and again after it.
+  **Outcomes are saved as they happen.** One saver (`runSaver`): one
+  save in flight, a three-second floor, the last state always sent, a
+  failed save said and retried. It writes `ben_status` and
+  `ben_logjson` only (`saveIngestionRun`), the log trimmed to its
+  column (`trimLog`: reasons cut at 300, superseded outcomes first).
+  Before this a refusal reached Dataverse only with the next moved
+  file, the whole row was saved per moved file, and a failed save was
+  swallowed.
+  **Live or interrupted.** The saver beats every 30 s, so the row's own
+  `modifiedon` is the heartbeat (`IngestionTask.modifiedOn`;
+  `runStamp` falls back to the newest time in the log). `runState`:
+  Running and written within 3 minutes is live; a stamp SEEN to move
+  is trusted over the PC's clock; a doubtful one is watched 40 s.
+  Someone else's live run: "◐ Running — <name>", a line under the hint,
+  the sheet read-only and refreshing as the run saves. Interrupted:
+  "The last run stopped before it finished…" and Run offered. The
+  Document-tasks pill follows (`readsRunning`).
+  **Nothing is added or changed during a run** (Ben: an assignee cannot
+  add new files): Open folder and every edit control are `inert` for
+  the runner and for anyone else. SharePoint itself still takes a file
+  dropped into the folder; it is not ingested and the run's last line
+  counts it. End task, and the editor's Save and Cancel task, refuse
+  during a live run.
+  **A run always ends.** A step that throws refuses its own file; the
+  run sits in `try / finally` and returns the task to Open.
+  **Leftover copies.** Before the confirmation the run looks in the
+  destination and names files that already have a copy there (up to
+  40 asked for one by one, more by listing the top folder).
 - **2026-11-19 — released as v0.97.0** (app-only, no schema; Utilities
   unchanged). The priorities proposal of 2026-11-18 — a review of five
   proposed features, Ben's fifteen decisions, the design, "As built" by

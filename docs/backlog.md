@@ -5,15 +5,32 @@ its decision date and enough context to pick it up cold. The phase plans
 (`leanboard-phase5-plan.md`, `leanboard-standard-documents-plan.md`)
 stay the design detail; this is the queue.
 
-## Current state (2026-11-19, after v0.97.0)
+## Current state (2026-11-22, after v0.98.0)
 
-Released through v0.97.0 (ledger: `leanboard-cascade-improvement-plan.md`;
+Released through v0.98.0 (ledger: `leanboard-cascade-improvement-plan.md`;
 release paragraphs: `../CLAUDE.md`). Production took v0.88.1 and the
 v0.89.0/v0.90.0 managed solution; v0.91.0 and v0.93.0 are app-only,
 v0.92.0 carries the Utilities app in the managed solution, v0.94.0
 and v0.95.0 are SOLUTION-CARRYING — import the solution first — and
-v0.96.0 and v0.97.0 are app-only. Lock older builds from Settings once
-the new one runs.
+v0.96.0, v0.97.0 and v0.98.0 are app-only. Lock older builds from
+Settings once the new one runs.
+
+**v0.98.0 (2026-11-22, app-only):** ingestion run hardening
+(`ingestion-run-hardening-plan-2026-11-22.md`): outcomes saved as they
+happen, one run at a time, an interrupted run told from a live one, a
+run that always ends, nothing added or changed during a run, leftover
+copies named before a run. Owed from it:
+- **RELEASED WITHOUT BEING SEEN RUNNING.** Ben cut the release before
+  the dev checks. Before production trusts it with a real batch: run
+  UAT-DOC-095 on dev with a TEST task (close the tab mid-run; the
+  reasons survive and the task recovers), then 097 (a leftover copy
+  named). UAT-DOC-096 needs two controllers.
+- **Ben, no code:** install the app package, then "Lock every older
+  build" — an older build's run writes no heartbeat and reads as
+  interrupted to a newer one after three minutes.
+- **Known limits:** SharePoint itself still accepts a file dropped
+  into a task's folder mid-run (it is not ingested, and the run says
+  so); the leftover check sees only what the running account can see.
 
 **v0.97.0 (2026-11-19, app-only):** the priorities proposal
 (`priorities-proposal-2026-11-18.md`: the review, Ben's fifteen
@@ -515,7 +532,7 @@ are never removed by the sync (the manager does).
 
 ## Document ingestion — open items (2026-10-09, released v0.69.0)
 
-- **Run hardening — built 2026-11-22, on dev, NOT released**
+- **Run hardening — RELEASED in v0.98.0 (2026-11-22), unseen running**
   (`ingestion-run-hardening-plan-2026-11-22.md`): refusal reasons saved
   as they happen, one run at a time with an interrupted run told apart
   from a live one, a run that cannot lock its screen, and leftover

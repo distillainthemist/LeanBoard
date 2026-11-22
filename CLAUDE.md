@@ -516,6 +516,23 @@ Version lives in the tag alone — nothing is stamped into files.
   review's summary tiles and the task banner heading removed) is
   SOLUTION-CARRYING for the Utilities app only: prod imports the managed
   solution; the LeanBoard app is unchanged. No schema change.
+  v0.98.0 (2026-11-22, app-only, no schema: ingestion run hardening —
+  `docs/ingestion-run-hardening-plan-2026-11-22.md`; a run claims its
+  task with a `started` mark in the log and stands down if another
+  claim landed after its own; every outcome saved as it happens by ONE
+  saver, status and log only (`docs/ingestionRun.ts` `runSaver`,
+  `saveIngestionRun`, `trimLog`); the saver's 30-second heartbeat makes
+  the row's `modifiedon` the sign of life — Running and unwritten for
+  3 minutes is INTERRUPTED (`runState`, `readsRunning`); a second
+  controller's sheet is read-only during a live run; nothing is added
+  or changed during any run — the controls are `inert`; a step that
+  throws refuses its own file and the run always returns to Open; the
+  confirmation names files that already have a copy in the
+  destination). RELEASED UNSEEN: the harness cannot reach SharePoint
+  and the dev checks UAT-DOC-095/096/097 had not been run — a release
+  that touches the ingestion run is checked on a TEST task first.
+  After it reaches an environment, "Lock every older build": an older
+  bundle's run writes no heartbeat and reads as interrupted.
   v0.97.0 (2026-11-19, app-only, no schema: the priorities proposal —
   `docs/priorities-proposal-2026-11-18.md`, Ben's fifteen decisions and
   his test walk; objectives as charts INSIDE each priority tile behind
