@@ -126,6 +126,15 @@ I would ask you to confirm again before starting.
 - An item that turns out larger than sized is said before it is built,
   not after.
 
+## Walked with Ben before building
+
+Ben, 2026-11-22: every item of a tranche is stepped through with him,
+one at a time, before any of it is built. His answers:
+
+### Tranche 1
+
+- **E7** — the kanban column "Verify" becomes **"Endorse"**.
+
 ## As built
 
 (Filled in tranche by tranche.)
