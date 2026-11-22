@@ -102,6 +102,41 @@ jobs:
           pac solution export --name LeanToolKitData --managed \
             --path "dist/LeanBoard_${TAG}_managed.zip"
 
+      # The managed solution carries the code app as Dev holds it at THIS
+      # moment — "every export snapshots the latest pushed bundle". If the
+      # tag's own build was not pushed to Dev before the tag was pushed,
+      # the solution ships the previous dev build under this version
+      # (v0.98.0 shipped a bundle stamped v0.97.0-2-g9b095cf, 2026-11-22;
+      # production read "v0.97.0 +2"). Refuse to publish that.
+      - name: Check the managed solution carries this tag's app
+        if: steps.secrets.outputs.present == 'true'
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          rm -rf check && mkdir check
+          unzip -q "dist/LeanBoard_${TAG}_managed.zip" -d check
+          APP_DIR="$(find check/CanvasApps -maxdepth 1 -type d -name 'ben_leantoolkit_*_CodeAppPackages' | head -n 1)"
+          if [ -z "$APP_DIR" ]; then
+            echo "::error::The managed solution holds no LeanBoard code app."
+            exit 1
+          fi
+          # a build past an older tag is stamped vX.Y.Z-N-gSHA; a build
+          # of an edited tree ends -dirty and never records itself current
+          STALE="$(grep -rhoaE 'v[0-9]+\.[0-9]+\.[0-9]+-[0-9]+-g[0-9a-f]+(-dirty)?' "$APP_DIR" | sort -u | head -n 3 || true)"
+          if [ -n "$STALE" ]; then
+            echo "::error::The managed solution carries the app build ${STALE}, not ${TAG}. Push the tag's build to Dev (cd app && npm run build && npm run push) BEFORE pushing the tag, then re-run this workflow."
+            exit 1
+          fi
+          if grep -rqaF "${TAG}-dirty" "$APP_DIR"; then
+            echo "::error::The managed solution's app is stamped ${TAG}-dirty: Dev was pushed from an edited tree."
+            exit 1
+          fi
+          if ! grep -rqaF "${TAG}" "$APP_DIR"; then
+            echo "::error::The managed solution's app carries no ${TAG} stamp."
+            exit 1
+          fi
+          echo "The managed solution carries the ${TAG} app."
+
       - name: Create the GitHub Release with the board-app artifacts
         uses: softprops/action-gh-release@v2
         with:

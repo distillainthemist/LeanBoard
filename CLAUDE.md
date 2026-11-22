@@ -189,14 +189,29 @@ SharePoint site steps repeated (see docs/deploy-to-new-org.md).
 Only on Ben's explicit "cut the release":
 
 ```bash
-./release.sh <x.y.z>
-git push origin main --tags
+./release.sh <x.y.z>                      # the release commit + the tag, local
+cd app && npm run build && npm run push   # the TAG's build into Dev (and
+                                          # utility/ too when it changed)
+cd .. && git push origin main --tags      # only now: the workflow exports Dev
 ```
 
 The tag triggers the GitHub Actions Release workflow (builds the code-app
 package, exports the managed LeanToolKitData solution, attaches both to a
 GitHub Release). Watch it with `gh run list` / `gh run watch <id>`.
 Version lives in the tag alone — nothing is stamped into files.
+
+**Dev must hold the tag's own build BEFORE the tag is pushed.** The
+managed solution carries the code app, and the export snapshots
+whatever bundle Dev holds at that moment. The order used until
+2026-11-22 — push the tag, wait for the workflow, THEN push the clean
+build to Dev — shipped every managed solution with the PREVIOUS dev
+build inside: the same code, stamped `vOLD-N-gSHA`, so production read
+"v0.97.0 +2" after importing `LeanBoard_v0.98.0_managed.zip` (Ben,
+2026-11-22). The app-package zip was always right; the managed zip is
+what production imports. The workflow now refuses to publish a managed
+solution whose app is not stamped with the tag. To repair a release
+already cut: push the tag's build to Dev, then re-run its Release
+workflow (the asset is replaced) and import again.
 
 ## Lessons ledger (September 2026)
 
