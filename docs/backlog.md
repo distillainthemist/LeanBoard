@@ -25,7 +25,16 @@ copies named before a run. Owed from it:
   UAT-DOC-095 on dev with a TEST task (close the tab mid-run; the
   reasons survive and the task recovers), then 097 (a leftover copy
   named). UAT-DOC-096 needs two controllers.
-- **Ben, no code:** install the app package, then "Lock every older
+- **The managed zip on the release carries the wrong app build.**
+  `LeanBoard_v0.98.0_managed.zip` was exported while Dev still held
+  `v0.97.0-2-g9b095cf` (the same code, the old stamp), so production
+  reads "v0.97.0 +2" after importing it (Ben, 2026-11-22). Dev now
+  holds the clean v0.98.0 build: Ben re-runs the "Release v0.98.0"
+  workflow on GitHub (the asset is replaced) and imports again. The
+  cause was the release ORDER, corrected in `../CLAUDE.md` → Releases;
+  the workflow now refuses such a zip (committed locally, reaches
+  GitHub with the next push).
+- **Ben, no code:** after that import, "Lock every older
   build" — an older build's run writes no heartbeat and reads as
   interrupted to a newer one after three minutes.
 - **Known limits:** SharePoint itself still accepts a file dropped
