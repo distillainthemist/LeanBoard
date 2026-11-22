@@ -4921,6 +4921,11 @@ input.app-vg-in.app-vg-folded { background: #fff7e0; }
 .app-ing-popbar { display: flex; justify-content: flex-end; gap: 8px; align-items: center; }
 .app-ing-save { margin-left: 4px; }
 .app-ing-status { font-size: 12.5px; color: #6d675c; min-height: 18px; }
+/* a run holds the task (run hardening, 2026-11-22): who, and what is
+   held; held buttons and rows are inert and read as set aside */
+.app-ing-runnote { margin: 6px 0; padding: 7px 10px; border: 1px solid #e6cf9a; border-radius: 6px; background: #fdf6e3; color: #5c4a12; font-size: 13px; }
+.app-ing-held { opacity: 0.45; }
+.app-ing-grid-held > * { opacity: 0.7; }
 .app-ing-progress { display: flex; flex-direction: column; gap: 4px; }
 .app-ing-progressbar { height: 6px; background: #eceae5; border-radius: 999px; overflow: hidden; }
 .app-ing-progressfill { height: 100%; width: 0; background: var(--app-accent); border-radius: 999px; transition: width 0.25s ease; }

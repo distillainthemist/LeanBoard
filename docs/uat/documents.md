@@ -644,6 +644,41 @@ steps:
 2. Run ingestion including the other three.
 expected: before the rename both same-named files read ⚠ "Missing: a unique name — another file in this task has the same name…", the status line counts "2 share a name" and Run is greyed; after the rename both are ✓; in the run each of the three is refused with the reason in its ⚠ tooltip and the run log — the third reads "Organisation unit "X" is outside this task's site (Y)"; the other files land flat in the destination (no sub-folder is created there); nothing half-moves
 
+### UAT-DOC-095 — A run that is cut short keeps what it learned
+persona: controller
+modules: docs/ingestionScreen.ts docs/ingestionRun.ts docs/ingestionStore.ts docs/ingestionModel.ts
+preconditions: an open task with fifteen or more ready files, two of which will be refused (one whose document ID is already used in the destination, one tagged outside the task's site, or similar — NOT a name clash, which UAT-DOC-097 covers)
+steps:
+1. Press Run ingestion… and Run. While the bar moves, read the chip beside the task's name, the line under the hint, and the buttons. Click a cell in the grid. Press Esc and ✕.
+2. About ten seconds in, close the browser tab (not the task window).
+3. Open the app again within two minutes, open Ingestion tasks, read the task's pill; open the task and read the chip and the line under the hint.
+4. Wait three minutes with the task open (it re-reads itself). Read the chip, the line, the Run button and the ⚠ marks of the two refused files.
+5. Press Run ingestion… and Run. Read the status line when it ends.
+expected: step 1 the chip reads "◐ Running"; a line reads "A run is in progress. Files cannot be added or changed until it finishes."; Edit task…, End task…, Open folder, Set for selected…, Fill blanks from defaults, Upload sheet… and Save changes are dimmed and do nothing; no cell opens for editing though the grid still scrolls; Esc and ✕ do not close the window; step 3 the pill reads "◐ Running", the chip "◐ Running — <your name>" and the line "<your name> is running this task (started <time>). Files cannot be added or changed until it finishes." — the app cannot yet know the run died; step 4 within about three minutes of the tab closing the chip returns to "● Open", the line reads "The last run stopped before it finished (<your name>, last active <time>). Files it had not reached are still here.", Run ingestion… is offered again, and each refused file's ⚠ tooltip carries "Last run: <its reason>" — the reasons were saved as they happened, not at the end; files already moved are gone from the folder; step 5 the run finishes with "Run finished — n moved · 2 refused. Refused files stay here with the reason on the glyph." and the task reads Open
+
+### UAT-DOC-096 — One run at a time
+persona: controller
+modules: docs/ingestionScreen.ts docs/ingestionRun.ts docs/ingestionStore.ts docs/docsScreen.ts
+preconditions: two document controllers at two computers; an open task with thirty or more ready files, so a run lasts a minute or more; a second open task with one ready file
+steps:
+1. Controller A opens the first task and runs it.
+2. While it runs, controller B opens Ingestion tasks and reads the pill; opens the task; reads the chip, the line under the hint and the buttons; clicks a cell; presses Run ingestion…, End task… and Edit task….
+3. B keeps the task open and watches the grid.
+4. When A's run ends, B reads the chip, the line and the buttons (allow twenty seconds).
+5. On the second task, A and B each open it, press Run ingestion… and then press Run in the confirmation as close to together as they can.
+6. On a task A is running, B opens Edit task… from another route if one is open to them (the editor left open from before the run) and presses Save, then Cancel task….
+expected: step 2 the pill reads "◐ Running"; the chip "◐ Running — <A's name>"; the line "<A's name> is running this task (started <time>). Files cannot be added or changed until it finishes."; Run ingestion…, End task…, Edit task…, Open folder and the grid's edit buttons are dimmed and do nothing, and no cell opens; step 3 files leave B's grid as A's run moves them, without B pressing Refresh; step 4 the chip returns to "● Open", the line goes and the buttons work; the refused files show A's reasons; step 5 exactly ONE run goes on — the other controller reads either "<name> is running this task — wait for it to finish." or "<name> started a run on this task a moment ago. This run stood down and ingested nothing."; the file is ingested once and the log carries one "moved" for it; step 6 the editor refuses both with "<A's name> is running this task — wait for it to finish."
+
+### UAT-DOC-097 — Copies a stopped run left behind are named before the next run
+persona: controller
+modules: docs/ingestionScreen.ts docs/ingestionRun.ts
+preconditions: an open task with three ready files; a copy of ONE of them already in the destination library's top folder under the same name (copy it there by hand, or use a draft an interrupted run left); a second task with twenty or more ready files; rights to add a file to that task's folder in SharePoint directly
+steps:
+1. On the first task press Run ingestion…; read the confirmation; Cancel.
+2. In the destination, delete the copy (or discard its check-out). Press Run ingestion… again; read the confirmation; Run; read the status line.
+3. Run the second task. While it runs, add one more file to its folder from SharePoint itself (the task's own Open folder is held). Read the status line when the run ends.
+expected: step 1 the confirmation carries "1 file already has a copy in <library>, probably from a run that stopped: <file name>. Discard that draft there first, or it will be refused."; step 2 the sentence is gone; the run ends "Run finished — 3 moved. Every file has moved — End task when the batch is complete."; step 3 the line ends "1 file was added to the folder during the run and was not ingested."; that file is in the grid, waiting for the next run
+
 ### UAT-DOC-068 — Message assignees and end the task
 persona: controller
 modules: docs/ingestionScreen.ts

@@ -98,6 +98,7 @@ import {
 import { rememberTaskCount } from "../taskBadge";
 import { taskGroupHeader, taskRowEl } from "./taskRows";
 import { tasksForPanel, IngestionTask } from "./ingestionModel";
+import { readsRunning, runStamp } from "./ingestionRun";
 import { accessRequestPlan, notifyPlanFor } from "./notifyModel";
 import {
   DocUiPrefs,
@@ -1370,7 +1371,9 @@ export function mountDocs(
         const dest = cfg.libraries.find((l) => l.listId.toLowerCase() === task.destListId);
         bodyEl.appendChild(
           taskRowEl({
-            pill: tonePill(task.status === "running" ? "◐ Running" : "⇪ Ingest", "amber"),
+            // Running only while the run's heartbeat keeps the row fresh
+            // (an interrupted run left the word on the row for ever)
+            pill: tonePill(readsRunning(task.status, runStamp(task.modifiedOn, task.log)) ? "◐ Running" : "⇪ Ingest", "amber"),
             name: task.name,
             meta: `→ ${dest ? dest.config.title || dest.name : "(library)"} · ${task.assignees.length} assignee${task.assignees.length === 1 ? "" : "s"}`,
             onOpen: () => {

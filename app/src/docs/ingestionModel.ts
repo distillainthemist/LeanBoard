@@ -16,7 +16,9 @@ export interface IngestionAssignee {
 export interface RunLogEntry {
   /** The file's name in the task folder. */
   file: string;
-  outcome: "moved" | "refused";
+  /** "started": a run's own mark as it begins — who and when, no file
+   *  (2026-11-22; a screen tells whose run is live from the last one). */
+  outcome: "moved" | "refused" | "started";
   /** Why it was refused, or where it landed (server-relative url). */
   detail: string;
   /** ISO time. */
@@ -48,6 +50,10 @@ export interface IngestionTask {
    *  branches only and the run refuses a file tagged outside them.
    *  "" = any site (every task made before this). */
   site: string;
+  /** When the ROW was last written (Dataverse's own stamp; read-only,
+   *  never sent back). A run saves at least every thirty seconds, so
+   *  this is its heartbeat (2026-11-22). Absent = not read. */
+  modifiedOn?: string;
 }
 
 /** The Dataverse row, as the generated service shapes it. */
@@ -67,6 +73,7 @@ export interface IngestionTaskRow {
   ben_createdat?: string;
   ben_closedat?: string;
   ben_site?: string;
+  modifiedon?: string;
 }
 
 const parseJson = <T>(raw: string | undefined, fallback: T): T => {
@@ -105,7 +112,7 @@ export function taskFromRow(r: IngestionTaskRow): IngestionTask {
           .filter((e): e is Record<string, unknown> => typeof e === "object" && e !== null)
           .map((e) => ({
             file: String(e.file ?? ""),
-            outcome: e.outcome === "moved" ? "moved" : "refused",
+            outcome: e.outcome === "moved" ? ("moved" as const) : e.outcome === "started" ? ("started" as const) : ("refused" as const),
             detail: String(e.detail ?? ""),
             at: String(e.at ?? ""),
             by: String(e.by ?? ""),
@@ -116,6 +123,7 @@ export function taskFromRow(r: IngestionTaskRow): IngestionTask {
     createdAt: r.ben_createdat ?? "",
     closedAt: r.ben_closedat ?? "",
     site: (r.ben_site ?? "").trim(),
+    ...(r.modifiedon ? { modifiedOn: r.modifiedon } : {}),
   };
 }
 
@@ -239,7 +247,8 @@ export function logSummary(log: RunLogEntry[]): string {
  *  the earlier one; a later "moved" closes the story. */
 export function latestByFile(log: RunLogEntry[]): Map<string, RunLogEntry> {
   const out = new Map<string, RunLogEntry>();
-  for (const e of log) out.set(e.file, e);
+  // a run's own "started" mark is no file's outcome
+  for (const e of log) if (e.outcome !== "started") out.set(e.file, e);
   return out;
 }
 

@@ -23,6 +23,7 @@ import { statusChip } from "../../../shared/ui/format";
 import { paletteMap } from "../../../shared/palette";
 import { appPalettes } from "../store/config";
 import { currentViewer } from "../runtime";
+import { alreadyThere, claimHeld, lastStart, nameList, RUN_CLAIM_WAIT_MS, RUN_POLL_MS, runSaver, RunSaver, runStamp, runState, RunState, stampAgeMs, startedEntry } from "./ingestionRun";
 import { searchEntra } from "../store/people";
 import { appLinkUrl } from "../links";
 import { DocLibrary, docsConfig } from "./docsStore";
@@ -79,7 +80,7 @@ import { IngestionAssignee, IngestionTask, RunLogEntry, blanksToFill, compareByF
 /** The most files one task lists (sub-folders included); past it the
  *  status line says to split the task. */
 const FILES_CAP = 2000;
-import { saveIngestionTask, deleteIngestionTask, getIngestionTask, listIngestionTasks } from "./ingestionStore";
+import { saveIngestionTask, saveIngestionRun, deleteIngestionTask, getIngestionTask, listIngestionTasks } from "./ingestionStore";
 import { listPeople } from "../store/people";
 import { promptConfirm } from "../prompts";
 import { DocFlag, flagKey, reviewLevelsOf } from "./docFlagsModel";
@@ -262,6 +263,18 @@ async function pool<T>(items: T[], limit: number, work: (item: T) => Promise<voi
   await Promise.all(Array.from({ length: Math.min(limit, items.length) }, lane));
 }
 
+/** Is a run alive on this task right now? Reads the row afresh. A
+ *  one-shot caller cannot watch the stamp, so a doubtful one counts as
+ *  alive — these callers recycle folders and rewrite the row. Returns
+ *  whose run it is ("" = unnamed), or null when none is. */
+async function liveRunOn(rowId: string): Promise<{ by: string; fresh: IngestionTask } | null> {
+  const fresh = await getIngestionTask(rowId).catch(() => null);
+  if (!fresh) return null;
+  const state = runState({ status: fresh.status, stampAgeMs: stampAgeMs(runStamp(fresh.modifiedOn, fresh.log)), watchedMs: 0, sinceMoveMs: null });
+  return state === "live" || state === "checking" ? { by: lastStart(fresh.log)?.by ?? "", fresh } : null;
+}
+const runnerWords = (by: string): string => (by !== "" ? `${by} is running this task` : "A run is in progress on this task");
+
 /** A progress bar with a time-remaining estimate from the files done so far. */
 function progressBar(host: HTMLElement) {
   const wrap = el("div", "app-ing-progress");
@@ -425,7 +438,8 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
       if (unscoped.length > 0) meta.textContent += ` · ${unscoped.join(" and ")} not yet in the term set${unscoped.length === 1 ? "" : "s"} for ${task.site} — the whole set is offered until the sync runs`;
     }
     // a small chip beside the name, never a stretched band (Ben, 2026-10-09)
-    titleRow.appendChild(statusChip(task.status === "closed" ? "✓ Closed" : task.status === "running" ? "◐ Running" : "● Open", task.status === "closed" ? "green" : "amber"));
+    let chip = statusChip(task.status === "closed" ? "✓ Closed" : task.status === "running" ? "◐ Running" : "● Open", task.status === "closed" ? "green" : "amber");
+    titleRow.appendChild(chip);
     clear(body);
     if (src === null || dest === null || ctx.site === "") {
       body.appendChild(el("div", "app-cp-err", src === null ? "No ingestion library is exposed for this site (Settings → Documents → Libraries)." : "This task's destination library is no longer exposed."));
@@ -482,6 +496,8 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
     const actions = el("div", "app-ing-actions");
     // greyed until EVERY file has its required details (Ben, 2026-10-09)
     let runBtn: HTMLButtonElement | null = null;
+    let editBtn: HTMLButtonElement | null = null;
+    let endBtn: HTMLButtonElement | null = null;
     const openFolder = linkBtn("Open folder ↗", `${ctx.origin}${task.folder}`, "app-btn");
     openFolder.title = "The task's folder in SharePoint — add files there";
     // (an "Edit in grid view" link landed on the same folder page as
@@ -582,6 +598,7 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
     }
     if (o.isController && task.status !== "closed") {
       const edit = btn("Edit task…");
+      editBtn = edit;
       edit.addEventListener("click", () => {
         let cancelled = false;
         openIngestionTaskEditor({
@@ -604,15 +621,40 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
       // close-the-window); not "Cancel" — it completes the task
       const closeTask = btn("End task…");
       closeTask.title = "The batch is complete: the folder goes, the task keeps its log and leaves Ingestion tasks";
+      endBtn = closeTask;
       closeTask.addEventListener("click", () => void closeOut());
       right.append(edit, closeTask, runBtn);
-      runBtn.addEventListener("click", () => void startRun());
+      runBtn.addEventListener("click", () => {
+        // nothing a run does may fail silently
+        void startRun().catch((e) => {
+          status.textContent = `The run stopped: ${e instanceof Error ? e.message : String(e)}`;
+        });
+      });
     }
     head.insertBefore(right, closeBtn);
     body.appendChild(actions);
     body.appendChild(
       el("div", "app-field-hint", task.status === "closed" ? "This task is closed — its log is below." : "Add files to the folder, then set each file's details in the grid (✱ = required; Tab moves across, Enter down) — or select rows and set one column for all. Save changes writes them. A document controller then runs the ingestion; files that are refused stay here with the reason.")
     );
+
+    // ---- whose run, and is it alive (run hardening, 2026-11-22) ----------
+    // A task that reads Running is only running while its row keeps
+    // being written (the run's heartbeat). Someone else's live run makes
+    // this sheet read-only; an interrupted one is said and Run offered.
+    const runNote = el("div", "app-ing-runnote");
+    body.appendChild(runNote);
+    let runView: RunState = "idle";
+    let runner = "";
+    /** When this sheet began watching the run it now sees (not when
+     *  it opened: a run may start while it is open). */
+    let watchStart = Date.now();
+    let lastStamp = runStamp(task.modifiedOn, task.log);
+    let lastMoveAt: number | null = null;
+    let pollTimer: ReturnType<typeof setTimeout> | null = null;
+    let saveNote = "";
+    const judge = (): RunState => runState({ status: task.status, stampAgeMs: stampAgeMs(lastStamp), watchedMs: Date.now() - watchStart, sinceMoveMs: lastMoveAt === null ? null : Date.now() - lastMoveAt });
+    /** Someone else's run holds the task (or may: still being checked). */
+    const foreignRun = (): boolean => !running && (runView === "live" || runView === "checking");
 
     // ---- the files: the editable grid (proposal §9) ------------------------
     const gridHost = el("div", "app-ing-grid");
@@ -1177,6 +1219,86 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
       }
       gridHost.scrollTop = scrollTop;
       gridHost.scrollLeft = scrollLeft;
+      applyLock();
+    };
+    const setHeld = (node: HTMLElement | null, on: boolean) => {
+      if (!node) return;
+      node.inert = on;
+      node.classList.toggle("app-ing-held", on);
+    };
+    /** A run holds the task — this sheet's own or someone else's:
+     *  nothing here adds or changes a file until it ends (Ben,
+     *  2026-11-22). `inert` keeps each button's own enabled rule. */
+    const applyLock = () => {
+      const held = running || foreignRun();
+      for (const node of [editBtn, endBtn, openFolder, setSel, fillBtn, uploadBtn, saveBtn, discardBtn]) setHeld(node, held);
+      setHeld(runBtn, foreignRun());
+      // the rows, not the scroller: the grid still scrolls
+      for (const row of Array.from(gridHost.children)) (row as HTMLElement).inert = held;
+      gridHost.classList.toggle("app-ing-grid-held", held);
+    };
+    const paintRun = () => {
+      const live = running || runView === "live" || runView === "checking";
+      const next = statusChip(task.status === "closed" ? "✓ Closed" : live ? `◐ Running${runner !== "" && !running ? ` — ${runner}` : ""}` : "● Open", task.status === "closed" ? "green" : "amber");
+      chip.replaceWith(next);
+      chip = next;
+      const started = lastStart(task.log);
+      const lines: string[] = [];
+      if (running) lines.push("A run is in progress. Files cannot be added or changed until it finishes.");
+      else if (runView === "live") lines.push(`${runnerWords(runner)}${started ? ` (started ${formatWhen(started.at)})` : ""}. Files cannot be added or changed until it finishes.`);
+      else if (runView === "checking") lines.push("This task reads as running. Checking whether the run is still going…");
+      else if (runView === "interrupted") lines.push(`The last run stopped before it finished${runner !== "" ? ` (${runner}${lastStamp !== "" ? `, last active ${formatWhen(lastStamp)}` : ""})` : ""}. Files it had not reached are still here.`);
+      if (saveNote !== "") lines.push(saveNote);
+      runNote.textContent = lines.join(" ");
+      runNote.style.display = lines.length > 0 ? "" : "none";
+      applyLock();
+    };
+    const schedulePoll = () => {
+      if (pollTimer !== null) clearTimeout(pollTimer);
+      pollTimer = null;
+      if (dead || running || task.status !== "running" || runView === "interrupted") return;
+      pollTimer = setTimeout(() => void pollRun(), runView === "checking" ? RUN_POLL_MS / 2 : RUN_POLL_MS);
+    };
+    /** Read the row again: has the run moved on, ended, or stopped? */
+    const pollRun = async (): Promise<void> => {
+      if (dead || running) return;
+      const fresh = await getIngestionTask(task.rowId).catch(() => null);
+      if (dead || running) return;
+      if (fresh) {
+        const stamp = runStamp(fresh.modifiedOn, fresh.log);
+        if (fresh.status === "running" && task.status !== "running") {
+          // a run began while this sheet was open: watch it from now
+          watchStart = Date.now();
+          lastMoveAt = null;
+        }
+        if (stamp !== lastStamp) {
+          // SEEN to move: between two readings of a running task
+          if (task.status === "running" && fresh.status === "running" && lastStamp !== "") lastMoveAt = Date.now();
+          lastStamp = stamp;
+        }
+        const moved = fresh.log.length !== task.log.length || fresh.status !== task.status;
+        const was = runView;
+        task.status = fresh.status;
+        task.log = fresh.log;
+        runner = lastStart(task.log)?.by ?? "";
+        lastLog = latestByFile(task.log);
+        runView = judge();
+        paintRun();
+        // the other run's progress, and its end, show here
+        if ((moved || was !== runView) && dirtyRows(draft).length === 0) await reload();
+      } else {
+        runView = judge();
+        paintRun();
+      }
+      schedulePoll();
+    };
+    /** Before this sheet runs or ends the task: is someone else's run
+     *  alive? Reads the row now, and says so when it is. */
+    const heldByAnother = async (): Promise<boolean> => {
+      await pollRun();
+      if (!foreignRun()) return false;
+      status.textContent = runView === "checking" ? "This task reads as running — checking whether the run is still going. Try again in a moment." : `${runnerWords(runner)} — wait for it to finish.`;
+      return true;
     };
     const reload = async (): Promise<void> => {
       status.textContent = "Reading the folder…";
@@ -1234,6 +1356,11 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
       await reload();
     };
     await reload();
+    // whose run, if any: said at once, then watched while it reads Running
+    runner = lastStart(task.log)?.by ?? "";
+    runView = judge();
+    paintRun();
+    if (task.status === "running") void pollRun();
 
     // ---- save / discard ------------------------------------------------------
     saveBtn.addEventListener("click", () => {
@@ -1513,6 +1640,32 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
     });
 
     // ---- the run ----------------------------------------------------------------
+    /** Which of these names already sit in the destination's top folder,
+     *  as far as this account can see (a file another person copied and
+     *  never checked in is hidden from everyone else). Few files: each
+     *  is asked for. Many: the folder is listed, up to 10,000 entries;
+     *  past that the answer is partial and nothing is said of the rest. */
+    const leftoverCopies = async (names: string[], destRoot: string): Promise<{ names: string[]; complete: boolean }> => {
+      if (names.length === 0) return { names: [], complete: true };
+      if (names.length <= 40) {
+        const found = new Set<string>();
+        await pool(names, IN_FLIGHT, async (name) => {
+          const r = await fetchFileItemId(ctx.site, `${destRoot}/${name}`);
+          if (r.ok && Number(((r.data ?? {}) as { Id?: unknown }).Id ?? 0) > 0) found.add(name);
+        });
+        return { names: names.filter((n) => found.has(n)), complete: true };
+      }
+      const there: string[] = [];
+      let next = "";
+      for (let page = 0; page < 20; page++) {
+        const got = await renderListPage(ctx.site, dest.listId, buildRenderViewXml({ fields: [], rowLimit: 500, sortName: true, asc: true }), next);
+        if (got.error !== "") return { names: alreadyThere(names, there), complete: false };
+        there.push(...got.rows.map((r) => r.name));
+        if (got.next === "") return { names: alreadyThere(names, there), complete: true };
+        next = got.next;
+      }
+      return { names: alreadyThere(names, there), complete: false };
+    };
     const startRun = async (): Promise<void> => {
       if (running || dirtyRows(draft).length > 0) return;
       const approved = statusInternal !== "" ? termForStage(ctx.cellCtx.dict, "approved", statusTerms) : null;
@@ -1520,8 +1673,10 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
         status.textContent = "No status term is mapped to the Approved stage (Settings → Documents → Lifecycle) — the run cannot publish.";
         return;
       }
+      if (await heldByAnother()) return;
       await reload();
       const ready = rows.filter(isReady);
+      const atStart = new Set(rows.map((r) => r.uniqueId));
       /** The status a file lands with: its grid value, else Approved;
        *  approved / superseded / obsolete publish as a major version,
        *  any other stage (draft, in review) lands as a minor, unpublished. */
@@ -1540,171 +1695,257 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
       }
       const stageNote = [...byStage.entries()].map(([s, n]) => `${n} as ${s}`).join(", ");
       const notReady = rows.length - ready.length;
+      // a run stopped after the copy leaves a draft in the destination,
+      // and the next run refuses that file: look first, and say which
+      status.textContent = "Checking the destination…";
+      const destRootRes = await fetchListRoot(ctx.site, dest.listId);
+      const destRoot = String(((destRootRes.data ?? {}) as { ServerRelativeUrl?: unknown }).ServerRelativeUrl ?? "");
+      const left = destRoot !== "" ? await leftoverCopies(ready.map((r) => r.name), destRoot) : { names: [] as string[], complete: false };
+      status.textContent = "";
+      if (dead) return;
+      const leftNote =
+        left.names.length > 0
+          ? ` ${left.names.length} file${left.names.length === 1 ? " already has" : "s already have"} a copy in ${libName(dest)}, probably from a run that stopped: ${nameList(left.names)}. Discard ${left.names.length === 1 ? "that draft" : "those drafts"} there first, or ${left.names.length === 1 ? "it" : "they"} will be refused.`
+          : "";
       const ok = await promptConfirm({
         title: "Run the ingestion?",
-        note: `${ready.length} file${ready.length === 1 ? "" : "s"} will be copied into ${libName(dest)} (${stageNote}; approved, superseded and obsolete publish as version 1, a draft lands as a minor version) and removed from the folder.${notReady > 0 ? ` ${notReady} with missing details stay${notReady === 1 ? "s" : ""} here.` : ""} Keep this window open until it finishes.`,
+        note: `${ready.length} file${ready.length === 1 ? "" : "s"} will be copied into ${libName(dest)} (${stageNote}; approved, superseded and obsolete publish as version 1, a draft lands as a minor version) and removed from the folder.${leftNote}${notReady > 0 ? ` ${notReady} with missing details stay${notReady === 1 ? "s" : ""} here.` : ""} Keep this window open until it finishes.`,
         confirmLabel: "Run",
       });
       if (!ok || dead) return;
+      // the confirmation took a while: someone may have started meanwhile
+      if (await heldByAnother()) return;
       running = true;
       closeBtn.disabled = true;
-      await adoptFresh();
-      task.status = "running";
-      await saveIngestionTask(task).catch(() => undefined);
       const by = currentViewer()?.name ?? "";
-      const [moderation, regional, destRootRes] = await Promise.all([fetchListModeration(ctx.site, dest.listId), fetchRegionalSettings(ctx.site), fetchListRoot(ctx.site, dest.listId)]);
-      const moderated = ((moderation.data ?? {}) as { EnableModeration?: unknown }).EnableModeration === true;
-      const localeId = Number(((regional.data ?? {}) as { LocaleId?: unknown }).LocaleId ?? 0) || 1033;
-      const destRoot = String(((destRootRes.data ?? {}) as { ServerRelativeUrl?: unknown }).ServerRelativeUrl ?? "");
-      const reviewInternal = ctx.internalForRole("nextReviewDate");
-      const cadenceInternal = ctx.internalForRole("reviewCadence");
-      const impSet = importanceInternal !== "" ? (ctx.dictBy.get(importanceInternal)?.termSetId ?? "") : "";
-      const log = (file: string, outcome: RunLogEntry["outcome"], detail: string) => {
-        task.log.push({ file, outcome, detail, at: new Date().toISOString(), by });
-      };
-      // files in flight eight at a time (Ben, 2026-10-09: speed); the
-      // task row is saved through one chain so the writes never race
-      let saveChain: Promise<unknown> = Promise.resolve();
-      progress.start(ready.length, "Ingesting");
-      status.textContent = "";
-      const ingestOne = async (row: DocRow): Promise<void> => {
-        if (dead) return;
-        progress.working(row.name);
-        const refuse = (why: string) => log(row.name, "refused", why);
-        // document-ID collision: the app's own check (decision 4)
-        const docId = docIdInternal !== "" ? (row.values[docIdInternal] ?? "").trim() : "";
-        if (docId !== "" && carried.has(docIdInternal)) {
-          const dup = await renderListPage(ctx.site, dest.listId, buildRenderViewXml({ textEquals: [{ col: docIdInternal, value: docId }], fields: [docIdInternal], rowLimit: 2 }));
-          // not checked is not "free" (2026-11-18): the feed answers a
-          // refusal as no rows plus an error
-          if (dup.error !== "") {
-            refuse(`Document ID "${docId}" could not be checked — ${spErrorText(dup.error).slice(0, 160)}`);
-            return;
-          }
-          if (dup.rows.length > 0) {
-            refuse(`Document ID "${docId}" is already used by "${dup.rows[0].name}"`);
-            return;
-          }
-        }
-        // a site-constrained task refuses a file tagged outside the site
-        // (set from SharePoint's own grid view, say) — the reason names
-        // the column and the value
-        for (const [internal, rootId] of Object.entries(termRoots)) {
-          const setId = ctx.dictBy.get(internal)?.termSetId ?? "";
-          if (setId === "" || (row.values[internal] ?? "").trim() === "") continue;
-          const walk = await cachedTermPaths(ctx.site, setId, 6, 6000).catch(() => ({ nodes: [] as { id: string; labels: string[] }[] }));
-          const outside = labelsOutsideRoot(row.values[internal] ?? "", walk.nodes, rootId);
-          if (outside.length > 0) {
-            refuse(`${ctx.dictBy.get(internal)?.label || internal} "${outside.join("; ")}" is outside this task's site (${task.site})`);
-            return;
-          }
-        }
-        if (destRoot === "") {
-          refuse("The destination library's folder could not be read");
+      const mark = startedEntry(by, new Date().toISOString());
+      let saver: RunSaver | null = null;
+      /** Another run claimed the task in the same seconds: this one
+       *  stands down and writes nothing more. */
+      let stoodDown = "";
+      let fault = "";
+      paintRun();
+      try {
+        // the row as it stands, then the claim: Running, with this run's mark
+        await adoptFresh();
+        const freshLog = await getIngestionTask(task.rowId).catch(() => null);
+        if (freshLog) task.log = freshLog.log;
+        task.status = "running";
+        task.log.push(mark);
+        await saveIngestionRun(task.rowId, "running", task.log);
+        // two people pressing Run in the same seconds: the later write is
+        // the row's; the earlier run reads it back and stands down
+        await new Promise((r) => setTimeout(r, RUN_CLAIM_WAIT_MS));
+        const back = await getIngestionTask(task.rowId).catch(() => null);
+        if (back !== null && !claimHeld(back.log, mark)) {
+          stoodDown = lastStart(back.log)?.by || "Someone else";
+          task.log = back.log;
+          task.status = back.status;
+          lastStamp = runStamp(back.modifiedOn, back.log);
           return;
         }
-        const destUrl = `${destRoot}/${row.name}`;
-        const copied = await copyFileByPath(ctx.site, `${ctx.origin}${row.serverUrl}`, `${ctx.origin}${destUrl}`);
-        if (!copied.ok) {
-          const text = spErrorText(copied.status);
-          refuse(/already exists/i.test(text) ? `A file named "${row.name}" already exists in ${libName(dest)}` : `Copy refused: ${text}`);
-          return;
-        }
-        // the bracket on the copy: check-out → status + dates → major → publish
-        const idRes = await fetchFileItemId(ctx.site, destUrl);
-        const itemId = Number(((idRes.data ?? {}) as { Id?: unknown }).Id ?? 0);
-        if (itemId === 0) {
-          refuse("Copied, but the copy's item could not be read — check the destination by hand");
-          return;
-        }
-        // a flag raised on the file in this task follows it (issue 23)
-        if ((fileFlags.get(flagKey(src.listId, row.id)) ?? []).length > 0) {
-          const guid = String(((idRes.data ?? {}) as { GUID?: unknown }).GUID ?? "");
-          await import("./docFlags")
-            .then((m) => m.repointFlags(ctx.site, { listId: src.listId, itemId: row.id }, { listId: dest.listId, itemId, uid: guid, name: row.name }))
-            .catch(() => 0);
-        }
-        const out = await checkOutFile(ctx.site, destUrl);
-        if (!out.ok && !/already checked out/i.test(spErrorText(out.status))) {
-          refuse(`Copied, but check-out was refused: ${spErrorText(out.status)}`);
-          return;
-        }
-        let bracketErr = "";
-        const land = landing(row);
-        if (land.term !== null) {
-          const r = await connectorPatchItem(ctx.site, dest.listId, itemId, { [statusInternal]: { Value: land.term.label, TermGuid: land.term.id, WssId: -1 } });
-          if (!r.ok) bracketErr = `status: ${spErrorText(r.status)}`;
-        }
-        if (bracketErr === "" && (effInternal !== "" || reviewInternal !== "")) {
-          // effective = the typed date, else today; review = effective + cadence
-          const typed = (row.values[`${effInternal}.`] ?? row.values[effInternal] ?? "").slice(0, 10);
-          const effYmd = /^\d{4}-\d{2}-\d{2}$/.test(typed) ? typed : todayYmd();
-          let months: number | null = null;
-          const impLabel = (row.values[importanceInternal] ?? "").split(";")[0].trim();
-          if (impLabel !== "" && impSet !== "") {
-            try {
-              const walk = await cachedTermPaths(ctx.site, impSet);
-              const node = walk.nodes.find((x) => x.labels[x.labels.length - 1].toLowerCase() === impLabel.toLowerCase());
-              if (node !== undefined) months = cadenceForImportance(ctx.cellCtx.dict, node.id);
-            } catch {
-              /* unmapped = default */
+        saver = runSaver({
+          save: () => saveIngestionRun(task.rowId, "running", task.log),
+          onHealth: (n, err) => {
+            if (n > 0) console.warn("ingestion: the run log could not be saved", err);
+            saveNote = n > 0 ? `The run log could not be saved (${n} ${n === 1 ? "try" : "tries"}). The files are still being ingested.` : "";
+            paintRun();
+          },
+        });
+        const [moderation, regional] = await Promise.all([fetchListModeration(ctx.site, dest.listId), fetchRegionalSettings(ctx.site)]);
+        const moderated = ((moderation.data ?? {}) as { EnableModeration?: unknown }).EnableModeration === true;
+        const localeId = Number(((regional.data ?? {}) as { LocaleId?: unknown }).LocaleId ?? 0) || 1033;
+        const reviewInternal = ctx.internalForRole("nextReviewDate");
+        const cadenceInternal = ctx.internalForRole("reviewCadence");
+        const impSet = importanceInternal !== "" ? (ctx.dictBy.get(importanceInternal)?.termSetId ?? "") : "";
+        // every outcome is saved as it happens (the saver: one save at a
+        // time, a heartbeat between) — a refusal used to wait for the next
+        // file that moved, and was lost with the tab
+        const log = (file: string, outcome: RunLogEntry["outcome"], detail: string) => {
+          task.log.push({ file, outcome, detail, at: new Date().toISOString(), by });
+          saver?.touch();
+        };
+        // files in flight eight at a time (Ben, 2026-10-09: speed)
+        progress.start(ready.length, "Ingesting");
+        status.textContent = "";
+        const ingestOne = async (row: DocRow): Promise<void> => {
+          if (dead) return;
+          progress.working(row.name);
+          const refuse = (why: string) => log(row.name, "refused", why);
+          // document-ID collision: the app's own check (decision 4)
+          const docId = docIdInternal !== "" ? (row.values[docIdInternal] ?? "").trim() : "";
+          if (docId !== "" && carried.has(docIdInternal)) {
+            const dup = await renderListPage(ctx.site, dest.listId, buildRenderViewXml({ textEquals: [{ col: docIdInternal, value: docId }], fields: [docIdInternal], rowLimit: 2 }));
+            // not checked is not "free" (2026-11-18): the feed answers a
+            // refusal as no rows plus an error
+            if (dup.error !== "") {
+              refuse(`Document ID "${docId}" could not be checked — ${spErrorText(dup.error).slice(0, 160)}`);
+              return;
+            }
+            if (dup.rows.length > 0) {
+              refuse(`Document ID "${docId}" is already used by "${dup.rows[0].name}"`);
+              return;
             }
           }
-          const m = months ?? DEFAULT_CADENCE_MONTHS;
-          const stamps: { FieldName: string; FieldValue: string }[] = [];
-          if (effInternal !== "" && carried.has(effInternal)) stamps.push({ FieldName: effInternal, FieldValue: formatDateForLocale(effYmd, localeId) });
-          if (reviewInternal !== "" && carried.has(reviewInternal)) stamps.push({ FieldName: reviewInternal, FieldValue: formatDateForLocale(addMonthsYmd(effYmd, m), localeId) });
-          if (cadenceInternal !== "" && carried.has(cadenceInternal)) stamps.push({ FieldName: cadenceInternal, FieldValue: String(m) });
-          if (stamps.length > 0) {
-            const r = await validateUpdateListItem(ctx.site, dest.listId, itemId, stamps, false);
-            const errs = validateItemErrors(r.data);
-            if (!r.ok || errs.length > 0) bracketErr = `dates: ${errs.map((x) => `${x.field}: ${x.message}`).join("; ") || spErrorText(r.status)}`;
+          // a site-constrained task refuses a file tagged outside the site
+          // (set from SharePoint's own grid view, say) — the reason names
+          // the column and the value
+          for (const [internal, rootId] of Object.entries(termRoots)) {
+            const setId = ctx.dictBy.get(internal)?.termSetId ?? "";
+            if (setId === "" || (row.values[internal] ?? "").trim() === "") continue;
+            const walk = await cachedTermPaths(ctx.site, setId, 6, 6000).catch(() => ({ nodes: [] as { id: string; labels: string[] }[] }));
+            const outside = labelsOutsideRoot(row.values[internal] ?? "", walk.nodes, rootId);
+            if (outside.length > 0) {
+              refuse(`${ctx.dictBy.get(internal)?.label || internal} "${outside.join("; ")}" is outside this task's site (${task.site})`);
+              return;
+            }
           }
-        }
-        if (bracketErr !== "") {
-          // the copy stays checked out as a draft in the destination; say so
-          refuse(`Copied, but ${bracketErr} — the draft is checked out in ${libName(dest)}; finish or discard it there`);
-          return;
-        }
-        const ci = await checkInFile(ctx.site, destUrl, ingestComment(task.name, by), land.publish);
-        if (!ci.ok) {
-          refuse(`Copied, but the ${land.publish ? "major" : "minor"} check-in was refused: ${spErrorText(ci.status)}`);
-          return;
-        }
-        if (moderated && land.publish) {
-          const pub = await validateUpdateListItem(ctx.site, dest.listId, itemId, [{ FieldName: "_ModerationStatus", FieldValue: "0" }], false);
-          if (!pub.ok || validateItemErrors(pub.data).length > 0) {
-            refuse(`Moved, but the publish was refused — it is PENDING in ${libName(dest)}: approve it in SharePoint`);
-            await recycleFile(ctx.site, row.serverUrl);
+          if (destRoot === "") {
+            refuse("The destination library's folder could not be read");
             return;
           }
+          const destUrl = `${destRoot}/${row.name}`;
+          const copied = await copyFileByPath(ctx.site, `${ctx.origin}${row.serverUrl}`, `${ctx.origin}${destUrl}`);
+          if (!copied.ok) {
+            const text = spErrorText(copied.status);
+            refuse(/already exists/i.test(text) ? `A file named "${row.name}" already exists in ${libName(dest)}` : `Copy refused: ${text}`);
+            return;
+          }
+          // the bracket on the copy: check-out → status + dates → major → publish
+          const idRes = await fetchFileItemId(ctx.site, destUrl);
+          const itemId = Number(((idRes.data ?? {}) as { Id?: unknown }).Id ?? 0);
+          if (itemId === 0) {
+            refuse("Copied, but the copy's item could not be read — check the destination by hand");
+            return;
+          }
+          // a flag raised on the file in this task follows it (issue 23)
+          if ((fileFlags.get(flagKey(src.listId, row.id)) ?? []).length > 0) {
+            const guid = String(((idRes.data ?? {}) as { GUID?: unknown }).GUID ?? "");
+            await import("./docFlags")
+              .then((m) => m.repointFlags(ctx.site, { listId: src.listId, itemId: row.id }, { listId: dest.listId, itemId, uid: guid, name: row.name }))
+              .catch(() => 0);
+          }
+          const out = await checkOutFile(ctx.site, destUrl);
+          if (!out.ok && !/already checked out/i.test(spErrorText(out.status))) {
+            refuse(`Copied, but check-out was refused: ${spErrorText(out.status)}`);
+            return;
+          }
+          let bracketErr = "";
+          const land = landing(row);
+          if (land.term !== null) {
+            const r = await connectorPatchItem(ctx.site, dest.listId, itemId, { [statusInternal]: { Value: land.term.label, TermGuid: land.term.id, WssId: -1 } });
+            if (!r.ok) bracketErr = `status: ${spErrorText(r.status)}`;
+          }
+          if (bracketErr === "" && (effInternal !== "" || reviewInternal !== "")) {
+            // effective = the typed date, else today; review = effective + cadence
+            const typed = (row.values[`${effInternal}.`] ?? row.values[effInternal] ?? "").slice(0, 10);
+            const effYmd = /^\d{4}-\d{2}-\d{2}$/.test(typed) ? typed : todayYmd();
+            let months: number | null = null;
+            const impLabel = (row.values[importanceInternal] ?? "").split(";")[0].trim();
+            if (impLabel !== "" && impSet !== "") {
+              try {
+                const walk = await cachedTermPaths(ctx.site, impSet);
+                const node = walk.nodes.find((x) => x.labels[x.labels.length - 1].toLowerCase() === impLabel.toLowerCase());
+                if (node !== undefined) months = cadenceForImportance(ctx.cellCtx.dict, node.id);
+              } catch {
+                /* unmapped = default */
+              }
+            }
+            const m = months ?? DEFAULT_CADENCE_MONTHS;
+            const stamps: { FieldName: string; FieldValue: string }[] = [];
+            if (effInternal !== "" && carried.has(effInternal)) stamps.push({ FieldName: effInternal, FieldValue: formatDateForLocale(effYmd, localeId) });
+            if (reviewInternal !== "" && carried.has(reviewInternal)) stamps.push({ FieldName: reviewInternal, FieldValue: formatDateForLocale(addMonthsYmd(effYmd, m), localeId) });
+            if (cadenceInternal !== "" && carried.has(cadenceInternal)) stamps.push({ FieldName: cadenceInternal, FieldValue: String(m) });
+            if (stamps.length > 0) {
+              const r = await validateUpdateListItem(ctx.site, dest.listId, itemId, stamps, false);
+              const errs = validateItemErrors(r.data);
+              if (!r.ok || errs.length > 0) bracketErr = `dates: ${errs.map((x) => `${x.field}: ${x.message}`).join("; ") || spErrorText(r.status)}`;
+            }
+          }
+          if (bracketErr !== "") {
+            // the copy stays checked out as a draft in the destination; say so
+            refuse(`Copied, but ${bracketErr} — the draft is checked out in ${libName(dest)}; finish or discard it there`);
+            return;
+          }
+          const ci = await checkInFile(ctx.site, destUrl, ingestComment(task.name, by), land.publish);
+          if (!ci.ok) {
+            refuse(`Copied, but the ${land.publish ? "major" : "minor"} check-in was refused: ${spErrorText(ci.status)}`);
+            return;
+          }
+          if (moderated && land.publish) {
+            const pub = await validateUpdateListItem(ctx.site, dest.listId, itemId, [{ FieldName: "_ModerationStatus", FieldValue: "0" }], false);
+            if (!pub.ok || validateItemErrors(pub.data).length > 0) {
+              refuse(`Moved, but the publish was refused — it is PENDING in ${libName(dest)}: approve it in SharePoint`);
+              await recycleFile(ctx.site, row.serverUrl);
+              return;
+            }
+          }
+          const gone = await recycleFile(ctx.site, row.serverUrl);
+          log(row.name, "moved", gone.ok ? destUrl : `${destUrl} (the source copy could not be recycled: ${spErrorText(gone.status)})`);
+        };
+        await pool(ready, IN_FLIGHT, async (row) => {
+          try {
+            await ingestOne(row);
+          } catch (e) {
+            // a step that THREW (they answer refusals; this is the guard):
+            // this file is refused, the others carry on
+            log(row.name, "refused", `Stopped by an unexpected error: ${e instanceof Error ? e.message : String(e)}. Check ${libName(dest)} for a draft of this file.`);
+          }
+          progress.tick();
+        });
+      } catch (e) {
+        fault = e instanceof Error ? e.message : String(e);
+      } finally {
+        // whatever happened: the log is saved, the task reads Open, the
+        // sheet is usable again
+        const live = saver as RunSaver | null;
+        if (live !== null) {
+          await live.flush().catch(() => undefined);
+          live.stop();
         }
-        const gone = await recycleFile(ctx.site, row.serverUrl);
-        log(row.name, "moved", gone.ok ? destUrl : `${destUrl} (the source copy could not be recycled: ${spErrorText(gone.status)})`);
-        saveChain = saveChain.then(() => saveIngestionTask(task)).catch(() => undefined);
-      };
-      await pool(ready, IN_FLIGHT, async (row) => {
-        await ingestOne(row);
-        progress.tick();
-      });
-      await saveChain;
-      progress.finish();
-      // the task stays open: a batch may follow (Ben, 2026-10-09 — an
-      // explicit close-out replaces decision 6's self-close)
-      task.status = "open";
-      await saveIngestionTask(task).catch(() => undefined);
-      running = false;
-      closeBtn.disabled = false;
-      lastLog = latestByFile(task.log);
-      o.onChanged();
-      await reload();
-      const thisRun = task.log.slice(-ready.length);
-      status.textContent = `Run finished — ${logSummary(thisRun)}.${rows.length === 0 ? " Every file has moved — End task when the batch is complete." : " Refused files stay here with the reason on the glyph."}`;
+        progress.finish();
+        let endNote = "";
+        if (stoodDown === "") {
+          task.status = "open";
+          await saveIngestionRun(task.rowId, "open", task.log).catch((e) => {
+            endNote = ` The task's status could not be saved (${e instanceof Error ? e.message : String(e)}) — it may read Running for a few minutes.`;
+          });
+        }
+        running = false;
+        closeBtn.disabled = false;
+        saveNote = "";
+        lastLog = latestByFile(task.log);
+        o.onChanged();
+        await reload().catch(() => undefined);
+        // this run's own outcomes: everything after its mark
+        const thisRun = task.log.slice(task.log.lastIndexOf(mark) + 1).filter((e) => e.outcome !== "started");
+        const added = rows.filter((r) => !atStart.has(r.uniqueId)).length;
+        const addedNote = added > 0 ? ` ${added} file${added === 1 ? " was" : "s were"} added to the folder during the run and ${added === 1 ? "was" : "were"} not ingested.` : "";
+        if (stoodDown !== "") {
+          status.textContent = `${stoodDown} started a run on this task a moment ago. This run stood down and ingested nothing.`;
+          watchStart = Date.now();
+          lastMoveAt = null;
+          runView = judge();
+          runner = lastStart(task.log)?.by ?? "";
+          paintRun();
+          void pollRun();
+        } else {
+          runView = "idle";
+          paintRun();
+          const summary = logSummary(thisRun);
+          status.textContent =
+            fault !== ""
+              ? `The run stopped: ${fault}.${summary !== "" ? ` Before that: ${summary}.` : ""} Files it had not reached are still here.${endNote}`
+              : `Run finished — ${summary !== "" ? summary : "nothing to ingest"}.${rows.length === 0 ? " Every file has moved — End task when the batch is complete." : thisRun.some((e) => e.outcome === "refused") ? " Refused files stay here with the reason on the glyph." : ""}${addedNote}${endNote}`;
+        }
+      }
     };
     /** The explicit close-out: the folder (with anything left in it) goes
      *  to the recycle bin, the task reads closed and keeps its log. */
     const closeOut = async (): Promise<void> => {
       if (running || dirtyRows(draft).length > 0) return;
+      // ending recycles the folder: never under someone's live run
+      if (await heldByAnother()) return;
       // files, not items: a sub-folder counted as ONE item before
       // 2026-11-01, so forty nested files read as "1 file"
       await reload();
@@ -1737,7 +1978,9 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
       const logBox = el("div", "app-ing-log");
       logBox.appendChild(el("div", "app-field-label", `Run log · ${logSummary(task.log)}`));
       for (const e of task.log) {
-        logBox.appendChild(el("div", "app-ing-logrow", `${e.outcome === "moved" ? "✓" : "⚠"} ${e.file} — ${e.detail} (${e.by}, ${formatWhen(e.at)})`));
+        logBox.appendChild(
+          el("div", "app-ing-logrow", e.outcome === "started" ? `▶ Run started (${e.by}, ${formatWhen(e.at)})` : `${e.outcome === "moved" ? "✓" : "⚠"} ${e.file} — ${e.detail} (${e.by}, ${formatWhen(e.at)})`)
+        );
       }
       body.appendChild(logBox);
     }
@@ -1793,7 +2036,26 @@ export function openIngestionTaskEditor(o: IngestionEditorOpts): void {
       { label: isNew ? "Create task" : "Save task", kind: "primary" as const, onClick: () => void save() },
     ],
   });
+  /** An existing task being run right now is not edited or cancelled
+   *  (run hardening, 2026-11-22): the save would rewind the run's log
+   *  and Cancel recycles the folder under it. Also adopts the row's
+   *  status and log, which are the run's, never the editor's. */
+  const heldByRun = async (): Promise<boolean> => {
+    if (isNew) return false;
+    const live = await liveRunOn(t.rowId);
+    if (live !== null) {
+      err.textContent = `${runnerWords(live.by)} — wait for it to finish.`;
+      return true;
+    }
+    const fresh = await getIngestionTask(t.rowId).catch(() => null);
+    if (fresh) {
+      t.status = fresh.status === "running" ? "open" : fresh.status; // an interrupted run: the task is open
+      t.log = fresh.log;
+    }
+    return false;
+  };
   const cancelTask = async () => {
+    if (await heldByRun()) return;
     const left = await folderItemCount(t);
     const ok = await promptConfirm({
       title: `Cancel the task "${t.name}"?`,
@@ -2016,6 +2278,7 @@ export function openIngestionTaskEditor(o: IngestionEditorOpts): void {
       return;
     }
     err.textContent = "";
+    if (await heldByRun()) return;
     try {
       t.defaults = editors.filter((e) => !e.isEmpty()).map((e) => e.read());
       t.site = siteSel?.value ?? t.site;

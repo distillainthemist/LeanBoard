@@ -515,11 +515,13 @@ are never removed by the sync (the manager does).
 
 ## Document ingestion — open items (2026-10-09, released v0.69.0)
 
-- **Run hardening — planned 2026-11-22, not built**
+- **Run hardening — built 2026-11-22, on dev, NOT released**
   (`ingestion-run-hardening-plan-2026-11-22.md`): refusal reasons saved
   as they happen, one run at a time with an interrupted run told apart
-  from a live one, and a run that cannot lock its screen. App-only.
-  Four decisions wait on Ben.
+  from a live one, a run that cannot lock its screen, and leftover
+  copies named before a run. App-only. NOT seen running — the harness
+  cannot reach SharePoint: Ben's checks are UAT-DOC-095, 096 (two
+  controllers) and 097. Lock older builds with the release.
 
 Released as v0.69.0 (SOLUTION-CARRYING, `ben_ltkingestiontask`); since
 then: the spreadsheet round trip (v0.83.0), a task constrained to one

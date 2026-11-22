@@ -1123,7 +1123,18 @@ Key concepts (details: [leanboard-standard-documents-plan.md](leanboard-standard
   the version history AND the moderation state, so a moved file was
   reader-visible on arrival; the probe settled it), the approve bracket,
   recycle the source. Refusals stay with their reason; the task closes
-  when its folder is empty. Since the 2026-10-18 round: a **status
+  when its folder is empty. A RUN is kept honest by
+  `docs/ingestionRun.ts` (2026-11-22,
+  [ingestion-run-hardening-plan-2026-11-22.md](ingestion-run-hardening-plan-2026-11-22.md)):
+  it claims the task with a "started" mark in the log and stands down
+  if another claim landed after its own; every outcome is saved as it
+  happens through one saver (status and log only, one save at a time,
+  the log trimmed to its column) that also beats every 30 s, so the
+  row's own `modifiedon` is the run's heartbeat — a task reading
+  Running with no write for 3 minutes was interrupted; a second
+  controller's sheet is read-only during a live run; a step that throws
+  refuses its own file and the run always ends Open; the confirmation
+  names files that already have a copy in the destination. Since the 2026-10-18 round: a **status
   column in the grid** decides the landing (approved / superseded /
   obsolete land as published majors with that status, anything else as
   a draft minor), an edited task re-reads its row before writing (no

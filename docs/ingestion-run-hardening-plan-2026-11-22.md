@@ -2,7 +2,8 @@
 
 Ben asked (2026-11-22) what happens when an ingestion task fails midway.
 Reading the run (`app/src/docs/ingestionScreen.ts`, `startRun`) turned up
-three gaps. This is the plan for them. **Nothing here is built.**
+three gaps. This is the plan for them. **Built 2026-11-22 (see "As built" at the
+foot); on dev, not released.**
 
 **App-only: no Dataverse schema change.** The task row already carries
 what the plan needs (`ben_status`, `ben_logjson`, and the system columns
@@ -144,7 +145,7 @@ is a judgement on a file the app did not just create. Not proposed.
 |---|---|---|
 | 1 | How long without a heartbeat before a run counts as interrupted | 3 minutes |
 | 2 | What a second controller may do during a live run | Read only: no Run, End task, Cancel task, Edit, or grid edits |
-| 3 | May an assignee still ADD files to the folder during a run | Yes. They land after the run has read the folder and wait for the next run |
+| 3 | May an assignee still ADD files to the folder during a run | Recommended yes. **Ben, 2026-11-22: NO — an assignee cannot add new files.** |
 | 4 | Include "already has a copy in the destination" in the confirmation | Yes |
 
 ## Tests and UAT
@@ -172,3 +173,68 @@ About 11–14 h, or 14–17 h with the destination check. One app-only
 release. An older build has no heartbeat, so its runs would read as
 interrupted after three minutes to a newer build: "Lock every older
 build" after the install, as usual.
+
+## As built (2026-11-22, on dev, NOT released)
+
+Ben agreed decisions 1, 2 and 4 and set 3 to "an assignee cannot add
+new files". Built in the order planned, with the destination check.
+
+- **`docs/ingestionRun.ts`** (new, pure, tested): `runSaver`,
+  `trimLog`, `runState`, `readsRunning`, `stampAgeMs`, `startedEntry`,
+  `lastStart`, `claimHeld`, `alreadyThere`, `nameList`.
+- **Gap 3.** Each file is wrapped: a throw is logged as "Stopped by an
+  unexpected error: … Check <library> for a draft of this file." The run
+  sits in `try / finally`: the saver flushes, the status returns to
+  Open, the buttons come back, and the line says "The run stopped: …"
+  with what finished before it. The Run button's handler catches too.
+- **Gap 1.** Every outcome touches the saver: one save in flight, a
+  3-second floor, the last state always sent. `saveIngestionRun` writes
+  `ben_status` and `ben_logjson` only, the log trimmed to 900,000
+  characters (reasons cut at 300; outcomes a later one replaced go
+  first). A failed save shows "The run log could not be saved (n
+  tries). The files are still being ingested." and is retried.
+- **Gap 2.**
+  - *Whose run:* a run pushes a `started` entry (who, when) onto the
+    log as it claims the task. A new `outcome` value, not a column. It
+    is no file's outcome (`latestByFile`, `logSummary` skip it) and a
+    closed task's log prints it as "▶ Run started (name, time)".
+  - *Heartbeat:* the saver saves every 30 s when nothing has finished.
+    `IngestionTask.modifiedOn` carries the row's own stamp.
+  - *Live or interrupted:* `runState`. A sheet that finds the task
+    Running re-reads it every 20 s; a stamp SEEN to move is trusted
+    over the PC's clock; a stamp 3–15 minutes old is watched for 40 s
+    ("Checking whether the run is still going…") before it is called.
+  - *Someone else's live run:* chip "◐ Running — <name>", a line under
+    the hint, and Run, End task, Edit task, Open folder, Set for
+    selected, Fill blanks, Upload sheet and Save are `inert`; the
+    grid's rows are `inert` (the grid still scrolls). The sheet
+    refreshes as the other run saves.
+  - *Interrupted:* "The last run stopped before it finished (<name>,
+    last active <time>). Files it had not reached are still here." Run
+    is offered. Nothing is written until the next run or End task.
+  - *The claim:* Run checks for a live run before the confirmation and
+    again after it; writes Running with its mark; waits 2 s; reads the
+    row back; stands down if the last mark is not its own.
+  - *Elsewhere:* End task checks first. The task editor's Save and
+    Cancel task refuse during a live run and adopt the row's status and
+    log before writing. The Document-tasks pill reads Running only
+    while the row is fresh (`readsRunning`).
+- **Decision 3, as built.** The app holds its own roads during ANY run,
+  its own included: Open folder and every edit control. SharePoint
+  itself still accepts a file dropped straight into the folder; the app
+  cannot stop that. Such a file is not ingested, stays in the grid, and
+  the run's last line says "n files were added to the folder during the
+  run and were not ingested."
+- **The destination check.** Before the confirmation: up to 40 ready
+  files are each asked for in the destination; more, and the
+  destination's top folder is listed (up to 10,000 entries). The
+  confirmation names what is already there. It sees only what the
+  running account can see — a file another person copied and never
+  checked in is hidden from everyone else by SharePoint.
+- **Not seen running.** The harness cannot reach SharePoint, so the run
+  itself has only been read and typechecked. The pure parts carry 25
+  tests. Ben's checks on dev: UAT-DOC-095 (a run cut short), 096 (two
+  controllers; needs a second person), 097 (leftover copies).
+- **For the release.** App-only. An older build writes no heartbeat and
+  no start mark: its run reads as interrupted to a newer build after
+  three minutes. Lock older builds after the install.

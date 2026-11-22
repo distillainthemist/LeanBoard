@@ -5,6 +5,7 @@
 
 import { Ben_ltkingestiontasksService } from "../generated/services/Ben_ltkingestiontasksService";
 import { IngestionTask, IngestionTaskRow, rowFromTask, taskFromRow } from "./ingestionModel";
+import { trimLog } from "./ingestionRun";
 
 const fail = (what: string, err: unknown): never => {
   const msg = (err as { message?: unknown })?.message;
@@ -34,6 +35,17 @@ export async function saveIngestionTask(t: IngestionTask): Promise<string> {
   const r = await Ben_ltkingestiontasksService.update(t.rowId, fields as Parameters<typeof Ben_ltkingestiontasksService.update>[1]);
   if (r.success === false) fail("Could not save the ingestion task", r.error);
   return t.rowId;
+}
+
+/** A RUN's saves: the status and the log ONLY (2026-11-22). The whole
+ *  row carried the run's own copy of the name, assignees and defaults
+ *  over an edit another controller made meanwhile. The log is trimmed
+ *  to fit its column on the way out. */
+export async function saveIngestionRun(rowId: string, status: IngestionTask["status"], log: IngestionTask["log"]): Promise<void> {
+  if (rowId === "") return;
+  const fields = { ben_status: status, ben_logjson: JSON.stringify(trimLog(log)) };
+  const r = await Ben_ltkingestiontasksService.update(rowId, fields as Parameters<typeof Ben_ltkingestiontasksService.update>[1]);
+  if (r.success === false) fail("Could not save the run", r.error);
 }
 
 /** The row as it stands now — the sheet re-reads before it writes
