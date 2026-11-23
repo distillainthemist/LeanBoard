@@ -284,4 +284,12 @@ seen in the harness: each needs Ben's check on dev.
   RUNNING UAT run, plus super admins. A link to a document in a UAT
   library is HIDDEN ENTIRELY from someone who cannot see the library
   (Ben chose this over "not available to you").
+- **J** — all recommendations agreed: a controller's site is the site
+  on their LeanBoard person row (none = sees everything, as do super
+  admins); a document's site is read from its Organisation unit, and a
+  document with none shows to EVERY controller; an ingestion task with
+  no site shows to every controller; it applies to flags, ingestion
+  tasks, access requests and the health report; no "All sites" switch.
+
+Ben, 2026-11-23: "build tranche 1A".
 
