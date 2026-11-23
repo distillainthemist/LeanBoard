@@ -254,4 +254,11 @@ seen in the harness: each needs Ben's check on dev.
   to check it in. A document controller can discard their check-out.",
   Close only; the panel and row repaint with the lock. No "since when"
   (the read here does not return it), no Message button.
+- **F** — the cause was a HEIC photo (Ben): the browser gives it no
+  type, the dialog dropped it without a word, and it could not have
+  been drawn anyway. HEIC is REFUSED with a reason ("HEIC photos can't
+  be shown here: <name>. Use a JPG or PNG, or paste a screenshot."); the
+  chooser offers JPG, PNG, GIF and WebP; any other non-image names
+  itself too. The same in the issue report dialog. No in-app
+  conversion.
 
