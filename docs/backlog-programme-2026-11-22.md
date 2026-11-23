@@ -247,9 +247,8 @@ Thirteen items built; E9 was already built. App-only, no schema.
 - **F9 — term ids.** `termIdsOf` (`docs/rows.ts`) keeps a term
   column's ids under `<col>#termid`, as a person column keeps
   `<col>#email`; `currentTermLabels` gives the grid each term's current
-  name at every read of the folder. NOT confirmed on dev: that the feed
-  returns `TermID` beside `Label` (the documented shape). If it does
-  not, nothing changes from today — UAT-DOC-099 step 2 tells which.
+  name at every read of the folder. CONFIRMED on dev by Ben's test 9
+  (2026-11-23): the feed returns `TermID` beside `Label`.
 - **D3 — read windows.** `improvement/readWindow.ts` `readFrom`;
   `latestSeriesCell` for a metric with nothing in its window.
 - **D4 — one read.** `listBoardSeries` + `listBoardSpec` for board
@@ -279,4 +278,7 @@ Thirteen items built; E9 was already built. App-only, no schema.
 | 5 | D6 — the values grid's note on a priority | Pass |
 | 6 | C3 — the four entry dialogs | Pass |
 | 7 | C4 — required fields on the Documents forms | Not tested on dev: Ben will test in production (after a release) |
+| 8 | F8 — closed ingestion tasks | Pass |
+| 9 | F9 — a term renamed after a file was tagged | Pass — which confirms on dev that the list feed returns the term ID beside the label |
+| 10 | F7 — a throttled ingestion run | Skipped: cannot be forced. Unproven until SharePoint next throttles a run; a throttle-looking refusal that is NOT "SharePoint is busy…" means the wording needs adding to `isThrottled` |
 
