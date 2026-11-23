@@ -250,4 +250,8 @@ seen in the harness: each needs Ben's check on dev.
   others are outstanding; once all have finished "Submit for approval"
   is the solid button. While reviews are outstanding it stays available
   as an OUTLINE button with today's warning (the 2026-10-19 decision).
+- **E** — the notice is titled "Checked out to <name>", says "Ask them
+  to check it in. A document controller can discard their check-out.",
+  Close only; the panel and row repaint with the lock. No "since when"
+  (the read here does not return it), no Message button.
 
