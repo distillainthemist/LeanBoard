@@ -281,4 +281,17 @@ Thirteen items built; E9 was already built. App-only, no schema.
 | 8 | F8 — closed ingestion tasks | Pass |
 | 9 | F9 — a term renamed after a file was tagged | Pass — which confirms on dev that the list feed returns the term ID beside the label |
 | 10 | F7 — a throttled ingestion run | Skipped: cannot be forced. Unproven until SharePoint next throttles a run; a throttle-looking refusal that is NOT "SharePoint is busy…" means the wording needs adding to `isThrottled` |
+| 11 | D2 — a metric's chart when readings are old | Pass |
+| 12 | D3 / D4 — nothing else moved | Pass |
+
+Tranche 1 stands tested on dev except C4 (production, after a release)
+and F7 (cannot be forced).
+
+## Tranche 1A — the 2026-11-23 issue export (inserted by Ben, 2026-11-23)
+
+Nine reports from the DMS UAT re-run, reviewed in
+`issues-plan-2026-11-23.md`: ten items, about 27–39 hours, app-only,
+all Documents. It runs BEFORE tranche 2, and is walked with Ben item by
+item first. Item G (linking a document) takes one of F5's ten type-ahead
+places off tranche 5.
 

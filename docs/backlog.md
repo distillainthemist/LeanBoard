@@ -16,6 +16,15 @@ they are built. **Tranche 1 is built and on dev (2026-11-22), not
 released**: thirteen small fixes — its "As built" section in the
 programme lists them and what Ben should check.
 
+**Next: tranche 1A** — the nine reports of the 2026-11-23 issue export
+(`issues-plan-2026-11-23.md`): Teams group messages refused over a
+colon in the chat topic, Replace content's false "landed wrong" on
+Office files, a reviewer still offered "Review complete", Cancel
+revision's comment, a clearer notice on a held check-out, the flag
+dialog's image picker, the link picker's layout, the unused PDF
+rendition folder, UAT-only libraries, and a controller's view scoped to
+their site. Not built.
+
 ## Current state (2026-11-22, after v0.98.0)
 
 Released through v0.98.0 (ledger: `leanboard-cascade-improvement-plan.md`;
