@@ -272,4 +272,10 @@ seen in the harness: each needs Ben's check on dev.
   history. Still unknown: which of those two places has the words. If
   neither does on dev, a sign-in is needed to read the raw version rows
   before going further.
+- **G** — a "Relationship" field (Parent / Related / Child; the sentence
+  becomes the label's tooltip) FIRST, then a full-width search with a
+  floating list: "Searching…", the matches (name, library and document
+  ID beneath), "No documents match", a line naming any library that
+  could not be read; arrows / Enter / Escape. One shared builder, used
+  for "Superseded by" too.
 
