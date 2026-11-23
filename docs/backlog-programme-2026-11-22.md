@@ -267,3 +267,16 @@ Thirteen items built; E9 was already built. App-only, no schema.
 - **Ben's checks on dev:** UAT-RIT-015, UAT-ACT-013, UAT-IMP-012,
   UAT-DOC-098, 099, 100, and the changed steps of the Add document,
   Edit properties and check-in cases.
+
+#### Ben's test walk of tranche 1 on dev (2026-11-23, `v0.98.0 +8`)
+
+| # | Check | Result |
+|---|---|---|
+| 1 | E7 — the "Endorse" column | Pass |
+| 2 | C7 — "Support needed" in place of "Flagged" | Pass |
+| 3 | E3 — Escape in a search list | Pass |
+| 4 | E4 — the flag's colour | Pass |
+| 5 | D6 — the values grid's note on a priority | Pass |
+| 6 | C3 — the four entry dialogs | Pass |
+| 7 | C4 — required fields on the Documents forms | Not tested on dev: Ben will test in production (after a release) |
+
