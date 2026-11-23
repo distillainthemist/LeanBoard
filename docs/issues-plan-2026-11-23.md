@@ -261,4 +261,6 @@ seen in the harness: each needs Ben's check on dev.
   chooser offers JPG, PNG, GIF and WebP; any other non-image names
   itself too. The same in the issue report dialog. No in-app
   conversion.
+- **H** — the "PDF rendition folder" field is removed; a stored value
+  is left alone and ignored; nothing in SharePoint is touched.
 
