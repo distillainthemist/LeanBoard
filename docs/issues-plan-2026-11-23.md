@@ -245,4 +245,9 @@ seen in the harness: each needs Ben's check on dev.
   stored size within 10% of what was sent or 256 KB, whichever is
   larger. Every other type keeps the exact check. Both Replace content
   and Add by upload.
+- **C** — a reviewer who has finished sees "✓ You completed your review
+  on <date>" in place of the button, and "Waiting on <names>" while
+  others are outstanding; once all have finished "Submit for approval"
+  is the solid button. While reviews are outstanding it stays available
+  as an OUTLINE button with today's warning (the 2026-10-19 decision).
 
