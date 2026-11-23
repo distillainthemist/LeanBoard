@@ -236,3 +236,9 @@ seen in the harness: each needs Ben's check on dev.
 - **Replace content on Office files** reports a failure but HAS
   replaced the file. Check the document, then check in. Do not repeat
   the replace.
+
+## Walked with Ben before building (2026-11-23)
+
+- **A** — keep a topic on group chats, cleaned: the colon becomes a
+  dash; every character Graph refuses goes through one tested list.
+
