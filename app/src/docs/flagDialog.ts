@@ -8,6 +8,7 @@ import { openDialog } from "../../../shared/ui/dialog";
 import { shrinkImage, fileToDataUrl } from "../../../shared/ui/imageIngest";
 import { FlagDoc, raiseFlag } from "./docFlags";
 import { flagNotice } from "./docFlagsModel";
+import { IMAGE_ACCEPT, imageVerdict, typedImage } from "../imagePick";
 
 export interface FlagDialogOpts {
   host: HTMLElement;
@@ -43,7 +44,7 @@ export function openFlagDialog(o: FlagDialogOpts): void {
   const zone = el("div", "app-issue-paste", "Paste a screenshot (Ctrl/Cmd+V), drop an image, or");
   const pick = el("input", "") as HTMLInputElement;
   pick.type = "file";
-  pick.accept = "image/*";
+  pick.accept = IMAGE_ACCEPT;
   pick.style.display = "none";
   const pickBtn = el("button", "app-btn app-issue-pick", "choose an image") as HTMLButtonElement;
   pickBtn.type = "button";
@@ -64,9 +65,16 @@ export function openFlagDialog(o: FlagDialogOpts): void {
     cell.append(img, rm);
     shotBox.appendChild(cell);
   };
+  // a file that is not taken says why (2026-11-23: a HEIC photo was
+  // dropped without a word)
+  const shotWhy = el("div", "app-field-hint");
+  shotWhy.style.display = "none";
   const take = (f: File | null | undefined) => {
-    if (!f || !f.type.startsWith("image/")) return;
-    setShot(f);
+    if (!f) return;
+    const v = imageVerdict(f.name, f.type);
+    shotWhy.textContent = v.ok ? "" : `⚠ ${v.why}`;
+    shotWhy.style.display = v.ok ? "none" : "";
+    if (v.ok) setShot(typedImage(f, v.type));
   };
   dlg.root.addEventListener("paste", ((e: ClipboardEvent) => {
     for (const item of e.clipboardData?.items ?? []) {
@@ -88,7 +96,7 @@ export function openFlagDialog(o: FlagDialogOpts): void {
   });
   const st = el("div", "app-field-hint", o.recipients.length > 0 ? `${o.recipientsLabel} hear about it on Teams.` : "No owner is named on this document — the flag still shows for the controllers.");
   const lab = (t: string) => el("div", "app-field-label", t);
-  dlg.body.append(lab("Review level"), level, lab("Comment"), comment, lab("Screenshot (optional)"), zone, shotBox, pick, st);
+  dlg.body.append(lab("Review level"), level, lab("Comment"), comment, lab("Screenshot (optional)"), zone, shotWhy, shotBox, pick, st);
   comment.focus();
 
   let running = false;

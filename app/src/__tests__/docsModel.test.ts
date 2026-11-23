@@ -1754,6 +1754,57 @@ describe("lifecycle commands (5B/5C — the settled workflow)", () => {
     ).toEqual(["submitApproval", "requestRevision"]);
   });
 
+  it("in review: a finished reviewer is not asked again, the submit turns solid when all are in (2026-11-23)", async () => {
+    const { lifecycleCommandsFor } = await import("../docs/model");
+    const g = (over: Record<string, unknown>) =>
+      ({ ...gates({ hasApprovers: true, hasReviewers: true }), ...over }) as never;
+    // not yet read: exactly as before — the reviewer's act, then the submit
+    const unknown = lifecycleCommandsFor("inReview", g({ isReviewer: true }));
+    expect(unknown.map((c) => c.key)).toEqual(["reviewComplete", "submitApproval", "requestRevision"]);
+    expect(unknown[1].card).toBeUndefined();
+    // the reviewer has finished, another has not: no "Review complete",
+    // the submit an outline button on the card
+    const waiting = lifecycleCommandsFor("inReview", g({ isReviewer: true, reviewDone: true, reviewsOpen: 1 }));
+    expect(waiting.map((c) => c.key)).toEqual(["submitApproval", "requestRevision"]);
+    expect(waiting[0].primary).toBe(false);
+    expect(waiting[0].card).toBe(true);
+    // a reviewer still to finish keeps their button; the submit stays outline
+    const mine = lifecycleCommandsFor("inReview", g({ isReviewer: true, reviewDone: false, reviewsOpen: 2 }));
+    expect(mine.map((c) => c.key)).toEqual(["reviewComplete", "submitApproval", "requestRevision"]);
+    expect(mine[0].primary).toBe(true);
+    expect(mine[1].primary).toBe(false);
+    // every review in: the submit is the one solid button
+    const done = lifecycleCommandsFor("inReview", g({ isReviewer: true, reviewDone: true, reviewsOpen: 0 }));
+    expect(done.map((c) => c.key)).toEqual(["submitApproval", "requestRevision"]);
+    expect(done[0].primary).toBe(true);
+    expect(done[0].card).toBeUndefined();
+  });
+
+  it("review progress: who is outstanding, and when this reviewer finished (2026-11-23)", async () => {
+    const { reviewProgress } = await import("../docs/model");
+    // newest first, as the version history arrives
+    const versions = [
+      { comment: "Review complete by Kat Lee — looks right", author: "Kat Lee", when: "2026-11-21T02:00:00Z" },
+      { comment: "Submitted for review", author: "Ben O", when: "2026-11-20T02:00:00Z" },
+      { comment: "Review complete by Sam Poe", author: "Sam Poe", when: "2026-11-10T02:00:00Z" },
+    ];
+    const names = ["Kat Lee", "Sam Poe"];
+    // Kat finished this round; Sam's tick was the round before
+    expect(reviewProgress(versions, names, "kat lee")).toEqual({
+      outstanding: ["Sam Poe"],
+      mineDone: true,
+      mineAt: "2026-11-21T02:00:00Z",
+    });
+    expect(reviewProgress(versions, names, "Sam Poe")).toEqual({
+      outstanding: ["Sam Poe"],
+      mineDone: false,
+      mineAt: "",
+    });
+    // not a reviewer: never "done", the outstanding list still reads
+    expect(reviewProgress(versions, names, "")).toEqual({ outstanding: ["Sam Poe"], mineDone: false, mineAt: "" });
+    expect(reviewProgress(versions, names, "Someone Else").mineDone).toBe(false);
+  });
+
   it("approval is two steps: approvers endorse (minor), the owner's word is major", async () => {
     const { lifecycleCommandsFor } = await import("../docs/model");
     // approvers' step: an approver endorses it ONWARD, as a minor
@@ -2532,5 +2583,74 @@ describe("splitAddWrites — clear (features-plan-2026-10-29)", () => {
       { FieldName: "DMSOwner", FieldValue: "[]" },
     ]);
     expect(patch).toEqual({ DMSEffective: null });
+  });
+});
+
+describe("a cancelled revision in the history (2026-11-23, report 5)", () => {
+  const v = (label: string, comment: string, over: Record<string, unknown> = {}) => ({
+    label,
+    comment,
+    current: false,
+    modStatus: null as number | null,
+    ...over,
+  });
+
+  it("missing words are filled from the file's version, then the approval comment", async () => {
+    const { fillVersionComments } = await import("../docs/model");
+    const out = fillVersionComments(
+      [
+        { ...v("4.0", ""), modComment: "Approved by forms" },
+        { ...v("3.2", "own words"), modComment: "ignored" },
+        { ...v("3.0", ""), modComment: "From the approval" },
+        v("2.0", ""),
+      ],
+      new Map([
+        ["4.0", "Revision cancelled — restored v3.0"],
+        ["3.2", "never used"],
+      ])
+    );
+    expect(out.map((x) => x.comment)).toEqual(["Revision cancelled — restored v3.0", "own words", "From the approval", ""]);
+  });
+
+  it("the restored major's card reads the cancel's words and marks the thrown-away drafts", async () => {
+    const { groupVersionsByMajor, headReading } = await import("../docs/model");
+    // newest first: v4.0 is the restore; 3.1–3.2 the cancelled revision
+    const groups = groupVersionsByMajor([
+      v("4.0", "Revision cancelled — restored v3.0", { current: true }),
+      v("3.2", "second attempt"),
+      v("3.1", "Revision started"),
+      v("3.0", "Approved"),
+    ]);
+    const r = headReading(groups[0]);
+    expect(r.words).toBe("Revision cancelled — restored v3.0");
+    expect(r.cancel).toBe(true);
+    expect(r.from).toBeNull();
+    expect(r.cancelled.map((d) => d.label)).toEqual(["3.2", "3.1"]);
+    // an ordinary major is untouched
+    expect(headReading(groups[1])).toEqual({ words: "Approved", from: null, cancel: false, cancelled: [] });
+  });
+
+  it("under content approval the words can sit on the check-in under a bare major", async () => {
+    const { groupVersionsByMajor, headReading } = await import("../docs/model");
+    const groups = groupVersionsByMajor([
+      v("4.0", "", { modStatus: 0, current: true }),
+      v("3.3", "Revision cancelled — restored v3.0", { modStatus: 2 }),
+      v("3.2", "half-done edit", { modStatus: 3 }),
+      v("3.0", "Approved", { modStatus: 0 }),
+    ]);
+    const r = headReading(groups[0]);
+    // the cancel's own words — never "published from" the abandoned draft
+    expect(r.words).toBe("Revision cancelled — restored v3.0");
+    expect(r.from).toBeNull();
+    expect(r.cancelled.map((d) => d.label)).toEqual(["3.2"]);
+  });
+
+  it("a bare major that is no cancel still names the draft it was published from", async () => {
+    const { groupVersionsByMajor, headReading } = await import("../docs/model");
+    const groups = groupVersionsByMajor([v("2.0", ""), v("1.1", "Submitted for approval"), v("1.0", "first")]);
+    const r = headReading(groups[0]);
+    expect(r.words).toBe("");
+    expect(r.from?.label).toBe("1.1");
+    expect(r.cancelled).toEqual([]);
   });
 });

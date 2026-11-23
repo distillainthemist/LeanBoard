@@ -20,6 +20,8 @@ import {
   serializeLibraryConfig,
   siteKey,
 } from "./model";
+import { setUatHidden, splitUatLibraries, uatTitle } from "./uatLibraries";
+import { currentViewer } from "../runtime";
 
 export interface DocLibrary {
   /** Dataverse row GUID (delete handle). */
@@ -46,6 +48,29 @@ let cache: Promise<{
 
 export function invalidateDocsCache(): void {
   cache = null;
+}
+
+// ---- UAT mode (2026-11-23) ---------------------------------------------
+// Who is shown a "UAT only" library: the people assigned to a RUNNING
+// UAT run, and super admins. Asked once a session, and only when some
+// library carries the tick. Fails CLOSED — a failed read hides the
+// library rather than showing a trial library to everyone.
+let uatMode: Promise<boolean> | null = null;
+export function viewerInUatMode(): Promise<boolean> {
+  uatMode ??= (async () => {
+    const v = currentViewer();
+    if (v === null) return false;
+    try {
+      const { viewerPerson } = await import("../store/people");
+      const me = await viewerPerson(v.objectId).catch(() => null);
+      if (me?.role === "superadmin") return true;
+      const { myOpenRuns } = await import("../uat/store");
+      return (await myOpenRuns(v.email !== "" ? v.email : (me?.email ?? ""))).length > 0;
+    } catch {
+      return false;
+    }
+  })();
+  return uatMode;
 }
 
 /**
@@ -75,6 +100,9 @@ export function docsConfig(): Promise<{
         (r) => (r.ben_listid ?? "") !== "" && !RESERVED_LIST_IDS.has(r.ben_listid ?? "")
       )
       .map(mapRow);
+    // the dictionary below is built from EVERY library, hidden or not —
+    // what a column means must not depend on who is looking
+    const everyLibrary = libraries;
     const conflicts: Record<string, DictionaryConflict[]> = {};
 
     // one dictionary per site — group first, so a second site never
@@ -92,6 +120,19 @@ export function docsConfig(): Promise<{
       }
       for (const lib of mine) lib.config = resolveLibraryConfig(lib.config, dict);
     }
+    // UAT-only libraries: kept from everyone outside UAT mode, here at
+    // the one read every Documents surface starts from; those who do
+    // see one read "· UAT" on its name. (Settings reads the rows itself,
+    // unfiltered and untagged — listDocLibraries.)
+    if (everyLibrary.some((l) => l.config.uatOnly === true)) {
+      const split = splitUatLibraries(everyLibrary, await viewerInUatMode());
+      setUatHidden(split.hidden);
+      for (const l of split.visible) {
+        if (l.config.uatOnly === true) l.config = { ...l.config, title: uatTitle(l.config.title !== "" ? l.config.title : l.name) };
+      }
+      return { app, libraries: split.visible, conflicts };
+    }
+    setUatHidden([]);
     return { app, libraries, conflicts };
   })();
   cache.catch(() => (cache = null)); // a failed read must not stick

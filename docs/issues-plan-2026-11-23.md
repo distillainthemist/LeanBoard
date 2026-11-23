@@ -293,3 +293,49 @@ seen in the harness: each needs Ben's check on dev.
 
 Ben, 2026-11-23: "build tranche 1A".
 
+## As built (2026-11-23) — on dev, not released
+
+App-only. No schema, no Utilities change. Every item is in the
+Documents area, which the harness cannot reach, so **none of it has been
+seen running against SharePoint**: the rules are unit-tested, the
+screens are Ben's to check on dev. One exception: item G's layout and
+keys were seen in the harness on canned answers
+(`app/harness/linksdlg.html`: the relationship first, the floating
+list, "Searching…", "No documents match", "Could not search …", ↓ and
+Enter picking, Escape closing the list only).
+
+| Item | What changed | Where |
+| --- | --- | --- |
+| A | A group chat's topic is the subject with its colon turned into a dash, quotes and every other character Graph refuses removed, 100 characters at most. | `docs/notifyModel.ts` `chatTopic` |
+| B | The landed check is one rule for Replace content and Add by upload: same record, modified by this upload, and for Word, Excel and PowerPoint files the stored size within 10% or 256 KB of what was sent. Every other type keeps the exact size. | `docs/landedCheck.ts`, `replaceContent.ts`, `addDocument.ts`, `sp.ts` (`TimeLastModified`) |
+| C | The panel reads the version history when it opens and after every command. A reviewer who has finished sees "✓ You completed your review on <date>" in place of the button, and "Waiting on <names>" or "Every review is complete." While a review is outstanding "Submit for approval" is an outline button on the card with the same warning; once all are in it is the solid one. Until the history has been read the buttons are as before. | `docs/model.ts` `reviewProgress`, `lifecycleCommandsFor`; `viewer.ts` `notes`, `card`; `docsScreen.ts` `loadReviewState` |
+| D | The history cards ask for every comment SharePoint holds: the item version's, then the FILE version's by label (two extra reads, only when a major is bare), then the approval comment. A restored major reads the cancel's words wherever they landed, including the check-in under a bare major; it never shows "published from" a cancelled draft; the abandoned drafts read "cancelled". The audit view names the step. | `docs/data.ts` `itemVersions({ fillComments })`, `model.ts` `fillVersionComments`, `headReading`; `viewer.ts` |
+| E | "Checked out to <name>", "Ask them to check it in. A document controller can discard their check-out.", Close only. The row and panel repaint first. | `docs/docsScreen.ts` `heldNotice` |
+| F | One rule for both pickers: the chooser offers JPG, PNG, GIF and WebP; a HEIC photo is refused by name with what to do; any other non-image names itself; an image the browser gave no type is recognised by its extension and re-typed. | `imagePick.ts`, `docs/flagDialog.ts`, `issues/report.ts` |
+| G | One document search for "Link a document" and "Superseded by": the standing type-ahead, with "Searching…", a guard against a slow answer landing over a newer one, a caught failure per library ("Could not search <library>."), name with library and document ID beneath. The link area leads with a "Relationship" choice; the sentence is the label's tooltip. Picking the same document twice under one relationship adds one link. | `docs/docSearch.ts`, `docSearchModel.ts`, `linksEditor.ts`, `lifecycleCmds.ts` |
+| H | The "PDF rendition folder" field is gone. A stored value survives a save untouched. | `docs/settingsTab.ts` |
+| I | A "UAT only" tick per library, in the library's config JSON. The one library read (`docsConfig`) drops such a library for anyone not in UAT mode and tags its name "· UAT" for those who see it. In UAT mode = super admin, or assigned to a running UAT run; asked once a session and only when some library carries the tick; a failed read hides the library. Links into a hidden library are not painted (declared or derived), not counted in the register, and not dropped by a save. Flags, access requests and ingestion tasks for a hidden library are not listed. | `docs/uatLibraries.ts`, `docsStore.ts`, `settingsTab.ts`, `viewer.ts`, `linksEditor.ts`, `rows.ts`, `docsCards.ts` |
+| J | A controller who is not a super admin and has a site on their person row is scoped to it: the flags queue, its count, the flagged scope, the flags and access requests in Document tasks, the ingestion tasks, and the health report. A document is placed by its Organisation unit's term ids (labels when the feed gave none); one with none, or one the walk cannot place, shows to every controller. What a person owns, made or was assigned is theirs whatever the site. | `docs/siteScope.ts`, `docsScreen.ts` `controllerScope`, `judgeFlags`; `healthReport.ts` `keepRow` |
+
+### Limits, said plainly
+
+- **D is built without the evidence.** Which of the three places holds
+  the cancel's words on a real library is still unknown. If the restored
+  version's card still reads "No comment" on dev, the words are in none
+  of them, and the next step is a sign-in so the raw version rows can be
+  read.
+- **I and J are what the app shows.** SharePoint's permissions are
+  unchanged. A link with no library recorded on it (an older or
+  cross-site link) cannot be judged and stays visible.
+- **I: a change of UAT standing lands on the next open of the app**
+  (added to a run, a run closed).
+- **I: a board card set to a UAT-only library** says the library is not
+  exposed, for someone outside UAT mode; it does not vanish.
+- **J: the scope follows the last known controller standing.** The
+  menu's flag count is judged behind the paint, so on the first open it
+  can show every site's count for a moment.
+- **J: a document tagged to two sites** shows to both sites' controllers.
+
+UAT: UAT-DOC-025, 030, 031, 032, 035, 036, 040, 041, 054, 059 and 073
+updated; UAT-DOC-101 (UAT-only library), UAT-DOC-102 (a controller's
+site) and UAT-ISS-003 (a photo the app cannot show) added.

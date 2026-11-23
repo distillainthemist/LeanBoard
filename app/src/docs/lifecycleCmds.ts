@@ -26,6 +26,7 @@ import {
 import { DocLibrary } from "./docsStore";
 import { buildRenderViewXml } from "./rows";
 import { renderListPage } from "./data";
+import { buildDocSearch } from "./docSearch";
 import { NotifyContext } from "./notifyModel";
 import { attachNotifyPanel } from "./notifyPanel";
 import { DocRow, formatDayMonthYear } from "./rows";
@@ -271,14 +272,33 @@ export function openLifecycleCommand(opts: LifecycleRunOpts): void {
     const label = el("div", "app-field-label", "Superseded by");
     label.appendChild(requiredMark());
     const pickedBox = el("div", "app-docs-pplchips");
-    const search = el("input", "app-input") as HTMLInputElement;
-    search.placeholder = "Search the standards by name…";
-    const hits = el("div", "app-docs-linkhits");
+    // the standing type-ahead (docSearch.ts, 2026-11-23): the same
+    // search the links editor uses
+    const search = buildDocSearch({
+      site: opts.site,
+      libraries: succ.libraries,
+      docIdInternal: succ.docIdInternal,
+      excludeUniqueId: row.uniqueId,
+      placeholder: "Search the standards by name…",
+      noneWords: "No standards match",
+      onPick: (hit) => {
+        picked = {
+          uid: hit.uniqueId,
+          rel: "supersededBy",
+          site: (hit.lib.siteUrl ?? "") !== "" ? hit.lib.siteUrl : opts.site,
+          listId: hit.lib.listId,
+          name: hit.name,
+          docId: hit.docId,
+        };
+        paintPicked();
+        sync();
+      },
+    });
     const paintPicked = () => {
       clear(pickedBox);
       if (picked === null) {
         pickedBox.style.display = "none";
-        search.style.display = "";
+        search.el.style.display = "";
         return;
       }
       const chip = el("span", "app-docs-pplchip");
@@ -293,51 +313,10 @@ export function openLifecycleCommand(opts: LifecycleRunOpts): void {
       chip.appendChild(off);
       pickedBox.appendChild(chip);
       pickedBox.style.display = "";
-      search.style.display = "none";
-      clear(hits);
-    };
-    let timer = 0;
-    search.addEventListener("input", () => {
-      window.clearTimeout(timer);
-      timer = window.setTimeout(() => void look(), 300);
-    });
-    const look = async () => {
-      clear(hits);
-      const q = search.value.trim();
-      if (q === "") return;
-      const pages = await Promise.all(
-        succ.libraries.map((l) =>
-          renderListPage(opts.site, l.listId, buildRenderViewXml({ nameWords: q.split(/\s+/), fields: succ.docIdInternal !== "" ? [succ.docIdInternal] : [], rowLimit: 6 })).catch(() => ({ rows: [] as DocRow[] }))
-        )
-      );
-      let shown = 0;
-      for (let i = 0; i < succ.libraries.length; i++) {
-        const lib = succ.libraries[i];
-        for (const hit of pages[i].rows) {
-          if (hit.uniqueId === row.uniqueId || shown >= 12) continue;
-          shown++;
-          const b = el("button", "app-docs-linkhit", `${hit.name} — ${lib.config.title || lib.name}`) as HTMLButtonElement;
-          b.type = "button";
-          b.addEventListener("click", () => {
-            picked = {
-              uid: hit.uniqueId,
-              rel: "supersededBy",
-              site: (lib.siteUrl ?? "") !== "" ? lib.siteUrl : opts.site,
-              listId: lib.listId,
-              name: hit.name,
-              docId: succ.docIdInternal !== "" ? (hit.values[succ.docIdInternal] ?? "") : "",
-            };
-            search.value = "";
-            paintPicked();
-            sync();
-          });
-          hits.appendChild(b);
-        }
-      }
-      if (shown === 0) hits.appendChild(el("div", "app-field-hint", "No standards match."));
+      search.el.style.display = "none";
     };
     paintPicked();
-    dlg.body.append(label, pickedBox, search, hits);
+    dlg.body.append(label, pickedBox, search.el);
   }
   const reasonLabel = el("div", "app-field-label", "Comment");
   if (command.needsReason) reasonLabel.appendChild(requiredMark());

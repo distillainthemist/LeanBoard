@@ -3206,6 +3206,13 @@ button.app-doclist-hsort:hover { color: var(--app-accent, #2563eb); }
   padding: 8px 10px; font-size: 12.5px; cursor: pointer;
 }
 .app-docs-linkhit:hover { background: #f7f6f3; }
+/* the document search (docSearch.ts): a full-width box, its list floating
+   under it at the box's own width, so a long name and its library fit */
+.app-docs-searchbox { width: 100%; margin-top: 0; }
+.app-docs-searchbox .app-input { min-width: 0; box-sizing: border-box; }
+.app-docs-searchpop { max-height: 260px; z-index: 30; box-sizing: border-box; }
+.app-docs-searchpop .app-ta-opt-name { overflow-wrap: anywhere; }
+.app-docs-linkaddarea { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
 
 /* ---- the audit view (relationships plan A1) -------------------------- */
 .app-docs-verheadrow { display: flex; align-items: center; justify-content: space-between; gap: 8px; }

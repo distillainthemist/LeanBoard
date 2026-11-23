@@ -194,17 +194,25 @@ export function accessRequestPlan(opts: {
   }
 }
 
-/** A group chat's topic as Graph accepts it: no quotes or apostrophes
- *  (2026-10-26: "Chat topic contains invalid Character: '"), nothing
- *  that reads as markup, one line, short. The card keeps the full
- *  subject. */
+/** A group chat's topic as Graph accepts it. Graph REFUSES A COLON
+ *  ("Chat topic contains invalid Character: ':'") — and every subject
+ *  the app writes has one ("Flagged for review: <name>"), so every
+ *  message to two or more people failed (2026-11-23, the UAT re-run).
+ *  The 2026-10-26 fix read the same error as being about the
+ *  apostrophe: the apostrophes in it are only the quotes around the
+ *  colon. So: a colon becomes a dash; quotes, markup and the other
+ *  characters Teams refuses in a name go; one line, short. The card
+ *  itself keeps the full subject. */
 export function chatTopic(subject: string): string {
   return subject
+    .replace(/\s*[:：]\s*/g, " – ")
     .replace(/[“”"'‘’`]/g, "")
-    .replace(/[<>&#%\\]/g, " ")
+    .replace(/[<>&#%\\|*?~{}]/g, " ")
+    .replace(/[\u0000-\u001f\u007f]/g, " ")
     .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 100);
+    .replace(/^[–\s]+|[–\s]+$/g, "")
+    .slice(0, 100)
+    .trim();
 }
 
 // ---- message rendering --------------------------------------------------

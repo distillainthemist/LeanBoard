@@ -25,6 +25,7 @@ import {
 import { DocRow, buildRenderViewXml, extOf } from "./rows";
 import { renderListPage } from "./data";
 import { BuiltEditor, buildFieldEditors, missingEditors, stillNeeded } from "./fieldEditors";
+import { sizeLanded, sizeMismatchWords } from "./landedCheck";
 import { loadLibraryFields } from "./libraryFields";
 import { buildFilePicker } from "./filePicker";
 
@@ -635,9 +636,12 @@ export function openAddDocument(opts: AddDocumentOpts): void {
       const made = await connectorCreateFileBinary(site, siteRelativePath(site, root), fileName, bytes);
       if (!made.ok) return fail("Upload refused", made.status);
       const landed = Number(((await fetchFileInfo(site, newUrl)).data as { Length?: unknown })?.Length ?? -1);
-      if (landed !== bytes.length) {
+      // an Office file is rewritten as it lands, so its size is judged by
+      // a tolerance (landedCheck.ts, 2026-11-23 — an exact check deleted
+      // a good upload); every other type must match to the byte
+      if (!sizeLanded(srcExt, bytes.length, landed)) {
         await recycleFile(site, newUrl).catch(() => null);
-        return fail("Not added", `The upload landed as ${landed} bytes for ${bytes.length} sent — the file was removed again. Use the upload folder instead.`);
+        return fail("Not added", `The upload landed wrong: ${sizeMismatchWords(srcExt, bytes.length, landed)} — the file was removed again. Use the upload folder instead.`);
       }
     } else {
       // safe to retry: boverwrite=false means a landed-late first attempt

@@ -295,3 +295,7 @@ all Documents. It runs BEFORE tranche 2, and is walked with Ben item by
 item first. Item G (linking a document) takes one of F5's ten type-ahead
 places off tranche 5.
 
+**Built and on dev 2026-11-23, not released.** As built, with its
+limits, in `issues-plan-2026-11-23.md`. F5 in tranche 5 is now nine
+places: "Link a document" and "Superseded by" share `docs/docSearch.ts`.
+

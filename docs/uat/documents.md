@@ -246,7 +246,7 @@ steps:
 3. Fill it; Add.
 4. (Controller) Make a library column required that is not in the site dictionary; open Add document again.
 5. (Controller) Make a dictionary column required through the library's CONTENT TYPE (not the column itself); open Add document again.
-expected: the device file goes straight into the library byte-exact (a name already in the library is refused before the upload); Approval status is not a form field — the document lands as a Draft, the lifecycle moves it from there; every required column carries a small red superscript asterisk on its label (no "REQUIRED" word); while one is empty the Add button is disabled and its tooltip reads "Still needed: Owner, Importance", and it enables as they are filled — nothing is written under the button; the document then lands in the library with its properties and opens in the viewer, with the status line saying it was added as a draft, shows when "Show only approved" is unticked, and is submitted for review from its ⋯ menu; in step 4 the form names the library-required column it cannot collect and refuses before creating anything (no checked-out orphan); in step 5 the content-type-required column is marked and held like any other
+expected: the device file goes straight into the library byte-exact (a name already in the library is refused before the upload); a Word, Excel or PowerPoint file is accepted when SharePoint's stored copy differs slightly in size (SharePoint writes the properties into Office files — within 10% or 256 KB), every other type must land at the exact size; Approval status is not a form field — the document lands as a Draft, the lifecycle moves it from there; every required column carries a small red superscript asterisk on its label (no "REQUIRED" word); while one is empty the Add button is disabled and its tooltip reads "Still needed: Owner, Importance", and it enables as they are filled — nothing is written under the button; the document then lands in the library with its properties and opens in the viewer, with the status line saying it was added as a draft, shows when "Show only approved" is unticked, and is submitted for review from its ⋯ menu; in step 4 the form names the library-required column it cannot collect and refuses before creating anything (no checked-out orphan); in step 5 the content-type-required column is marked and held like any other
 
 ### UAT-DOC-026 — Add refuses a duplicate name and a duplicate document id
 persona: author
@@ -292,9 +292,10 @@ persona: owner
 modules: docs/linksEditor.ts docs/editProperties.ts
 preconditions: the linked-documents column mapped; another document to link to
 steps:
-1. Edit properties → Linked documents → Add link… search for a document, pick a relationship; add a second link.
-2. Remove a link; Save.
-expected: the picker finds documents across the exposed libraries; two links save; the relationship is stored; the viewer's Linked documents section and the "n links" register cell follow. On a library whose Linked documents column is still a single line of text, the editor warns above the links and Save with two links is refused before anything is written, naming the column and the fix (multiple lines of text); Settings → Documents → Document columns carries the same warning on that column
+1. Edit properties → Linked documents → "＋ Link a document…". Read the area that opens. Choose a Relationship, then type part of a document's name in the search under it; use ↓ and Enter to pick. Add a second link.
+2. Type a name nothing matches; then press Escape with the list open.
+3. Remove a link; Save.
+expected: the area opens with a "Relationship" choice FIRST (Parent / Related / Child, Related chosen; hovering the label says what it means), then a "Document" search the full width of the form; typing shows a list floating under the box with "Searching…" at once, then the matches, each with its name and beneath it the library and document ID; the list has its own scroll and does not push the form taller; ↑ ↓ move, Enter picks (never the form's Save), Escape closes the list and not the form; a name nothing matches reads "No documents match"; a library that could not be searched is named ("Could not search <library>."); picking adds the link and folds the area away; the picker finds documents across the exposed libraries; two links save; the relationship is stored; the viewer's Linked documents section and the "n links" register cell follow. On a library whose Linked documents column is still a single line of text, the editor warns above the links and Save with two links is refused before anything is written, naming the column and the fix (multiple lines of text); Settings → Documents → Document columns carries the same warning on that column
 
 ### UAT-DOC-031 — Check out, check in, discard
 persona: owner
@@ -304,7 +305,8 @@ steps:
 1. Open it → Check out.
 2. Read the register row and the Document tasks panel.
 3. Check in… with a comment (the Comment label carries the red asterisk — its tooltip says the comment is the version's audit entry — and BOTH check-in buttons are disabled until it is written); then check out again and Discard check-out.
-expected: the row shows the lock and your name; "Checked out to you" lists it in Document tasks; Check in writes a minor version with the comment (the library must keep major AND minor versions — Settings → Documents warns on a library that keeps majors only); Discard releases it without a version; after an approval the published major's card carries the step's comment, or "published from v1.1 “…”" when the forms engine had to publish it
+4. With a second person: they check the document out; WITHOUT refreshing, click Check out on your own stale view of it.
+expected: step 4 a notice titled "Checked out to <their name>" reads "Ask them to check it in. A document controller can discard their check-out." with Close only, and behind it the panel and the register row now show the lock and their name, the Check out button gone; the row shows the lock and your name; "Checked out to you" lists it in Document tasks; Check in writes a minor version with the comment (the library must keep major AND minor versions — Settings → Documents warns on a library that keeps majors only); Discard releases it without a version; after an approval the published major's card carries the step's comment, or "published from v1.1 “…”" when the forms engine had to publish it
 
 ### UAT-DOC-032 — Replace content
 persona: owner
@@ -313,7 +315,7 @@ preconditions: a draft standard you own; a new file
 steps:
 1. Open it → ⋯ → Replace content…; choose a file of the same type from your device; Replace content.
 2. Check in… with a comment.
-expected: the file goes over the document IN PLACE (the connector's Update file, bytes declared binary): the record keeps its id, every property, its links, favourites, flags and its history, and the new content sits on top as a version; a file of another type is refused before anything is sent; the dialog checks the landed size and the record identity and refuses to close on a mismatch; the document stays checked out to you; the check-in writes a minor version with the comment; the viewer reopens on the new content; a file over 100 MB (the connector's ceiling) is refused with "Replace it in SharePoint ↗" named, which stays as the second road
+expected: the file goes over the document IN PLACE (the connector's Update file, bytes declared binary): the record keeps its id, every property, its links, favourites, flags and its history, and the new content sits on top as a version; a file of another type is refused before anything is sent; the dialog checks what landed and refuses to close on a mismatch — the record must be the same one and SharePoint must show it modified by this upload; a Word, Excel or PowerPoint file may land slightly larger or smaller than it was sent (SharePoint writes the document's properties into the file — within 10% or 256 KB is accepted, never "landed wrong"), every other type must land at the exact size; the document stays checked out to you; the check-in writes a minor version with the comment; the viewer reopens on the new content; a file over 100 MB (the connector's ceiling) is refused with "Replace it in SharePoint ↗" named, which stays as the second road
 
 ## Journey 4 — Lifecycle
 
@@ -342,8 +344,9 @@ modules: docs/lifecycleCmds.ts docs/model.ts docs/notifyModel.ts
 preconditions: a standard in review that names you as a reviewer
 steps:
 1. Open it → Review complete.
-2. Read the versions.
-expected: a minor version with the comment "Review complete by <you>"; the owner gets a Teams card; the action disappears for you once recorded
+2. Read the panel's card again without closing it; close and reopen the document.
+3. Read the versions.
+expected: a minor version with the comment "Review complete by <you>"; the owner gets a Teams card; the card repaints at once: the "Review complete" button is gone and in its place the card reads "✓ You completed your review on <date>", with "Waiting on <names>" while other reviewers are outstanding (or "Every review is complete." when none are); reopening the document shows the same, never the button again; a reviewer who has NOT finished still sees "Awaiting your review" and the solid Review complete button
 
 ### UAT-DOC-036 — Submit for approval warns while reviewers are outstanding
 persona: owner
@@ -352,7 +355,7 @@ preconditions: a standard in review with one reviewer done and one not
 steps:
 1. Open it → Submit for approval.
 2. Cancel at the warning; then run it again and confirm.
-expected: the warning names the reviewer who has not marked review complete; Cancel leaves the document untouched; Confirm proceeds to awaiting approval and the approvers' card goes
+expected: while a review is outstanding the card reads "In review" with "Waiting on <name>" and "Submit for approval" is an OUTLINE button on the card (not the solid one); the warning names the reviewer who has not marked review complete; Cancel leaves the document untouched; Confirm proceeds to awaiting approval and the approvers' card goes; on a document whose reviewers have ALL finished the card reads "Every review is complete." and "Submit for approval" is the one solid button, with no warning
 
 ### UAT-DOC-037 — Approve and publish
 persona: approver
@@ -389,7 +392,8 @@ steps:
 1. Open it → ⋯ → Cancel revision…
 2. Confirm.
 3. Repeat on a revision checked out to you; then on one checked out to someone else.
-expected: the last approved major's content and status come back as a NEW major (v3.0 restored lands as v4.0 with the comment "Revision cancelled — restored v3.0"), published where content approval is on; the draft versions stay in history; your own check-out is discarded first; another person's check-out refuses with their name
+4. Open Details → Versions on the cancelled document; expand the newest card.
+expected: the last approved major's content and status come back as a NEW major (v3.0 restored lands as v4.0 with the comment "Revision cancelled — restored v3.0"), published where content approval is on; the draft versions stay in history; step 4 the restored version's card shows “Revision cancelled — restored v3.0” under its label (never "No comment", and never "published from" one of the cancelled drafts), its folded line counts "n cancelled drafts", and each draft of the abandoned revision reads "cancelled" where it used to read "draft"; the audit view names the step "Revision cancelled"; your own check-out is discarded first; another person's check-out refuses with their name
 
 ### UAT-DOC-041 — Supersede and obsolete
 persona: controller
@@ -398,7 +402,7 @@ preconditions: two approved standards
 steps:
 1. On one: ⋯ → Supersede…; search and pick the other as "Superseded by" (required); confirm.
 2. On another approved standard: ⋯ → Make obsolete…
-expected: the superseded document carries the mapped status, a "Superseded by" link to its successor in its Linked documents and the comment "Superseded by “<name>”"; the successor's pane lists it under "Supersedes" (derived); the obsolete one carries its status; both leave the approved-only register and show when "Show only approved" is unticked
+expected: "Superseded by" is the same type-ahead as Link a document (a floating list, "Searching…", name with library and document ID beneath, "No standards match", ↑ ↓ Enter Escape); the picked standard shows as a chip with ✕ and the search steps aside; the superseded document carries the mapped status, a "Superseded by" link to its successor in its Linked documents and the comment "Superseded by “<name>”"; the successor's pane lists it under "Supersedes" (derived); the obsolete one carries its status; both leave the approved-only register and show when "Show only approved" is unticked
 
 ### UAT-DOC-042 — The notify panel: Teams and email, people chips
 persona: owner
@@ -522,7 +526,7 @@ preconditions: a document owned by someone else; a screenshot on the clipboard
 steps:
 1. Open it → under the buttons, "⚑ Flag for review…".
 2. Pick a level, write a comment, paste the screenshot; Flag it.
-expected: the dialog names who will hear (the owner by name); a comment is required; the flag is written and the owner gets a Teams card quoting the comment with an "Open in LeanBoard" link; the owners are read fresh even when the register row never fetched them; flagging a document you own yourself raises the flag and says it sits in your Document tasks under Flags, with no Teams error (Teams cannot chat with yourself); a card to two or more people carries a topic with the quotes stripped
+expected: the dialog names who will hear (the owner by name); a comment is required; the flag is written and the owner gets a Teams card quoting the comment with an "Open in LeanBoard" link; the owners are read fresh even when the register row never fetched them; flagging a document you own yourself raises the flag and says it sits in your Document tasks under Flags, with no Teams error (Teams cannot chat with yourself); a card to two or more people starts a group chat whose topic is the subject with its colon turned into a dash and the quotes stripped ("Flagged for review – <name>") — Teams refuses a colon in a topic, and the send no longer fails on it; "choose an image" offers JPG, PNG, GIF and WebP; a HEIC photo dragged in is refused under the box with "HEIC photos can't be shown here: <name>. Use a JPG or PNG, or paste a screenshot."; any other file that is not an image reads "That file is not an image: <name>"; a good image clears the line
 
 ### UAT-DOC-055 — A flag with no owner goes to the controllers
 persona: reader
@@ -567,7 +571,7 @@ steps:
 1. Register kebab → "Document flags (n)…".
 2. Open document; Close flag… with a note.
 3. Settings → Documents → "Document flags…".
-expected: the queue lists every open flag with its screenshot; Open document opens the overlay; Close asks for a note and records who closed it; the Settings button opens the same queue
+expected: the queue lists every open flag with its screenshot — for a controller with a site on their person row, their own site's flags and those on documents with no Organisation unit (UAT-DOC-102); Open document opens the overlay; Close asks for a note and records who closed it; the Settings button opens the same queue
 
 ### UAT-DOC-060 — Review levels are an app-managed list
 persona: superadmin
@@ -815,7 +819,7 @@ preconditions: the SharePoint site url known
 steps:
 1. Settings → Documents → SharePoint connection: test it.
 2. Libraries: discover; expose a library as Standard; set its title; Save.
-expected: the test reports the site and the groups it can read; a newly exposed library appears as a register tile with the site columns it carries ticked
+expected: the test reports the site and the groups it can read; a newly exposed library appears as a register tile with the site columns it carries ticked; the library's panel carries Display name, Library type and a "UAT only" tick — and NO "PDF rendition folder" field (removed 2026-11-23: nothing read it)
 
 ### UAT-DOC-074 — Document columns and roles
 persona: superadmin
@@ -873,6 +877,28 @@ preconditions: Documents health checks enabled for the site (Settings → Health
 steps:
 1. Register kebab → "Health check…"; keep the site in the picker; run and submit.
 expected: the item shows for controllers only; the check is scoped to the site; the full behaviour is in the Health checks script
+
+### UAT-DOC-101 — A UAT-only library
+persona: superadmin
+modules: docs/uatLibraries.ts docs/docsStore.ts docs/settingsTab.ts docs/viewer.ts docs/linksEditor.ts
+preconditions: a library exposed for trials, holding a document; an ordinary document that LINKS to that trial document; a UAT run that is running with one tester assigned; a third person who is neither a super admin nor on a running run
+steps:
+1. Settings → Documents → Libraries → open the trial library's panel → tick "UAT only" (hover it); Save.
+2. As the super admin, open Documents.
+3. As the assigned tester, open Documents.
+4. As the third person: close and reopen the app, open Documents; open the ordinary document and read its Linked documents and the register's links count; open Add document and the Link a document search.
+5. Close the UAT run; the tester closes and reopens the app.
+expected: step 1 the tick's tooltip says who sees the library and that SharePoint's own permissions are unchanged, and a "UAT" chip sits beside the library's name in the list; steps 2 and 3 the library shows, its name reading "<name> · UAT" on its tile, in the library filter and wherever the name appears; step 4 the library is absent everywhere — no tile, not in the library filter, Add document or any search — and the link to the trial document is hidden entirely: not in Linked documents, not in the derived links, and the "n links" count is one lower; flags, access requests and ingestion tasks for the trial library are not listed either; saving the ordinary document's properties as this person does NOT remove the hidden link (the super admin still sees it); step 5 the tester no longer sees the library. This is the app hiding the library: its SharePoint address still opens for anyone SharePoint allows
+
+### UAT-DOC-102 — A controller sees their own site
+persona: controller
+modules: docs/siteScope.ts docs/docsScreen.ts docs/healthReport.ts
+preconditions: two sites on the Organisation page, each with documents tagged to it (Organisation unit) and one document with NO Organisation unit; an open flag and an edit-access request on a document of each site and on the untagged one; an ingestion task for each site and one with "Any site"; a document controller whose person row names the first site, a controller with no site, and a super admin
+steps:
+1. As the first site's controller: open Document tasks; register kebab → "Document flags (n)…"; "Show flagged documents"; Ingestion tasks; Document control health…
+2. As the controller with no site, and as the super admin: the same.
+3. As the first site's controller: have the other site's task assigned to you, and own a flagged document at the other site; reopen Document tasks.
+expected: step 1 the flags, the count on the menu, the flagged scope, the access requests and the ingestion tasks are the first site's plus those with no site (the untagged document, the "Any site" task) — nothing of the second site; the health report scans the same documents and says "Showing <site>'s documents, and those with no Organisation unit."; there is no "All sites" switch; step 2 everything, as before; step 3 the task assigned to you and the flag on the document you own show whatever their site. This is what the app shows: a controller's SharePoint rights are unchanged
 
 ## Journey 12 — Boards and links
 

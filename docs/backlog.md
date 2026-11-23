@@ -16,7 +16,10 @@ they are built. **Tranche 1 is built and on dev (2026-11-22), not
 released**: thirteen small fixes — its "As built" section in the
 programme lists them and what Ben should check.
 
-**Next: tranche 1A** — the nine reports of the 2026-11-23 issue export
+**Tranche 1A is built and on dev (2026-11-23), not released** — its
+"As built" section is in `issues-plan-2026-11-23.md`; none of it has
+been seen running (all Documents). Next: walk tranche 2 with Ben.
+What 1A was: the nine reports of the 2026-11-23 issue export
 (`issues-plan-2026-11-23.md`): Teams group messages refused over a
 colon in the chat topic, Replace content's false "landed wrong" on
 Office files, a reviewer still offered "Review complete", Cancel

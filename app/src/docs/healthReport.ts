@@ -55,6 +55,11 @@ export interface ControlHealthOpts {
   host: HTMLElement;
   /** Open a document from the report (the dialog closes first). */
   onOpenDoc: (row: DocRow) => void;
+  /** A controller's own site (2026-11-23): rows this returns false for
+   *  are not scanned. Absent = every row. */
+  keepRow?: (row: DocRow) => boolean;
+  /** Said under the scan line when the report is scoped. */
+  scopeNote?: string;
   /** C1 (feedback round 1): offer "Replace a person…" (document admins). */
   canReassign?: boolean;
   /** After a replace run touched documents — the register re-reads. */
@@ -193,6 +198,7 @@ export function openControlHealth(opts: ControlHealthOpts): void {
             truncated = true;
             break;
           }
+          if (opts.keepRow !== undefined && !opts.keepRow(row)) continue;
           rowsById.set(`${row.listId.toLowerCase()}:${row.id}`, row);
           out.push({
             listId: row.listId,
@@ -395,7 +401,8 @@ export function openControlHealth(opts: ControlHealthOpts): void {
         `Scanned ${r.scanned} document${r.scanned === 1 ? "" : "s"} across ` +
           `${opts.libraries.length} ${opts.libraries.length === 1 ? "library" : "libraries"} ` +
           `(every library except templates)` +
-          `${truncated ? ` — capped at ${SCAN_CAP}, so this is a sample` : ""}.`
+          `${truncated ? ` — capped at ${SCAN_CAP}, so this is a sample` : ""}.` +
+          `${(opts.scopeNote ?? "") !== "" ? ` ${opts.scopeNote}` : ""}`
       )
     );
     // the scope of the lifecycle half, stated: a working document owes

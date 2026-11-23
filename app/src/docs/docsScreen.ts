@@ -67,7 +67,7 @@ import {
   spErrorText,
   stageOfTerm,
   termForStage,
-  termsForStage, isRegisterLibrary, libRoleInternal, SiteColumn, reviewsOutstanding, orgTreePaths, orgTreePathsWithCompany, pathKey, paneLabels } from "./model";
+  termsForStage, isRegisterLibrary, libRoleInternal, SiteColumn, reviewsOutstanding, reviewProgress, orgTreePaths, orgTreePathsWithCompany, pathKey, paneLabels } from "./model";
 import { controllerLookupFailed, viewerInPool, viewerIsController } from "./accessGates";
 import {
   TermNode,
@@ -99,6 +99,8 @@ import {
 import { rememberTaskCount } from "../taskBadge";
 import { taskGroupHeader, taskRowEl } from "./taskRows";
 import { CLOSED_SHOWN, closedTasksForPanel, tasksForPanel, IngestionTask } from "./ingestionModel";
+import { isUatHidden } from "./uatLibraries";
+import { SiteBranch, SiteVerdict, docSiteVerdict, scopedSite, siteBranchOf, taskInSite } from "./siteScope";
 import { readsRunning, runStamp } from "./ingestionRun";
 import { accessRequestPlan, notifyPlanFor } from "./notifyModel";
 import {
@@ -324,7 +326,12 @@ export function mountDocs(
     const reloadFlags = async (): Promise<void> => {
       try {
         const { listOpenFlags } = await import("./docFlags");
-        openFlags = flagsByDoc(await listOpenFlags(app.siteUrl));
+        // a flag on a document in a library this viewer is not shown
+        // (UAT only) is not shown either
+        openFlags = flagsByDoc((await listOpenFlags(app.siteUrl)).filter((f) => !isUatHidden(f.listId)));
+        // which of them are another site's (a scoped controller): judged
+        // behind the paint — the flags themselves never wait for it
+        void judgeFlags().catch(() => undefined);
       } catch {
         /* the flags table unreadable = no flags shown */
       }
@@ -584,6 +591,60 @@ export function mountDocs(
             () => {}
           )
         : Promise.resolve();
+    // ---- a controller's own site (2026-11-23, report 4) ----------------
+    // Flags, ingestion tasks, access requests and the health report show
+    // a controller their own site's work (docs/siteScope.ts). `site` ""
+    // = sees everything; `branch` null = the Organisation set cannot
+    // place the site (or could not be read), so no DOCUMENT is hidden.
+    let scopeP: Promise<{ site: string; branch: SiteBranch | null }> | null = null;
+    const controllerScope = (): Promise<{ site: string; branch: SiteBranch | null }> => {
+      scopeP ??= (async () => {
+        await Promise.all([myProfileReady, adminReady]);
+        const site = scopedSite({ isController: docAdmin(), isSuper: meIsSuper, site: myProfile.site });
+        if (site === "" || app.orgSetId === "") return { site, branch: null };
+        const walk = await cachedTermPaths(app.siteUrl, app.orgSetId, 6, 6000).catch(() => null);
+        return { site, branch: walk === null ? null : siteBranchOf(site, walk.nodes) };
+      })();
+      return scopeP;
+    };
+    /** The library's own Organisation unit column ("" = none carried). */
+    const orgFieldFor = (l: DocLibrary | undefined): string => l?.config.columns.find((c) => c.role === "orgUnit")?.internal ?? "";
+    /** Whose a fetched row is — "none" when it could not be read or its
+     *  library carries no Organisation unit: never hidden on a guess. */
+    const rowSite = (row: DocRow | undefined, branch: SiteBranch): SiteVerdict => {
+      if (row === undefined) return "none";
+      const col = orgFieldFor(byListId.get(row.listId.toLowerCase()));
+      if (col === "") return "none";
+      return docSiteVerdict(row.values[col] ?? "", (row.values[`${col}#termid`] ?? "").split(";"), branch);
+    };
+    /** The flagged documents that belong to ANOTHER site, for a scoped
+     *  controller (empty for everyone else): kept out of the controllers'
+     *  queue, its count and the flagged scope. Re-judged after every
+     *  flag read, behind the paint. */
+    let otherSiteFlagDocs = new Set<string>();
+    const judgeFlags = async (): Promise<void> => {
+      const { branch } = await controllerScope();
+      const out = new Set<string>();
+      if (branch !== null) {
+        const byList = new Map<string, number[]>();
+        for (const k of openFlags.keys()) {
+          const [listId, id] = k.split(":");
+          if (Number(id) > 0) byList.set(listId, [...(byList.get(listId) ?? []), Number(id)]);
+        }
+        for (const [listId, ids] of byList) {
+          const l = byListId.get(listId);
+          const col = orgFieldFor(l);
+          if (l === undefined || col === "") continue;
+          const page = await renderListPage(app.siteUrl, l.listId, buildRenderViewXml({ idIn: ids, fields: [col], rowLimit: 50 })).catch(() => ({ rows: [] as DocRow[] }));
+          for (const r of page.rows) if (rowSite(r, branch) === "other") out.add(flagKey(listId, r.id));
+        }
+      }
+      otherSiteFlagDocs = out;
+    };
+    /** The open flags a controller's queue counts: all, less another
+     *  site's. */
+    const queueFlagKeys = (): string[] => [...openFlags.keys()].filter((k) => !otherSiteFlagDocs.has(k));
+
     /** The status set's terms, id + real-cased label — filled by
      *  readStatusTerms; what termForStage resolves a write against. */
     const statusTermList: { id: string; label: string }[] = [];
@@ -595,6 +656,43 @@ export function mountDocs(
       const id = labelToId.get(label);
       return id !== undefined ? stageOfTerm(siteDict, id) : "";
     };
+    // ---- where a review round stands (2026-11-23) -----------------------
+    // Read from the version history once the document's panel opens: a
+    // reviewer who has finished is not offered "Review complete" again,
+    // and the submit turns solid once every review is in. Unknown until
+    // read — the buttons are then as they always were.
+    const reviewStates = new Map<string, { outstanding: string[]; mineDone: boolean; mineAt: string }>();
+    /** The row's reviewers as the column names them, and the viewer's
+     *  own name among them ("" = not a reviewer). */
+    const reviewersOf = (row: DocRow): { names: string[]; mine: string } => {
+      if (reviewersInternal === "") return { names: [], mine: "" };
+      const names = (row.values[reviewersInternal] ?? "").split(";").map((x) => x.trim()).filter((x) => x !== "");
+      const mails = (row.values[`${reviewersInternal}#email`] ?? "").split(";").map((x) => x.trim().toLowerCase());
+      const at = myEmail !== "" ? mails.indexOf(myEmail) : -1;
+      return { names, mine: at >= 0 ? (names[at] ?? "") : "" };
+    };
+    const loadReviewState = async (row: DocRow): Promise<void> => {
+      const { names, mine } = reviewersOf(row);
+      if (stageOfRow(row) !== "inReview" || names.length === 0) {
+        if (reviewStates.delete(row.uniqueId)) for (const rp of viewerRepaints) rp();
+        return;
+      }
+      const vres = await itemVersions(app.siteUrl, row.listId, row.id).catch(() => ({ versions: [], error: "unreadable" }));
+      if (dead || vres.error !== "") return; // unknown stays unknown
+      reviewStates.set(row.uniqueId, reviewProgress(vres.versions, names, mine));
+      for (const rp of viewerRepaints) rp();
+    };
+    /** The decision card's lines for a document in review. */
+    const reviewNotes = (row: DocRow): string[] => {
+      const st = stageOfRow(row) === "inReview" ? reviewStates.get(row.uniqueId) : undefined;
+      if (st === undefined) return [];
+      const lines: string[] = [];
+      if (st.mineDone) lines.push(`✓ You completed your review${st.mineAt !== "" ? ` on ${formatWhen(st.mineAt)}` : ""}`);
+      if (st.outstanding.length > 0) lines.push(`Waiting on ${st.outstanding.join(", ")}`);
+      else lines.push("Every review is complete.");
+      return lines;
+    };
+
     const lifecycleGatesFor = (row: DocRow) => {
       const emails = (col: string): string[] =>
         col === "" ? [] : (row.values[`${col}#email`] ?? "").split(";").filter((s) => s !== "");
@@ -624,6 +722,9 @@ export function mountDocs(
         hasReviewers,
         isOwner: myEmail !== "" && owners.includes(myEmail),
         isReviewer: myEmail !== "" && emails(reviewersInternal).includes(myEmail),
+        // known once the panel has read the history (reviewStates)
+        reviewDone: reviewStates.get(row.uniqueId)?.mineDone,
+        reviewsOpen: reviewStates.get(row.uniqueId)?.outstanding.length,
         // named owner, not in the group (issue 8): Approve would fail at
         // check-out — the overlay explains instead (unknown pool = open)
         ownerOutsidePool: myEmail !== "" && owners.includes(myEmail) && meInPool === false && !docAdmin(),
@@ -1105,7 +1206,13 @@ export function mountDocs(
         openFlagQueue({
           host: dialogHost,
           title: "Document flags",
-          flags: () => import("./docFlags").then((m) => m.listOpenFlags(app.siteUrl)),
+          // a controller's own site (2026-11-23): another site's flags
+          // stay out of the queue
+          flags: async () => {
+            const all = await import("./docFlags").then((m) => m.listOpenFlags(app.siteUrl));
+            await judgeFlags().catch(() => undefined);
+            return all.filter((f) => !isUatHidden(f.listId) && !otherSiteFlagDocs.has(flagKey(f.listId, f.itemId)));
+          },
           canClose: () => docAdmin(),
           onOpenDoc: (f) => {
             void (async () => {
@@ -1128,7 +1235,8 @@ export function mountDocs(
     /** The register scoped to the flagged documents (issue 23). */
     const scopeToFlags = () => {
       const map = new Map<string, number[]>();
-      for (const [k] of openFlags) {
+      const keys = queueFlagKeys();
+      for (const k of keys) {
         const [listId, id] = k.split(":");
         map.set(listId, [...(map.get(listId) ?? []), Number(id)]);
       }
@@ -1142,8 +1250,8 @@ export function mountDocs(
       personFilters = [];
       presentCols = [];
       taskFilter = map;
-      taskFilterN = openFlags.size;
-      scopeLabel = `Flagged for review · ${openFlags.size}`;
+      taskFilterN = keys.length;
+      scopeLabel = `Flagged for review · ${keys.length}`;
       paintChips();
       paintTreeSelection();
       void load(true);
@@ -1541,14 +1649,18 @@ export function mountDocs(
               for (const r of page.rows) rowFor.set(flagKey(k, r.id), r);
             }
             const ownerCol = (f: DocFlag) => libInternal(byListId.get(f.listId), "owner", ownerInternal);
-            const keep = flagsForTasks(all, {
-              myEmail,
-              isController: docAdmin(),
-              ownerEmailsOf: (f) => {
-                const r = rowFor.get(flagKey(f.listId, f.itemId));
-                return r === undefined ? null : rolePeople(r, ownerCol(f)).map((p) => p.email);
-              },
-            });
+            const ownerEmailsOf = (f: DocFlag) => {
+              const r = rowFor.get(flagKey(f.listId, f.itemId));
+              return r === undefined ? null : rolePeople(r, ownerCol(f)).map((p) => p.email);
+            };
+            // a controller keeps every flag of their OWN site (and those
+            // on documents with no Organisation unit); what they own
+            // stays theirs whatever the site (2026-11-23)
+            await judgeFlags().catch(() => undefined);
+            const owned = new Set(flagsForTasks(all, { myEmail, isController: false, ownerEmailsOf }));
+            const keep = flagsForTasks(all, { myEmail, isController: docAdmin(), ownerEmailsOf }).filter(
+              (f) => owned.has(f) || !otherSiteFlagDocs.has(flagKey(f.listId, f.itemId))
+            );
             out.flagged = keep.map((f) => ({ flag: f, row: rowFor.get(flagKey(f.listId, f.itemId)) ?? null, libName: byListId.has(f.listId) ? nameOf(byListId.get(f.listId)!) : "" }));
           } catch {
             /* the flags unreadable = no flagged rows, never a broken panel */
@@ -1560,8 +1672,12 @@ export function mountDocs(
           (async () => {
             try {
               const { listIngestionTasks } = await import("./ingestionStore");
-              const all = await listIngestionTasks();
+              const every = await listIngestionTasks();
               await adminReady;
+              // a controller's own site: another site's tasks stay out,
+              // unless they made them or were assigned (2026-11-23)
+              const { site: mySite } = await controllerScope();
+              const all = (mySite === "" ? every : every.filter((t) => taskInSite(t, mySite, myEmail))).filter((t) => !isUatHidden(t.destListId));
               out.ingestion = tasksForPanel(all, myEmail, docAdmin());
               out.ingestionClosed = closedTasksForPanel(all, myEmail, docAdmin());
             } catch {
@@ -1659,7 +1775,7 @@ export function mountDocs(
       jobs.push(
         (async () => {
           const { readLedger, repairGranted } = await import("./accessRequests");
-          const ledger = await readLedger();
+          const ledger = (await readLedger()).filter((e) => !isUatHidden(e.listId));
           const outgoingEntries = ledger.filter((e) => e.who.id === whoId);
           const iPreside = (e: (typeof ledger)[number]) =>
             docAdmin() || e.owners.some((o) => o.toLowerCase() === myEmail);
@@ -1691,10 +1807,18 @@ export function mountDocs(
             const page = await renderListPage(
               app.siteUrl,
               l.listId,
-              buildRenderViewXml({ idIn: ids, fields: gateFieldsFor(l), rowLimit: 30 })
+              buildRenderViewXml({ idIn: ids, fields: [...new Set([...gateFieldsFor(l), orgFieldFor(l)])].filter((f) => f !== ""), rowLimit: 30 })
             ).catch(() => ({ rows: [] as DocRow[] }));
             for (const r of page.rows) rowFor.set(`${k}:${r.id}`, r);
           }
+          // a controller presides over their OWN site's requests (and
+          // those on documents with no Organisation unit); an owner's
+          // requests are theirs whatever the site (2026-11-23)
+          const { branch: myBranch } = await controllerScope();
+          const inMySite = (e: Entry): boolean =>
+            myBranch === null ||
+            e.owners.some((o) => o.toLowerCase() === myEmail) ||
+            rowSite(rowFor.get(`${e.listId.toLowerCase()}:${e.itemId}`), myBranch) !== "other";
           const taskRowOf = (e: Entry): RequestTaskRow => {
             const k = e.listId.toLowerCase();
             return {
@@ -1707,7 +1831,7 @@ export function mountDocs(
           // grantee already sits in Revision editors is granted whatever
           // the ledger says — it leaves the queue, and the ledger is
           // repaired in the background
-          const stillMine = mine.filter((e) => {
+          const stillMine = mine.filter(inMySite).filter((e) => {
             const r = rowFor.get(`${e.listId.toLowerCase()}:${e.itemId}`);
             const granted = r !== undefined && grantEmails(r).some((m) => m.toLowerCase() === e.who.email.toLowerCase());
             if (granted) void repairGranted(e.id, "the Revision editors column").catch(() => undefined);
@@ -1715,7 +1839,7 @@ export function mountDocs(
           });
           out.requests = stillMine.map(taskRowOf);
           out.outgoing = outgoingEntries.map(taskRowOf);
-          out.grantedByMe = presided.map(taskRowOf);
+          out.grantedByMe = presided.filter(inMySite).map(taskRowOf);
         })()
       );
 
@@ -4303,6 +4427,8 @@ export function mountDocs(
         const libStatusCol = lib?.config.columns.find((c) => c.role === "status") ?? null;
         // a previous overlay's repaint must not outlive it
         viewerRepaints.clear();
+        // where its review round stands, read behind the open panel
+        void loadReviewState(row);
         // A5 (feedback round 1): closing the preview sent the register
         // back to the top — remember every scroll offset in play and put
         // it back once the overlay is gone
@@ -4437,11 +4563,13 @@ export function mountDocs(
                       ? "You are the named owner but not in the owners & approvers group, so SharePoint would refuse your approval — ask a document controller to add you to the group."
                       : "";
                   },
+                  notes: () => reviewNotes(row),
                   actions: () => [
                     ...lifecycleActionsFor(row, lib).map((c) => ({
                       key: c.key,
                       label: c.label,
                       primary: c.primary,
+                      card: c.card,
                     })),
                     // primary exactly when due (R5): the task-panel row
                     // lands here and the decision zone must offer the
@@ -4740,6 +4868,9 @@ export function mountDocs(
         status.textContent = `“${row.name}” is now ${stage === "superseded" ? "superseded" : stage === "obsolete" ? "obsolete" : "no longer approved"} — untick “Show only approved” in ⋮ to see it.`;
       } else list?.setRows(list.rows());
       for (const rp of viewerRepaints) rp();
+      // a command just ran: where the review round stands may have moved
+      // (the reviewer's own "Review complete" above all)
+      if (withBadge) void loadReviewState(row);
       // a command that changes checkout state changes the My tasks count
       // (skipped for the overlay-open arming read, which changed nothing)
       if (withBadge) refreshTasksBadge();
@@ -4793,6 +4924,19 @@ export function mountDocs(
       );
     };
 
+    /** Someone else holds the document: who, and what can be done. */
+    const heldNotice = (row: DocRow) => {
+      const who = (row.checkoutName ?? "") !== "" ? (row.checkoutName ?? "") : (row.checkoutEmail ?? "");
+      const dlg = openDialog({
+        host: dialogHost,
+        title: who !== "" ? `Checked out to ${who}` : "Checked out to someone else",
+        buttons: [{ label: "Close", kind: "secondary", onClick: () => dlg.close() }],
+      });
+      dlg.body.appendChild(
+        el("div", "app-field-hint", "Ask them to check it in. A document controller can discard their check-out.")
+      );
+    };
+
     const runCommand = async (
       kind: "out" | "undo",
       row: DocRow
@@ -4804,8 +4948,11 @@ export function mountDocs(
         return;
       }
       if (kind === "out" && live === "held") {
+        // the panel and the row repaint with the lock and the name, so
+        // the button that failed is gone (2026-11-23 report 8)
         await refreshRow(row);
-        commandFailed("Check-out", "Someone checked this document out first.");
+        if (isMine(row)) return; // already mine: the repaint says it all
+        heldNotice(row);
         return;
       }
       const res =
@@ -6064,10 +6211,10 @@ export function mountDocs(
       // document flags (issue 23): controllers triage every open flag;
       // anyone scopes the register to the flagged documents
       if (docAdmin()) {
-        const n = openFlags.size;
+        const n = queueFlagKeys().length;
         item(n > 0 ? `Document flags (${n})…` : "Document flags…", "Open flags on this site's documents — read, open the document, close with a note.", () => openFlagQueueAll());
       }
-      if (openFlags.size > 0) {
+      if (queueFlagKeys().length > 0) {
         item("Show flagged documents", "The register scoped to the documents carrying an open flag.", () => scopeToFlags());
       }
       // "Show only approved" (Ben, 2026-10-19): ticked, the register
@@ -6214,10 +6361,19 @@ export function mountDocs(
             "status, reviews overdue or absent, untagged. Every library " +
             "except templates, whatever this view shows.",
           () => {
-            void import("./healthReport").then(({ openControlHealth }) => {
+            void Promise.all([import("./healthReport"), controllerScope()]).then(([{ openControlHealth }, scope]) => {
+              const branch = scope.branch;
               openControlHealth({
                 site: app.siteUrl,
                 libraries: healthLibs,
+                // a controller's own site (2026-11-23): another site's
+                // documents are not scanned into their report
+                ...(branch !== null
+                  ? {
+                      keepRow: (row: DocRow) => rowSite(row, branch) !== "other",
+                      scopeNote: `Showing ${branch.site}'s documents, and those with no Organisation unit.`,
+                    }
+                  : {}),
                 // C1 (feedback round 1): the document admin may replace a
                 // person across the scanned documents from the report
                 canReassign: docAdmin(),

@@ -189,4 +189,14 @@ describe("message rendering", () => {
     expect(chatTopic("x".repeat(140)).length).toBe(100);
   });
 
+  it("chatTopic turns a colon into a dash: Graph refuses one, and every subject has one (2026-11-23)", async () => {
+    const { chatTopic } = await import("../docs/notifyModel");
+    expect(chatTopic("Flagged for review: SOP 12.docx")).toBe("Flagged for review – SOP 12.docx");
+    expect(chatTopic("Ingestion task: Legacy SOPs: batch 2")).toBe("Ingestion task – Legacy SOPs – batch 2");
+    expect(chatTopic("Review requested:   Plan")).toBe("Review requested – Plan");
+    expect(chatTopic(": leading and trailing :")).toBe("leading and trailing");
+    // no colon of any kind survives, nor the other characters Teams refuses in a name
+    for (const s of ["a:b", "a：b", "10:30 meeting", "what? a|b * c~d {e}", "tab\there"]) expect(chatTopic(s)).not.toMatch(/[:：|*?~{}\t]/);
+  });
+
 });

@@ -30,6 +30,7 @@ import { currentViewer } from "../runtime";
 import { docsConfig, DocLibrary } from "./docsStore";
 import { renderListPage, driveIdFor } from "./data";
 import { TermNode, cachedTermPaths, fetchTermsInSet } from "./sp";
+import { uatBareTitle } from "./uatLibraries";
 import {
   DocRow,
   browseComparator,
@@ -205,7 +206,9 @@ async function resolveCardScope(opts: CardMount): Promise<CardScope> {
     .map((s) => s.trim().toLowerCase())
     .filter((s) => s !== "");
   if (wantNames.length > 0) {
-    const nameOf = (l: DocLibrary) => (l.config.title || l.name).toLowerCase();
+    // a UAT-only library reads "… · UAT" to those who see it; the card's
+    // setting names it without the tag
+    const nameOf = (l: DocLibrary) => uatBareTitle(l.config.title || l.name).toLowerCase();
     const missing = wantNames.filter((w) => !libs.some((l) => nameOf(l) === w));
     libs = libs.filter((l) => wantNames.includes(nameOf(l)));
     if (missing.length > 0) {

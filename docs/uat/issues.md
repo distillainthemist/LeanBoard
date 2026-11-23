@@ -24,3 +24,11 @@ steps:
 3. Tick three issues of different ages and Export.
 expected: step 1 any ranked issues lead, by rank; under them the reports run from the most recent to the oldest; step 2 the new report is at the top of the unranked ones; step 3 the export lists the ticked issues in the same order
 
+### UAT-ISS-003 — A photo the app cannot show is refused by name
+persona: reporter
+modules: issues/report.ts imagePick.ts
+preconditions: a HEIC photo (an iPhone's default), a PDF and a PNG on the device
+steps:
+1. Open the ? button → Report an issue → "choose a photo": read the file types offered.
+2. Drag the HEIC photo onto the screenshot box; then the PDF; then the PNG.
+expected: the chooser offers JPG, PNG, GIF and WebP; the HEIC photo is not added and the line under the box reads "HEIC photos can't be shown here: <name>. Use a JPG or PNG, or paste a screenshot."; the PDF reads "That file is not an image: <name>"; the PNG is added as a thumbnail and the line clears; a pasted screenshot works as before

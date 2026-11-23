@@ -1147,6 +1147,27 @@ Key concepts (details: [leanboard-standard-documents-plan.md](leanboard-standard
   raises a document flag on the file that follows it into the
   destination (`repointFlags` on landing; `fetchFileItemId` selects the
   GUID too).
+- **What the Documents area shows to whom** (2026-11-23,
+  [issues-plan-2026-11-23.md](issues-plan-2026-11-23.md)) — two
+  app-level scopings, neither a permission. **UAT-only libraries**
+  (`docs/uatLibraries.ts`): a tick in the library's config JSON; the one
+  library read (`docsStore.docsConfig`) drops such a library for anyone
+  not in UAT mode (super admin, or assigned to a running UAT run —
+  `viewerInUatMode`, once a session, failing closed) and records the
+  hidden list ids, which link painters ask (`visibleLinks`,
+  `withHiddenLinks` so a save never strips them). Settings reads the
+  rows itself, unfiltered. **A controller's own site**
+  (`docs/siteScope.ts`): a controller who is not a super admin and has
+  a site on their person row sees that site's flags, access requests,
+  ingestion tasks and health report; a document is placed by its
+  Organisation unit's term ids against the site's branch of the
+  Organisation set, and one the walk cannot place is never hidden.
+- **One document search** (`docs/docSearch.ts`, 2026-11-23): the
+  standing type-ahead over the exposed libraries, used by the links
+  editor and Supersede; its merge and wording are pure
+  (`docSearchModel.ts`). **One landed check** (`docs/landedCheck.ts`)
+  for Replace content and Add by upload. **One image rule**
+  (`src/imagePick.ts`, outside `docs/` so the issue report can use it).
 - **Term-set cutover and the one-way rule** (v0.72.0–v0.73.2, proposal
   §7–§8): full alignment tools (reconcile orphans with Leave / Retire /
   "This is…", carry documents, one-click align, rebuild —

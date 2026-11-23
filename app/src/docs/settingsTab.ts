@@ -1118,20 +1118,28 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
       )
     );
 
-    const rendition = el("input", "app-input") as HTMLInputElement;
-    rendition.placeholder = "e.g. Renditions";
-    rendition.value = lib.config.renditionPath;
-    rendition.addEventListener("input", () => {
-      lib.config.renditionPath = rendition.value.trim();
+    // The "PDF rendition folder" field stood here — REMOVED 2026-11-23:
+    // nothing has read it since the stored-rendition recipe was dropped
+    // (2026-08-08). A value already stored stays in the config, ignored.
+
+    // UAT only (2026-11-23): shown only to people on a running UAT run,
+    // and super admins — the app hides it, SharePoint's own permissions
+    // are untouched
+    const uatWrap = el("label", "app-check");
+    uatWrap.title =
+      "Shown only to people assigned to a running UAT run, and to super admins. Everyone else is not shown the library, its documents, or links to them. SharePoint's own permissions are unchanged.";
+    const uatTick = el("input", "") as HTMLInputElement;
+    uatTick.type = "checkbox";
+    uatTick.checked = lib.config.uatOnly === true;
+    uatTick.addEventListener("change", () => {
+      if (uatTick.checked) lib.config.uatOnly = true;
+      else delete lib.config.uatOnly;
+      const chip = host.parentElement?.querySelector(".app-docs-libuat") as HTMLElement | null;
+      if (chip !== null && chip !== undefined) chip.style.display = uatTick.checked ? "" : "none";
       ctx.markDirty();
     });
-    host.appendChild(
-      field(
-        "PDF rendition folder",
-        rendition,
-        "Where approved, watermarked PDF copies live (used once approvals arrive)."
-      )
-    );
+    uatWrap.append(uatTick, el("span", "", "UAT only"));
+    host.appendChild(uatWrap);
 
     // The per-library "View columns" grid stood here — RETIRED (Part II
     // S3): which columns a library shows is its TYPE's answer now, set
@@ -1175,7 +1183,11 @@ export async function renderDocsSettings(body: HTMLElement, ctx: Ctx): Promise<v
             ? "not on this site?"
             : `${item.itemCount} item(s)`
       );
-      head.append(tick, name, meta);
+      // a UAT-only library says so beside its name (2026-11-23)
+      const uatChip = el("span", "app-docs-chip app-docs-libuat", "UAT");
+      uatChip.title = "UAT only: shown to people on a running UAT run, and super admins";
+      uatChip.style.display = byId.get(item.id)?.config.uatOnly === true ? "" : "none";
+      head.append(tick, name, uatChip, meta);
       row.appendChild(head);
       const panel = el("div", "app-docs-libpanel");
       row.appendChild(panel);

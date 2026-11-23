@@ -104,8 +104,14 @@ export interface LibraryConfig {
   columns: ColumnConfig[];
   /** Status value → state-palette key (or freeform colour). */
   statusColors: Record<string, string>;
-  /** Where approve-time PDF renditions live (Phase 5 consumes). */
+  /** Where approve-time PDF renditions live — DORMANT: nothing reads
+   *  it (the stored-rendition recipe was dropped 2026-08-08) and its
+   *  field left Settings on 2026-11-23. Kept so a stored value survives
+   *  a save untouched. */
   renditionPath: string;
+  /** UAT only (2026-11-23): shown only to people in UAT mode — see
+   *  docs/uatLibraries.ts. Absent = an ordinary library. */
+  uatOnly?: boolean;
 }
 
 // ---- the site dictionary (settings consolidation, C0) ------------------
@@ -356,6 +362,57 @@ export function groupVersionsByMajor<T extends VersionLike>(versions: T[]): Vers
   return [...byMajor.values()].sort((a, b) => b.major - a.major);
 }
 
+// ---- a cancelled revision in the history (2026-11-23, report 5) -------
+// "Cancel revision" restores the last approved major and records
+// "Revision cancelled — restored vN.0". The restored version's card must
+// say so, and the drafts under it are the revision that was thrown away
+// — not the work it was "published from".
+
+const CANCEL_WORDS = /^revision cancelled/i;
+
+/** Fill each version's missing words from the other places SharePoint
+ *  keeps them, in order: the FILE version's own check-in comment (by
+ *  label), then the approval comment. A version that has its own words
+ *  keeps them. */
+export function fillVersionComments<T extends { label: string; comment: string; modComment?: string }>(
+  versions: T[],
+  fileComments: Map<string, string>
+): T[] {
+  return versions.map((v) => {
+    if (v.comment.trim() !== "") return v;
+    const fromFile = (fileComments.get(v.label) ?? "").trim();
+    const words = fromFile !== "" ? fromFile : (v.modComment ?? "").trim();
+    return words !== "" ? { ...v, comment: words } : v;
+  });
+}
+
+/** What a major's card says under its label.
+ *   - `words`: the version's own comment; for a cancel, the cancel's
+ *     words wherever they landed (the major, or the check-in under it).
+ *   - `from`: the draft whose comment stands in for a comment-less major
+ *     the forms engine published — never offered for a cancel.
+ *   - `cancelled`: the drafts of the revision that was cancelled. */
+export function headReading<T extends VersionLike & { comment: string }>(
+  g: VersionGroup<T>
+): { words: string; from: T | null; cancel: boolean; cancelled: T[] } {
+  if (g.head === null) return { words: "", from: null, cancel: false, cancelled: [] };
+  const own = g.head.comment.trim();
+  // under content approval the major check-in sits as a pending draft
+  // until the publish makes the major: the cancel's words can be there
+  const carrier = CANCEL_WORDS.test(own) ? null : (g.drafts.find((d) => CANCEL_WORDS.test(d.comment.trim())) ?? null);
+  if (CANCEL_WORDS.test(own) || carrier !== null) {
+    return {
+      words: carrier !== null ? carrier.comment.trim() : own,
+      from: null,
+      cancel: true,
+      // a published minor is reader-facing content, never a cancelled draft
+      cancelled: g.drafts.filter((d) => d !== carrier && d.modStatus !== 0),
+    };
+  }
+  if (own !== "") return { words: own, from: null, cancel: false, cancelled: [] };
+  return { words: "", from: g.drafts.find((d) => d.comment.trim() !== "") ?? null, cancel: false, cancelled: [] };
+}
+
 /**
  * The per-library flags written FROM the cells (S1's save bridge, made
  * pure in S3): the manager is authoritative, the per-library config is
@@ -584,6 +641,9 @@ export interface LifecycleCommandDef {
   needsReason: boolean;
   /** Rendered as the primary (filled) button. */
   primary: boolean;
+  /** Not primary, but still a button IN the decision card (an outline
+   *  one) — never left to the ⋯ menu. */
+  card?: boolean;
   /** Start revision only: the status write stays inside the check-out
    *  and NOTHING is checked in — drafting is solo, and everyone else
    *  keeps seeing the approved version until a submit checks in
@@ -701,6 +761,15 @@ export interface LifecycleGates {
   hasReviewers: boolean;
   /** The acting user is a named reviewer (issue 4). */
   isReviewer?: boolean;
+  /** …and has already recorded "Review complete" since the latest
+   *  submit (2026-11-23: the button stayed, as if the press had done
+   *  nothing). Undefined = not known yet (the history is read after the
+   *  panel opens): the button is offered, as before. */
+  reviewDone?: boolean;
+  /** How many named reviewers have NOT finished. Undefined = not known.
+   *  Zero makes "Submit for approval" the solid next step; above zero it
+   *  stays offered, not urged (warn-and-confirm, Ben 2026-10-19). */
+  reviewsOpen?: number;
   /** The acting user is the owner. */
   isOwner: boolean;
   /** The acting user is the named owner but NOT in the owners &
@@ -762,7 +831,14 @@ export function lifecycleCommandsFor(
       // a named reviewer's own act first; the submit stays open to all
       // (the gate at submit warns when reviews are outstanding — Ben,
       // 2026-10-19: warn-and-confirm, not a hard block)
-      return [...(g.isReviewer === true ? [by("reviewComplete")] : []), submitApproval, by("requestRevision")];
+      // …and a reviewer who has finished is not offered it again; while
+      // any review is outstanding the submit is an outline button in the
+      // card, the solid one once every review is in (2026-11-23)
+      return [
+        ...(g.isReviewer === true && g.reviewDone !== true ? [by("reviewComplete")] : []),
+        g.reviewsOpen !== undefined && g.reviewsOpen > 0 ? { ...submitApproval, primary: false, card: true } : submitApproval,
+        by("requestRevision"),
+      ];
     case "inApproval":
       // the approvers' step: an endorsement, minor — the owner's word
       // is the major
@@ -993,6 +1069,7 @@ export function parseLibraryConfig(raw: string | null | undefined): LibraryConfi
     const o = JSON.parse(t) as Record<string, unknown>;
     out.title = asStr(o.title);
     out.renditionPath = asStr(o.renditionPath);
+    if (o.uatOnly === true) out.uatOnly = true;
     if (Array.isArray(o.columns)) {
       for (const c of o.columns) {
         if (!c || typeof c !== "object") continue;
@@ -1027,6 +1104,7 @@ export function serializeLibraryConfig(cfg: LibraryConfig): string {
   const o: Record<string, unknown> = {};
   if (cfg.title !== "") o.title = cfg.title;
   if (cfg.renditionPath !== "") o.renditionPath = cfg.renditionPath;
+  if (cfg.uatOnly === true) o.uatOnly = true;
   const cols = cfg.columns.map((c) => {
     const col: Record<string, unknown> = { internal: c.internal };
     if (c.label !== "") col.label = c.label;
@@ -2569,6 +2647,7 @@ const AUDIT_STEPS: [string, string][] = [
   ["Properties updated", "Properties updated"],
   ["Links updated", "Links updated"],
   ["Reinstated", "Reinstated"],
+  ["Revision cancelled", "Revision cancelled"],
   ["Superseded", "Marked superseded"],
   ["Approved", "Approved"],
 ];
@@ -3700,6 +3779,35 @@ export function reviewsOutstanding(
     if (m[1] !== undefined && m[1].trim() !== "") done.add(norm(m[1]));
   }
   return reviewerNames.map((n) => n.trim()).filter((n) => n !== "" && !done.has(norm(n)));
+}
+
+/** Where a review round stands for one person (2026-11-23): who is
+ *  still to finish, and whether — and when — THIS reviewer recorded
+ *  "Review complete" since the latest submit. `myName` is the viewer as
+ *  the reviewers column names them ("" = not a reviewer). */
+export function reviewProgress(
+  versions: { comment: string; author: string; when?: string }[],
+  reviewerNames: string[],
+  myName: string
+): { outstanding: string[]; mineDone: boolean; mineAt: string } {
+  const norm = (s: string) => s.trim().toLowerCase();
+  const outstanding = reviewsOutstanding(versions, reviewerNames);
+  const me = norm(myName);
+  const named = me !== "" && reviewerNames.some((n) => norm(n) === me);
+  const mineDone = named && !outstanding.some((n) => norm(n) === me);
+  let mineAt = "";
+  if (mineDone) {
+    const submitAt = versions.findIndex((v) => /^submitted for review/i.test(v.comment.trim()));
+    for (const v of submitAt >= 0 ? versions.slice(0, submitAt) : versions) {
+      const m = v.comment.trim().match(/^review complete(?:\s+by\s+([^—]+))?/i);
+      if (!m) continue;
+      if (norm(v.author) === me || (m[1] !== undefined && norm(m[1]) === me)) {
+        mineAt = v.when ?? "";
+        break; // newest first: the latest one
+      }
+    }
+  }
+  return { outstanding, mineDone, mineAt };
 }
 
 /** SharePoint's date column types — what a from/to filter can bind to. */

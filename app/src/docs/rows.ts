@@ -4,6 +4,8 @@
 // display text — one call, no per-type handling); search mode reads
 // postquery's verbose table shape. Both normalise to DocRow.
 
+import { isUatHidden } from "./uatLibraries";
+
 export interface DocRow {
   /** List item id (0 when unknown — some search rows). */
   id: number;
@@ -356,7 +358,16 @@ export function linkCount(raw: string): number {
   if (!t.startsWith("[")) return 0;
   try {
     const arr = JSON.parse(t) as unknown;
-    return Array.isArray(arr) ? arr.filter((x) => x && typeof x === "object" && typeof (x as { uid?: unknown }).uid === "string").length : 0;
+    // …less the ones into a library this viewer is not shown (UAT only)
+    return Array.isArray(arr)
+      ? arr.filter(
+          (x) =>
+            x &&
+            typeof x === "object" &&
+            typeof (x as { uid?: unknown }).uid === "string" &&
+            !isUatHidden(String((x as { listId?: unknown }).listId ?? ""))
+        ).length
+      : 0;
   } catch {
     return 0;
   }

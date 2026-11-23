@@ -23,6 +23,7 @@ import { Ben_ltkissuemessagesService } from "../generated/services/Ben_ltkissuem
 import { Ben_ltkissuewatchsService } from "../generated/services/Ben_ltkissuewatchsService";
 import type { Ben_ltkissues } from "../generated/models/Ben_ltkissuesModel";
 import { shrinkImage } from "../../../shared/ui/imageIngest";
+import { IMAGE_ACCEPT, imageVerdict, typedImage } from "../imagePick";
 
 export type IssueArea = "boards" | "cards" | "priorities" | "improvement" | "documents" | "settings" | "other";
 
@@ -228,16 +229,23 @@ export function openReportDialog(opts: { host: HTMLElement; prefill?: ReportPref
   );
   const pick = el("input", "") as HTMLInputElement;
   pick.type = "file";
-  pick.accept = "image/*";
+  pick.accept = IMAGE_ACCEPT;
   pick.multiple = true;
   pick.style.display = "none";
   const pickBtn = el("button", "app-btn app-issue-pick", "choose a photo") as HTMLButtonElement;
   pickBtn.addEventListener("click", () => pick.click());
   zone.appendChild(pickBtn);
-  dlg.body.append(el("div", "app-field-label", "Screenshots"), zone, shotBox, pick);
+  // a file that is not taken says why (2026-11-23)
+  const shotWhy = el("div", "app-field-hint");
+  shotWhy.style.display = "none";
+  dlg.body.append(el("div", "app-field-label", "Screenshots"), zone, shotWhy, shotBox, pick);
 
-  const addShot = (file: File) => {
-    if (!file.type.startsWith("image/")) return;
+  const addShot = (chosen: File) => {
+    const v = imageVerdict(chosen.name, chosen.type);
+    shotWhy.textContent = v.ok ? "" : `⚠ ${v.why}`;
+    shotWhy.style.display = v.ok ? "none" : "";
+    if (!v.ok) return;
+    const file = typedImage(chosen, v.type);
     if (shots.length >= 6) return;
     const key = `${file.name}|${Date.now()}|${Math.random()}`;
     shots.push({ file, url: key });

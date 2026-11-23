@@ -1,15 +1,15 @@
 // The links editor (relationships L1, revised per Ben 2026-08-13):
 // linking is a PROPERTIES EDIT, so this widget lives inside the Edit
 // properties dialog and contributes one form value on save — the pane
-// only ever shows links. Add = an inline rel-choice + name search
-// across the non-template registers; remove = ✕ per row. Untouched =
-// writes nothing (the dialog's empty-fields rule).
+// only ever shows links. Add = a relationship choice, then a type-ahead
+// search across the non-template registers (docSearch.ts); remove = ✕
+// per row. Untouched = writes nothing (the dialog's empty-fields rule).
 
 import { el, clear } from "../../../shared/ui/dom";
 import { DocLibrary } from "./docsStore";
 import { DOC_LINK_GROUP, DOC_LINK_RELS, DocLink, parseDocLinks, serializeDocLinks } from "./model";
-import { DocRow, buildRenderViewXml } from "./rows";
-import { renderListPage } from "./data";
+import { DocSearchOpts, buildDocSearch } from "./docSearch";
+import { visibleLinks, withHiddenLinks } from "./uatLibraries";
 
 export interface LinksEditorOpts {
   site: string;
@@ -25,6 +25,8 @@ export interface LinksEditorOpts {
   /** The document is FLAGGED regulator-approved — the "Regulator
    *  approved copy" relationship becomes declarable (Ben, 2026-08-14). */
   offerRegulatorCopy: boolean;
+  /** The search's own read, for a harness page (docSearch.ts `find`). */
+  find?: DocSearchOpts["find"];
 }
 
 export interface LinksEditor {
@@ -52,7 +54,10 @@ export function buildLinksEditor(opts: LinksEditorOpts): LinksEditor {
     return { root, read: () => null };
   }
 
-  const links: DocLink[] = parsed ?? [];
+  // links into a library this viewer is not shown (UAT only) are never
+  // painted — and never dropped by a save either
+  const stored: DocLink[] = parsed ?? [];
+  const links: DocLink[] = visibleLinks(stored);
   let changed = false;
   const listBox = el("div", "app-docs-linksbox");
   root.appendChild(listBox);
@@ -88,18 +93,22 @@ export function buildLinksEditor(opts: LinksEditorOpts): LinksEditor {
   };
   paint();
 
-  // ---- the inline add area ----------------------------------------------
+  // ---- the inline add area (rebuilt 2026-11-23, report 9) --------------
+  // The relationship FIRST, as a labelled choice; then one full-width
+  // search whose list floats under it. Picking a document adds the link
+  // and folds the area away.
   const addBtn = el("button", "app-btn app-docs-linkadd", "＋ Link a document…") as HTMLButtonElement;
+  addBtn.type = "button";
   const addArea = el("div", "app-docs-linkaddarea");
   addArea.style.display = "none";
   root.append(addBtn, addArea);
   let rel: DocLink["rel"] = "peer";
-  addBtn.addEventListener("click", () => {
-    addArea.style.display = addArea.style.display === "none" ? "" : "none";
-    if (addArea.style.display === "") search.focus();
-  });
 
+  const relLabel = el("div", "app-field-label", "Relationship");
+  relLabel.title = "How the picked document relates to this one";
   const relRow = el("div", "app-issue-kindrow");
+  relRow.setAttribute("role", "radiogroup");
+  relRow.setAttribute("aria-label", "Relationship");
   const offered: DocLink["rel"][] = opts.offerRegulatorCopy
     ? ["parent", "peer", "child", "regulatorCopy"]
     : ["parent", "peer", "child"];
@@ -116,79 +125,51 @@ export function buildLinksEditor(opts: LinksEditorOpts): LinksEditor {
             : "Regulator copy"
     ) as HTMLButtonElement;
     b.type = "button";
+    b.setAttribute("role", "radio");
+    b.setAttribute("aria-checked", String(k === rel));
     b.addEventListener("click", () => {
       rel = k;
-      for (const x of relBtns) x.classList.remove("app-issue-kind-on");
-      b.classList.add("app-issue-kind-on");
+      for (const x of relBtns) {
+        x.classList.toggle("app-issue-kind-on", x === b);
+        x.setAttribute("aria-checked", String(x === b));
+      }
     });
     relRow.appendChild(b);
     return b;
   });
   relBtns[1].classList.add("app-issue-kind-on");
-  const search = el("input", "app-input") as HTMLInputElement;
-  search.placeholder = "Search documents by name…";
-  const hits = el("div", "app-docs-linkhits");
-  addArea.append(
-    el("div", "app-field-hint", "How does the picked document relate to THIS one?"),
-    relRow,
-    search,
-    hits
-  );
 
-  let timer = 0;
-  search.addEventListener("input", () => {
-    window.clearTimeout(timer);
-    timer = window.setTimeout(() => void look(), 300);
-  });
-  const look = async () => {
-    clear(hits);
-    const q = search.value.trim();
-    if (q === "") return;
-    const pages = await Promise.all(
-      opts.libraries.map((l) =>
-        renderListPage(
-          opts.site,
-          l.listId,
-          buildRenderViewXml({
-            nameWords: q.split(/\s+/),
-            fields: opts.docIdInternal !== "" ? [opts.docIdInternal] : [],
-            rowLimit: 6,
-          })
-        )
-      )
-    );
-    let shown = 0;
-    for (let i = 0; i < opts.libraries.length; i++) {
-      const lib = opts.libraries[i];
-      for (const hit of pages[i].rows as DocRow[]) {
-        if (hit.uniqueId === opts.selfUniqueId || shown >= 12) continue;
-        shown++;
-        const b = el(
-          "button",
-          "app-docs-linkhit",
-          `${hit.name} — ${lib.config.title || lib.name}`
-        ) as HTMLButtonElement;
-        b.type = "button";
-        b.addEventListener("click", () => {
-          links.push({
-            uid: hit.uniqueId,
-            rel,
-            site: (lib.siteUrl ?? "") !== "" ? lib.siteUrl : opts.site,
-            listId: lib.listId,
-            name: hit.name,
-            docId: opts.docIdInternal !== "" ? (hit.values[opts.docIdInternal] ?? "") : "",
-          });
-          changed = true;
-          addArea.style.display = "none";
-          search.value = "";
-          clear(hits);
-          paint();
+  const search = buildDocSearch({
+    site: opts.site,
+    libraries: opts.libraries,
+    docIdInternal: opts.docIdInternal,
+    excludeUniqueId: opts.selfUniqueId,
+    placeholder: "Search documents by name…",
+    noneWords: "No documents match",
+    find: opts.find,
+    onPick: (hit) => {
+      // the same document under the same relationship is one link
+      if (!links.some((x) => x.uid.toLowerCase() === hit.uniqueId.toLowerCase() && x.rel === rel)) {
+        links.push({
+          uid: hit.uniqueId,
+          rel,
+          site: (hit.lib.siteUrl ?? "") !== "" ? hit.lib.siteUrl : opts.site,
+          listId: hit.lib.listId,
+          name: hit.name,
+          docId: hit.docId,
         });
-        hits.appendChild(b);
+        changed = true;
       }
-    }
-    if (shown === 0) hits.appendChild(el("div", "app-field-hint", "No documents match."));
-  };
+      addArea.style.display = "none";
+      paint();
+    },
+  });
+  const searchLabel = el("div", "app-field-label", "Document");
+  addArea.append(relLabel, relRow, searchLabel, search.el);
+  addBtn.addEventListener("click", () => {
+    addArea.style.display = addArea.style.display === "none" ? "" : "none";
+    if (addArea.style.display === "") search.input.focus();
+  });
 
-  return { root, read: () => (changed ? serializeDocLinks(links) : null) };
+  return { root, read: () => (changed ? serializeDocLinks(withHiddenLinks(stored, links)) : null) };
 }

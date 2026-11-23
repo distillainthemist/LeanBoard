@@ -12,6 +12,7 @@ import { el } from "../../../shared/ui/dom";
 import { openDialog } from "../../../shared/ui/dialog";
 import { SiteColumn, spErrorText } from "./model";
 import { DocRow, extOf } from "./rows";
+import { sizeLanded, sizeMismatchWords } from "./landedCheck";
 import { connectorFileIdFor, connectorUpdateFile, fetchFileInfo, fetchFileItemId } from "./sp";
 import { buildFilePicker } from "./filePicker";
 
@@ -135,6 +136,7 @@ export function openReplaceContent(opts: ReplaceContentOpts): void {
     status.textContent = "Reading the file…";
     const bytes = new Uint8Array(await picked.arrayBuffer());
     const before = (((await fetchFileItemId(site, row.serverUrl)).data ?? {}) as { Id?: unknown; GUID?: unknown });
+    const stampBefore = String((((await fetchFileInfo(site, row.serverUrl)).data ?? {}) as { TimeLastModified?: unknown }).TimeLastModified ?? "");
 
     status.textContent = `Replacing the content (${Math.max(1, Math.round(bytes.length / 1024))} KB)…`;
     const up = await timed(connectorUpdateFile(site, connectorFileIdFor(site, row.serverUrl), bytes), "The replace", 180_000);
@@ -143,12 +145,19 @@ export function openReplaceContent(opts: ReplaceContentOpts): void {
     status.textContent = "Checking the result…";
     const info = await fetchFileInfo(site, row.serverUrl);
     const landed = Number((info.data as { Length?: unknown })?.Length ?? -1);
+    const stampAfter = String(((info.data ?? {}) as { TimeLastModified?: unknown }).TimeLastModified ?? "");
     const after = (((await fetchFileItemId(site, row.serverUrl)).data ?? {}) as { Id?: unknown; GUID?: unknown });
     const sameItem = String(before.Id ?? "") === String(after.Id ?? "") && String(before.GUID ?? "") === String(after.GUID ?? "");
-    if (landed !== bytes.length || !sameItem) {
+    // an Office file is rewritten by SharePoint as it lands (its
+    // properties go into the file), so its size is judged by a tolerance
+    // and by the file having been MODIFIED by this replace; every other
+    // type must match to the byte (landedCheck.ts, 2026-11-23)
+    const sized = sizeLanded(row.ext, bytes.length, landed);
+    const touched = stampBefore === "" || stampAfter === "" || stampAfter !== stampBefore;
+    if (!sized || !sameItem || !touched) {
       return fail(
         "The replace landed wrong",
-        `${landed} bytes for ${bytes.length} sent; record ${sameItem ? "kept" : "CHANGED"} — check the document in SharePoint before checking in`
+        `${!touched ? "the file in SharePoint was not modified" : sizeMismatchWords(row.ext, bytes.length, landed)}; record ${sameItem ? "kept" : "CHANGED"} — check the document in SharePoint before checking in`
       );
     }
     dlg.close();

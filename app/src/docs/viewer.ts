@@ -42,9 +42,11 @@ import {
   DocLink,
   auditRowsFor,
   groupVersionsByMajor,
+  headReading,
   parseDocLinks,
   parseMocRecords,
 } from "./model";
+import { visibleLinks } from "./uatLibraries";
 
 interface ViewerOpts {
   site: string;
@@ -192,7 +194,11 @@ interface ViewerOpts {
    *  WHICH commands the document's stage and this user's standing
    *  allow; the viewer paints buttons and calls back. */
   lifecycle?: {
-    actions: () => { key: string; label: string; primary: boolean }[];
+    actions: () => { key: string; label: string; primary: boolean; card?: boolean }[];
+    /** Lines the decision card says before its buttons — where a review
+     *  round stands ("✓ You completed your review on …", "Waiting on
+     *  …"). Their presence alone makes the card show. */
+    notes?: () => string[];
     run: (key: string) => void;
     register?: (repaint: () => void) => void;
     /** A reason the decision is withheld (issue 8: the named owner is
@@ -489,7 +495,11 @@ export function openDocViewer(opts: ViewerOpts): () => void {
     held.style.display = held.textContent === "" ? "none" : "";
 
     const blocked = primaryAct === undefined && !heldMine ? (lc?.blocked?.() ?? "") : "";
-    const pending = primaryAct !== undefined || heldMine || blocked !== "";
+    // where a review round stands, and the outline buttons that belong
+    // in the card though they are not the solid one (2026-11-23)
+    const notes = lc?.notes?.() ?? [];
+    const cardActs = lcActs.filter((a) => !a.primary && a.card === true);
+    const pending = primaryAct !== undefined || heldMine || blocked !== "" || notes.length > 0 || cardActs.length > 0;
     decision.style.display = pending ? "" : "none";
     if (blocked !== "") {
       decision.appendChild(el("div", "app-docs-decision-head", "Awaiting your approval"));
@@ -500,12 +510,19 @@ export function openDocViewer(opts: ViewerOpts): () => void {
           ? "Awaiting your approval"
           : primaryAct?.key === "markReviewed"
             ? "Review due"
-            : primaryAct !== undefined
-              ? heldMine
-                ? "Revision in progress"
-                : "Needs revision"
-              : "Checked out to you";
+            : primaryAct?.key === "reviewComplete"
+              ? "Awaiting your review"
+              : primaryAct !== undefined
+                ? heldMine
+                  ? "Revision in progress"
+                  : notes.length > 0
+                    ? "In review"
+                    : "Needs revision"
+                : heldMine
+                  ? "Checked out to you"
+                  : "In review";
       decision.appendChild(el("div", "app-docs-decision-head", heading));
+      for (const line of notes) decision.appendChild(el("div", "app-field-hint app-docs-decision-why", line));
       // a revision-needed document's real next step is EDITING: the
       // check-out door belongs IN the card, or action parity breaks —
       // the pending branch used to swallow it entirely (Ben, 2026-08-08)
@@ -541,6 +558,12 @@ export function openDocViewer(opts: ViewerOpts): () => void {
           i === 0 ? "app-btn app-btn-primary" : "app-btn",
           act.key === "approve" ? `✓ ${act.label}` : act.label
         ) as HTMLButtonElement;
+        go.addEventListener("click", () => lc?.run(act.key));
+        decision.appendChild(go);
+        inCard.add(act.key);
+      }
+      for (const act of cardActs) {
+        const go = el("button", "app-btn", act.label) as HTMLButtonElement;
         go.addEventListener("click", () => lc?.run(act.key));
         decision.appendChild(go);
         inCard.add(act.key);
@@ -988,7 +1011,9 @@ export function openDocViewer(opts: ViewerOpts): () => void {
     // ---- L1: linked documents — grouped, uid-anchored ------------------
     if (linksInternal !== "") {
       const rawLinks = details.values[linksInternal] ?? "";
-      const parsedLinks = parseDocLinks(rawLinks) ?? [];
+      // …less any into a library this viewer is not shown (UAT only):
+      // hidden entirely, declared or derived
+      const parsedLinks = visibleLinks(parseDocLinks(rawLinks) ?? []);
       // everything the pane knows is linked — declared now, derived as
       // it lands — for "Show these in the register" (issue 3)
       const allLinks: DocLink[] = [...parsedLinks];
@@ -1033,7 +1058,7 @@ export function openDocViewer(opts: ViewerOpts): () => void {
         void derived().then(({ links: inbound, lagging }) => {
           if (!dBox.isConnected) return;
           const declared = new Set(parsedLinks.map((l) => `${l.uid.toLowerCase()}|${l.rel}`));
-          const fresh = inbound.filter(
+          const fresh = visibleLinks(inbound).filter(
             (l) => !declared.has(`${l.uid.toLowerCase()}|${l.rel}`)
           );
           for (const l of fresh) if (!allLinks.some((x) => x.uid.toLowerCase() === l.uid.toLowerCase())) allLinks.push(l);
@@ -1115,7 +1140,7 @@ export function openDocViewer(opts: ViewerOpts): () => void {
     }
     const vres =
       details.id > 0 && row.listId !== ""
-        ? await itemVersions(site, row.listId, details.id)
+        ? await itemVersions(site, row.listId, details.id, { fillComments: true })
         : { versions: [], error: "item id unknown" };
     if (!propsBox.isConnected || gen !== detailsGen) return;
     if (vres.error !== "") {
@@ -1221,6 +1246,8 @@ export function openDocViewer(opts: ViewerOpts): () => void {
       const card = el("div", "app-docs-vercard");
       let open = g.current;
       let showAll = false;
+      // the card's words, and which drafts a cancel threw away (report 5)
+      const reading = headReading(g);
       const paintCard = () => {
         clear(card);
         const head = el("button", "app-docs-verhead") as HTMLButtonElement;
@@ -1253,17 +1280,21 @@ export function openDocViewer(opts: ViewerOpts): () => void {
         const headMeta = el("div", "app-docs-vermeta");
         if (g.head !== null) {
           if (g.head.author !== "") headMeta.appendChild(el("span", "", g.head.author));
-          headMeta.appendChild(commentEl(g.head.comment));
+          headMeta.appendChild(commentEl(reading.words));
           // a major the forms engine published carries no comment of its
-          // own — the draft it was published from has the words
-          if (g.head.comment === "") {
-            const from = g.drafts.find((d) => d.comment !== "");
-            if (from !== undefined) headMeta.appendChild(el("span", "app-field-hint", ` · published from v${from.label} “${from.comment}”`));
-          }
+          // own — the draft it was published from has the words (never
+          // for a cancelled revision: those drafts were thrown away)
+          if (reading.from !== null) headMeta.appendChild(el("span", "app-field-hint", ` · published from v${reading.from.label} “${reading.from.comment}”`));
         }
         if (!open && g.drafts.length > 0) {
           headMeta.appendChild(
-            el("span", "app-field-hint", `${g.drafts.length} draft${g.drafts.length === 1 ? "" : "s"}`)
+            el(
+              "span",
+              "app-field-hint",
+              reading.cancelled.length > 0 && reading.cancelled.length === g.drafts.length
+                ? `${g.drafts.length} cancelled draft${g.drafts.length === 1 ? "" : "s"}`
+                : `${g.drafts.length} draft${g.drafts.length === 1 ? "" : "s"}`
+            )
           );
         }
         const headOpen = g.head !== null ? openLink(g.head) : null;
@@ -1277,7 +1308,9 @@ export function openDocViewer(opts: ViewerOpts): () => void {
             // under moderation the word is the VERSION's own standing —
             // a published minor is reader-facing content, not a draft
             const word =
-              d.modStatus === 0
+              reading.cancelled.includes(d)
+                ? "cancelled"
+                : d.modStatus === 0
                 ? "published"
                 : d.modStatus === 2
                   ? "awaiting approval"

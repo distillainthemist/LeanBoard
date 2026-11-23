@@ -553,7 +553,7 @@ export function siteRelativePath(site: string, serverRelativeUrl: string): strin
 }
 
 export function fetchFileInfo(site: string, url: string): Promise<SpResult> {
-  return spRequest(site, "GET", `${filePath(url)}?$select=Length,CheckOutType,Name`);
+  return spRequest(site, "GET", `${filePath(url)}?$select=Length,CheckOutType,Name,TimeLastModified`);
 }
 
 /** A file's version history — what Cancel revision reads to find the

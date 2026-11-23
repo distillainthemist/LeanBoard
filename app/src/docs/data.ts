@@ -3,6 +3,7 @@
 // logic stays tested and this file stays boring.
 
 import { spRequest } from "./sp";
+import { fillVersionComments } from "./model";
 import {
   BrowseOpts,
   DocRow,
@@ -332,7 +333,13 @@ export interface DocVersion {
    *  PUBLISHED minor is reader-facing content, not an open draft —
    *  the history must know the difference. */
   modStatus: number | null;
+  /** The approval comment on this version ("" = none, or the column
+   *  was withheld) — where an Approve's words can land instead of the
+   *  check-in comment. */
+  modComment?: string;
 }
+
+let modCommentsRefused = false;
 
 /** SharePoint version history for one item (newest first). O3 asks for
  *  the editor too; a tenant refusing the expand falls back to the
@@ -340,21 +347,34 @@ export interface DocVersion {
 export async function itemVersions(
   site: string,
   listId: string,
-  itemId: number
+  itemId: number,
+  /** The history CARDS ask for every comment SharePoint holds (report 5,
+   *  2026-11-23): a major whose own comment is empty is read again from
+   *  the file's versions and the approval comment. Callers that only
+   *  look for a step's words on the version itself leave it off. */
+  o: { fillComments?: boolean } = {}
 ): Promise<{ versions: DocVersion[]; error: string }> {
-  const query = (expand: boolean) =>
+  const query = (expand: boolean, modComments: boolean) =>
     `_api/web/lists(guid'${listId}')/items(${itemId})/versions` +
     `?$select=VersionLabel,VersionId,Created,CheckInComment,IsCurrentVersion,OData__ModerationStatus` +
+    (modComments ? `,OData__ModerationComments` : "") +
     (expand ? `,Editor/LookupValue&$expand=Editor` : "") +
     `&$top=50`;
-  let r = await spRequest(site, "GET", query(true));
-  if (!r.ok) r = await spRequest(site, "GET", query(false));
+  // each refusal drops one thing: the approval comments, then the editor
+  // (a site that refused the approval comments once is not asked again
+  // this session)
+  const askMod = o.fillComments === true && !modCommentsRefused;
+  let r = await spRequest(site, "GET", query(true, askMod));
+  if (!r.ok && askMod) {
+    r = await spRequest(site, "GET", query(true, false));
+    if (r.ok) modCommentsRefused = true;
+  }
+  if (!r.ok) r = await spRequest(site, "GET", query(false, false));
   if (!r.ok) return { versions: [], error: r.status };
   const rows = Array.isArray((r.data as { value?: unknown[] })?.value)
     ? ((r.data as { value: unknown[] }).value as Record<string, unknown>[])
     : [];
-  return {
-    versions: rows.map((v) => ({
+  const versions: DocVersion[] = rows.map((v) => ({
       label: typeof v.VersionLabel === "string" ? v.VersionLabel : "",
       when: typeof v.Created === "string" ? v.Created : "",
       comment: typeof v.CheckInComment === "string" ? v.CheckInComment : "",
@@ -366,7 +386,30 @@ export async function itemVersions(
       versionId: typeof v.VersionId === "number" ? v.VersionId : 0,
       modStatus:
         typeof v.OData__ModerationStatus === "number" ? v.OData__ModerationStatus : null,
-    })),
-    error: "",
-  };
+      modComment: typeof v.OData__ModerationComments === "string" ? v.OData__ModerationComments : "",
+    }));
+  if (o.fillComments !== true) return { versions, error: "" };
+  // a major with no words of its own: the FILE's versions may hold them
+  // (two reads, only when some major is bare; a refusal changes nothing)
+  const bare = versions.some((v) => /^\d+\.0$/.test(v.label) && v.comment.trim() === "");
+  const fileComments = new Map<string, string>();
+  if (bare) {
+    const base = `_api/web/lists(guid'${listId}')/items(${itemId})/File`;
+    const [now, old] = await Promise.all([
+      spRequest(site, "GET", `${base}?$select=UIVersionLabel,CheckInComment`).catch(() => null),
+      spRequest(site, "GET", `${base}/Versions?$select=VersionLabel,CheckInComment&$top=100`).catch(() => null),
+    ]);
+    const put = (label: unknown, comment: unknown) => {
+      if (typeof label === "string" && typeof comment === "string" && comment.trim() !== "") fileComments.set(label, comment);
+    };
+    if (now !== null && now.ok) {
+      const d = (now.data ?? {}) as { UIVersionLabel?: unknown; CheckInComment?: unknown };
+      put(d.UIVersionLabel, d.CheckInComment);
+    }
+    if (old !== null && old.ok) {
+      const list = (old.data as { value?: unknown[] } | null)?.value;
+      for (const v of Array.isArray(list) ? (list as Record<string, unknown>[]) : []) put(v.VersionLabel, v.CheckInComment);
+    }
+  }
+  return { versions: fillVersionComments(versions, fileComments), error: "" };
 }
