@@ -263,4 +263,13 @@ seen in the harness: each needs Ben's check on dev.
   conversion.
 - **H** — the "PDF rendition folder" field is removed; a stored value
   is left alone and ignored; nothing in SharePoint is touched.
+- **D** — Ben: the restored version showed NO comment at all (so the
+  card did not borrow a draft's comment; the words are simply not on
+  the version the card reads). Build: the restored version's card reads
+  the cancel's words from wherever SharePoint holds them — the file's
+  own check-in comment, then the approval comment — and never a
+  cancelled draft's; the cancelled drafts are MARKED "Cancelled" in the
+  history. Still unknown: which of those two places has the words. If
+  neither does on dev, a sign-in is needed to read the raw version rows
+  before going further.
 
