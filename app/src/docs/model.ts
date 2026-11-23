@@ -639,6 +639,10 @@ export interface LifecycleCommandDef {
   /** requestRevision demands its reason — a rejection that explains
    *  nothing teaches nothing. */
   needsReason: boolean;
+  /** The comment box's own question, for a command that demands its
+   *  reason: each asks about ITS step (Ben, 2026-11-23 — every one of
+   *  them read "Why is revision needed?"). */
+  reasonPrompt?: string;
   /** Rendered as the primary (filled) button. */
   primary: boolean;
   /** Not primary, but still a button IN the decision card (an outline
@@ -695,6 +699,7 @@ export const LIFECYCLE_COMMANDS: LifecycleCommandDef[] = [
     major: false,
     comment: "Revision requested",
     needsReason: true,
+    reasonPrompt: "Why is revision needed?",
     primary: false,
   },
   {
@@ -723,6 +728,7 @@ export const LIFECYCLE_COMMANDS: LifecycleCommandDef[] = [
     major: false,
     comment: "Superseded",
     needsReason: true,
+    reasonPrompt: "Why is it being replaced?",
     primary: false,
   },
   {
@@ -732,6 +738,7 @@ export const LIFECYCLE_COMMANDS: LifecycleCommandDef[] = [
     major: false,
     comment: "Marked obsolete",
     needsReason: true,
+    reasonPrompt: "Why is it no longer needed?",
     primary: false,
   },
   {
@@ -744,6 +751,7 @@ export const LIFECYCLE_COMMANDS: LifecycleCommandDef[] = [
     major: false,
     comment: "Reinstated",
     needsReason: true,
+    reasonPrompt: "Why is it being reinstated?",
     primary: false,
   },
 ];

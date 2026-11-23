@@ -262,7 +262,7 @@ export function openLifecycleCommand(opts: LifecycleRunOpts): void {
   const reason = el("textarea", "app-input app-docs-cicomment") as HTMLTextAreaElement;
   reason.rows = 2;
   reason.placeholder = command.needsReason
-    ? "Why is revision needed?"
+    ? (command.reasonPrompt ?? "Why?")
     : "Comment (optional)";
   // the successor, picked not typed (UAT DOC-041): required for Supersede
   let picked: DocLink | null = null;

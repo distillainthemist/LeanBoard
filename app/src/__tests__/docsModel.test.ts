@@ -1907,6 +1907,14 @@ describe("lifecycle commands (5B/5C — the settled workflow)", () => {
     expect(by.approve.needsReason).toBe(false);
   });
 
+  it("each command that demands a reason asks its own question", async () => {
+    const { LIFECYCLE_COMMANDS } = await import("../docs/model");
+    const asking = LIFECYCLE_COMMANDS.filter((c) => c.needsReason);
+    for (const c of asking) expect(c.reasonPrompt ?? "").not.toBe("");
+    // no two steps share a question
+    expect(new Set(asking.map((c) => c.reasonPrompt)).size).toBe(asking.length);
+  });
+
   it("resolves the term a command writes, or refuses to offer it", async () => {
     const { termForStage } = await import("../docs/model");
     const dict = {

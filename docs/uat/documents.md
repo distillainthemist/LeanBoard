@@ -402,7 +402,7 @@ preconditions: two approved standards
 steps:
 1. On one: ⋯ → Supersede…; search and pick the other as "Superseded by" (required); confirm.
 2. On another approved standard: ⋯ → Make obsolete…
-expected: "Superseded by" is the same type-ahead as Link a document (a floating list, "Searching…", name with library and document ID beneath, "No standards match", ↑ ↓ Enter Escape); the picked standard shows as a chip with ✕ and the search steps aside; the superseded document carries the mapped status, a "Superseded by" link to its successor in its Linked documents and the comment "Superseded by “<name>”"; the successor's pane lists it under "Supersedes" (derived); the obsolete one carries its status; both leave the approved-only register and show when "Show only approved" is unticked
+expected: "Superseded by" is the same type-ahead as Link a document (a floating list, "Searching…", name with library and document ID beneath, "No standards match", ↑ ↓ Enter Escape); the picked standard shows as a chip with ✕ and the search steps aside; the Comment box asks "Why is it being replaced?" for Supersede and "Why is it no longer needed?" for obsolete, never "Why is revision needed?"; the superseded document carries the mapped status, a "Superseded by" link to its successor in its Linked documents and the comment "Superseded by “<name>”"; the successor's pane lists it under "Supersedes" (derived); the obsolete one carries its status; both leave the approved-only register and show when "Show only approved" is unticked
 
 ### UAT-DOC-042 — The notify panel: Teams and email, people chips
 persona: owner
