@@ -241,4 +241,8 @@ seen in the harness: each needs Ben's check on dev.
 
 - **A** — keep a topic on group chats, cleaned: the colon becomes a
   dash; every character Graph refuses goes through one tested list.
+- **B** — Office files: same record, modified by this upload, and the
+  stored size within 10% of what was sent or 256 KB, whichever is
+  larger. Every other type keeps the exact check. Both Replace content
+  and Add by upload.
 
