@@ -531,6 +531,37 @@ workflow (the asset is replaced) and import again.
   review's summary tiles and the task banner heading removed) is
   SOLUTION-CARRYING for the Utilities app only: prod imports the managed
   solution; the LeanBoard app is unchanged. No schema change.
+  v0.99.0 (2026-11-23, app-only, no schema: tranche 1 of the backlog
+  programme — `docs/backlog-programme-2026-11-22.md` — and tranche 1A,
+  the 2026-11-23 issue export — `docs/issues-plan-2026-11-23.md`.
+  Tranche 1: "Endorse" and "Support needed"; a dialog relays Escape to
+  the focused field (`ESCAPE_RELAY`, `onEscape` in `shared/ui/dom.ts`);
+  the flag colour from the status settings (`app/src/flagColour.ts`);
+  entry dialogs that hold their primary button (`holdEntryDialog`);
+  required fields on the Documents forms — red asterisk, Add / Save
+  held (`requiredMark`, `stillNeeded`); the throttle retry on every
+  SharePoint call of an ingestion run (`retryThrottled`); a term
+  column's ids kept as `<col>#termid`; metric read windows
+  (`improvement/readWindow.ts`) and the stale chart's span. Tranche 1A,
+  all Documents: the chat topic's colon; an Office file's landed size
+  judged within 10% or 256 KB (`docs/landedCheck.ts`); a finished
+  reviewer's card (`reviewProgress`); Cancel revision's words and
+  "cancelled" drafts in the history (`fillVersionComments`,
+  `headReading`); "Checked out to <name>"; HEIC refused by name
+  (`app/src/imagePick.ts`); ONE document type-ahead for Link a document
+  and Superseded by (`docs/docSearch.ts` — it wears the app's own
+  `app-ta-*` classes, because the shared `ltk-who-*` styles are not
+  reliably injected in Documents); a "UAT only" tick per library
+  (`docs/uatLibraries.ts`, applied once in `docsConfig()`); a
+  controller's site scope (`docs/siteScope.ts`); each lifecycle command
+  asks its own reason question (`reasonPrompt`). UAT-only and site
+  scope are APP-LEVEL — SharePoint's permissions are unchanged; say so
+  when asked. RELEASED PARTLY UNSEEN: C4 and the throttle retry from
+  tranche 1; Review complete, the held check-out, UAT-only libraries
+  and site scope from 1A go to UAT untested on dev. After it reaches
+  an environment, "Lock every older build": an older bundle shows a
+  UAT-only library to everyone and drops the tick when it saves a
+  library's settings.
   v0.98.0 (2026-11-22, app-only, no schema: ingestion run hardening —
   `docs/ingestion-run-hardening-plan-2026-11-22.md`; a run claims its
   task with a `started` mark in the log and stands down if another

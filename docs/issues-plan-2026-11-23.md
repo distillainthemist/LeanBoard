@@ -293,7 +293,7 @@ seen in the harness: each needs Ben's check on dev.
 
 Ben, 2026-11-23: "build tranche 1A".
 
-## As built (2026-11-23) — on dev, not released
+## As built (2026-11-23) — released in v0.99.0
 
 App-only. No schema, no Utilities change. Every item is in the
 Documents area, which the harness cannot reach, so **none of it has been
@@ -363,5 +363,5 @@ needed?", Mark superseded "Why is it being replaced?", Mark obsolete
 "Why is it no longer needed?", Reinstate "Why is it being reinstated?".
 
 Tranche 1A stands tested on dev for A, B, D, F, G and H. C, E, I and J
-go to UAT unseen running: UAT-DOC-031 / 032 (C), UAT-DOC-036 (E),
+go to UAT unseen running: UAT-DOC-035 / 036 (C), UAT-DOC-031 (E),
 UAT-DOC-101 (I), UAT-DOC-102 (J).

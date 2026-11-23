@@ -12,16 +12,17 @@ be worked on now. Their order, sizes and the questions each one waits
 on are in `backlog-programme-2026-11-22.md`, in eight tranches
 (roughly 190–270 hours; one item, hardened confidential actions, is
 schema-carrying). The items stay listed in their sections below until
-they are built. **Tranche 1 is built and on dev (2026-11-22), not
-released**: thirteen small fixes — its "As built" section in the
-programme lists them and what Ben should check.
+they are built. **Tranche 1 was RELEASED in v0.99.0 (2026-11-23)**:
+thirteen small fixes — its "As built" section in the programme lists
+them and Ben's test walk.
 
-**Tranche 1A is built and on dev (2026-11-23), not released** — its
-"As built" section is in `issues-plan-2026-11-23.md`. Ben's test walk
-(2026-11-23, the plan's last section): A, B, D, F, G and H pass on dev;
-C, E, I and J go to UAT unseen running. A walk finding fixed the same
-day: each lifecycle command asks its own reason question. Dev holds
-`v0.98.0-23-g6c3ac63`. Next: walk tranche 2 with Ben.
+**Tranche 1A was RELEASED in v0.99.0 (2026-11-23)** — its "As built"
+section is in `issues-plan-2026-11-23.md`. Ben's test walk (2026-11-23,
+the plan's last section): A, B, D, F, G and H pass on dev; C, E, I and
+J go to UAT unseen running. A walk finding fixed the same day: each
+lifecycle command asks its own reason question. Next: tranche 2's walk
+with Ben, begun at item 1 (C1) and paused for the release — C1 is
+asked and not yet answered.
 What 1A was: the nine reports of the 2026-11-23 issue export
 (`issues-plan-2026-11-23.md`): Teams group messages refused over a
 colon in the chat topic, Replace content's false "landed wrong" on
@@ -31,15 +32,31 @@ dialog's image picker, the link picker's layout, the unused PDF
 rendition folder, UAT-only libraries, and a controller's view scoped to
 their site.
 
-## Current state (2026-11-22, after v0.98.0)
+## Current state (2026-11-23, after v0.99.0)
 
-Released through v0.98.0 (ledger: `leanboard-cascade-improvement-plan.md`;
+Released through v0.99.0 (ledger: `leanboard-cascade-improvement-plan.md`;
 release paragraphs: `../CLAUDE.md`). Production took v0.88.1 and the
 v0.89.0/v0.90.0 managed solution; v0.91.0 and v0.93.0 are app-only,
 v0.92.0 carries the Utilities app in the managed solution, v0.94.0
 and v0.95.0 are SOLUTION-CARRYING — import the solution first — and
-v0.96.0, v0.97.0 and v0.98.0 are app-only. Lock older builds from
-Settings once the new one runs.
+v0.96.0, v0.97.0, v0.98.0 and v0.99.0 are app-only. Lock older builds
+from Settings once the new one runs.
+
+**v0.99.0 (2026-11-23, app-only):** tranche 1 of the programme
+(`backlog-programme-2026-11-22.md`) and tranche 1A, the 2026-11-23
+issue export (`issues-plan-2026-11-23.md`). Owed from it:
+- **Untested on dev, to UAT or production:** C4 required fields on the
+  Documents forms (Ben, in production); Review complete (UAT-DOC-035 /
+  036), a held check-out (UAT-DOC-031), UAT-only libraries
+  (UAT-DOC-101), a controller's site (UAT-DOC-102).
+- **Unproven:** the throttle retry, until SharePoint next throttles a
+  run (UAT-DOC-100).
+- **Known limits:** UAT-only and site scope are what the app shows,
+  not SharePoint permissions; a link with no library recorded on it
+  stays visible; a change of UAT standing lands on the next app open;
+  a board card set to a UAT-only library says the library is not
+  exposed; the kebab's flag count can show every site's count for a
+  moment; a document tagged to two sites shows to both controllers.
 
 **v0.98.0 (2026-11-22, app-only):** ingestion run hardening
 (`ingestion-run-hardening-plan-2026-11-22.md`): outcomes saved as they

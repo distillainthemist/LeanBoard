@@ -195,7 +195,7 @@ Ben, 2026-11-22: "build tranche 1".
 
 ## As built
 
-### Tranche 1 (2026-11-22, on dev, NOT released)
+### Tranche 1 (built 2026-11-22, RELEASED in v0.99.0 on 2026-11-23)
 
 Thirteen items built; E9 was already built. App-only, no schema.
 

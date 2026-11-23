@@ -1455,6 +1455,60 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-11-23 — released as v0.99.0** (app-only, no schema; Utilities
+  unchanged). Tranche 1 of the backlog programme
+  (`backlog-programme-2026-11-22.md`, thirteen small fixes) and tranche
+  1A, the 2026-11-23 issue export (`issues-plan-2026-11-23.md`, ten
+  items in Documents). Both documents hold the walk with Ben, the
+  as-built record and his test walks. AFTER the release reaches an
+  environment: "Lock every older build" — an older bundle shows a
+  UAT-only library to everyone and DROPS the tick when it saves a
+  library's settings.
+  **Tested on dev by Ben:** tranche 1 except C4 and F7; of 1A the
+  Teams topic, Replace content, Cancel revision, image picking, Link a
+  document, Superseded by and the rendition field. **Released unseen
+  running:** C4 (required fields on the Documents forms — Ben tests in
+  production), F7 (the throttle retry, cannot be forced), and 1A's
+  Review complete, held check-out, UAT-only libraries and controller
+  site scope (UAT: UAT-DOC-035/036, 031, 101, 102).
+  **Tranche 1.** The kanban column reads "Endorse" and the flagged
+  state "Support needed"; a dialog relays Escape to the focused field
+  (`ESCAPE_RELAY`, `onEscape`); the flag's colour follows the status
+  settings (`app/src/flagColour.ts`); card entry dialogs ask Who and
+  Due only once the Action has words and hold their primary button
+  (`buildActionForm` `optional`, `holdEntryDialog`); the Documents
+  forms mark required fields with the red asterisk and hold Add / Save
+  (`requiredMark`, `stillNeeded` — this REPLACES the 2026-10-26 choice
+  of an enabled button that scrolled to the missing field); closed
+  ingestion tasks leave the panel; every SharePoint call of a run
+  retries a throttle (`retryThrottled`); a term column keeps its ids
+  (`<col>#termid`) so a renamed term reads by its current name; metric
+  read windows (`improvement/readWindow.ts`), one batched read for a
+  priority's own metrics, and a stale metric's chart that ends at its
+  last reading (`chartWindow`).
+  **Tranche 1A.** The Teams chat topic turns the colon into a dash
+  (`chatTopic` — the 2026-10-26 fix had removed the wrong character);
+  an Office file's landed size is accepted within 10% or 256 KB
+  (`docs/landedCheck.ts`); a finished reviewer sees "✓ You completed
+  your review on <date>" and who is outstanding, "Submit for approval"
+  an outline button until every review is in (`reviewProgress`); the
+  restored version's card reads the cancel's words from the version,
+  the file's check-in comment or the approval comment, and the
+  abandoned drafts read "cancelled" (`fillVersionComments`,
+  `headReading`); a held check-out is "Checked out to <name>"; the
+  image pickers refuse HEIC by name (`app/src/imagePick.ts`); ONE
+  document search, a type-ahead, for Link a document and Superseded by
+  (`docs/docSearch.ts`, `docSearchModel.ts`; relationship first); the
+  PDF rendition folder field is gone; a library can be "UAT only" —
+  shown to super admins and people on a running UAT run, its links
+  hidden from everyone else and kept through their saves
+  (`docs/uatLibraries.ts`, applied in `docsConfig()`); a document
+  controller with a site on their person row sees their site's flags,
+  access requests, ingestion tasks and health report, plus anything
+  with no site (`docs/siteScope.ts`). Both of the last two are what the
+  app shows; SharePoint's permissions are unchanged. Each lifecycle
+  command that demands a comment asks its own question
+  (`LifecycleCommandDef.reasonPrompt`).
 - **2026-11-22 — released as v0.98.0** (app-only, no schema; Utilities
   unchanged). Ingestion run hardening —
   `docs/ingestion-run-hardening-plan-2026-11-22.md` holds the three
