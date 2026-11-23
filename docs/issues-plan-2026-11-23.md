@@ -278,4 +278,10 @@ seen in the harness: each needs Ben's check on dev.
   ID beneath), "No documents match", a line naming any library that
   could not be read; arrows / Enter / Escape. One shared builder, used
   for "Superseded by" too.
+- **I** — a "UAT only" tick per library; hidden from everyone not in
+  UAT mode, everywhere the library list is used; a small "UAT" tag on
+  the library's name for those who see it. IN UAT MODE = assigned to a
+  RUNNING UAT run, plus super admins. A link to a document in a UAT
+  library is HIDDEN ENTIRELY from someone who cannot see the library
+  (Ben chose this over "not available to you").
 
