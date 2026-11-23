@@ -319,11 +319,10 @@ Enter picking, Escape closing the list only).
 
 ### Limits, said plainly
 
-- **D is built without the evidence.** Which of the three places holds
-  the cancel's words on a real library is still unknown. If the restored
-  version's card still reads "No comment" on dev, the words are in none
-  of them, and the next step is a sign-in so the raw version rows can be
-  read.
+- **D was built without the evidence, and passed on dev** (Ben,
+  2026-11-23): the restored version's card shows the cancel's words and
+  the abandoned drafts read "cancelled". Which of the three places held
+  the words was not looked at; no sign-in was needed.
 - **I and J are what the app shows.** SharePoint's permissions are
   unchanged. A link with no library recorded on it (an older or
   cross-site link) cannot be judged and stays visible.
@@ -339,3 +338,30 @@ Enter picking, Escape closing the list only).
 UAT: UAT-DOC-025, 030, 031, 032, 035, 036, 040, 041, 054, 059 and 073
 updated; UAT-DOC-101 (UAT-only library), UAT-DOC-102 (a controller's
 site) and UAT-ISS-003 (a photo the app cannot show) added.
+
+## Ben's test walk (2026-11-23, dev)
+
+| # | Item | Result |
+|---|---|---|
+| 1 | A — Teams group message topic | Pass |
+| 2 | B — Replace content on an Office file | Pass |
+| 3 | C — Review complete | Not tested on dev: in UAT (two reviewer accounts) |
+| 4 | D — Cancel revision's comment, cancelled drafts | Pass |
+| 5 | E — a check-out someone else holds | Not tested on dev: in UAT |
+| 6 | F — choosing an image (HEIC) | Pass |
+| 7 | G — Link a document | Pass |
+| 8 | G — Superseded by | Pass |
+| 9 | H — PDF rendition folder gone | Pass |
+| 10 | I — UAT-only libraries | Not tested on dev: in UAT |
+| 11 | J — a controller's site | Not tested on dev: in UAT |
+
+Found in the walk (test 8) and fixed the same day, on dev as
+`v0.98.0-23-g6c3ac63`: every lifecycle command that demands a comment
+asked "Why is revision needed?". Each now asks its own question
+(`LifecycleCommandDef.reasonPrompt`): Request revision "Why is revision
+needed?", Mark superseded "Why is it being replaced?", Mark obsolete
+"Why is it no longer needed?", Reinstate "Why is it being reinstated?".
+
+Tranche 1A stands tested on dev for A, B, D, F, G and H. C, E, I and J
+go to UAT unseen running: UAT-DOC-031 / 032 (C), UAT-DOC-036 (E),
+UAT-DOC-101 (I), UAT-DOC-102 (J).

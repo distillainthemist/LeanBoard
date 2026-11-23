@@ -17,8 +17,11 @@ released**: thirteen small fixes — its "As built" section in the
 programme lists them and what Ben should check.
 
 **Tranche 1A is built and on dev (2026-11-23), not released** — its
-"As built" section is in `issues-plan-2026-11-23.md`; none of it has
-been seen running (all Documents). Next: walk tranche 2 with Ben.
+"As built" section is in `issues-plan-2026-11-23.md`. Ben's test walk
+(2026-11-23, the plan's last section): A, B, D, F, G and H pass on dev;
+C, E, I and J go to UAT unseen running. A walk finding fixed the same
+day: each lifecycle command asks its own reason question. Dev holds
+`v0.98.0-23-g6c3ac63`. Next: walk tranche 2 with Ben.
 What 1A was: the nine reports of the 2026-11-23 issue export
 (`issues-plan-2026-11-23.md`): Teams group messages refused over a
 colon in the chat topic, Replace content's false "landed wrong" on
@@ -26,7 +29,7 @@ Office files, a reviewer still offered "Review complete", Cancel
 revision's comment, a clearer notice on a held check-out, the flag
 dialog's image picker, the link picker's layout, the unused PDF
 rendition folder, UAT-only libraries, and a controller's view scoped to
-their site. Not built.
+their site.
 
 ## Current state (2026-11-22, after v0.98.0)
 
