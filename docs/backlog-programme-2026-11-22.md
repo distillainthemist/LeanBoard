@@ -224,6 +224,9 @@ The walk began 2026-11-23, paused for the v0.99.0 release, and resumed.
   initiative and on a priority. A driver-linked metric never takes the
   driver's readings with it. Where the list saves from a Save bar the
   readings go at Save, not at the ✕, so Discard still undoes it.
+- **D7** — **not built; off the backlog** (Ben, 2026-11-24). A
+  priority with no planned end never flags. Offered twice (2026-10-02,
+  2026-11-24) and declined twice; do not offer it again unprompted.
 
 ## As built
 

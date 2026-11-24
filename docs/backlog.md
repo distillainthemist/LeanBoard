@@ -587,10 +587,9 @@ that keep the scroll (v0.88.1).
 
 ## Priorities — open items (2026-10-02)
 
-- **Forgotten open priorities.** A priority with no planned end never
-  flags. Offered, not built: flag "open for more than a year with no
-  planned end" alongside the planned-end review flag (Ben: start
-  without it).
+- **Forgotten open priorities: DECLINED** (Ben, 2026-11-24, programme
+  D7; first "start without it" on 2026-10-02). A priority with no
+  planned end never flags, and that is the rule.
 - **An initiative's span is label-based.** Its start is the period
   label on its details; the end is stamped on completion / archive.
   An initiative whose label was never set shows in every year.
