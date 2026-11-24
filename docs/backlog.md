@@ -592,7 +592,8 @@ that keep the scroll (v0.88.1).
   planned end never flags, and that is the rule.
 - **An initiative's span is label-based.** Its start is the period
   label on its details; the end is stamped on completion / archive.
-  An initiative whose label was never set shows in every year.
+  An initiative whose label was never set shows in every year — LEFT
+  AS IT IS (Ben, 2026-11-24, programme D8).
 - **Re-parenting is single-level.** Linking a child under a parent
   does not re-send the child's own cascades; the child's children keep
   their links. A re-parented priority keeps its owner and order.

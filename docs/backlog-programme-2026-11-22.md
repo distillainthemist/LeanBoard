@@ -227,13 +227,10 @@ The walk began 2026-11-23, paused for the v0.99.0 release, and resumed.
 - **D7** — **not built; off the backlog** (Ben, 2026-11-24). A
   priority with no planned end never flags. Offered twice (2026-10-02,
   2026-11-24) and declined twice; do not offer it again unprompted.
-- **D8** — **an initiative with no period label starts in the period
-  it was created in** (Ben, 2026-11-24). A read rule, nothing written:
-  one function gives an initiative's start (its label, else the period
-  of its created date), and every "live in this year" reader uses it.
-  Ben was told the limits: a wrong guess cannot be corrected (the
-  period is not edited), and with custom periods a date cannot be
-  turned into a label, so those keep showing in every year.
+- **D8** — **not built; off the backlog** (Ben, 2026-11-24). He first
+  chose the read rule (no label = starts in the period it was created
+  in), then came back to the item and changed his mind: leave it. An
+  initiative with no period label goes on showing in every year.
 - **D10** — **replaced: calendar year is the ONLY period** (Ben,
   2026-11-24: "Can we simplify to just calendar year as the only
   option?"). The mode select, the financial-year start month, the
@@ -243,8 +240,7 @@ The walk began 2026-11-23, paused for the v0.99.0 release, and resumed.
   confirmed dev and production are both already calendar year with no
   prefix, so this is a removal: no stored label changes. Build detail:
   a stored mode other than calendar is read as calendar, and labels go
-  on comparing by their digits. With custom periods gone, D8's second
-  limit goes too. 2–3 h, no schema.
+  on comparing by their digits. 2–3 h, no schema.
 
 ## As built
 
