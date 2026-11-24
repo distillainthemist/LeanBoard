@@ -73,7 +73,8 @@ import { prioritiesViewUrl, takePendingPrioritiesView } from "../links";
 import { decodePrioritiesView, encodePrioritiesView } from "./viewLink";
 import { cascadeDialog, cascadeReview, closeDialog, closePriority, LifecycleCtx, moveBackToProposed, openPriorityOverlay, pullFromAbove, reopenPriority, sendCascade } from "./lifecycle";
 import { Initiative, adminScopeFor, initiativesByPriority, ownersLabel, ownersTitle, statusOf } from "../improvement/initiativeModel";
-import { actionCounts, actionCountsFor, PriorityOwn, PriorityState, priorityStatus, PriorityStatus, statusColour, StatusResult } from "../improvement/status";
+import { actionCounts, actionCountsFor, PriorityOwn, PriorityOwnAt, PriorityState, priorityStatus, PriorityStatus, statusColour, StatusResult } from "../improvement/status";
+import { ownBelow } from "./ownBelow";
 import { priorityKey } from "../../../shared/schema/actionLinks";
 import type { LtkAction } from "../../../shared/schema/actions";
 import { priorityCounts, statusLegend } from "../improvement/statusUi";
@@ -430,7 +431,20 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
     /** What a priority carries of its own: its actions here and its own
      *  metrics. Both count toward its status. */
     const ownOf = (p: Priority): PriorityOwn => ({ actions: actionCounts(priorityActionsOf(p), today), metrics: ownValuesOf(p).map((v) => ({ name: v.name, rag: v.rag })) });
-    const pStatus = (p: Priority): PriorityStatus => priorityStatus(statusesFor(p).map((x) => x.state), ownOf(p));
+    /** What counts from BELOW it (programme C1, 2026-11-24): the late
+     *  actions and off-plan metrics of the priorities cascaded from it.
+     *  They still show only where they were raised. */
+    const belowOf = (p: Priority): PriorityOwnAt[] =>
+      ownBelow({
+        p,
+        view: actionOrgOf(p),
+        all: data.priorities,
+        assignments: data.assignments,
+        actions: priorityActions,
+        metricsOf: (x) => ownValuesOf(x).map((v) => ({ name: v.name, rag: v.rag })),
+        today,
+      });
+    const pStatus = (p: Priority): PriorityStatus => priorityStatus(statusesFor(p).map((x) => x.state), ownOf(p), belowOf(p));
     /** Org managers only, on an active priority (decision 3). */
     const canRaiseOn = (p: Priority): boolean => p.status === "active" && viewer.whoId !== "" && canManageOrg(viewer, actionOrgOf(p), owners);
     /** Raise an action on `p` from its tile's ⋮. */

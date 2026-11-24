@@ -260,9 +260,11 @@ export interface PriorityStatus {
   /** Its INITIATIVES, by state — the three circles. */
   counts: Record<StatusState, number>;
   total: number;
-  /** Why the priority ITSELF is off track (2026-11-18): a late action
-   *  raised on it, a metric of its own short of plan or outside its
-   *  limits. Empty when nothing of its own is wrong. */
+  /** Why the priority is off track apart from its initiatives
+   *  (2026-11-18): a late action raised on it, a metric of its own short
+   *  of plan or outside its limits — and, since 2026-11-24, the same on a
+   *  priority cascaded from it, each naming its place ("… at Weipa").
+   *  Empty when nothing of the kind is wrong. */
   own: StatusReason[];
 }
 
@@ -274,23 +276,34 @@ export interface PriorityOwn {
   metrics: StatusMetric[];
 }
 
+/** What a priority cascaded from this one carries of its own, at one
+ *  place (priorities/ownBelow.ts). It counts toward THIS priority's
+ *  status as the priority's own does; the reason names the place. */
+export interface PriorityOwnAt extends PriorityOwn {
+  place: string;
+}
+
 /** Flagged wins, then off track, then on track; nothing counted → none.
  *  Off track: any initiative is, or something of the priority's own is —
- *  a late action, a metric short of plan or outside its limits. A
- *  priority with no initiatives is on track on its own actions and
- *  metrics once it has any. */
-export function priorityStatus(states: StatusState[], mine?: PriorityOwn): PriorityStatus {
+ *  a late action, a metric short of plan or outside its limits — on the
+ *  priority, or on one cascaded from it (`below`, Ben 2026-11-24). A
+ *  priority with no initiatives is on track on those actions and
+ *  metrics once there are any. */
+export function priorityStatus(states: StatusState[], mine?: PriorityOwn, below: PriorityOwnAt[] = []): PriorityStatus {
   const counts: Record<StatusState, number> = { good: 0, flagged: 0, bad: 0 };
   for (const s of states) counts[s]++;
   const own: StatusReason[] = [];
-  if (mine) {
-    if (mine.actions.late > 0) own.push({ kind: "late", text: `${mine.actions.late} late priority action${mine.actions.late === 1 ? "" : "s"}` });
-    for (const m of mine.metrics) {
-      if (m.rag === "red") own.push({ kind: "metric", text: `${m.name} outside its limits` });
-      else if (m.rag === "amber") own.push({ kind: "metric", text: `${m.name} short of plan` });
+  const reasonsOf = (x: PriorityOwn, where: string) => {
+    if (x.actions.late > 0) own.push({ kind: "late", text: `${x.actions.late} late priority action${x.actions.late === 1 ? "" : "s"}${where}` });
+    for (const m of x.metrics) {
+      if (m.rag === "red") own.push({ kind: "metric", text: `${m.name} outside its limits${where}` });
+      else if (m.rag === "amber") own.push({ kind: "metric", text: `${m.name} short of plan${where}` });
     }
-  }
-  const hasOwn = mine !== undefined && (mine.actions.total > 0 || mine.metrics.some((m) => m.rag !== null));
+  };
+  if (mine) reasonsOf(mine, "");
+  for (const b of below) reasonsOf(b, ` at ${b.place}`);
+  const has = (x: PriorityOwn): boolean => x.actions.total > 0 || x.metrics.some((m) => m.rag !== null);
+  const hasOwn = (mine !== undefined && has(mine)) || below.some(has);
   const state: PriorityState = counts.flagged > 0 ? "flagged" : counts.bad > 0 || own.length > 0 ? "bad" : counts.good > 0 || hasOwn ? "good" : "none";
   return { state, counts, total: states.length, own };
 }
