@@ -24,6 +24,7 @@ import { setLeaveGuard } from "../navGuard";
 import { promptUnsaved } from "../prompts";
 import { effectivePerson } from "../viewAs";
 import { getBoard } from "../store/boards";
+import { ritualStanding } from "./ritualScope";
 
 function mintBoardId(title: string): string {
   const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
@@ -65,9 +66,26 @@ export function mountWizard(parent: HTMLElement, editBoardId = ""): () => void {
           const blob = JSON.parse(editRaw) as { meeting?: { owner?: { whoId?: string } } };
           ownerId = blob.meeting?.owner?.whoId ?? "";
         } catch { /* no owner */ }
-        if (!isAdmin && ownerId !== viewer.objectId) {
+        // the backstop of the Settings list's rule (ritualScope.ts,
+        // programme G8): a site admin changes the rituals of their OWN
+        // site; one from another site, even when it is also shown at
+        // theirs, is the primary site's to change. `me.whoId` honours
+        // view-as, as the role does.
+        let alsoSites: string[] = [];
+        try {
+          const blob = JSON.parse(editRaw) as { meeting?: { alsoOrgs?: { site?: unknown }[] } };
+          alsoSites = (blob.meeting?.alsoOrgs ?? []).map((o) => (typeof o?.site === "string" ? o.site : ""));
+        } catch { /* none */ }
+        const standing = ritualStanding({ role: me?.role ?? "user", site: me?.site ?? "", whoId: viewer.objectId }, { site: board.site, ownerId, alsoSites });
+        if (standing !== "manage") {
           parent.appendChild(
-            el("div", "app-board-note", "Only admins or the meeting owner can edit this meeting.")
+            el(
+              "div",
+              "app-board-note",
+              standing === "view"
+                ? `This meeting is run from ${board.site || "another site"}. Its admins or its owner can edit it.`
+                : "Only this site's admins or the meeting owner can edit this meeting."
+            )
           );
           return;
         }

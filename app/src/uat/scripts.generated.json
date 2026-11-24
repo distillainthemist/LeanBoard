@@ -3166,6 +3166,28 @@
        "expected": "step 1 Hazard and Risk each carry a small red asterisk; Add is disabled with the tooltip \"Still needed: Hazard or Risk\" — pressing it does nothing and nothing turns red; step 2 Add enables (either field will do); step 3 before any action is typed Who and Due carry NO asterisk; once the Action box has words both gain one and Add is disabled with \"Still needed: Who, Due\"; step 4 the asterisks go and Add enables — no action is being raised; step 5 the risk is added with its action listed under Treatments; there is no \"Required before Add\" line anywhere; step 6 Cause carries the asterisk and Add waits for it; Save on an existing cause waits the same way",
        "hash": "87d3f803",
        "changed": "2026-11-22"
+      },
+      {
+       "id": "UAT-RIT-016",
+       "title": "A ritual shared with your site: seen in Settings, changed by the site that runs it",
+       "journey": "Journey 2 — The Action card's views",
+       "persona": "siteadmin",
+       "modules": [
+        "screens/ritualScope.ts",
+        "screens/settings.ts",
+        "screens/wizard.ts"
+       ],
+       "preconditions": "two sites; a ritual whose primary organisation is at the FIRST site and which is also shown in an organisation at the SECOND; a ritual at the first site that is not shared; a site admin of each site; neither admin owns the shared ritual",
+       "steps": [
+        "As the second site's admin: Settings → Rituals. Read the heading's note and the list.",
+        "On the shared ritual's card read the lines and the buttons; press Open.",
+        "Still as the second site's admin: put the shared ritual's edit address in the address bar (#/wizard/<its board id>).",
+        "As the first site's admin: Settings → Rituals; read the same ritual's card.",
+        "As a super admin: read the same card."
+       ],
+       "expected": "step 1 the note reads \"Rituals at <site>, and those from other sites that are also shown there.\"; the shared ritual is listed, the first site's unshared ritual is not; step 2 the card carries \"Also at your site, from <first site>\" and offers Open and Copy link only — no Edit meeting, Replicate or Archive; Open opens the board; step 3 the wizard does not open: \"This meeting is run from <first site>. Its admins or its owner can edit it.\"; step 4 and 5 the card has no \"Also at your site\" line and offers Edit meeting, Replicate and Archive as before. The ritual's owner keeps Edit meeting wherever they sit",
+       "hash": "1c76d543",
+       "changed": "2026-11-24"
       }
      ]
     }

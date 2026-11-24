@@ -81,6 +81,7 @@ import {
 } from "../store/config";
 import { CustomiseLevel, parseSiteCascadeSettings, serializeSiteCascadeSettings } from "../priorities/model";
 import { parseMeetingInfo, parseOrgTree } from "../../../shared/schema/meeting";
+import { ritualStanding, sharedRitualNote } from "./ritualScope";
 import { effectiveTabs, HUB_TABS } from "../../../shared/schema/hubTabs";
 import {
   cadenceFromConfig,
@@ -3773,7 +3774,7 @@ async function renderBoardsAdmin(body: HTMLElement, me: RosterPerson): Promise<v
       isSuper
         ? "All rituals across every site."
         : isAdmin
-          ? `Rituals at ${me.site || "your site"}.`
+          ? `Rituals at ${me.site || "your site"}, and those from other sites that are also shown there.`
           : "Rituals you own \u2014 you can adjust them; ask an admin to create a new one."
     )
   );
@@ -3787,17 +3788,23 @@ async function renderBoardsAdmin(body: HTMLElement, me: RosterPerson): Promise<v
   // rituals only: initiative boards (kind "project", `init-`/`tpl-` ids)
   // are managed on the Improvement tab, not here (Ben, 2026-09-09)
   const all = (await listBoards(true)).filter((b) => b.kind === "meeting" && !b.boardId.startsWith("init-") && !b.boardId.startsWith("tpl-")); // archived included; hidden below
-  const withInfo = all.map((b) => ({
-    board: b,
-    owner: parseMeetingInfo(b.occurrenceSettingsRaw)?.owner ?? null,
-    cadence: cadenceSummary(b.occurrenceSettingsRaw),
-  }));
-  // super admins see everything; site admins their site; users what they own
-  const scoped = isSuper
-    ? withInfo
-    : isAdmin
-      ? withInfo.filter((x) => x.board.site === me.site)
-      : withInfo.filter((x) => x.owner?.whoId === me.whoId);
+  // ONE rule (ritualScope.ts, programme G8): super admins manage
+  // everything; a site admin manages their site's rituals and SEES those
+  // from other sites that are also shown at theirs; anyone manages what
+  // they own
+  const viewerNow = { role: isSuper ? "superadmin" : isAdmin ? "siteadmin" : "user", site: me.site, whoId: me.whoId };
+  const withInfo = all.map((b) => {
+    const info = parseMeetingInfo(b.occurrenceSettingsRaw);
+    const owner = info?.owner ?? null;
+    return {
+      board: b,
+      owner,
+      cadence: cadenceSummary(b.occurrenceSettingsRaw),
+      standing: ritualStanding(viewerNow, { site: b.site, ownerId: owner?.whoId ?? "", alsoSites: (info?.alsoOrgs ?? []).map((o) => o.site) }),
+    };
+  });
+  // an owner who is not an admin keeps the list they had: what they own
+  const scoped = withInfo.filter((x) => (isAdmin ? x.standing !== "none" : x.owner?.whoId === me.whoId));
   // ---- filters: title, category, site (super only) ----
   let query = "";
   let catFilter = "";
@@ -3870,7 +3877,7 @@ async function renderBoardsAdmin(body: HTMLElement, me: RosterPerson): Promise<v
       grid.appendChild(el("div", "app-settings-note", "No rituals match."));
       return;
     }
-    for (const { board: b, owner, cadence } of shown) {
+    for (const { board: b, owner, cadence, standing } of shown) {
       const card = el("div", "app-ritual-card");
       const catColor = colorByCategory[b.category] ?? "";
       if (catColor !== "") card.style.borderTopColor = catColor;
@@ -3896,6 +3903,9 @@ async function renderBoardsAdmin(body: HTMLElement, me: RosterPerson): Promise<v
       card.appendChild(titleRow);
       const place = [b.site, b.department].filter(Boolean).join(" \u00b7 ");
       if (place !== "") card.appendChild(el("div", "app-ritual-meta", place));
+      // another site's ritual, also shown at this admin's site: seen, not
+      // changed — its Edit, Replicate and Archive are the primary site's
+      if (standing === "view") card.appendChild(el("div", "app-ritual-meta app-ritual-shared", sharedRitualNote(b.site)));
       if (cadence !== "") card.appendChild(el("div", "app-ritual-meta", cadence));
 
       const ownerPerson = owner ? personBy.get(owner.whoId) : undefined;
@@ -3937,13 +3947,13 @@ async function renderBoardsAdmin(body: HTMLElement, me: RosterPerson): Promise<v
         });
       });
       actions.appendChild(copy);
-      if (isAdmin || owner?.whoId === me.whoId) {
+      if (standing === "manage") {
         // Edit meeting covers the board too (wizard step 7)
         const edit = el("a", "app-btn", "Edit meeting") as HTMLAnchorElement;
         edit.href = `#/wizard/${b.boardId}`;
         actions.appendChild(edit);
       }
-      if (isAdmin) {
+      if (isAdmin && standing === "manage") {
         const rep = el("button", "app-btn", "Replicate") as HTMLButtonElement;
         rep.addEventListener("click", () => {
           void (async () => {
