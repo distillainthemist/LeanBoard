@@ -119,6 +119,12 @@ export interface Assignee {
    *  finished and who has not (2026-11-17, issue 10). Absent while open
    *  and on parts done before then. */
   doneAt?: string;
+  /** Who recorded this part as done, when it was SOMEONE ELSE (Ben,
+   *  2026-11-24, programme C6): anyone who can edit the action may press
+   *  another person's sign-off box in the dialog, and the press is on
+   *  record. Absent when the person did it themselves, on parts done
+   *  before then, and on a part closed from a board (no presser known). */
+  doneBy?: { whoId: string; who: string };
 }
 
 /** Someone who SUPPORTS an action (issue 7, 2026-11-16): named on it,
@@ -336,6 +342,9 @@ export function sanitizeAction(a: Partial<LtkAction>): LtkAction {
           who: typeof x.who === "string" ? x.who : "",
           done: x.done === true,
           ...(x.done === true && typeof x.doneAt === "string" && x.doneAt !== "" ? { doneAt: x.doneAt } : {}),
+          ...(x.done === true && x.doneBy && typeof x.doneBy === "object" && typeof x.doneBy.who === "string" && x.doneBy.who !== ""
+            ? { doneBy: { whoId: typeof x.doneBy.whoId === "string" ? x.doneBy.whoId : "", who: x.doneBy.who } }
+            : {}),
         }))
         .filter((x) => x.who !== "" || x.whoId !== "")
     : [];
@@ -524,6 +533,11 @@ export function stampCompletion(a: LtkAction, nowIso = new Date().toISOString())
       delete x.doneAt;
       changed = true;
     }
+    // an open part has no presser
+    if (!x.done && x.doneBy !== undefined) {
+      delete x.doneBy;
+      changed = true;
+    }
   }
   return changed;
 }
@@ -605,6 +619,8 @@ export function tickPart(a: LtkAction, whoId: string, nowIso = new Date().toISOS
   mine.done = !mine.done;
   if (mine.done) mine.doneAt = nowIso;
   else delete mine.doneAt;
+  // their own tick: nobody pressed it for them
+  delete mine.doneBy;
   settleFromParts(a, { reopen: true });
   return mine.done ? "done" : "undone";
 }
@@ -644,7 +660,15 @@ const samePerson = (a: { whoId: string; who: string }, b: { whoId: string; who: 
 export function mergeAssignees(
   previous: Assignee[],
   picked: { whoId: string; who: string }[],
-  opts: { closed: boolean; wasClosed: boolean; staged?: (p: { whoId: string; who: string }) => boolean | undefined; nowIso?: string }
+  opts: {
+    closed: boolean;
+    wasClosed: boolean;
+    staged?: (p: { whoId: string; who: string }) => boolean | undefined;
+    nowIso?: string;
+    /** Who is saving: a part that becomes done here for SOMEONE ELSE
+     *  records them (`doneBy`, programme C6). */
+    by?: { whoId: string; who: string };
+  }
 ): Assignee[] {
   const seen: { whoId: string; who: string }[] = [];
   const unique = picked.filter((p) => {
@@ -657,10 +681,28 @@ export function mergeAssignees(
   const now = opts.nowIso ?? new Date().toISOString();
   const part = (p: { whoId: string; who: string }, was: Assignee | undefined): Assignee => {
     const done = opts.closed ? true : opts.wasClosed ? false : (opts.staged?.(p) ?? was?.done ?? false);
-    const doneAt = done ? (was?.done === true && was.doneAt ? was.doneAt : now) : undefined;
-    return { whoId: p.whoId, who: p.who, done, ...(doneAt ? { doneAt } : {}) };
+    const wasDone = was?.done === true;
+    const doneAt = done ? (wasDone && was.doneAt ? was.doneAt : now) : undefined;
+    // a part already done keeps whoever recorded it; one done HERE by
+    // someone other than its person records the presser
+    const doneBy = !done ? undefined : wasDone ? was.doneBy : opts.by && opts.by.who !== "" && !samePerson(opts.by, p) ? { whoId: opts.by.whoId, who: opts.by.who } : undefined;
+    return { whoId: p.whoId, who: p.who, done, ...(doneAt ? { doneAt } : {}), ...(doneBy ? { doneBy } : {}) };
   };
   return [...kept.map((x) => part(unique.find((p) => samePerson(p, x)) ?? x, x)), ...added.map((p) => part(p, undefined))].slice(0, MAX_ASSIGNEES);
+}
+
+const SHORT_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** "Signed off by Ben for Kat, 24 Nov" — a part someone else recorded
+ *  as done (programme C6). "" when the person did it themselves, or
+ *  nobody is on record. The date is the local day of `doneAt`. */
+export function signedOffWords(part: Pick<Assignee, "who" | "done" | "doneAt" | "doneBy">): string {
+  if (!part.done || part.doneBy === undefined || part.doneBy.who === "") return "";
+  const at = part.doneAt ?? "";
+  const day = at === "" ? "" : /T/.test(at) ? localDay(at) : at;
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(day);
+  const when = m ? `, ${Number(m[3])} ${SHORT_MONTHS[Number(m[2]) - 1] ?? ""}`.trimEnd() : "";
+  return `Signed off by ${part.doneBy.who} for ${part.who}${when}`;
 }
 
 /**

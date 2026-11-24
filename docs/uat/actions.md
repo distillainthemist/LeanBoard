@@ -163,3 +163,13 @@ steps:
 4. Read the "⚑ Flag for support" button's colour; press it; Save. Read the ⚑ beside the action in the list.
 expected: step 1 the column between Doing and Done reads "Endorse" (not "Verify") and the setting reads "Endorse column"; step 2 the first Escape closes the list and clears what was typed; the second does nothing — the dialog never closes on Escape; step 3 Escape closes the message panel's list the same way (it did nothing before) and the panel and the dialog stay open; step 4 the button is tinted in the Support needed colour chosen in Settings, fills with it once pressed, and the ⚑ beside the action is the same colour (it was the accent colour) — after a change in Settings the new colour shows the next time the app opens
 
+### UAT-ACT-014 — A sign-off pressed for someone else says who pressed it
+persona: owner
+modules: shared/schema/actions.ts shared/ui/actionUi.ts
+preconditions: an open action shared by you and two other people, nobody's part done; one of the others able to sign in
+steps:
+1. Open the action. Press the sign-off box of one of the OTHER people, then your own; Save.
+2. Open the action again and hover each box.
+3. As that other person: open the action and hover their own box; press it to undo, Save; press it again, Save; hover it.
+4. On a board, tick your own part of another shared action; open it and hover your box.
+expected: step 1 both parts read done and the action stays open (one part is outstanding); step 2 the other person's box reads "Signed off by <you> for <them>, <day month> — click to undo"; your own reads "<you> has done their part — click to undo"; step 3 they see the same words on their box; after their own undo and press it reads "<them> has done their part" — the record of your press is gone; step 4 a part ticked on a board is the person's own and names nobody else. Anyone who can edit the action may still press anyone's box

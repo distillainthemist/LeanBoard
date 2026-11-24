@@ -18,6 +18,7 @@ import {
   recentlyDone,
   sanitizeAction,
   settleFromParts,
+  signedOffWords,
   stampCompletion,
 } from "../../../shared/schema/actions";
 
@@ -125,6 +126,54 @@ describe("the assignees an edit leaves", () => {
   it("matches a typed name with no id by its words", () => {
     const out = mergeAssignees([{ whoId: "", who: "Sam Lee", done: true, doneAt: NOW }], [{ whoId: "", who: "sam lee" }], { closed: false, wasClosed: false });
     expect(out[0].done).toBe(true);
+  });
+});
+
+describe("who pressed another person's sign-off (programme C6)", () => {
+  const pick = (...ids: string[]) => ids.map((id) => ({ whoId: id, who: `Person ${id}` }));
+  const ben = { whoId: "a", who: "Person a" };
+  it("records the presser on a part done for someone else, and not on their own", () => {
+    const out = mergeAssignees([p("a"), p("b")], pick("a", "b"), { closed: false, wasClosed: false, staged: () => true, nowIso: NOW, by: ben });
+    expect(out[0].doneBy).toBeUndefined(); // their own part
+    expect(out[1].doneBy).toEqual(ben);
+    expect(out[1].doneAt).toBe(NOW);
+  });
+  it("a part already done keeps whoever recorded it", () => {
+    const prev = [{ ...p("b", true, "2026-11-01T00:00:00.000Z"), doneBy: { whoId: "z", who: "Zed" } }, p("c")];
+    const out = mergeAssignees(prev, pick("b", "c"), { closed: false, wasClosed: false, nowIso: NOW, by: ben });
+    expect(out[0].doneBy).toEqual({ whoId: "z", who: "Zed" });
+    expect(out[1].doneBy).toBeUndefined(); // still open
+  });
+  it("closing the action from the dialog records who closed the others' parts", () => {
+    const out = mergeAssignees([p("a"), p("b")], pick("a", "b"), { closed: true, wasClosed: false, nowIso: NOW, by: ben });
+    expect(out.map((x) => x.doneBy?.who)).toEqual([undefined, "Person a"]);
+  });
+  it("an undone part, and a person's own tick, carry no presser", () => {
+    const prev = [{ ...p("b", true, NOW), doneBy: ben }, p("c")];
+    const undone = mergeAssignees(prev, pick("b", "c"), { closed: false, wasClosed: false, staged: (x) => (x.whoId === "b" ? false : undefined), nowIso: NOW, by: ben });
+    expect(undone[0]).toEqual({ whoId: "b", who: "Person b", done: false });
+    // their own tick on a board replaces someone else's record
+    const a = act({ assignees: [{ ...p("b", false), doneBy: ben }, p("c")], status: "open" });
+    stampCompletion(a, NOW);
+    expect(a.assignees[0].doneBy).toBeUndefined();
+    const b = act({ assignees: [p("b"), p("c")], status: "open" });
+    expect(tickPart(b, "b", NOW)).toBe("done");
+    expect(b.assignees[0].doneBy).toBeUndefined();
+  });
+  it("with nobody saving, nothing is recorded", () => {
+    const out = mergeAssignees([p("a"), p("b")], pick("a", "b"), { closed: false, wasClosed: false, staged: () => true, nowIso: NOW });
+    expect(out.every((x) => x.doneBy === undefined)).toBe(true);
+  });
+  it("survives the row's round trip, on a done part only", () => {
+    const kept = sanitizeAction({ assignees: [{ ...p("b", true, NOW), doneBy: ben }, { ...p("c", false), doneBy: ben }] });
+    expect(kept.assignees[0].doneBy).toEqual(ben);
+    expect(kept.assignees[1].doneBy).toBeUndefined();
+  });
+  it("reads as words", () => {
+    expect(signedOffWords({ who: "Kat", done: true, doneAt: "2026-11-24", doneBy: { whoId: "x", who: "Ben" } })).toBe("Signed off by Ben for Kat, 24 Nov");
+    expect(signedOffWords({ who: "Kat", done: true, doneBy: { whoId: "x", who: "Ben" } })).toBe("Signed off by Ben for Kat");
+    expect(signedOffWords({ who: "Kat", done: true, doneAt: "2026-11-24" })).toBe("");
+    expect(signedOffWords({ who: "Kat", done: false, doneBy: { whoId: "x", who: "Ben" } })).toBe("");
   });
 });
 

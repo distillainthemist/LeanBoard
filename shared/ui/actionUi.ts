@@ -7,7 +7,7 @@
 // action with a part each, 2026-11-17); actions are never hard-deleted (the danger button cancels); Done/Due/
 // Overdue are capitalised; circle colours are set inline (Safari rule).
 
-import { ActionComment, ActionPdca, ACTION_PDCA, assigneesLabel, canEditComment, cleanSupporters, COMMENT_EDIT_HOURS, duplicateAction, editComment, holdOpenUntilAllParts, isOverdue, isShared, LtkAction, partsOutstanding, tickPart, MAX_ASSIGNEES, mergeAssignees, newAction, newComment, partsLabel, partsTitle, settleFromParts, Supporter, supportLabel, PDCA_LABELS, PDCA_QUARTERS, pdcaOf } from "../schema/actions";
+import { ActionComment, ActionPdca, ACTION_PDCA, assigneesLabel, signedOffWords, canEditComment, cleanSupporters, COMMENT_EDIT_HOURS, duplicateAction, editComment, holdOpenUntilAllParts, isOverdue, isShared, LtkAction, partsOutstanding, tickPart, MAX_ASSIGNEES, mergeAssignees, newAction, newComment, partsLabel, partsTitle, settleFromParts, Supporter, supportLabel, PDCA_LABELS, PDCA_QUARTERS, pdcaOf } from "../schema/actions";
 import { ActionLink, applyLink, boardOnlyTarget, currentLink, isCardKeyed, linkChanges, linkLabel, LinkTarget, searchLinkTargets } from "../schema/actionLinks";
 import { ACTION_MOVED_EVENT, actionAttachments, actionDirectory, ActionDirectoryRoad, ActionLinkContext, actionLinkProvider, actionMessenger, actionTeam, ActionTeamRoad, actionViewer, endorsementFor } from "./actionLinkProvider";
 import { dueMove, dueMoves, isLaterMove, reasonChoices, recordDueMove, slipCount } from "../schema/reschedule";
@@ -615,7 +615,11 @@ export function buildActionForm(
     b.classList.toggle("ltk-part-done", done);
     b.textContent = done ? "✓" : "";
     b.setAttribute("aria-pressed", String(done));
-    b.title = done ? `${person.who} has done their part — click to undo` : `Mark ${person.who}'s part done`;
+    // a part someone else recorded says who (programme C6) — as it was
+    // SAVED: a press made in this dialog is not on record until Save
+    const saved = staged.get(keyOf(person)) === undefined ? initialAssignees.find((x) => (x.whoId !== "" && x.whoId === person.whoId) || x.who === person.who) : undefined;
+    const by = saved ? signedOffWords(saved) : "";
+    b.title = done ? `${by !== "" ? by : `${person.who} has done their part`} — click to undo` : `Mark ${person.who}'s part done`;
     b.setAttribute("aria-label", b.title);
     // on a sign-off box the whole box is the control: it says the same
     const host = b.parentElement;
@@ -898,7 +902,7 @@ export function buildActionForm(
       // had; a part ticked here is taken; closing closes them all.
       const closed = action.status === "done" || action.status === "verify";
       const who = freeWho ? (freeWho.value.trim() !== "" ? [{ whoId: "", who: freeWho.value.trim() }] : []) : picked();
-      action.assignees = mergeAssignees(initialAssignees, who, { closed, wasClosed: initialClosed, staged: (p) => staged.get(keyOf(p)) });
+      action.assignees = mergeAssignees(initialAssignees, who, { closed, wasClosed: initialClosed, staged: (p) => staged.get(keyOf(p)), by: actionViewer() ?? undefined });
       // assigned wins: nobody is both (cleanSupporters drops the overlap)
       const sup = cleanSupporters(supporters, action.assignees);
       if (sup.length > 0) action.supporters = sup;
