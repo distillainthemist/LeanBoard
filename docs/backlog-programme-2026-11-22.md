@@ -206,6 +206,12 @@ The walk began 2026-11-23, paused for the v0.99.0 release, and resumed.
   action on a priority shows only at the org that raised it): it still
   SHOWS only there, but it now COUNTS upward, as initiatives do. Ben
   was told of the history before answering.
+- **C5** — **no change; off the backlog** (Ben, 2026-11-24). A
+  confidential initiative stays visible to its role holders, the owner
+  of its org or an org above, super admins, and a site admin for their
+  own site. The owner's direct reports manage the org's priorities but
+  do not see its confidential initiatives; an owner who wants one of
+  them in gives that person a role on the initiative. Nothing to build.
 
 ## As built
 

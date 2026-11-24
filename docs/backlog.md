@@ -193,9 +193,10 @@ Recent decisions of record:
   an org is its owner or the owner's direct reports; initiatives link only
   to priorities at an org the person manages — upward linking ended, pull
   first (existing links kept); a pull is adopted as-is or customised, an
-  adopted priority can be customised or dropped. Open question put to
-  Ben: whether direct reports should also see confidential initiatives
-  (today ownership only).
+  adopted priority can be customised or dropped. The open question —
+  should direct reports also see confidential initiatives — was
+  ANSWERED NO by Ben on 2026-11-24 (programme C5): ownership, roles and
+  admins only; a direct report is let in by a role on the initiative.
 
 - **The release gate first fired at v0.88.1** (2026-11-02): until then
   every build stamped itself `-dirty` through the generated UAT file and
