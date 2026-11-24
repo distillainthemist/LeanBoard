@@ -17,6 +17,7 @@ import { mountMetricsCard } from "../improvement/metricsCard";
 import type { MetricValue } from "../improvement/metricValues";
 import { ownMetricLocation } from "../improvement/metricValues";
 import { renderMetricsList } from "../improvement/metricsList";
+import { hasOwnReadings } from "../improvement/metricRemoval";
 import type { TemplateMetric } from "../improvement/templateModel";
 import type { DriverNode, DriverTracking } from "../improvement/vdt/model";
 import { pageColumns, pageOriginAround } from "../improvement/vdt/gridModel";
@@ -183,6 +184,25 @@ export function mountOwnMetrics(o: OwnMetricsOpts): void {
     noRelink: true,
     max: OWN_METRIC_CAP,
     onChanged: persist,
+    // this list saves at once, so a removed metric's readings go at once
+    // — after the person has been asked, with the count (programme C8)
+    readingsOf: async (m) => {
+      const loc = ownMetricLocation(p.id, m, null);
+      const { countReadings } = await import("../store/series");
+      return countReadings(loc.boardId, loc.cardId);
+    },
+    onRemoved: (m) => {
+      if (!hasOwnReadings(m)) return;
+      const loc = ownMetricLocation(p.id, m, null);
+      writing = writing
+        .then(() => import("../store/series"))
+        .then((st) => st.deleteSeriesAt(loc.boardId, loc.cardId))
+        .then(() => undefined)
+        .catch((e) => {
+          console.warn("priority metrics: readings not deleted", e);
+          err.textContent = `The readings of ${m.name} could not be deleted. They are still stored.`;
+        });
+    },
   });
   mountCharts();
 }

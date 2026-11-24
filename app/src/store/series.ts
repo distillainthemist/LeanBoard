@@ -18,6 +18,9 @@ import {
   unionWindow,
 } from "./seriesMap";
 
+/** The plan / limit rows' key prefix (shared/schema/specSeries.ts). */
+const SPEC_PREFIX = "spec:";
+
 function fromRow(row: Ben_ltkcardserieses): SeriesCell {
   return {
     key: row.ben_serieskey ?? "",
@@ -154,6 +157,27 @@ export async function hasAnySeries(boardId: string, cardId: string): Promise<boo
     ["ben_ltkcardseriesid"]
   );
   return row !== null;
+}
+
+/** How many READINGS a location holds — its cells with a value, the
+ *  plan / limit rows beside them (`spec:` keys) not counted. Asked
+ *  before a metric is removed (programme C8, 2026-11-24). */
+export async function countReadings(boardId: string, cardId: string): Promise<number> {
+  const rows = await allWhere(Ben_ltkcardseriesesService.getAll, `${eq("ben_boardid", boardId)} and ${eq("ben_cardid", cardId)}`, ["ben_ltkcardseriesid", "ben_serieskey", "ben_value"]);
+  return rows.filter((r) => !(r.ben_serieskey ?? "").startsWith(SPEC_PREFIX) && (r.ben_value ?? "") !== "").length;
+}
+
+/** Delete EVERYTHING a location holds: its readings and the plan /
+ *  limit rows beside them. For a metric removed for good — never a
+ *  value driver's series. Returns how many rows went. */
+export async function deleteSeriesAt(boardId: string, cardId: string): Promise<number> {
+  if (boardId === "" || cardId === "") return 0;
+  const rows = await allWhere(Ben_ltkcardseriesesService.getAll, `${eq("ben_boardid", boardId)} and ${eq("ben_cardid", cardId)}`, ["ben_ltkcardseriesid"]);
+  const CHUNK = 10;
+  for (let i = 0; i < rows.length; i += CHUNK) {
+    await Promise.all(rows.slice(i, i + CHUNK).map((r) => Ben_ltkcardseriesesService.delete(r.ben_ltkcardseriesid)));
+  }
+  return rows.length;
 }
 
 /** Upsert one cell (find by the key tuple, update or create). */

@@ -19,7 +19,9 @@ import { Ben_ltkboardsService } from "../generated/services/Ben_ltkboardsService
 import { eq, upsertWhere } from "../store/dv";
 import { promptConfirm } from "../prompts";
 import { Initiative } from "./initiativeModel";
-import { parseImprovementSettings, roleFillersAt, TemplateRole, activeRoles } from "./templateModel";
+import { parseImprovementSettings, roleFillersAt, TemplateMetric, TemplateRole, activeRoles } from "./templateModel";
+import { metricLocation } from "./metricLocation";
+import { hasOwnReadings, removedForGood } from "./metricRemoval";
 import { renderInitiativeForm } from "./initiativeForm";
 import { buildProcessTree } from "../processes/model";
 import { allSiteProcessRoots, listProcessNodes } from "../store/processes";
@@ -86,10 +88,42 @@ export function openEditDetails(o: EditDetailsOpts): void {
       return role !== undefined && roleFillersAt(role, i.org.site).some((p) => p.whoId === o.actor.whoId);
     })();
 
+    // where an own metric's readings live on this initiative's board
+    // (programme C8, 2026-11-24): read once, when a metric is first
+    // counted or removed
+    let slotsRead: Promise<{ metricsCardId: string; slots: { cardType: string; cardId: string; settings: Record<string, unknown> }[] } | null> | null = null;
+    const boardSlots = () =>
+      (slotsRead ??= (async () => {
+        if (i.boardId === "") return null;
+        const [{ getBoard }, { parseManifest }] = await Promise.all([import("../store/boards"), import("../store/mappers")]);
+        const board = await getBoard(i.boardId);
+        if (!board) return null;
+        const slots = parseManifest(board.manifestRaw).slots;
+        return { metricsCardId: slots.find((sl) => sl.cardType === "MetricsCard")?.cardId ?? "", slots };
+      })());
+    const ownLocation = async (m: TemplateMetric): Promise<{ boardId: string; cardId: string } | null> => {
+      if (!hasOwnReadings(m)) return null;
+      const b = await boardSlots();
+      if (b === null) return null;
+      const loc = metricLocation(m, i.boardId, b.metricsCardId, b.slots, null);
+      // no Metrics card and no card of its own: nowhere it could have recorded
+      return loc.cardId.startsWith("/") ? null : { boardId: loc.boardId, cardId: loc.cardId };
+    };
+    /** Metrics taken off the list while it was open; their readings go
+     *  at Save, so Cancel undoes the removal. */
+    const takenOff: TemplateMetric[] = [];
+
     const form = renderInitiativeForm({
       host: body,
       dialogHost: o.host,
       mode: "edit",
+      metricReadings: async (m) => {
+        const loc = await ownLocation(m);
+        if (loc === null) return 0;
+        const { countReadings } = await import("../store/series");
+        return countReadings(loc.boardId, loc.cardId);
+      },
+      onMetricRemoved: (m) => takenOff.push(m),
       sites,
       siteCo,
       roster,
@@ -179,6 +213,24 @@ export function openEditDetails(o: EditDetailsOpts): void {
             if (n > 0) await promptConfirm({ title: "Waiting actions closed", note: `${n} action${n === 1 ? " was" : "s were"} awaiting endorsement and ${n === 1 ? "is" : "are"} now closed.`, confirmLabel: "OK" });
           } catch {
             /* the details are saved; the actions stay waiting and can be closed by hand */
+          }
+        }
+        // a metric removed for good takes its readings with it (the person
+        // was asked at the ×, with the count)
+        const gone = removedForGood(takenOff, i.metrics);
+        if (gone.length > 0) {
+          const failed: string[] = [];
+          const { deleteSeriesAt } = await import("../store/series");
+          for (const m of gone) {
+            try {
+              const loc = await ownLocation(m);
+              if (loc !== null) await deleteSeriesAt(loc.boardId, loc.cardId);
+            } catch {
+              failed.push(m.name);
+            }
+          }
+          if (failed.length > 0) {
+            await promptConfirm({ title: "Readings not deleted", note: `The readings of ${failed.join(", ")} could not be deleted. The metric${failed.length === 1 ? " is" : "s are"} removed; the readings are still stored.`, confirmLabel: "OK" });
           }
         }
         // a KPI card per metric on the board — added for new metrics, dropped

@@ -91,6 +91,10 @@ export interface InitiativeFormOpts {
   linkRule?: () => Promise<(p: PriorityLite) => boolean>;
   /** Edit only: linking an own metric migrates its card's series. */
   onMetricLinked?: (m: TemplateMetric) => Promise<void>;
+  /** An existing initiative: how many readings a metric has, and a note
+   *  that one was taken off the list (metricsList.ts, programme C8). */
+  metricReadings?: (m: TemplateMetric) => Promise<number>;
+  onMetricRemoved?: (m: TemplateMetric) => void;
 }
 
 export interface InitiativeFormHandle {
@@ -442,7 +446,7 @@ export function renderInitiativeForm(o: InitiativeFormOpts): InitiativeFormHandl
           : "Optional — a driver the initiative moves, or a measure of its own.";
     const met = group("Metrics", `${rule} ★ = the primary; it headlines the register and the roll-up.${o.mode === "edit" ? " Own metrics can be linked or promoted into the value driver tree." : ""}`);
     const mBox = el("div");
-    renderMetricsList({ host: mBox, metrics: d.metrics, site: () => siteSel.value, canPromote: o.canPromote, onLinked: o.onMetricLinked });
+    renderMetricsList({ host: mBox, metrics: d.metrics, site: () => siteSel.value, canPromote: o.canPromote, onLinked: o.onMetricLinked, readingsOf: o.metricReadings, onRemoved: o.onMetricRemoved });
     met.appendChild(mBox);
   }
 

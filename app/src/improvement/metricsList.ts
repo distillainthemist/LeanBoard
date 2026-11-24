@@ -14,6 +14,7 @@ import { todayIso } from "../../../shared/schema/id";
 import { directionOf, keyFor, MetricKind, MetricOption, normalizeMetrics, OWN_CADENCES, OwnCadence, TemplateMetric, Tracking } from "./templateModel";
 import { DriverNode, isLeaf, newNode, pathOf } from "./vdt/model";
 import { openDriverLinkPicker } from "./vdt/linkPicker";
+import { hasOwnReadings, removeMetricWords } from "./metricRemoval";
 
 const btn = (label: string, cls = "app-btn"): HTMLButtonElement => {
   const b = el("button", cls, label) as HTMLButtonElement;
@@ -47,6 +48,14 @@ export interface MetricsListOpts {
   max?: number;
   /** More links on a row, ahead of × ("Values…"). */
   rowTools?: (m: TemplateMetric) => HTMLElement[];
+  /** How many readings this metric has stored (programme C8,
+   *  2026-11-24). When given, × counts them and asks before removing a
+   *  metric that has any — "Remove <name> and its N readings?". Only
+   *  asked of a metric with readings of its own (never a value driver). */
+  readingsOf?: (m: TemplateMetric) => Promise<number>;
+  /** A metric left the list by its ×. The host deletes its readings —
+   *  at once where the list saves at once, at Save where it is a draft. */
+  onRemoved?: (m: TemplateMetric) => void;
 }
 
 export function renderMetricsList(o: MetricsListOpts): { refresh: () => void } {
@@ -204,8 +213,20 @@ export function renderMetricsList(o: MetricsListOpts): { refresh: () => void } {
       const x = btn("×", "app-im-link-x");
       x.title = "Remove metric";
       x.addEventListener("click", () => {
-        o.metrics.splice(idx, 1);
-        changed();
+        void (async () => {
+          // readings of its own are counted, and the person is asked
+          if (o.readingsOf && hasOwnReadings(m)) {
+            x.disabled = true;
+            const n = await o.readingsOf(m).catch(() => 0);
+            x.disabled = false;
+            if (n > 0 && !(await promptConfirm({ ...removeMetricWords(m.name, n), confirmLabel: "Remove", danger: true }))) return;
+          }
+          const at = o.metrics.indexOf(m);
+          if (at < 0) return;
+          o.metrics.splice(at, 1);
+          o.onRemoved?.(m);
+          changed();
+        })();
       });
       acts.appendChild(x);
       row.appendChild(acts);

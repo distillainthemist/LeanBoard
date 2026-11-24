@@ -140,3 +140,15 @@ steps:
 4. Open the Improvement register and read the initiative's metric values.
 expected: step 1 the first chart is as before (the thirteen weeks around today); the second starts at its twelfth-last reading and STILL ends at this week, so its whole run is drawn and the two empty months show as a gap after it; the third opens on its readings alone, ending at the last one, and its subtitle ends "· last reading <date>"; step 2 the grid opens around TODAY, where new values go, whichever span the chart shows; step 3 and 4 every value, state and sparkline is what it was — a metric whose readings are all older than the read window (six months daily, two years weekly, five years monthly) still shows its last value and state, never "No data"
 
+
+### UAT-IMP-013 — Removing a metric takes its readings with it
+persona: lead
+modules: improvement/metricRemoval.ts improvement/metricsList.ts improvement/editDetails.ts improvement/initiativeForm.ts priorities/ownMetricsTab.ts store/series.ts
+preconditions: an initiative you lead with three metrics: one of its own with several readings entered, one of its own with no readings, and one taken from the value driver tree (it IS the driver) with readings
+steps:
+1. Edit details… → Metrics. Press × on the metric with no readings.
+2. Press × on the own metric with readings. Read the question; Cancel. Press × again and Remove. Then press Cancel on the whole dialog.
+3. Open Edit details… again; remove the same metric (Remove) and Save details. Open the Metrics card.
+4. Edit details… → add an initiative-specific metric under the SAME name; Save details; open its values.
+5. Edit details… → press × on the driver metric; Save details. Open the value driver tree and read that driver's values.
+expected: step 1 the metric goes with no question; step 2 the question reads "Remove <name> and its N readings?" with N the number of readings entered, and "This cannot be undone."; Cancel on the question keeps the metric; Cancel on the dialog after Remove changes nothing — the metric and its readings are still there; step 3 after Save the metric is gone from the Metrics card; step 4 the new metric starts EMPTY — last year's readings do not come back; step 5 the driver metric goes with no question about readings and the driver's own values are untouched. On a priority's own metrics (Objectives tab) the same question is asked and the readings go at once, because that list saves at once
