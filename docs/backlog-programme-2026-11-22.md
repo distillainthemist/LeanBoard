@@ -212,6 +212,12 @@ The walk began 2026-11-23, paused for the v0.99.0 release, and resumed.
   own site. The owner's direct reports manage the org's priorities but
   do not see its confidential initiatives; an owner who wants one of
   them in gives that person a role on the initiative. Nothing to build.
+- **C6** — **anyone who can edit may still press it, and the press is
+  recorded** (Ben, 2026-11-24). The part stores who pressed it; the
+  box's tooltip reads "Signed off by <presser> for <person>, <date>"
+  when someone else pressed it, and as today when the person did. No
+  limit on who may press; no schema change (the part lives in
+  `ben_assigneesjson`).
 
 ## As built
 
