@@ -152,3 +152,14 @@ steps:
 4. Edit details… → add an initiative-specific metric under the SAME name; Save details; open its values.
 5. Edit details… → press × on the driver metric; Save details. Open the value driver tree and read that driver's values.
 expected: step 1 the metric goes with no question; step 2 the question reads "Remove <name> and its N readings?" with N the number of readings entered, and "This cannot be undone."; Cancel on the question keeps the metric; Cancel on the dialog after Remove changes nothing — the metric and its readings are still there; step 3 after Save the metric is gone from the Metrics card; step 4 the new metric starts EMPTY — last year's readings do not come back; step 5 the driver metric goes with no question about readings and the driver's own values are untouched. On a priority's own metrics (Objectives tab) the same question is asked and the readings go at once, because that list saves at once
+
+### UAT-IMP-014 — Which gate snapshot stands after a revert
+persona: lead
+modules: improvement/gateSnapshots.ts improvement/boardHeader.ts screens/board.ts
+preconditions: an initiative with gates on its stages that has passed at least two gates (so two gate snapshots exist); you are its owner or sponsor and an approver of the gates, or have one on hand
+steps:
+1. Open the initiative's board and press the Live button at the top. Read the "Gate snapshots" list.
+2. Revert the initiative to its FIRST stage, with a reason. Open the list again.
+3. Pass the first gate again (request, approve). Open the list again; open the folded line under the first stage; open the older snapshot and read the banner.
+4. Go back to the live board.
+expected: step 1 one line per stage in stage order, "Gate — <stage> · <date>", with nothing after the date; step 2 both snapshots are still listed and each now ends "· reverted <the day of the revert>"; step 3 the first stage's NEW snapshot leads with nothing after its date, and under it a folded line "▸ 1 superseded" opens to show the older one, "<date> · superseded"; the second stage's snapshot still reads "reverted" until that gate is passed again; the older snapshot opens read-only and its banner ends "· superseded — read-only"; step 4 nothing was deleted and nobody was asked to approve the revert

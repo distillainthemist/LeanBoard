@@ -39,6 +39,7 @@ import { BandGate, BandStage, renderStatusBand } from "./statusBand";
 import { actionBelongsTo, LtkAction } from "../../../shared/schema/actions";
 import { endorsementOn, endorserIds } from "./endorsers";
 import { applyRevert, gateDeclined, mayRevert, mayWithdraw, revertTargets, standingRevert, StageViewer, undoneApproverRoles } from "./stageRevert";
+import { RevertLike, revertsOf } from "./gateSnapshots";
 import { parseImprovementSettings, PDCA_TOKENS, roleFillersAt, PDCA_ORDER } from "./templateModel";
 
 const btn = (label: string, cls = "app-btn"): HTMLButtonElement => {
@@ -80,6 +81,10 @@ export interface InitiativePaneHandle {
   /** Re-read the initiative and repaint the pane alone (a charter's bound
    *  field wrote the header — no board remount, 2026-09-15). */
   refresh: () => Promise<void>;
+  /** The stage names in order and the reverts in the history — what the
+   *  board needs to say which gate snapshot stands (gateSnapshots.ts,
+   *  programme E17 part 2). Empty until the pane has loaded. */
+  gateHistory: () => { stages: string[]; reverts: RevertLike[] };
 }
 
 export function mountInitiativePane(o: InitiativePaneOpts): InitiativePaneHandle {
@@ -90,6 +95,7 @@ export function mountInitiativePane(o: InitiativePaneOpts): InitiativePaneHandle
   let activeStageEl: HTMLElement | null = null;
   let commentaryEl: HTMLElement | null = null;
   let refreshPane: () => Promise<void> = async () => undefined;
+  let gateHistory: () => { stages: string[]; reverts: RevertLike[] } = () => ({ stages: [], reverts: [] });
 
   void (async () => {
     const who = currentViewer();
@@ -172,6 +178,7 @@ export function mountInitiativePane(o: InitiativePaneOpts): InitiativePaneHandle
     const loadEvents = async () => {
       [events] = await Promise.all([listInitiativeEvents(i).catch(() => []), loadAwaiting()]);
     };
+    gateHistory = () => ({ stages: i.snapshot.stages.map((s) => s.name), reverts: revertsOf(events) });
 
     const render = () => {
       clear(o.titleHost);
@@ -1062,6 +1069,7 @@ export function mountInitiativePane(o: InitiativePaneOpts): InitiativePaneHandle
       commentaryEl?.scrollIntoView({ block: "start", behavior: "smooth" });
     },
     refresh: () => refreshPane(),
+    gateHistory: () => gateHistory(),
   };
 }
 

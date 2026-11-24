@@ -4,6 +4,7 @@
 // join, and close-meeting (shared-card SVG archive). Hosted-only; the dev
 // server shows a banner.
 
+import { markGateSnapshots, snapStateWords } from "../improvement/gateSnapshots";
 import { BoardGridView } from "../../../controls/BoardGrid/editor";
 import { isPhoneWindow } from "../phone";
 import { BoardTile, parseColumns } from "../../../controls/BoardGrid/types";
@@ -157,7 +158,8 @@ async function renderBoard(
   }
   // gate snapshots (P6e): the closed instances stamped at gate approvals
   let gateSnaps: { inst: InstanceSummary; stage: string; at: string }[] = [];
-  let viewingSnap: { stage: string; at: string } | null = null;
+  /** `mark`: "" · "reverted <date>" · "superseded" (gateSnapshots.ts). */
+  let viewingSnap: { stage: string; at: string; mark: string } | null = null;
 
   // an adjusted meeting renders its own override manifest instead
   const activeManifest = () =>
@@ -511,13 +513,13 @@ async function renderBoard(
   };
   /** Snapshot picking (init boards): Live restores the living board; a
    *  gate renders its stamped rows read-only. */
-  const showSnapshot = (pick: { inst: InstanceSummary; stage: string; at: string } | null) => {
+  const showSnapshot = (pick: { inst: InstanceSummary; stage: string; at: string } | null, mark = "") => {
     if (pick === null) {
       current = { id: "", boardId: board.boardId, when: "", status: "open", isAdhoc: false, manifestRaw: "" };
       viewingSnap = null;
     } else {
       current = pick.inst;
-      viewingSnap = { stage: pick.stage, at: pick.at };
+      viewingSnap = { stage: pick.stage, at: pick.at, mark };
     }
     renderTiles();
     applyLiveMode();
@@ -545,8 +547,46 @@ async function renderBoard(
     item("Live board", () => showSnapshot(null), viewingSnap === null);
     if (gateSnaps.length === 0) menu.appendChild(el("div", "app-cp-menu-h", "No gate snapshots yet — one is stamped at each gate approval"));
     else menu.appendChild(el("div", "app-cp-menu-h", "Gate snapshots"));
-    for (const g of gateSnaps) {
-      item(`Gate — ${g.stage} · ${g.at}`, () => showSnapshot(g), viewingSnap !== null && current?.id === g.inst.id);
+    // which snapshot stands (programme E17 part 2, 2026-11-24): the
+    // newest of a stage leads, marked "reverted" when a later revert
+    // undid its gate; earlier ones of the same stage are "superseded"
+    // and fold under it. Nothing is deleted.
+    const history = paneHandle?.gateHistory() ?? { stages: [], reverts: [] };
+    const groups = markGateSnapshots(
+      gateSnaps.map((g) => ({ ...g, when: g.inst.when !== "" ? g.inst.when : g.at })),
+      history.reverts,
+      history.stages
+    );
+    const isOpen = (g: { inst: InstanceSummary }) => viewingSnap !== null && current?.id === g.inst.id;
+    for (const grp of groups) {
+      const headMark = snapStateWords(grp.head);
+      item(`Gate — ${grp.head.snap.stage} · ${grp.head.snap.at}${headMark !== "" ? ` · ${headMark}` : ""}`, () => showSnapshot(grp.head.snap, headMark), isOpen(grp.head.snap));
+      if (grp.older.length === 0) continue;
+      // folded: open already when the one being viewed is inside
+      const fold = el("button", "app-cp-menu-item app-board-snapfold") as HTMLButtonElement;
+      fold.type = "button";
+      const inner = el("div", "app-board-snapolder");
+      let open = grp.older.some((o) => isOpen(o.snap));
+      const paintFold = () => {
+        fold.textContent = `${open ? "▾" : "▸"} ${grp.older.length} superseded`;
+        fold.setAttribute("aria-expanded", String(open));
+        inner.style.display = open ? "" : "none";
+      };
+      fold.addEventListener("click", () => {
+        open = !open;
+        paintFold();
+      });
+      menu.append(fold, inner);
+      for (const o of grp.older) {
+        const b = el("button", "app-cp-menu-item app-board-snapold", `${isOpen(o.snap) ? "● " : "○ "}${o.snap.at} · superseded`) as HTMLButtonElement;
+        b.type = "button";
+        b.addEventListener("click", () => {
+          menu.remove();
+          showSnapshot(o.snap, "superseded");
+        });
+        inner.appendChild(b);
+      }
+      paintFold();
     }
     const r = liveBtn.getBoundingClientRect();
     menu.style.top = `${r.bottom + 4}px`;
@@ -626,7 +666,7 @@ async function renderBoard(
     if (initBoard && viewingSnap !== null) {
       snapBanner.replaceChildren();
       snapBanner.append(
-        el("span", undefined, `Viewing the ${viewingSnap.stage} gate snapshot · stamped ${viewingSnap.at} — read-only`)
+        el("span", undefined, `Viewing the ${viewingSnap.stage} gate snapshot · stamped ${viewingSnap.at}${viewingSnap.mark !== "" ? ` · ${viewingSnap.mark}` : ""} — read-only`)
       );
       const back = el("button", "app-link", "Back to live") as HTMLButtonElement;
       back.type = "button";
