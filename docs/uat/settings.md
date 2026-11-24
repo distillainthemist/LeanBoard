@@ -177,3 +177,12 @@ steps:
 4. Set the days back to 35.
 expected: step 1 the section "Period" no longer mentions a ratio rule and there is no "Ratio rule — red above (%)" field; a "Status" section explains the rule in a paragraph and carries the days and three colour pickers listing the state palette's entries (a state whose key is not in the site's palette reads "Default … colour (not in the palette)"); step 2 the initiative is Off track with "No update for 2 weeks" and its board's band says "No update for 20 days"; step 3 every Support needed edge, circle and chip takes the new colour, and so do the action dialog's "⚑ Flag for support" button and the ⚑ beside a flagged action; step 4 the initiative returns to On track
 
+### UAT-SET-016 — The period is the calendar year
+persona: superadmin
+modules: priorities/settingsTab.ts priorities/model.ts
+preconditions: priorities and initiatives that started in earlier years
+steps:
+1. Settings → Priorities: read the "Period" section.
+2. Open Priorities and open the year picker; open Improvement and its Period filter.
+3. Create a priority and an initiative; read the year each starts in.
+expected: step 1 the section says the period is the calendar year and offers nothing to choose — no period mode, no financial-year start month, no label prefix, no custom label or label list; step 2 the years run in order from the earliest start to next year, the current year marked, every priority and initiative in the years it was live in before; step 3 both start in the year being viewed, written as four digits ("2026")

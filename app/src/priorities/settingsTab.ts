@@ -97,7 +97,7 @@ async function renderPillars(body: HTMLElement, ctx: DirtyCtx, saves: (() => Pro
   // to the next, plus whatever the pillars already hold
   const periodSettings = parsePrioritySettings(await prioritySettingsJson()).period;
   const periodChoices = (): string[] => {
-    const cur = periodFor(periodSettings, todayIso()) || periodSettings.currentPeriod;
+    const cur = periodFor(periodSettings, todayIso());
     const back: string[] = [];
     let b = cur;
     for (let n = 0; n < 3; n++) {
@@ -116,7 +116,7 @@ async function renderPillars(body: HTMLElement, ctx: DirtyCtx, saves: (() => Pro
   // can apply from that year on; and a pillar priorities sit under is
   // ended, never deleted. The spans already did this — as two small
   // selects per row nobody found.
-  const currentPeriod = periodFor(periodSettings, todayIso()) || periodSettings.currentPeriod;
+  const currentPeriod = periodFor(periodSettings, todayIso());
   let lens = currentPeriod;
   let showOthers = false;
   const inLens = (p: Pillar): boolean => lens === "" || spanLiveIn(periodSettings, { start: p.fromPeriod, end: p.toPeriod }, lens);
@@ -565,43 +565,15 @@ async function renderPillars(body: HTMLElement, ctx: DirtyCtx, saves: (() => Pro
 async function renderPeriod(body: HTMLElement, ctx: DirtyCtx, saves: (() => Promise<void>)[]) {
   const box = sectionTitle(
     "Period",
-    "A priority runs from a start period until it closes; the year picker on the views shows what was live in that year and defaults to the current one."
+    "The period is the calendar year. A priority runs from a start year until it closes; the year picker on the views shows what was live in that year and defaults to the current one."
   );
   body.appendChild(box);
   const s = parsePrioritySettings(await prioritySettingsJson());
   let dirty = false;
 
-  const mode = el("select", "app-input") as HTMLSelectElement;
-  for (const [v, l] of [
-    ["fy", "Financial year"],
-    ["calendar", "Calendar year"],
-    ["custom", "Custom label"],
-  ] as const) {
-    const o = el("option", "", l) as HTMLOptionElement;
-    o.value = v;
-    if (v === s.period.mode) o.selected = true;
-    mode.appendChild(o);
-  }
-  const start = el("select", "app-input") as HTMLSelectElement;
-  const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-  MONTHS.forEach((m, i) => {
-    const o = el("option", "", m) as HTMLOptionElement;
-    o.value = String(i + 1);
-    if (i + 1 === s.period.startMonth) o.selected = true;
-    start.appendChild(o);
-  });
-  const prefix = el("input", "app-input app-pr-short") as HTMLInputElement;
-  prefix.value = s.period.prefix;
-  prefix.placeholder = "FY";
-  const custom = el("input", "app-input app-pr-short") as HTMLInputElement;
-  custom.value = s.period.currentPeriod;
-  custom.placeholder = "e.g. H2 2026";
-  // custom labels have no natural order — the list IS the order (spans
-  // compare by it, 2026-10-02)
-  const labels = el("textarea", "app-input") as HTMLTextAreaElement;
-  labels.rows = 4;
-  labels.value = s.period.labels.join("\n");
-  labels.placeholder = "H1 2026\nH2 2026\nH1 2027";
+  // Period (2026-11-24, Ben): calendar year is the only period, so
+  // there is nothing to choose here — the mode, the start month, the
+  // prefix and the custom label list are gone.
   // ---- Status (2026-11-17): the status rule's settings. The ratio
   // roll-up's percentage lived here until then.
   const recency = el("input", "app-input app-pr-short") as HTMLInputElement;
@@ -628,25 +600,13 @@ async function renderPeriod(body: HTMLElement, ctx: DirtyCtx, saves: (() => Prom
     return sel;
   };
   const colourSels: Record<StatusState, HTMLSelectElement> = { good: colourPick("good"), flagged: colourPick("flagged"), bad: colourPick("bad") };
-  const preview = el("span", "app-field-hint", "");
-
   const sync = () => {
-    s.period.mode = mode.value === "calendar" || mode.value === "custom" ? mode.value : "fy";
-    s.period.startMonth = Number(start.value) || 7;
-    s.period.prefix = prefix.value;
-    s.period.currentPeriod = custom.value;
-    s.period.labels = labels.value.split(/\r?\n/).map((l) => l.trim()).filter((l) => l !== "");
     s.status = parseStatusSettings({
       recencyDays: Number(recency.value) || DEFAULT_STATUS_SETTINGS.recencyDays,
       colours: { good: colourSels.good.value, flagged: colourSels.flagged.value, bad: colourSels.bad.value },
     });
-    startField.style.display = s.period.mode === "fy" ? "" : "none";
-    customField.style.display = s.period.mode === "custom" ? "" : "none";
-    labelsField.style.display = s.period.mode === "custom" ? "" : "none";
-    prefixField.style.display = s.period.mode === "custom" ? "none" : "";
-    preview.textContent = `Today falls in “${periodFor(s.period, todayIso())}”`;
   };
-  for (const c of [mode, start, prefix, custom, labels, recency, colourSels.good, colourSels.flagged, colourSels.bad]) {
+  for (const c of [recency, colourSels.good, colourSels.flagged, colourSels.bad]) {
     c.addEventListener("input", () => {
       sync();
       dirty = true;
@@ -658,14 +618,6 @@ async function renderPeriod(body: HTMLElement, ctx: DirtyCtx, saves: (() => Prom
       ctx.markDirty();
     });
   }
-  const startField = field("Financial year starts in", start);
-  const prefixField = field("Label prefix", prefix, "FY → “FY26”; blank → “2026”");
-  const customField = field("Current period label", custom);
-  const labelsField = field("Period labels, in order", labels, "One per line, earliest first — the picker and every span follow this order.");
-  const row = el("div", "app-settings-row");
-  row.append(field("Period", mode), startField, prefixField, customField, preview);
-  box.appendChild(row);
-  box.appendChild(labelsField);
   const statusBox = sectionTitle(
     "Status",
     "An initiative is on track, off track or marked Support needed. It is off track with a late action or no actions at all, with any metric outside its limits or short of plan, or with no status update inside the window below. A new initiative has the same window before “no actions” and “no update” count. Flagged is its own state: the initiative's people have asked for support. A priority is flagged if any of its initiatives is, else off track if any is, else on track."

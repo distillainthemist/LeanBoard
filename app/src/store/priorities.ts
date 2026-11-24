@@ -287,7 +287,7 @@ export async function currentPeriodNow(): Promise<string> {
   const { prioritySettingsJson } = await import("./config");
   const { todayIso } = await import("../../../shared/schema/id");
   const s = parsePrioritySettings(await prioritySettingsJson());
-  return periodFor(s.period, todayIso()) || s.period.currentPeriod;
+  return periodFor(s.period, todayIso());
 }
 
 /** A fresh priority object (id minted here; rowId assigned on save). */

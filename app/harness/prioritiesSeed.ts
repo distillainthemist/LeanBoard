@@ -22,7 +22,7 @@ export async function seed(): Promise<void> {
   for (const p of [person("u1", "O'Brien, Ben", "Weipa", "superadmin"), person("u2", "Smith, Jane", "Weipa"), person("u5", "Vallance, Colin", ""), person("u6", "Black, Ellen", "BSL"), person("u9", "Lee, Sam", "Weipa")]) {
     await upsertPerson(p, undefined, { skipAccessSync: true });
   }
-  await savePrioritySettingsJson(JSON.stringify({ period: { mode: "calendar", startMonth: 1, prefix: "", currentPeriod: "", labels: [] } }));
+  await savePrioritySettingsJson(JSON.stringify({ period: { mode: "calendar" } }));
 
   const pillars: Pillar[] = [];
   const pillar = async (id: string, name: string, level: 1 | 2, parentId: string, order: number, color = "", fromPeriod = "", toPeriod = "", succeedsId = "") => {

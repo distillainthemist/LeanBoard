@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 import { followCandidates, lastSetUpYear, picksOf, Pillar, pillarIdIn, placementsFromRows, PeriodSettings, subPillarPlan } from "../priorities/model";
 
-const S: PeriodSettings = { mode: "calendar", startMonth: 1, prefix: "", currentPeriod: "", labels: [] };
+const S: PeriodSettings = { mode: "calendar" };
 const pl = (id: string, level: 1 | 2, parentId: string, fromPeriod = "", toPeriod = "", succeedsId = ""): Pillar => ({ id, name: id, level, parentId, color: "", order: 0, active: true, company: "Co", fromPeriod, toPeriod, succeedsId });
 const pillars: Pillar[] = [
   pl("L1", 1, ""),

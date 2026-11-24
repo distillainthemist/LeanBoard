@@ -26,7 +26,8 @@ import {
   DEFAULT_PRIORITY_SETTINGS,
 } from "../priorities/model";
 
-const settings = { ...DEFAULT_PRIORITY_SETTINGS.period, mode: "custom" as const, labels: ["FY24", "FY25", "FY26", "FY27", "FY28"] };
+// "FY26" is an older label, read by its digits and stepped in place
+const settings = { ...DEFAULT_PRIORITY_SETTINGS.period };
 const site = orgRef("Pechey", "Bendigo");
 
 const pillar = (id: string, over: Partial<Pillar> = {}): Pillar => ({ id, name: id, level: 2, parentId: "top", color: "", order: 1, active: true, company: "Pechey", fromPeriod: "", toPeriod: "", ...over });
@@ -91,7 +92,8 @@ describe("a priority's sub-pillar, year by year", () => {
   });
 
   it("is a plain change of home with no earlier year to keep", () => {
-    expect(moveFrom(settings, pr("p"), "FY24", "b")).toEqual({ pillarId: "b", placements: [] });
+    // no year in view (the lens is off): nothing earlier to keep
+    expect(moveFrom(settings, pr("p"), "", "b")).toEqual({ pillarId: "b", placements: [] });
   });
 
   it("groups the matrix by the home of the year in view", () => {

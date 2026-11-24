@@ -322,7 +322,7 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
     const settings = parsePrioritySettings(settingsRaw);
     const palette = paletteMap(palettes.states);
     const today = todayIso();
-    const currentPeriod = periodFor(settings.period, today) || settings.period.currentPeriod;
+    const currentPeriod = periodFor(settings.period, today);
 
     // default org = viewer's own site (under its company); else the first site
     // the person's own site, matched without regard to case; a site

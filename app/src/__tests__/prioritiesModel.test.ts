@@ -151,40 +151,43 @@ describe("periods (decision 10)", () => {
   it("settings parse with defaults and clamps", () => {
     const s = parsePrioritySettings("");
     const status = { recencyDays: 35, colours: { good: "good", flagged: "flagged", bad: "issue" } };
-    expect(s).toEqual({ status, period: { mode: "fy", startMonth: 7, prefix: "FY", currentPeriod: "", labels: [] } });
+    expect(s).toEqual({ status, period: { mode: "calendar" } });
     // a stored ratio percentage (retired 2026-11-17) is simply not read
     expect(parsePrioritySettings('{"ragRatioPct":140,"status":{"recencyDays":21},"period":{"mode":"calendar","startMonth":99,"labels":["H1"," H2 ",""]}}')).toEqual({
       status: { ...status, recencyDays: 21 },
-      period: { mode: "calendar", startMonth: 12, prefix: "FY", currentPeriod: "", labels: ["H1", "H2"] },
+      period: { mode: "calendar" },
     });
+    // calendar year is the only period (2026-11-24): a mode an older
+    // build stored is read as calendar
+    expect(parsePrioritySettings('{"period":{"mode":"fy","startMonth":7,"prefix":"FY"}}').period).toEqual({ mode: "calendar" });
+    expect(parsePrioritySettings('{"period":{"mode":"custom","currentPeriod":"H2 2026","labels":["H1 2026","H2 2026"]}}').period).toEqual({ mode: "calendar" });
   });
 
-  it("FY names the year it ends in; calendar/custom behave", () => {
-    const fy = { mode: "fy" as const, startMonth: 7, prefix: "FY", currentPeriod: "", labels: [] };
-    expect(periodFor(fy, "2025-08-15")).toBe("FY26");
-    expect(periodFor(fy, "2026-06-30")).toBe("FY26");
-    expect(periodFor(fy, "2026-07-01")).toBe("FY27");
-    expect(periodFor({ ...fy, mode: "calendar", prefix: "" }, "2026-08-19")).toBe("2026");
-    expect(periodFor({ ...fy, mode: "custom", currentPeriod: "H2 2026" }, "2026-08-19")).toBe("H2 2026");
-    expect(nextPeriod(fy, "FY26")).toBe("FY27");
-    expect(nextPeriod({ ...fy, prefix: "" }, "2026")).toBe("2027");
-    expect(nextPeriod({ ...fy, mode: "custom" }, "H2 2026")).toBe("");
-    expect(nextPeriod({ ...fy, mode: "custom", labels: ["H1 2026", "H2 2026", "H1 2027"] }, "H2 2026")).toBe("H1 2027");
-    expect(nextPeriod({ ...fy, mode: "custom", labels: ["H1 2026", "H2 2026"] }, "H2 2026")).toBe("");
+  it("a period is the calendar year", () => {
+    const cal = { mode: "calendar" as const };
+    expect(periodFor(cal, "2025-08-15")).toBe("2025");
+    expect(periodFor(cal, "2026-01-01")).toBe("2026");
+    expect(periodFor(cal, "2026-12-31")).toBe("2026");
+    expect(periodFor(cal, "")).toBe("");
+    expect(periodFor(cal, "not a date")).toBe("");
+    expect(nextPeriod(cal, "2026")).toBe("2027");
+    expect(nextPeriod(cal, "2099")).toBe("2100");
+    // an older label keeps its own shape when stepped
+    expect(nextPeriod(cal, "FY26")).toBe("FY27");
+    expect(nextPeriod(cal, "no number")).toBe("");
   });
 });
 
 describe("spans (2026-10-02)", () => {
-  const fy = { mode: "fy" as const, startMonth: 7, prefix: "FY", currentPeriod: "", labels: [] };
-  const custom = { ...fy, mode: "custom" as const, labels: ["H1 2026", "H2 2026", "H1 2027"] };
-  it("compares FY / calendar by year and custom by the ordered labels", async () => {
+  // "FY26" here is an OLDER label: read by its digits, as 2026
+  const fy = { mode: "calendar" as const };
+  it("compares labels by their year", async () => {
     const m = await import("../priorities/model");
     expect(m.comparePeriods(fy, "FY26", "FY27")).toBeLessThan(0);
     expect(m.comparePeriods(fy, "FY27", "FY27")).toBe(0);
-    expect(m.comparePeriods({ ...fy, prefix: "" }, "2027", "2026")).toBeGreaterThan(0);
+    expect(m.comparePeriods(fy, "2027", "2026")).toBeGreaterThan(0);
     expect(m.comparePeriods(fy, "FY26", "2026")).toBe(0); // two- and four-digit years agree
-    expect(m.comparePeriods(custom, "H1 2026", "H1 2027")).toBeLessThan(0);
-    expect(m.comparePeriods(custom, "H1 2027", "Unknown")).toBeLessThan(0); // known labels first
+    expect(m.comparePeriods(fy, "Alpha", "Beta")).toBeLessThan(0); // no year: text order
   });
   it("an old closed row ends in its start; an open one has no end", async () => {
     const m = await import("../priorities/model");
@@ -226,7 +229,7 @@ describe("spans (2026-10-02)", () => {
     const m = await import("../priorities/model");
     expect(m.periodsOnOffer(fy, "FY27", [])).toEqual(["FY27", "FY28"]);
     expect(m.periodsOnOffer(fy, "FY27", [{ start: "FY24", end: "FY25" }, { start: "FY27", end: "", planned: "FY30" }])).toEqual(["FY24", "FY25", "FY26", "FY27", "FY28", "FY29", "FY30"]);
-    expect(m.periodsOnOffer(custom, "H2 2026", [{ start: "Odd", end: "" }])).toEqual(["H1 2026", "H2 2026", "H1 2027", "Odd"]);
+    expect(m.periodsOnOffer(fy, "2026", [{ start: "2024", end: "" }])).toEqual(["2024", "2025", "2026", "2027"]);
   });
   it("close reasons no longer carry forward", () => {
     expect([...CLOSE_REASONS_EXPORT()]).toEqual(["Achieved", "Superseded", "No longer relevant"]);
@@ -405,18 +408,19 @@ describe("groupPrioritiesForPicker (link picker shape)", () => {
 });
 
 describe("period pager helpers (value drivers)", () => {
-  const fy = { mode: "fy" as const, startMonth: 7, prefix: "FY", currentPeriod: "", labels: [] };
-  const cal = { mode: "calendar" as const, startMonth: 1, prefix: "", currentPeriod: "", labels: [] };
+  const fy = { mode: "calendar" as const };
+  const cal = { mode: "calendar" as const };
   it("prevPeriod steps back and stops at zero", () => {
     expect(prevPeriod(fy, "FY26")).toBe("FY25");
     expect(prevPeriod(cal, "2026")).toBe("2025");
-    expect(prevPeriod({ ...fy, mode: "custom" as const }, "H1")).toBe("");
+    expect(prevPeriod(cal, "no number")).toBe("");
+    expect(prevPeriod(cal, "0")).toBe("");
   });
-  it("periodWindow spans the FY (Jul→Jun) and the calendar year", () => {
-    expect(periodWindow(fy, "FY26")).toEqual({ from: "2025-07-01", to: "2026-06-30" });
+  it("periodWindow spans the calendar year", () => {
     expect(periodWindow(cal, "2026")).toEqual({ from: "2026-01-01", to: "2026-12-31" });
-    expect(periodWindow({ ...fy, startMonth: 4 }, "FY26")).toEqual({ from: "2025-04-01", to: "2026-03-31" });
-    expect(periodWindow({ ...fy, mode: "custom" as const }, "H1")).toBeNull();
+    // an older two-digit label is read as its year
+    expect(periodWindow(fy, "FY26")).toEqual({ from: "2026-01-01", to: "2026-12-31" });
+    expect(periodWindow(cal, "no number")).toBeNull();
   });
 });
 

@@ -69,7 +69,7 @@ export function mountValueDrivers(parent: HTMLElement): () => void {
     // "This site" or "Across sites" — a central pick holds when the site changes (decision 7)
     let processFilter: ProcessFilter = NO_PROCESS_FILTER;
     let site = sites.includes(me?.site ?? "") ? (me?.site ?? "") : (sites[0] ?? "");
-    let period = periodFor(periodSettings, todayIso()) || periodSettings.currentPeriod;
+    let period = periodFor(periodSettings, todayIso());
     let mode: Mode = "read";
     let series: Series = "plan";
     let compare: Series | "" = "";

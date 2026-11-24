@@ -577,18 +577,14 @@ export type Rag = "green" | "amber" | "red" | "grey";
 
 // ---- periods (decision 10) --------------------------------------------------
 
+/** Calendar year is the ONLY period (Ben, 2026-11-24: "simplify to just
+ *  calendar year as the only option"). Financial years and custom
+ *  labels are gone, with the start month, the prefix and the label
+ *  list. The type stays so no caller's signature moved; it carries
+ *  nothing to choose. A label is the year, "2026". Older labels with a
+ *  prefix or two digits ("FY26") are still READ by their digits. */
 export interface PeriodSettings {
-  /** fy = financial year starting `startMonth`; calendar = Jan–Dec;
-   *  custom = free labels, `currentPeriod` typed by the admin. */
-  mode: "fy" | "calendar" | "custom";
-  /** 1–12; fy only. */
-  startMonth: number;
-  /** Label prefix, e.g. "FY" → "FY26". */
-  prefix: string;
-  /** custom mode: the current label; other modes derive it. */
-  currentPeriod: string;
-  /** custom mode: every label in order — spans need comparing (2026-10-02). */
-  labels: string[];
+  mode: "calendar";
 }
 
 export interface PrioritySettings {
@@ -600,7 +596,7 @@ export interface PrioritySettings {
 
 export const DEFAULT_PRIORITY_SETTINGS: PrioritySettings = {
   status: DEFAULT_STATUS_SETTINGS,
-  period: { mode: "fy", startMonth: 7, prefix: "FY", currentPeriod: "", labels: [] },
+  period: { mode: "calendar" },
 };
 
 export function parsePrioritySettings(raw: string | null | undefined): PrioritySettings {
@@ -609,19 +605,8 @@ export function parsePrioritySettings(raw: string | null | undefined): PriorityS
   if (t === "") return { status: parseStatusSettings(undefined), period: { ...d.period } };
   try {
     const o = JSON.parse(t) as Record<string, unknown>;
-    const p = (o.period ?? {}) as Record<string, unknown>;
-    const mode = p.mode === "calendar" || p.mode === "custom" ? p.mode : "fy";
-    const sm = typeof p.startMonth === "number" ? Math.round(p.startMonth) : d.period.startMonth;
-    return {
-      status: parseStatusSettings(o.status),
-      period: {
-        mode,
-        startMonth: Math.max(1, Math.min(12, sm)),
-        prefix: typeof p.prefix === "string" ? p.prefix : d.period.prefix,
-        currentPeriod: typeof p.currentPeriod === "string" ? p.currentPeriod : "",
-        labels: Array.isArray(p.labels) ? p.labels.filter((l): l is string => typeof l === "string" && l.trim() !== "").map((l) => l.trim()) : [],
-      },
-    };
+    // whatever mode an older build stored is read as calendar
+    return { status: parseStatusSettings(o.status), period: { ...d.period } };
   } catch {
     return { status: parseStatusSettings(undefined), period: { ...d.period } };
   }
@@ -631,65 +616,49 @@ export function serializePrioritySettings(s: PrioritySettings): string {
   return JSON.stringify(s);
 }
 
-/**
- * The period label for a date. FY: a year starting `startMonth` is named
- * for the calendar year it ENDS in ("FY26" = Jul 2025 – Jun 2026 when
- * startMonth = 7). Calendar: "2026" (prefix applied if set). Custom: the
- * admin's current label.
- */
-export function periodFor(settings: PeriodSettings, dateIso: string): string {
-  if (settings.mode === "custom") return settings.currentPeriod;
+/** A label's year: its digits, two of them read as 20xx. NaN for none. */
+function yearOf(period: string): number {
+  const digits = period.replace(/\D/g, "");
+  if (digits === "") return Number.NaN;
+  const n = Number(digits);
+  return digits.length <= 2 ? 2000 + n : n;
+}
+
+/** Step a label's own number, keeping its shape ("2026" → "2027", and an
+ *  older "FY26" → "FY27"). "" for a label with no number. */
+function stepLabel(period: string, by: number): string {
+  const m = /\d+/.exec(period);
+  if (m === null) return "";
+  const n = Number(m[0]) + by;
+  if (n < 0) return "";
+  const width = m[0].length;
+  return period.slice(0, m.index) + String(n).padStart(width, "0").slice(-width) + period.slice(m.index + width);
+}
+
+/** The period label for a date: its calendar year, "2026". */
+export function periodFor(_settings: PeriodSettings, dateIso: string): string {
   const y = Number(dateIso.slice(0, 4));
-  const m = Number(dateIso.slice(5, 7));
-  if (!Number.isFinite(y) || !Number.isFinite(m)) return settings.currentPeriod;
-  if (settings.mode === "calendar") return `${settings.prefix}${settings.prefix === "" ? y : String(y).slice(-2)}`;
-  const endYear = settings.startMonth === 1 ? y : m >= settings.startMonth ? y + 1 : y;
-  return `${settings.prefix}${String(endYear).slice(-2)}`;
+  return Number.isFinite(y) && y > 0 && /^\d{4}/.test(dateIso) ? String(y) : "";
 }
 
-/** The label after `period` (carry-forward target). Custom → "" (admin sets). */
-export function nextPeriod(settings: PeriodSettings, period: string): string {
-  if (settings.mode === "custom") {
-    const i = settings.labels.indexOf(period);
-    return i >= 0 && i + 1 < settings.labels.length ? settings.labels[i + 1] : "";
-  }
-  const digits = period.replace(/\D/g, "");
-  if (digits === "") return "";
-  const n = Number(digits);
-  const width = digits.length;
-  return `${settings.prefix}${String(n + 1).padStart(width, "0").slice(-width)}`;
+/** The label after `period`. */
+export function nextPeriod(_settings: PeriodSettings, period: string): string {
+  return stepLabel(period, 1);
 }
 
-/** The label before `period`. Custom → "" (admin sets). */
-export function prevPeriod(settings: PeriodSettings, period: string): string {
-  if (settings.mode === "custom") {
-    const i = settings.labels.indexOf(period);
-    return i > 0 ? settings.labels[i - 1] : "";
-  }
-  const digits = period.replace(/\D/g, "");
-  if (digits === "") return "";
-  const n = Number(digits);
-  const width = digits.length;
-  if (n <= 0) return "";
-  return `${settings.prefix}${String(n - 1).padStart(width, "0").slice(-width)}`;
+/** The label before `period`. */
+export function prevPeriod(_settings: PeriodSettings, period: string): string {
+  const y = yearOf(period);
+  if (Number.isNaN(y) || y <= 0) return "";
+  return stepLabel(period, -1);
 }
 
-/** The inclusive yyyy-mm-dd window a period spans (FY: startMonth of the
- *  prior calendar year → the month before, in the named year; calendar:
- *  Jan–Dec). Custom periods have no dates → null (all points count). */
-export function periodWindow(settings: PeriodSettings, period: string): { from: string; to: string } | null {
-  if (settings.mode === "custom") return null;
-  const digits = period.replace(/\D/g, "");
-  if (digits === "") return null;
-  const n = Number(digits);
-  const year = digits.length <= 2 ? 2000 + n : n;
-  const p = (x: number) => String(x).padStart(2, "0");
-  if (settings.mode === "calendar" || settings.startMonth === 1) return { from: `${year}-01-01`, to: `${year}-12-31` };
-  const sm = settings.startMonth;
-  const from = `${year - 1}-${p(sm)}-01`;
-  const endMonth = sm - 1;
-  const lastDay = new Date(year, endMonth, 0).getDate(); // day 0 of the next month = last day of endMonth
-  return { from, to: `${year}-${p(endMonth)}-${p(lastDay)}` };
+/** The inclusive yyyy-mm-dd window a period spans: January to December
+ *  of its year. null for a label with no year. */
+export function periodWindow(_settings: PeriodSettings, period: string): { from: string; to: string } | null {
+  const year = yearOf(period);
+  if (Number.isNaN(year)) return null;
+  return { from: `${year}-01-01`, to: `${year}-12-31` };
 }
 
 // ---- spans (2026-10-02) ---------------------------------------------------------
@@ -697,24 +666,11 @@ export function periodWindow(settings: PeriodSettings, period: string): { from: 
 // over what was live in that year, not a container. Pillars carry the same
 // two fields. "" at either end = open. Nothing is copied at a boundary.
 
-/** Compare two period labels: FY / calendar by their year, custom by the
- *  ordered label list (unknown labels fall back to text order). */
-export function comparePeriods(settings: PeriodSettings, a: string, b: string): number {
-  if (settings.mode === "custom") {
-    const ia = settings.labels.indexOf(a);
-    const ib = settings.labels.indexOf(b);
-    if (ia >= 0 && ib >= 0) return ia - ib;
-    if (ia >= 0 || ib >= 0) return ia >= 0 ? -1 : 1;
-    return a.localeCompare(b);
-  }
-  const year = (p: string): number => {
-    const digits = p.replace(/\D/g, "");
-    if (digits === "") return Number.NaN;
-    const n = Number(digits);
-    return digits.length <= 2 ? 2000 + n : n;
-  };
-  const ya = year(a);
-  const yb = year(b);
+/** Compare two period labels by their year (a label with no year falls
+ *  back to text order). */
+export function comparePeriods(_settings: PeriodSettings, a: string, b: string): number {
+  const ya = yearOf(a);
+  const yb = yearOf(b);
   if (Number.isNaN(ya) || Number.isNaN(yb)) return a.localeCompare(b);
   return ya - yb;
 }
@@ -760,9 +716,8 @@ export function reviewDue(settings: PeriodSettings, p: Priority, year: string): 
 }
 
 /** Every period the picker offers: from the earliest start in the data to
- *  the later of the next period and the latest end or planned end. FY /
- *  calendar step through the years; custom lists the ordered labels plus
- *  any the data holds. */
+ *  the later of the next period and the latest end or planned end,
+ *  stepping through the years. */
 export function periodsOnOffer(
   settings: PeriodSettings,
   current: string,
@@ -774,11 +729,6 @@ export function periodsOnOffer(
   const next = nextPeriod(settings, current);
   if (next !== "") seen.add(next);
   const cmp = (a: string, b: string) => comparePeriods(settings, a, b);
-  if (settings.mode === "custom") {
-    const out = settings.labels.slice();
-    for (const l of [...seen].sort(cmp)) if (!out.includes(l)) out.push(l);
-    return out;
-  }
   const sorted = [...seen].sort(cmp);
   if (sorted.length === 0) return [];
   const out: string[] = [];

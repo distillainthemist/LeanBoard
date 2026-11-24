@@ -135,7 +135,7 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
       (scope.department === "" || o.department === scope.department) &&
       (scope.area === "" || o.area === scope.area);
     const prSettings = parsePrioritySettings(prSettingsRaw);
-    const currentPeriod = periodFor(prSettings.period, todayIso()) || prSettings.period.currentPeriod;
+    const currentPeriod = periodFor(prSettings.period, todayIso());
     /** An initiative's span: its start label to the period it completed in
      *  (a row closed before ends were stamped ends in its start). */
     const liveIn = (i: Initiative, year: string) =>
