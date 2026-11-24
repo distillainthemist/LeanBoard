@@ -193,6 +193,20 @@ one at a time, before any of it is built. His answers:
 
 Ben, 2026-11-22: "build tranche 1".
 
+### Tranche 2
+
+The walk began 2026-11-23, paused for the v0.99.0 release, and resumed.
+
+- **C1** — **status rolls up, actions stay put** (Ben, 2026-11-24). A
+  late action on a cascaded priority makes the priority it came from
+  off track; the tooltip names the place ("1 late priority action at
+  Weipa"). The parent's Actions tab still lists only its own actions.
+  **A priority's own metric that is off plan does the same** (Ben, the
+  same answer). This changes half of decision 2 of 2026-11-18 (an
+  action on a priority shows only at the org that raised it): it still
+  SHOWS only there, but it now COUNTS upward, as initiatives do. Ben
+  was told of the history before answering.
+
 ## As built
 
 ### Tranche 1 (built 2026-11-22, RELEASED in v0.99.0 on 2026-11-23)
