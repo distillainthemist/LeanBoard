@@ -234,6 +234,17 @@ The walk began 2026-11-23, paused for the v0.99.0 release, and resumed.
   Ben was told the limits: a wrong guess cannot be corrected (the
   period is not edited), and with custom periods a date cannot be
   turned into a label, so those keep showing in every year.
+- **D10** — **replaced: calendar year is the ONLY period** (Ben,
+  2026-11-24: "Can we simplify to just calendar year as the only
+  option?"). The mode select, the financial-year start month, the
+  prefix, the custom current label and the label list leave Settings →
+  Priorities; the fy and custom branches leave `priorities/model.ts`
+  with their tests. A period is the calendar year, written "2026". Ben
+  confirmed dev and production are both already calendar year with no
+  prefix, so this is a removal: no stored label changes. Build detail:
+  a stored mode other than calendar is read as calendar, and labels go
+  on comparing by their digits. With custom periods gone, D8's second
+  limit goes too. 2–3 h, no schema.
 
 ## As built
 

@@ -596,8 +596,10 @@ that keep the scroll (v0.88.1).
 - **Re-parenting is single-level.** Linking a child under a parent
   does not re-send the child's own cascades; the child's children keep
   their links. A re-parented priority keeps its owner and order.
-- **Custom periods** need their ordered label list kept current in
-  Settings → Priorities; a label missing from the list sorts last.
+- **Custom periods: TO BE REMOVED** (Ben, 2026-11-24, programme D10).
+  Calendar year becomes the only period; financial year and custom
+  labels leave Settings and the model. Dev and production are already
+  calendar year with no prefix. Built with tranche 2.
 
 ## Metrics — open items (2026-11-19)
 
