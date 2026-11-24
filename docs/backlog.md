@@ -449,8 +449,7 @@ when written):
 ## Actions card — open items (2026-09-30)
 
 - The view a person chooses (List | Kanban | Gantt) is kept for the
-  session only. To follow the person across sessions and devices:
-  store it in their prefs row, by card.
+  session only — LEFT AS IT IS (Ben, 2026-11-24, programme E5).
 - "Download PNG / SVG" from the card's menu draws the control's own
   styles; with the app's Gantt in the Gantt view the download is not
   styled. Use the Gantt's own Export CSV, or switch view to download.

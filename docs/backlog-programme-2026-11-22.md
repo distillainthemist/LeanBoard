@@ -241,6 +241,9 @@ The walk began 2026-11-23, paused for the v0.99.0 release, and resumed.
   prefix, so this is a removal: no stored label changes. Build detail:
   a stored mode other than calendar is read as calendar, and labels go
   on comparing by their digits. 2–3 h, no schema.
+- **E5** — **not built; off the backlog** (Ben, 2026-11-24). The view
+  a person chooses on an action card (List | Kanban | Gantt) stays for
+  the session only; the card's configured view is where it opens.
 
 ## As built
 
