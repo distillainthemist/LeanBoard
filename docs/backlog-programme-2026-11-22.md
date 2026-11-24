@@ -218,6 +218,12 @@ The walk began 2026-11-23, paused for the v0.99.0 release, and resumed.
   when someone else pressed it, and as today when the person did. No
   limit on who may press; no schema change (the part lives in
   `ben_assigneesjson`).
+- **C8** — **delete, after a confirmation that counts them** (Ben,
+  2026-11-24). "Remove <name> and its N readings? This cannot be
+  undone." A metric with no readings goes without a prompt. On an
+  initiative and on a priority. A driver-linked metric never takes the
+  driver's readings with it. Where the list saves from a Save bar the
+  readings go at Save, not at the ✕, so Discard still undoes it.
 
 ## As built
 
