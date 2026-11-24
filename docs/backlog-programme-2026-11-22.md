@@ -244,6 +244,13 @@ The walk began 2026-11-23, paused for the v0.99.0 release, and resumed.
 - **E5** — **not built; off the backlog** (Ben, 2026-11-24). The view
   a person chooses on an action card (List | Kanban | Gantt) stays for
   the session only; the card's configured view is where it opens.
+- **E17** — two parts (Ben, 2026-11-24). **Part 1, an approver: not
+  built.** A revert still needs no approval (his call of 2026-09-29
+  stands) and no message to the endorsers is added. **Part 2,
+  snapshots: mark them.** A snapshot of a gate that a revert undid
+  reads "Reverted" with the date; once that gate is passed again the
+  older snapshot reads "Superseded" and folds under the newer one.
+  Nothing is deleted. About 2 h.
 
 ## As built
 

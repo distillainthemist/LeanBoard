@@ -647,9 +647,9 @@ did not look like the same metric's chart). Nothing here is built.
 
 ## Initiative stages — open items (2026-09-29)
 
-- A revert needs no approval (Ben's call). If sign-off being undone by
-  an owner alone becomes a concern: require one approver of the gate
-  being undone to agree.
+- A revert needs no approval (Ben's call, 2026-09-29; CONFIRMED
+  2026-11-24, programme E17 part 1 — no approver, no message to the
+  endorsers).
 - Gate snapshots taken before a revert are kept and listed as before;
   nothing marks them as superseded by a later pass through the gate.
 
