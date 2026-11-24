@@ -20,9 +20,17 @@ them and Ben's test walk.
 section is in `issues-plan-2026-11-23.md`. Ben's test walk (2026-11-23,
 the plan's last section): A, B, D, F, G and H pass on dev; C, E, I and
 J go to UAT unseen running. A walk finding fixed the same day: each
-lifecycle command asks its own reason question. Next: tranche 2's walk
-with Ben, begun at item 1 (C1) and paused for the release — C1 is
-asked and not yet answered.
+lifecycle command asks its own reason question.
+
+**Tranche 2 is built and on dev (2026-11-24), not released.** Walked
+with Ben item by item (the programme's "Walked with Ben" section): six
+built — C1 (a cascaded priority's own actions and metrics count
+upward), C6 (who pressed a sign-off), C8 (a removed metric takes its
+readings), D10 (calendar year is the only period), E17 part 2 (gate
+snapshots read reverted / superseded), G8 (a shared ritual seen, not
+changed) — and five off the backlog with nothing built: C5, D7, D8, E5,
+E17 part 1. As built: the programme's "Tranche 2" section. Next: Ben's
+test walk of tranche 2, then tranche 3's walk.
 What 1A was: the nine reports of the 2026-11-23 issue export
 (`issues-plan-2026-11-23.md`): Teams group messages refused over a
 colon in the chat topic, Replace content's false "landed wrong" on
@@ -79,8 +87,9 @@ metrics defined ON a priority with their full trend in the Objectives
 tab (UAT-PRI-016). Owed from it:
 - **Left as found:** phone and the executive summary's last step keep
   the old cascade list; a proposed pull put on hold shows afterwards
-  under "Cascaded to you"; a priority's own actions do not roll up to
-  the priority it was cascaded from (decision 2 — say if they should).
+  under "Cascaded to you". (A priority's own actions and metrics now
+  COUNT toward the priority it was cascaded from — programme C1, built
+  2026-11-24; they still show only where they were raised.)
 - **Metrics follow-ups:** "Metrics — open items" below.
 
 **v0.96.0 (2026-11-18, app-only):** the review of the full 2026-11-17
@@ -121,8 +130,8 @@ Owed from it:
   circles, the wall's key) while an initiative's own status reads
   "Support needed" — Ben has not asked for the counts to be renamed.
 - **Any editor can press another person's sign-off box** in the
-  action dialog (a board's tick records only the viewer's own part).
-  Left as built; Ben has not asked for it to be limited.
+  action dialog — KEPT, and the press is now on record (programme C6,
+  built 2026-11-24: "Signed off by <presser> for <person>, <date>").
 
 Recent decisions of record:
 
@@ -596,10 +605,10 @@ that keep the scroll (v0.88.1).
 - **Re-parenting is single-level.** Linking a child under a parent
   does not re-send the child's own cascades; the child's children keep
   their links. A re-parented priority keeps its owner and order.
-- **Custom periods: TO BE REMOVED** (Ben, 2026-11-24, programme D10).
-  Calendar year becomes the only period; financial year and custom
-  labels leave Settings and the model. Dev and production are already
-  calendar year with no prefix. Built with tranche 2.
+- **Custom periods: REMOVED 2026-11-24** (programme D10). Calendar
+  year is the only period; financial year and custom labels are gone
+  from Settings and the model. Dev and production were already
+  calendar year with no prefix.
 
 ## Metrics — open items (2026-11-19)
 
@@ -631,10 +640,8 @@ did not look like the same metric's chart). Nothing here is built.
 - **A priority's own metrics: two reads each at page load** (readings
   and spec). The readings coalesce into one query; the spec reads do
   not. Batch them if priorities come to carry many metrics.
-- **Removing a metric leaves its readings** in the series table, on an
-  initiative and on a priority. A metric added again under the same
-  name gets the same key and the old readings come back. Decide: keep
-  (an undo), or delete with a confirmation.
+- **Removing a metric leaves its readings: BUILT 2026-11-24**
+  (programme C8) — the × counts them and asks, and they are deleted.
 - **A priority's own metric stays own.** No Link… or Promote… into the
   value driver tree, because its readings would not move with it. To
   build: carry the series across, as an initiative's metric does.
@@ -650,8 +657,9 @@ did not look like the same metric's chart). Nothing here is built.
 - A revert needs no approval (Ben's call, 2026-09-29; CONFIRMED
   2026-11-24, programme E17 part 1 — no approver, no message to the
   endorsers).
-- Gate snapshots taken before a revert are kept and listed as before;
-  nothing marks them as superseded by a later pass through the gate.
+- Gate snapshots taken before a revert are kept; BUILT 2026-11-24
+  (programme E17 part 2): they read "reverted <date>" or "superseded",
+  older ones folded under the newest of their stage.
 
 ## Improvement / KPI tranche — open items (2026-09-24)
 
@@ -677,8 +685,9 @@ deferrals still open (details in leanboard-cascade-improvement-plan.md).
   retyped / a "short of plan" state is wanted.
 - **Standalone KPI cards as good/bad or picklist** — drivers and own
   initiative metrics have it; standalone meeting-board cards are numeric.
-- **Secondary organisations on a ritual** see it in Cadence only; site
-  admins there don't see it in Settings › Rituals — extend if asked.
+- **Secondary organisations on a ritual: BUILT 2026-11-24** (programme
+  G8) — a site admin there sees it in Settings › Rituals and opens it;
+  Edit, Replicate and Archive stay with the site that runs it.
 - **Metrics card on hand-deleted boards** returns only on the next Edit
   details save (or Reset board to template).
 

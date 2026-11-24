@@ -368,7 +368,10 @@ model section) — the canvas/PCF sections there are historical.
   / `pillarsLiveIn` decide what the viewed year shows, `periodsOnOffer`
   lists every period a span touches, `effectiveEnd` reads a row closed
   before ends were stamped as ending in its start (no migration).
-  Custom periods compare by the ordered label list in Settings. Nothing
+  **A period is the calendar year, and nothing else** (Ben,
+  2026-11-24): financial years and custom label lists are gone with
+  their settings; a label is "2026", an older label is still read by
+  its digits (`yearOf`) and stepped in its own shape. Nothing
   is copied at a boundary — the carry-forward copy, bulk flow and close
   reason are gone; `reviewDue` flags an open priority past its planned
   end instead. **Re-parenting** (`store/priorities.ts` `relinkParent`,

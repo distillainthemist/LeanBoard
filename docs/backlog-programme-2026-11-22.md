@@ -356,6 +356,66 @@ Thirteen items built; E9 was already built. App-only, no schema.
 Tranche 1 stands tested on dev except C4 (production, after a release)
 and F7 (cannot be forced).
 
+### Tranche 2 (built 2026-11-24, on dev, NOT released)
+
+Six items built, five off the backlog with nothing built (C5, D7, D8,
+E5, E17 part 1). App-only, no schema.
+
+- **C1 — what a cascaded priority carries counts upward.**
+  `priorities/ownBelow.ts` `ownBelow` gathers, per place, the actions
+  and own metrics of every counted child row, and the actions raised on
+  the SAME row at an org below the one in view (adopted as-is).
+  `priorityStatus(states, mine, below)` (`improvement/status.ts`) adds a
+  reason per place: "N late priority action(s) at <place>", "<metric>
+  short of plan at <place>". Nothing rolls down or sideways. The
+  actions still show only where they were raised. UAT-PRI-017.
+- **C6 — who pressed a sign-off.** `Assignee.doneBy` (in
+  `ben_assigneesjson`, no schema), written by `mergeAssignees` (opts
+  `by`) when a part becomes done for someone other than the person
+  saving — a press on their box, or closing the action from the dialog.
+  A part already done keeps its record; an undone part and a person's
+  own tick carry none. The box's tooltip: `signedOffWords` — "Signed off
+  by Ben for Kat, 24 Nov". A part closed from a BOARD (a drag to Done)
+  records no presser. UAT-ACT-014.
+- **C8 — a removed metric takes its readings.**
+  `improvement/metricRemoval.ts` (which metrics have readings of their
+  own, the question, what a save removed for good);
+  `store/series.ts` `countReadings`, `deleteSeriesAt`. The × counts and
+  asks ("Remove <name> and its N readings? This cannot be undone."); a
+  count that FAILS still asks, without the number. An initiative's
+  Edit details deletes at Save (Cancel undoes it); a priority's own
+  metrics save at once, so the readings go at once. A value driver's
+  series is never touched. UAT-IMP-013, UAT-PRI-016 step 11.
+- **D10 — calendar year is the only period.** `PeriodSettings` is
+  `{ mode: "calendar" }`; `periodFor` is the date's year; the fy and
+  custom branches, the start month, the prefix and the label list are
+  gone from `priorities/model.ts` and from Settings → Priorities. A
+  stored mode other than calendar is read as calendar. An older label
+  ("FY26") is still read by its digits and stepped in its own shape.
+  UAT-SET-016.
+- **E17 part 2 — which gate snapshot stands.**
+  `improvement/gateSnapshots.ts` `markGateSnapshots`: per stage the
+  newest snapshot leads, "reverted <date>" when a later revert went
+  back to that stage or before it; earlier ones are "superseded" and
+  fold under it ("▸ N superseded") in the board's Live menu; the
+  viewing banner says the same. The reverts come from the initiative's
+  stage-move events (`InitiativePaneHandle.gateHistory`). UAT-IMP-014.
+- **G8 — a ritual shared with a site.** `screens/ritualScope.ts`
+  `ritualStanding`: manage / view / none. A site admin SEES a ritual
+  from another site that is also shown at theirs ("Also at your site,
+  from <site>"), with Open and Copy link only. The wizard asks the same
+  rule as a backstop. **A tightening Ben should know:** until now any
+  site admin could open the edit wizard for ANY site's ritual by its
+  address; now only for their own site's, or one they own. An owner who
+  is a site admin elsewhere now also sees their ritual in the list.
+  UAT-RIT-016.
+- **Seen in the harness:** Settings → Priorities' Period section with
+  nothing to choose and the year pickers in order; the Priorities page
+  on the in-memory data; the × on a priority's own metric asking
+  "Remove Respect index and its 3 readings?" and deleting them. **Not
+  seen anywhere:** C1 on real cascades, C6's tooltip, E17's menu and
+  G8's list (pure rules tested; the surfaces need the hosted app).
+
 ## Tranche 1A — the 2026-11-23 issue export (inserted by Ben, 2026-11-23)
 
 Nine reports from the DMS UAT re-run, reviewed in

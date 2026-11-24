@@ -13,6 +13,15 @@ export async function listSeriesByPrefix(boardId: string, cardId: string, prefix
   return [...cells.values()].filter((c) => c.boardId === boardId && c.cardId === cardId && c.key.startsWith(prefix) && c.date <= to);
 }
 export async function hasAnySeries(): Promise<boolean> { return true; }
+export async function countReadings(boardId: string, cardId: string): Promise<number> {
+  return [...cells.values()].filter((c) => c.boardId === boardId && c.cardId === cardId && !c.key.startsWith("spec:") && c.value !== "").length;
+}
+export async function deleteSeriesAt(boardId: string, cardId: string): Promise<number> {
+  const mine = [...cells.entries()].filter(([, c]) => c.boardId === boardId && c.cardId === cardId);
+  for (const [key] of mine) cells.delete(key);
+  console.log("deleteSeriesAt", boardId, cardId, mine.length);
+  return mine.length;
+}
 export async function applySeries(boardId: string, cardId: string, put: SeriesCell[], del: SeriesCell[] = []): Promise<void> {
   await new Promise((r) => setTimeout(r, 150));
   for (const c of put) cells.set(k(boardId, cardId, c), { ...c, boardId, cardId });

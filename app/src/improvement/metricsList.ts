@@ -217,9 +217,11 @@ export function renderMetricsList(o: MetricsListOpts): { refresh: () => void } {
           // readings of its own are counted, and the person is asked
           if (o.readingsOf && hasOwnReadings(m)) {
             x.disabled = true;
-            const n = await o.readingsOf(m).catch(() => 0);
+            // a count that fails is asked about all the same (-1), never
+            // read as "none"
+            const n = await o.readingsOf(m).catch(() => -1);
             x.disabled = false;
-            if (n > 0 && !(await promptConfirm({ ...removeMetricWords(m.name, n), confirmLabel: "Remove", danger: true }))) return;
+            if (n !== 0 && !(await promptConfirm({ ...removeMetricWords(m.name, n), confirmLabel: "Remove", danger: true }))) return;
           }
           const at = o.metrics.indexOf(m);
           if (at < 0) return;
