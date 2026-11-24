@@ -227,6 +227,13 @@ The walk began 2026-11-23, paused for the v0.99.0 release, and resumed.
 - **D7** — **not built; off the backlog** (Ben, 2026-11-24). A
   priority with no planned end never flags. Offered twice (2026-10-02,
   2026-11-24) and declined twice; do not offer it again unprompted.
+- **D8** — **an initiative with no period label starts in the period
+  it was created in** (Ben, 2026-11-24). A read rule, nothing written:
+  one function gives an initiative's start (its label, else the period
+  of its created date), and every "live in this year" reader uses it.
+  Ben was told the limits: a wrong guess cannot be corrected (the
+  period is not edited), and with custom periods a date cannot be
+  turned into a label, so those keep showing in every year.
 
 ## As built
 
