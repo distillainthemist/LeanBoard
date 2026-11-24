@@ -251,6 +251,16 @@ The walk began 2026-11-23, paused for the v0.99.0 release, and resumed.
   reads "Reverted" with the date; once that gate is passed again the
   older snapshot reads "Superseded" and folds under the newer one.
   Nothing is deleted. About 2 h.
+- **G8** — **see it, not change it** (Ben, 2026-11-24). A site admin
+  at a secondary site sees the ritual in Settings › Rituals with a note
+  naming the primary site; it opens, but Edit and Archive are not
+  offered. Ben was told this gives rituals a different rule from
+  initiatives (a site admin has admin over an initiative that also
+  spans their site) and chose it for safety.
+
+**To build (six):** C1, C6, C8, D10 (calendar year only), E17 part 2,
+G8. **Off the backlog, nothing built (five):** C5, D7, D8, E5, E17
+part 1. Ben, 2026-11-24: "Second option, build tranche 2."
 
 ## As built
 
