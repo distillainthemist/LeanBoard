@@ -295,3 +295,23 @@ document's name; the approval date was wrong after ingestion.
 |---|---|---|
 | 27 | Declined (Ben) | Status changes go through the existing commands in the document's menu. Nothing is added to the form — not even a pointer. The reply says where the commands are |
 | 28 | Build (Ben's choice 1) | Two commands in the document's menu, for DOCUMENT CONTROLLERS only. **Rename**: new name and a reason; the file type is kept; a name already in use in that folder is refused. **Correct approval date**: the date and a reason; a future date is refused; the review date is counted again from it by the document's cadence. Each writes a new version whose comment says what changed, from what, to what, by whom and why. Reverses, for controllers and for this one date, the 2026-08-10 "never typed" decision; cadence and review date stay calculated. Neither is in N3's bulk change |
+
+### Reports 17 and 11, the document preview — reviewed 2026-11-26, NOT yet decided
+
+Findings (code read; nothing run):
+
+- The preview of a Word, Excel or PowerPoint file is SharePoint's own
+  PDF conversion of it, shown in the browser's PDF viewer inside a
+  frame (`cookieFreeSrc`, `transformPdfUrl`, `docs/viewer.ts`,
+  `docs/rows.ts`). The app passes no options to the conversion.
+- **17** — the conversion shows the text with tracked changes applied
+  and no markup (Marie's screenshot: the new sentence reads as plain
+  text). So an approver sees the result, not what changed. Whether the
+  conversion can be asked for markup is not known; whether "Open in new
+  tab" shows tracked changes to someone who can only read was not
+  checked.
+- **11** — nothing in the viewer scrolls the document or the panel (no
+  scroll call, no page fragment on the address). Where a PDF opens is
+  the browser's PDF viewer's doing. Not explained; the report does not
+  say which file type, which browser, or whether "the bottom" is the
+  document's last page or the details panel.
