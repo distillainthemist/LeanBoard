@@ -228,3 +228,24 @@ Findings (code read; nothing run):
 |---|---|---|
 | 21 | Build (2026-11-26) | The kanban column comes from the PDCA state: Plan = To do; Do, Check, Act = Doing; awaiting endorsement = Endorse; Closed = Done. Setting the state in the dialog moves the card; dragging sets the state (into To do = Plan, into Doing = Do; a card at Check or Act keeps its mark within Doing). The separate "in progress" status decides nothing. **A new action starts at PLAN** (reverses Ben's 2026-08-31 "starts at Do"). **Existing cards stay in their column**: an action at Do never dragged into Doing stays in To do and reads as Plan from then on (Ben told this rewrites a mark that was sometimes a choice; he chose it). **On hold sits in To do** with its pause mark (Plan in the PDCA view). The grouping menu gains **"By PDCA state"** — Plan, Do, Check, Act, Closed; awaiting endorsement sits in Closed with its marker — the default stays four columns (Ben's choice 3; PDCA columns as the default, with Check as Endorse, considered and not taken). Meeting boards follow the same rule on their three columns |
 | 22 | Build, narrowed by Ben | The priority popup follows the app's existing rule for where an initiative shows: on an org's page it lists an initiative filed under that org (or within it), or one whose "Also shown in" list names that org — the rule the Improvement tab and Gantt card already use. A "Show all" switch with a count ("Showing X, 2 of 5 initiatives"); each row names the org the initiative is filed under, in place of "This org"; on the priority's own page nothing changes. **Before any setup the list is EMPTY** ("0 of 5", then Show all) — Ben's choice 2, no fallback to all. NOT built: splitting actions inside a shared initiative by department (a department that needs its own action set files its own initiative — Ben); any rule by owner, sponsor, team or action holder (considered, dropped as complexity); scoping the tile's circles or status |
+
+### Report 5 — reviewed 2026-11-26, NOT yet decided
+
+Findings (code read; production's term store NOT seen):
+
+- The Filters tree is the Process area term set as the store holds it;
+  the set is written by the sync from each site's tree in Settings →
+  Processes (`docs/processSync.ts`, `orgSyncPlan` in `docs/model.ts`).
+- **A mechanism that produces exactly this picture exists.** The
+  planner INFERS a rename: at each depth, under each parent, when
+  exactly one app path is missing and exactly one store term is
+  unmatched, the unmatched term is renamed to the missing label and its
+  children come with it (`rekeyUnder`). So if "Metal Delivery" was once
+  the one new name under Casting while another area's term stood
+  unmatched there, that term became "Metal Delivery" with the other
+  area's children under it; the app's own Metal Delivery children were
+  then created beside them, and the first area's children were created
+  afresh under their true parent — leaving three strays. Hypothesis,
+  Medium: it fits the screenshot; the store's history was not seen.
+- The other reading: the areas were entered under Metal Delivery in
+  Settings → Processes (data, no fault in the app).
