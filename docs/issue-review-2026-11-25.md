@@ -323,3 +323,27 @@ Findings (code read; nothing run):
 |---|---|---|
 | 17 | Build (Ben's choice 1) | On a Word document awaiting review or approval, the decision card carries one line — "Tracked changes do not show in this preview" — with an "Open in Word" button beside it; on every such card, tracked or not. Word files only. Not built: reading the file to say it only when true; the approved version side by side |
 | 11 | Build, as a try (Ben) | The preview's address asks the PDF viewer for page 1, for converted files and for PDFs. The cause was NOT found and the fault was not reproduced, so this cannot be proved before it ships: Ben's or Ellen's check in the hosted app decides whether the report closes |
+
+### Report 19, UAT-DOC-040 Cancel revision — reviewed 2026-11-26, NOT yet decided
+
+Findings (code read; nothing run):
+
+- Holly's screenshot shows v2.0 published and current, v1.0
+  superseded, and NO drafts and NO restored major. So either no
+  revision had been checked in on that document, or the cancel did not
+  run to its end. The report does not say which step she was on.
+- A revision that was only STARTED is nothing but a check-out: Start
+  revision writes the draft status inside the check-out and stops
+  (`staysCheckedOut`, `docs/lifecycleCmds.ts`). Cancelling it discards
+  the check-out, so nothing is left to show — no version, no comment.
+  UAT-DOC-040's expected result describes only a revision with drafts.
+- **A suspected fault in that same case, NOT confirmed.** After
+  discarding the check-out, `openCancelRevision` goes on: it reads the
+  file's version list, takes the highest major, restores it and checks
+  in a new major. SharePoint's file version list holds PAST versions
+  only (the app's own history read fetches the current one separately,
+  `itemVersions` in `docs/data.ts`). So with no draft checked in, the
+  highest major in that list is the one BEFORE the current approved
+  version — and the cancel would restore that, publishing the previous
+  approved content as a new major. Holly's document shows no such
+  version, which this does not explain. Needs one run on dev.
