@@ -295,6 +295,12 @@ The walk began 2026-11-25, after tranche 2's test walk.
   **And a message is offered** after a link to the owners of the orgs
   below (his answer "First option"). The parent's Cascade tab stays one
   level (two levels at most, 2026-11-18). About 3 h.
+- **D11** — **both** (Ben, 2026-11-25). The phone shows the decision
+  zone's three rows (Proposed, Cascaded to you, Unplaced) under its
+  priorities, the "N awaiting a decision" chip jumping to them; the
+  executive summary's last step becomes "Awaiting a decision" with all
+  three kinds. Every item opens its priority's popup. The old cascade
+  review list retires. The feel on a real phone is Ben's check.
 
 ## As built
 
