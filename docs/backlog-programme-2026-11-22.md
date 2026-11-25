@@ -285,6 +285,16 @@ The walk began 2026-11-25, after tranche 2's test walk.
   both have one. Not on a company-level priority (no site, no tree).
   The merge cannot be undone, so it ASKS FIRST, naming how many
   readings move.
+- **D9** — **a re-parented priority ALWAYS takes its new parent's
+  sub-pillar** (Ben, 2026-11-25, in his own words; the "Also take the
+  parent's sub-pillar" tick goes). As told to him and not corrected: it
+  follows down to every priority made from the linked one (the dialog
+  says how many move); it applies from the year in view, earlier years
+  keeping their column; Change parent follows the same rule, Unlink
+  leaves the column alone; a parent with no sub-pillar moves nothing.
+  **And a message is offered** after a link to the owners of the orgs
+  below (his answer "First option"). The parent's Cascade tab stays one
+  level (two levels at most, 2026-11-18). About 3 h.
 
 ## As built
 
