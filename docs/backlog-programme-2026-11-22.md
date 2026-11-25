@@ -318,6 +318,14 @@ The walk began 2026-11-25, after tranche 3's test walk.
 - **E1** — **not built; off the backlog** (Ben, 2026-11-25).
   "Duplicate…" stays where it is: the Action card, My day and the
   Improvement Gantt. The other action-raising cards do not offer it.
+- **E2** — **both parts, first options** (Ben, 2026-11-25).
+  **Captions:** a Rename link on each row turns the caption into a text
+  box (Enter saves); a file with none can be given one; whoever may
+  remove an attachment may rename it. **Preview:** images only (JPG,
+  PNG, GIF, WebP), on click, in a viewer inside the app with Download
+  beside it; every other file downloads as today. No thumbnails in the
+  list (a file can be 30 MB); HEIC downloads. PDFs were offered as an
+  unproven extra and not chosen.
 
 ## As built
 
