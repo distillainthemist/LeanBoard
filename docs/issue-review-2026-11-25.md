@@ -390,3 +390,9 @@ row opens its document.
 | 9 | Build (choice 1) | The Libraries card folds to one line, "Libraries, 3 of 4", remembered for the person |
 | 10 | Build — BEN'S CHOICE 3, against my recommendation to defer | The Document tasks button opens a larger screen, grouped by type, with QUICK ACTIONS on each task without opening the document: Approve, Review complete, Check in. I told Ben this lets someone approve a document they have not opened, the thing report 17 was decided to prevent; he chose it. Shape still to settle with him |
 | 10 | How a quick action runs (Ben's choice 1) | Each quick action opens THE SAME DIALOG as on the document, over the list — so the comment, "On behalf of", "Attach evidence", the Word-lock message and, for a Word file, the "tracked changes do not show" line with "Open in Word" all hold in both places. Rows: Awaiting your approval → Approve, Request revision; Awaiting your review → Review complete; Checked out to you → Check in, Discard; Review due → Mark reviewed; edit-access requests keep their Approve and Decline. Every row keeps "Open". About three days |
+
+### The single items, lighter review — 2026-11-26
+
+| # | Decision | Option chosen |
+|---|---|---|
+| 3 | Deferred to tranche 5 (Ben's choice 2) | Keyboard entry in the ingestion grid joins tranche 5, beside the type-ahead pickers it shares a pattern with: arrow keys and Tab move between cells, Enter opens a cell, typing narrows the list, arrows choose, Enter applies and moves on. About two days, added to that tranche. The reply points to the spreadsheet round trip as the keyboard-first way that exists today. Finding: by design — a cell opens on a click and the grid has no keyboard road (`docs/ingestionScreen.ts`) |
