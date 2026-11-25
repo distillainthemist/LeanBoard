@@ -428,6 +428,19 @@ E5, E17 part 1). App-only, no schema.
   seen anywhere:** C1 on real cascades, C6's tooltip, E17's menu and
   G8's list (pure rules tested; the surfaces need the hosted app).
 
+#### Ben's test walk of tranche 2 on dev (2026-11-25, `v0.99.0-20-g5ce4709`)
+
+| # | Check | Result |
+|---|---|---|
+| 1 | D10 — the period is the calendar year | Pass |
+| 2 | C8 — removing a metric | Pass, after two changes made in the walk: the × asks on a value-driver metric too, and on a metric with no readings (it always asks on an existing initiative or priority) |
+| 3 | C6 — a sign-off pressed for someone else | Pass |
+| 4 | C1 — a cascaded priority counts upward | Pass (Ben linked a site priority under a company one from its Cascade tab first) |
+| 5 | E17 part 2 — which gate snapshot stands | Pass |
+| 6 | G8 — a ritual shared with another site | Pass |
+
+Tranche 2 stands tested on dev.
+
 ## Tranche 1A — the 2026-11-23 issue export (inserted by Ben, 2026-11-23)
 
 Nine reports from the DMS UAT re-run, reviewed in

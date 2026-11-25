@@ -29,8 +29,9 @@ upward), C6 (who pressed a sign-off), C8 (a removed metric takes its
 readings), D10 (calendar year is the only period), E17 part 2 (gate
 snapshots read reverted / superseded), G8 (a shared ritual seen, not
 changed) — and five off the backlog with nothing built: C5, D7, D8, E5,
-E17 part 1. As built: the programme's "Tranche 2" section. Next: Ben's
-test walk of tranche 2, then tranche 3's walk.
+E17 part 1. As built: the programme's "Tranche 2" section. Ben's test
+walk (2026-11-25): all six pass on dev; in it the metric × was made to
+ask always. Dev holds `v0.99.0-20-g5ce4709`. Next: tranche 3's walk.
 What 1A was: the nine reports of the 2026-11-23 issue export
 (`issues-plan-2026-11-23.md`): Teams group messages refused over a
 colon in the chat topic, Replace content's false "landed wrong" on
