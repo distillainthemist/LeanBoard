@@ -326,6 +326,13 @@ The walk began 2026-11-25, after tranche 3's test walk.
   beside it; every other file downloads as today. No thumbnails in the
   list (a file can be 30 MB); HEIC downloads. PDFs were offered as an
   unproven extra and not chosen.
+- **E6** — **the chosen range, every row, styled** (Ben, 2026-11-25).
+  "Download PNG / SVG" in the Gantt view gives the range picked (26w /
+  52w / All) with every row in it, not only the rows on screen, in the
+  Gantt's own styles. To confirm when building: the stored tile
+  picture (meeting close, gate approval) of an Action card left in
+  Gantt view is made by the same code and is expected to be unstyled
+  too; the same fix should cover it.
 
 ## As built
 
