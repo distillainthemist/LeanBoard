@@ -280,3 +280,18 @@ Findings (code read; production's term store NOT seen):
 | N3 | Build — Ben's own item, added 2026-11-26 | **Bulk change of properties, for document controllers**: filter to a set (or tick rows), choose one or more properties and the new common value for each, give a reason; a preview counts what will change and what will be skipped; the run reports each document. "A general need going forward" (Ben) — an owner leaving with fifty documents is the same job — and it is what makes the BSL repair practical. The review date is untouched (already the rule for a property edit). Told to Ben and accepted: each document changed gets a NEW VERSION with the reason as its comment, a new published one for an approved document, as a controller's single edit makes today. Planned shape: skips stated up front (checked out to someone; part-way through review or approval); a limit and a pace (about 70 edits a minute), safe to interrupt as an ingestion run is; controllers only, a site's controller on their own site's documents; a fixed list of what can change — tags, people, text; not status, dates, document id or name. About 4–5 days |
 
 The BSL repair's owner: **Ben** (2026-11-26). It waits for N3; the lookup fix goes in first so no new wrong tags are made meanwhile.
+
+### Cluster E — reviewed and decided 2026-11-26
+
+Findings (code read): everything Ellen could not change is left out of
+Edit properties ON PURPOSE. Status left the forms in v0.79
+(`docs/fieldEditors.ts`); the approval date, cadence and review date
+are system-managed (`SYSTEM_DATE_ROLES`, Ben's decision of 2026-08-10)
+and typed only at ingestion. The app has NO rename of a document
+anywhere. Ben: Ellen knew the Supersede command; "title" means the
+document's name; the approval date was wrong after ingestion.
+
+| # | Decision | Option chosen |
+|---|---|---|
+| 27 | Declined (Ben) | Status changes go through the existing commands in the document's menu. Nothing is added to the form — not even a pointer. The reply says where the commands are |
+| 28 | Build (Ben's choice 1) | Two commands in the document's menu, for DOCUMENT CONTROLLERS only. **Rename**: new name and a reason; the file type is kept; a name already in use in that folder is refused. **Correct approval date**: the date and a reason; a future date is refused; the review date is counted again from it by the document's cadence. Each writes a new version whose comment says what changed, from what, to what, by whom and why. Reverses, for controllers and for this one date, the 2026-08-10 "never typed" decision; cadence and review date stay calculated. Neither is in N3's bulk change |
