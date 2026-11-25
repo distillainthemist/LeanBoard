@@ -333,6 +333,12 @@ The walk began 2026-11-25, after tranche 3's test walk.
   picture (meeting close, gate approval) of an Action card left in
   Gantt view is made by the same code and is expected to be unstyled
   too; the same fix should cover it.
+- **E8** — **draw the picture as the card is left** (Ben, 2026-11-25).
+  A card closed with a change pending has its tile picture drawn there
+  and then, and the save carries it; the wait is capped at about half a
+  second, after which the save goes with what it has. Told to Ben: this
+  is the record's picture too — a closed meeting and a gate snapshot
+  stamp the same stored pictures.
 
 ## As built
 
