@@ -147,3 +147,23 @@ Findings (code read; one harness run):
 | 1 | Build (Ben's choice 2, 2026-11-26) | The merge rule AND a year-change panel, at BOTH levels. Rule: several old sub-pillars (or pillars) may be followed by one new one — a column change. Panel, Settings → Priorities, "Change from 2026 to 2027": the earlier year's structure as it is, each pillar with its sub-pillars; each pillar and each sub-pillar answers continues / becomes another (new, or one already in the later year; several may become one) / ends; a sub-pillar also says which pillar it sits under, by default whatever its pillar becomes; new pillars and sub-pillars are added in the panel; each row shows how many priorities it carries across all orgs; the footer lists priorities that would be left Unplaced and sub-pillars left with no pillar; ONE Save applies it all. Covered: rename, merge, pillar split (its sub-pillars are shared out), pillar end, new pillar, and a NEW pillar whose NEW sub-pillars follow sub-pillars under an OLDER pillar (Ben's case). Not automatic: a sub-pillar split — its priorities must be placed, and are listed |
 | 23 | Build (Ben's choice 1, 2026-11-26) | A tile past its planned end offers "Extend to <next year>" and "Complete" in its menu — Extend sets the planned end and asks nothing more unless the sub-pillar cannot carry into that year, then asks for one; offered to whoever may edit the priority today. A changed START year finds the sub-pillar in force that year. A year with no sub-pillars to choose says so, in place of an empty required field. NOT in this round: a warning that moving the start year forward takes the priority off the earlier year |
 | 2 | Build (2026-11-26) | The row just added gets the cursor and the page stays where it is; the same check for "＋ Add pillar" |
+
+### N1, the CSV import — reviewed and decided 2026-11-26
+
+Findings (code read): the desk already does, one issue at a time,
+everything an import needs — status (seven values, a change writes
+itself into the thread), a reporter message saved to the thread and
+sent as a Teams card to reporter, merged reporters and followers,
+a reporter-VISIBLE resolution line (`ben_resolution`), internal thread
+messages, and Merge into (`issues/adminTab.ts`). A status is plain
+text: a new one changes no schema. The CSV has three outcomes the app
+has no status for (Deferred, Partially resolved, Not a software issue)
+and three fields with no place (type, release, date).
+
+| # | Decision | Option chosen |
+|---|---|---|
+| N1 | Build (Ben's choice 2) | An import that runs the desk's own actions per row, with THREE NEW STATUSES: **Deferred** (out of the open queue, its own filter), **Partially resolved** (STAYS in the open queue — Ben's answer), **Not a software issue** (closed, worded as an answer). Type, release and date ride in the resolution line as text; no new columns. InternalNote becomes an internal thread message, never the resolution line (reporters see that). Duplicate uses the existing merge |
+| N1 | How people hear (choice 2) | ONE Teams card per person listing their reports and outcomes, with a link; every answer still saved on its own issue's thread. Not one card per issue (this round: 17 for one reporter) |
+| N1 | "Prepare" (choice 1) | Preview, then apply, in one sitting: rows can be unticked and messages edited in the preview; nothing is stored until Apply. No stored drafts |
+| N1 | The starting file (choice 1) | "Export to CSV" beside "Export to PDF": the ticked issues in the import's layout, ids filled in, with title, reporter and present status as reference columns the import ignores. `issue-review-prompt.md` §4.5 to say the import ignores columns it does not know |
+| N1 | Common rules | Faults shown per row before anything runs (unknown id, status not in the list, missing message, message over 400 characters, a duplicate with no parent); Apply runs row by row and reports each; a failed row does not stop the rest; the same file run twice changes nothing |
