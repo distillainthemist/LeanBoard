@@ -32,6 +32,8 @@ async function inBatches<T>(items: T[], size: number, work: (item: T) => Promise
 import { currentViewer } from "../runtime";
 import { memoRead } from "./changes";
 import { parseMeetingInfo } from "../../../shared/schema/meeting";
+import { stampNeedle } from "../actions/orgStamp";
+import { OPEN_ACTIONS, stampsFor } from "./actionOrgs";
 
 // ---- confidential actions (2026-09-16): ONE choke point for every read ----
 //
@@ -148,12 +150,46 @@ export async function actionsForViewer(whoId: string): Promise<LtkAction[]> {
   return visible(rows.map(actionFromRow));
 }
 
-/** Every open action (not done / cancelled) — the Actions tab's
- *  organisation scope filters these by assignee placement. */
-export async function openActions(): Promise<LtkAction[]> {
+/** Every open action (not done / cancelled) — the whole-company scope,
+ *  which no filter makes smaller. `onPage`: each page as it arrives, so
+ *  the list paints while the rest loads (programme E13). */
+export async function openActions(onPage?: (soFar: LtkAction[]) => void): Promise<LtkAction[]> {
   await whenSettled();
-  const rows = await allWhere(Ben_ltkactionsService.getAll, "ben_status ne 'done' and ben_status ne 'cancelled'");
-  return visible(rows.map(actionFromRow));
+  if (!onPage) return await visible((await allWhere(Ben_ltkactionsService.getAll, OPEN_ACTIONS)).map(actionFromRow));
+  const out: LtkAction[] = [];
+  let skipToken: string | undefined;
+  for (;;) {
+    const result = await Ben_ltkactionsService.getAll({ filter: OPEN_ACTIONS, maxPageSize: SCOPE_PAGE, ...(skipToken ? { skipToken } : {}) });
+    if (result.success === false) throw new Error(result.error?.message ?? "the actions could not be read");
+    const page = result.data ?? [];
+    out.push(...(await visible(page.map(actionFromRow))));
+    onPage(out);
+    const next = (result as { skipToken?: string }).skipToken;
+    if (!next || page.length === 0 || out.length >= 50_000) return out;
+    skipToken = next;
+  }
+}
+
+/** How many rows the whole-company scope asks for at a time. */
+const SCOPE_PAGE = 500;
+
+/** The organisation scope, filtered BY THE SERVER (programme E13,
+ *  2026-11-25): the open actions whose assignees sit at `token`'s org
+ *  (actions/orgStamp.ts `scopeToken`), and those RAISED there. Until
+ *  2026-11-25 the scope read every open action in the environment and
+ *  matched assignees to the roster in the browser. */
+export async function openActionsInOrg(token: string): Promise<{ assigned: LtkAction[]; raised: LtkAction[]; unstamped: LtkAction[] }> {
+  await whenSettled();
+  const needle = odata(stampNeedle(token));
+  const [assigned, raised, unstamped] = await Promise.all([
+    allWhere(Ben_ltkactionsService.getAll, `${OPEN_ACTIONS} and contains(ben_assigneeorgs, '${needle}')`),
+    allWhere(Ben_ltkactionsService.getAll, `${OPEN_ACTIONS} and contains(ben_raisedorg, '${needle}')`),
+    // rows from before the stamp: read whole and matched the old way by
+    // the caller, until "Re-stamp actions" has emptied this set
+    allWhere(Ben_ltkactionsService.getAll, `${OPEN_ACTIONS} and (ben_assigneeorgs eq null or ben_assigneeorgs eq '')`),
+  ]);
+  const [a, r, u] = await Promise.all([visible(assigned.map(actionFromRow)), visible(raised.map(actionFromRow)), visible(unstamped.map(actionFromRow))]);
+  return { assigned: a, raised: r, unstamped: u };
 }
 
 /** The owners of boards whose Escalation viewer sources `boardId` — an
@@ -245,7 +281,13 @@ export async function upsertActions(
     // the ONE write path, cleared on a reopen
     stampCompletion(action);
     await stampVisibility(action, stamped);
-    await writeKnown(Ben_ltkactionsService, existing, (row) => row.ben_ltkactionid, actionToRow(action, stamped));
+    // where its assignees sit and where it was raised (programme E13,
+    // 2026-11-25): stamped at the ONE write path, so the organisation
+    // scope is the server's filter. A stamp that cannot be worked out
+    // (the roster did not answer) leaves the row's own as it was — a new
+    // row then reads as unstamped and is found the old way.
+    const orgs = await stampsFor(action, stamped ?? existing?.ben_boardid ?? home, existing === null).catch(() => null);
+    await writeKnown(Ben_ltkactionsService, existing, (row) => row.ben_ltkactionid, { ...actionToRow(action, stamped), ...(orgs ?? {}) });
     partsAsRead.set(action.id, action.assignees.map((x) => ({ ...x })));
   }
   bumpChange("actions");

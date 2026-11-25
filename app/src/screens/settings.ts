@@ -23,7 +23,7 @@ import { statusChip } from "../../../shared/ui/format";
 import { boardHash, boardUrl } from "../links";
 import { bootFail, showLoading } from "../loading";
 import { setLeaveGuard } from "../navGuard";
-import { confirmRemoval, promptConfirm, promptText, promptUnsaved } from "../prompts";
+import { confirmRemoval, progressNote, promptConfirm, promptText, promptUnsaved } from "../prompts";
 import { currentViewer, detectHost } from "../runtime";
 import { EmulatedRole, effectivePerson, setViewAsRole, viewAsRole } from "../viewAs";
 import {
@@ -2438,6 +2438,25 @@ async function renderOrg(
 
   // ---- immediate structural flows (guarded; full re-render) ----
 
+  /** An org was renamed: the open actions stamped with its old name take
+   *  the new one (store/actionOrgs.ts). A site can carry thousands, so
+   *  the pass says how far it has got; it never fails the rename — a
+   *  stamp left behind is put right by "Re-stamp actions". */
+  const moveActionStamps = async (renames: { from: string; to: string }[]): Promise<void> => {
+    if (renames.length === 0) return;
+    const note = progressNote("Updating actions", "Finding the actions stamped with the old name…");
+    try {
+      const { renameOrgStamps } = await import("../store/actionOrgs");
+      for (const rn of renames) {
+        await renameOrgStamps(rn.from, rn.to, (done, total) => note.set(`${done.toLocaleString()} of ${total.toLocaleString()} actions`));
+      }
+    } catch (err) {
+      console.warn("action org stamps: rename failed", err);
+    } finally {
+      note.close();
+    }
+  };
+
   const renameSite = (site: string) => {
     void (async () => {
       const name = (
@@ -2453,8 +2472,10 @@ async function renderOrg(
       // the Organisation term set: journaled, then pushed at once
       await import("../docs/orgJournal").then((m) => m.journalOrgRenames([{ from: [site], to: [name] }])).catch(() => undefined);
       for (const p of await listPeople(true)) {
-        if (p.site === site) await upsertPerson({ ...p, site: name });
+        // the action stamps are moved in one pass below, not person by person
+        if (p.site === site) await upsertPerson({ ...p, site: name }, undefined, { skipActionRestamp: true });
       }
+      await moveActionStamps([{ from: site, to: name }]);
       if (me.site === site) me.site = name;
       await renderOrg(body, me, ctx);
       await pushOrg();
@@ -2919,6 +2940,44 @@ async function renderOrg(
       addCo.addEventListener("click", addCompanyFlow);
       treeBox.appendChild(addCo);
     }
+    // the org stamps on open actions (programme E13, 2026-11-25): what
+    // the hub's organisation scope is filtered by. Rows from before the
+    // stamp are found the old way until they are stamped here; the same
+    // button repairs a stamp that has drifted.
+    if (isSuper) {
+      const row = el("div", "app-org-stamps");
+      const line = el("span", "app-settings-note", "Checking the org stamps on open actions…");
+      const go = el("button", "app-btn", "Re-stamp actions") as HTMLButtonElement;
+      go.type = "button";
+      go.title = "Work out afresh where every open action's assignees sit and where it was raised";
+      const count = () =>
+        void import("../store/actionOrgs")
+          .then((m) => m.countUnstamped())
+          .then((n) => {
+            line.textContent = n === 0 ? "Every open action carries its org stamp." : `${n.toLocaleString()} open action${n === 1 ? " has" : "s have"} no org stamp yet.`;
+          })
+          .catch(() => {
+            line.textContent = "The org stamps could not be checked.";
+          });
+      go.addEventListener("click", () => {
+        go.disabled = true;
+        void (async () => {
+          try {
+            const { restampAllOpen } = await import("../store/actionOrgs");
+            const r = await restampAllOpen((done, total) => {
+              line.textContent = `Stamping… ${done.toLocaleString()} of ${total.toLocaleString()}`;
+            });
+            line.textContent = `${r.total.toLocaleString()} open action${r.total === 1 ? "" : "s"} checked, ${r.changed.toLocaleString()} stamped${r.failed > 0 ? `, ${r.failed.toLocaleString()} could not be written — run it again` : ""}.`;
+          } catch (e) {
+            line.textContent = `The actions could not be stamped: ${e instanceof Error ? e.message : String(e)}`;
+          }
+          go.disabled = false;
+        })();
+      });
+      row.append(line, go);
+      treeBox.appendChild(row);
+      count();
+    }
     if (isSuper && archived.length > 0) {
       const box = el("details", "app-org-archived") as HTMLDetailsElement;
       box.appendChild(el("summary", undefined, `Archived sites (${archived.length})`));
@@ -2975,8 +3034,14 @@ async function renderOrg(
             changed = true;
           }
         }
-        if (changed) await upsertPerson(upd);
+        if (changed) await upsertPerson(upd, undefined, { skipActionRestamp: true });
       }
+      // the open actions stamped with the old names follow (programme E13)
+      await moveActionStamps(
+        pendingRenames.map((rn) =>
+          rn.kind === "dept" ? { from: `${rn.site}>${rn.oldName}`, to: `${rn.site}>${rn.newName}` } : { from: `${rn.site}>${rn.department}>${rn.oldName}`, to: `${rn.site}>${rn.department}>${rn.newName}` }
+        )
+      );
       for (const rn of pendingRenames) {
         if (rn.kind === "dept") {
           await renameBoardsDepartment(rn.site, rn.oldName, rn.newName);

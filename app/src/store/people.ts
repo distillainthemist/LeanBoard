@@ -6,7 +6,7 @@ import { Ben_ltkpeoplesService } from "../generated/services/Ben_ltkpeoplesServi
 import { Office365UsersService } from "../generated/services/Office365UsersService";
 import { currentViewer } from "../runtime";
 import { syncPersonAccess } from "./accessGroup";
-import { allWhere, eq, upsertWhere } from "./dv";
+import { allWhere, eq, firstWhere, upsertWhere } from "./dv";
 import { memoRead, writing } from "./changes";
 import { personFromRow, RosterPerson } from "./mappers";
 
@@ -29,8 +29,21 @@ export async function listPeople(includeInactive = false): Promise<RosterPerson[
 export async function upsertPerson(
   person: RosterPerson,
   onAccessSyncError?: (err: unknown) => void,
-  opts: { /** a batch reconciles the group ONCE afterwards (team import) */ skipAccessSync?: boolean } = {}
+  opts: {
+    /** a batch reconciles the group ONCE afterwards (team import) */
+    skipAccessSync?: boolean;
+    /** an org RENAME rewrites many people at once and then moves the
+     *  action stamps itself, text for text (`renameOrgStamps`) */
+    skipActionRestamp?: boolean;
+  } = {}
 ): Promise<void> {
+  // where they sat BEFORE this write (programme E13, 2026-11-25): a
+  // person who moves org has their open actions stamped afresh, so the
+  // organisation scope finds those actions where the person now sits
+  const before =
+    opts.skipActionRestamp === true
+      ? null
+      : await firstWhere(Ben_ltkpeoplesService.getAll, eq("ben_whoid", person.whoId), ["ben_ltkpeopleid", "ben_site", "ben_department", "ben_area", "ben_active"]).catch(() => null);
   // through writing(): every "people" reader drops its cache as the
   // row lands (issue 31, 2026-10-18 round: a changed site needed a
   // browser refresh because nothing was told)
@@ -53,6 +66,17 @@ export async function upsertPerson(
       }
     )
   );
+  // a person NEW to the roster may already be on actions (picked from
+  // the directory): those gain their place now
+  const moved =
+    opts.skipActionRestamp !== true &&
+    (before === null
+      ? person.site !== ""
+      : (before.ben_site ?? "") !== person.site || (before.ben_department ?? "") !== person.department || (before.ben_area ?? "") !== person.area || (before.ben_active !== false) !== (person.active !== false));
+  if (moved) {
+    // behind the roster edit: it can never fail or slow it
+    void import("./actionOrgs").then((m) => m.queueRestampPerson(person.whoId)).catch((err) => console.warn("action org stamps: restamp failed", err));
+  }
   if (opts.skipAccessSync) return;
   void syncPersonAccess(person, currentViewer()?.objectId ?? "").catch((err) => {
     console.warn("access-group sync failed", err);

@@ -132,6 +132,26 @@ export function confirmRemoval(what: string, note = "This removes it straight aw
   return promptConfirm({ title: `Remove ${what}?`, note, confirmLabel: "Remove", danger: true });
 }
 
+/** A job that takes a while, said while it runs (2026-11-25): a note
+ *  with no buttons — it cannot be dismissed, the job closes it. `set`
+ *  changes the line under the title ("120 of 900"). */
+export function progressNote(title: string, line = ""): { set: (text: string) => void; close: () => void } {
+  const overlay = el("div", "app-modal-overlay app-modal-top");
+  const box = el("div", "app-modal");
+  box.setAttribute("role", "status");
+  box.appendChild(el("div", "app-modal-title", title));
+  const note = el("div", "app-modal-note", line);
+  box.appendChild(note);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  return {
+    set: (text) => {
+      note.textContent = text;
+    },
+    close: () => overlay.remove(),
+  };
+}
+
 /** One of several ways forward, or none (Cancel / Escape → null). For a
  *  change that can be made two ways — "from this year" or "everywhere" —
  *  where neither is the safe default, so neither is the Escape answer. */

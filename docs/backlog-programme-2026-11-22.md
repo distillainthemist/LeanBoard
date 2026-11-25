@@ -656,6 +656,63 @@ Four items built; C2 off the backlog. App-only, no schema.
 
 Tranche 3 stands tested on dev.
 
+### Tranche 4 (built 2026-11-25, on dev, NOT released) — SCHEMA-CARRYING
+
+Six items built; E1 off the backlog. Two columns on `ben_ltkaction`
+(E13), deployed to dev on 2026-11-25 with Ben's sign-in.
+
+- **E2 — attachments.** `renameAttachment` (`store/attachments.ts`);
+  a Rename link edits the caption in place (Enter saves, Escape
+  leaves; `cleanCaption`). An image a browser can draw (`previewable`:
+  JPG, PNG, GIF, WebP) opens in a viewer inside the app
+  (`attachments/list.ts` `showImage`), with Download and Close; the
+  bytes are read once (`attachmentBlob`). UAT-IMP-016.
+- **E6 — the Gantt's picture.** `cssForSubtree` (`shared/export/png.ts`)
+  gathers the PAGE's rules for the classes a card's content uses — the
+  app's Gantt is styled by the page, not the control — and the Action
+  card adds them in the Gantt view (`pictureCss`). A download there is
+  FULL (`snapshot(..., full)`): every scrolling box is opened out while
+  it is measured and cloned, so the picture holds every row and the
+  whole range. CONFIRMED in the harness: the stored tile used the same
+  bare styles, and is styled now. UAT-ACT-015.
+- **E8 — the picture as a card is left.** Drawing is SYNCHRONOUS, so no
+  wait and no cap were needed (the walk said half a second):
+  `flushPendingSnapshots` draws every waiting picture, and
+  `flushPendingSaves` (`saver.ts`) calls it first. Fishbone and Process
+  map had timers of their own and now use the shared
+  `SnapshotScheduler`. UAT-RIT-017.
+- **E10 — due-date moves by reason.** `improvement/moveReport.ts`;
+  the Improvement tab's header gains a ⋮ (it had none) with "Due-date
+  moves…": by reason, then the initiatives with the most; later moves
+  only, the year and org in view; a row opens its initiative.
+  UAT-IMP-018.
+- **E11 — the endorser sees the evidence.** The endorse review shows
+  "📎 n" on a waiting action and opens its attachments in place,
+  read-only (`improvement/endorseReview.ts`). UAT-IMP-017.
+- **E13 — the org on the action row.** `actions/orgStamp.ts` (pure:
+  tokens, stamps, the scope's needle, a rename), `store/actionOrgs.ts`
+  (a row's stamps; the bulk passes), stamped in `upsertActions`.
+  `openActionsInOrg(token)` reads assigned, raised and unstamped; the
+  hub (`screens/hub.ts`) merges them, the LeanHub control shows
+  **"Raised here, assigned elsewhere"**. The whole-company scope pages
+  at 500 and paints as it reads. `upsertPerson` queues a re-stamp when
+  a placement changes (`queueRestampPerson`, one at a time); a rename
+  moves stamps text for text (`renameOrgStamps`) under a progress note;
+  Settings → Organisation has **"Re-stamp actions"** for super admins.
+  The new filters were probed READ-ONLY against dev and answer 200
+  (dev held 7 open actions, all unstamped). UAT-ACT-016.
+  **Limits, said plainly:** nothing here has run in the hosted app; a
+  stamp is NAMES, so a rename touches every open action of that org; an
+  initiative's own org is not renamed by a site rename (as before), so
+  the raised stamp is moved as text and "Re-stamp actions" would put a
+  renamed site's initiative actions back under the OLD name — to look
+  at before a real site rename; closed actions are not stamped afresh
+  (the scope reads open ones; a reopened action is stamped at its
+  save).
+- **Seen in the harness:** the full Gantt picture (styled, every row).
+  **Not seen anywhere:** the image viewer on a real file, the endorser's
+  chip, the moves panel on real history, and all of E13.
+
 ## Tranche 1A — the 2026-11-23 issue export (inserted by Ben, 2026-11-23)
 
 Nine reports from the DMS UAT re-run, reviewed in

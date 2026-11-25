@@ -307,6 +307,8 @@ export const LEANHUB_CSS = `
 /* the endorser's queue: work done by others, waiting on the viewer */
 .ltk-lh-endorse { border: 1px solid #f0c36d; background: #fff7e0; border-radius: 8px; padding: 8px 10px; margin-bottom: 10px; display: flex; flex-direction: column; gap: 4px; }
 .ltk-lh-endorse-h { color: #7a4d00; }
+/* a wide scope still arriving (2026-11-25) */
+.ltk-lh-scopeloading { font-size: 12px; color: var(--ltk-muted); padding: 4px 2px 8px; }
 .ltk-lh-group {
   font-size: 11px;
   font-weight: 700;

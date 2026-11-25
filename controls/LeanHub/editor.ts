@@ -75,6 +75,10 @@ export class LeanHubView {
    *  set when it isn't me (null = loading). */
   private actScope: ActionsScope = { kind: "person", person: "", org: { site: "", department: "", area: "" } };
   private scopedActions: LtkAction[] | null = null;
+  /** Raised at the org in view, assigned to people outside it. */
+  private scopedRaised: LtkAction[] = [];
+  /** "1,500 read so far…" while a wide scope is still arriving. */
+  private scopedLoading = "";
   private endorseQueue: LtkAction[] = [];
   private actGroupBy: "" | "source" | "person" = "";
   private actScopeTouched = false;
@@ -90,9 +94,14 @@ export class LeanHubView {
     return this.actScope.kind === "person" && this.focusWho() === this.viewerId;
   }
 
-  /** The host's answer for a non-me scope. */
-  setScopedActions(actions: LtkAction[]): void {
+  /** The host's answer for a non-me scope. `raisedElsewhere`: actions
+   *  raised at the org in view and assigned to people outside it — a
+   *  group of their own (2026-11-25). `loading`: more is still arriving
+   *  (the whole-company scope paints as it reads), said in a line. */
+  setScopedActions(actions: LtkAction[], extra: { raisedElsewhere?: LtkAction[]; loading?: string } = {}): void {
     this.scopedActions = actions;
+    this.scopedRaised = extra.raisedElsewhere ?? [];
+    this.scopedLoading = extra.loading ?? "";
     if (this.tab === "actions") this.render();
   }
 
@@ -101,6 +110,8 @@ export class LeanHubView {
     this.actScopeTouched = true;
     if (!this.scopeIsMe()) {
       this.scopedActions = null;
+      this.scopedRaised = [];
+      this.scopedLoading = "";
       this.scopeRequested = next;
       this.cb.onActionsScope?.(next);
     }
@@ -1028,7 +1039,19 @@ export class LeanHubView {
           : this.actionFilter === "today"
             ? supporting.filter((a) => a.due === todayIso)
             : supporting;
-    if (visible.length === 0 && supportingShown.length === 0 && (this.actionFilter !== "all" || doneMine.length === 0)) {
+    // raised here and handed to another org (2026-11-25): the org that
+    // raised an action had no list of what it is owed by others
+    const raisedOpen = this.actScope.kind === "org" ? this.scopedRaised.filter((a) => a.status !== "done" && a.status !== "cancelled") : [];
+    const raisedShown =
+      this.actionFilter === "done"
+        ? []
+        : this.actionFilter === "overdue"
+          ? raisedOpen.filter((a) => isOverdue(a))
+          : this.actionFilter === "today"
+            ? raisedOpen.filter((a) => a.due === todayIso)
+            : raisedOpen;
+    if (!isMe && this.scopedLoading !== "") wrap.appendChild(el("div", "ltk-lh-scopeloading", this.scopedLoading));
+    if (visible.length === 0 && supportingShown.length === 0 && raisedShown.length === 0 && (this.actionFilter !== "all" || doneMine.length === 0)) {
       renderGhost(wrap, [
         this.actionFilter === "all" ? (isMe ? "Nothing on your plate" : "Nothing open") : "Nothing here",
         this.actionFilter === "all"
@@ -1076,6 +1099,19 @@ export class LeanHubView {
       wrap.appendChild(head);
       supportingShown.sort((a, b) => ((a.due || "9999") < (b.due || "9999") ? -1 : 1));
       for (const action of supportingShown) wrap.appendChild(this.renderActionRow(action));
+    }
+
+    if (raisedShown.length > 0) {
+      const head = el("div", "ltk-lh-group ltk-lh-group-support", `Raised here, assigned elsewhere · ${raisedShown.length}`);
+      head.title = "Actions raised on this org's boards, initiatives and priorities, and assigned to people who sit outside it.";
+      wrap.appendChild(head);
+      raisedShown.sort((a, b) => {
+        const ao = isOverdue(a) ? 0 : 1;
+        const bo = isOverdue(b) ? 0 : 1;
+        if (ao !== bo) return ao - bo;
+        return (a.due || "9999") < (b.due || "9999") ? -1 : 1;
+      });
+      for (const action of raisedShown) wrap.appendChild(this.renderActionRow(action));
     }
 
     // ticked-off work waits behind one calm row (Phase 1.6)

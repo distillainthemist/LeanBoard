@@ -137,6 +137,13 @@ model section) — the canvas/PCF sections there are historical.
   `ben_ltkaction` is the central actions register (§3.4; an action
   raised ON a priority carries `ben_instanceid` =
   `priority:<priorityId>@<org mark>` and no board, 2026-11-18;
+  `ben_assigneeorgs` and `ben_raisedorg`, 2026-11-25 = the ORG on the
+  action row: "|token|" stamps of where its assignees sit and where it
+  was raised — site, "site>department", "site>department>area", by NAME
+  because orgs have no id here — written at every save
+  (`actions/orgStamp.ts`, `store/actionOrgs.ts`) so the hub's
+  organisation scope is a server filter; an empty stamp = a row from
+  before, read the old way; a person's move and an org rename re-stamp;
   `ben_supportersjson` = people who support an action without owing a
   part of it, 2026-11-16; `ben_doneat` = when it was completed, and
   `ben_assigneesjson` widened to 100 000 characters for a shared action

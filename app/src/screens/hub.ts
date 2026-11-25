@@ -19,7 +19,8 @@ import { appTheme, editorHost } from "../cardHost";
 import { boardHash, boardUrl, hasPendingDocView, hasPendingPrioritiesView, hasPendingWorkDoc } from "../links";
 import { currentViewer, detectHost } from "../runtime";
 import { readTaskCount } from "../taskBadge";
-import { actionsForViewer, openActions, upsertActions } from "../store/actions";
+import { actionsForViewer, openActions, openActionsInOrg, upsertActions } from "../store/actions";
+import { scopeToken } from "../actions/orgStamp";
 import { canViewBoard, listBoards } from "../store/boards";
 import { selfHealCatalog } from "../store/catalog";
 import {
@@ -562,13 +563,46 @@ export function mountHub(parent: HTMLElement): () => void {
       if (scope.kind === "person") {
         out = await actionsForViewer(scope.person !== "" ? scope.person : (currentViewer()?.objectId ?? ""));
       } else {
-        const [roster, open] = await Promise.all([listPeople(), openActions()]);
-        const members = new Set(
-          roster
-            .filter((p) => p.active !== false && p.site !== "" && (scope.org.site === "" || p.site === scope.org.site) && (scope.org.department === "" || p.department === scope.org.department) && (scope.org.area === "" || p.area === scope.org.area))
-            .map((p) => p.whoId)
-        );
-        out = open.filter((a) => a.assignees.some((x) => members.has(x.whoId)));
+        // the organisation scope (programme E13, 2026-11-25): filtered by
+        // the SERVER on the stamp each action carries — it used to read
+        // every open action and match assignees to the roster here
+        const token = scopeToken(scope.org);
+        const stale = () => dead || view === null || lastActionsScope !== scope;
+        /** The people placed in the scope — for the rows that carry no
+         *  stamp yet, and for the whole-company scope. */
+        const membersNow = async (): Promise<Set<string>> => {
+          const roster = await listPeople();
+          return new Set(
+            roster
+              .filter((p) => p.active !== false && p.site !== "" && (scope.org.site === "" || p.site === scope.org.site) && (scope.org.department === "" || p.department === scope.org.department) && (scope.org.area === "" || p.area === scope.org.area))
+              .map((p) => p.whoId)
+          );
+        };
+        if (token === null) {
+          // the whole company: every open action whatever the filter, so
+          // the list paints as the pages arrive
+          const members = await membersNow();
+          const pick = (list: LtkAction[]) => list.filter((a) => a.assignees.some((x) => members.has(x.whoId)));
+          out = pick(
+            await openActions((soFar) => {
+              if (!stale()) view?.setScopedActions(pick(soFar), { loading: `Loading… ${soFar.length.toLocaleString()} actions read so far` });
+            })
+          );
+        } else {
+          const got = await openActionsInOrg(token);
+          let old: LtkAction[] = [];
+          if (got.unstamped.length > 0) {
+            // rows from before the stamp: matched the old way, until
+            // "Re-stamp actions" (Settings → Organisation) has run
+            const members = await membersNow();
+            old = got.unstamped.filter((a) => a.assignees.some((x) => members.has(x.whoId)));
+          }
+          const seen = new Set<string>();
+          out = [...got.assigned, ...old].filter((a) => (seen.has(a.id) ? false : (seen.add(a.id), true)));
+          if (stale()) return;
+          view?.setScopedActions(out, { raisedElsewhere: got.raised.filter((a) => !seen.has(a.id)) });
+          return;
+        }
       }
       if (dead || view === null || lastActionsScope !== scope) return;
       view.setScopedActions(out);

@@ -186,3 +186,17 @@ steps:
 5. Switch to Kanban and download the PNG.
 6. Switch back to Gantt, leave the card, show the board's stored snapshots (a meeting board's Live button) or approve a gate, and read the Action card's tile.
 expected: step 2 the picture shows the Gantt as on screen — bars in their colours, the month lines, the today line, the labels in their column — with EVERY row, including those scrolled out of view, and the whole range; it is taller than the card; step 3 the same as a vector picture, its text selectable; step 4 the picture holds the 26 weeks chosen, every row; step 5 the Kanban picture is the card as it stands, as before; step 6 the stored tile of a card left in Gantt view is styled too (it was bare). The page is not disturbed by a download: nothing jumps or stays stretched
+
+### UAT-ACT-016 — The organisation scope finds an action by where its people sit, and where it was raised
+persona: superadmin
+modules: actions/orgStamp.ts store/actionOrgs.ts store/actions.ts store/people.ts screens/hub.ts screens/settings.ts controls/LeanHub/editor.ts
+preconditions: two sites, each with a department and people placed in it; a meeting board at the FIRST site; open actions that existed before this build; you are a super admin; a second person who is a site admin
+steps:
+1. Settings → Organisation: read the line about org stamps at the foot. Press "Re-stamp actions" and read the result.
+2. On the first site's meeting board raise three actions: one assigned to a person at the first site, one to a person at the SECOND site, one shared by a person at each.
+3. Hub → Actions → the organisation scope: choose the first site, then its department, then the second site. Read each list and its groups.
+4. Choose the whole company. Read the list while it loads.
+5. Settings → People: move the first site's assignee to the second site. Wait a few seconds; read both sites' scopes again.
+6. Settings → Organisation: rename the second site's department and Save. Read the scope at the renamed department.
+7. Archive a site that has open actions; read the organisation scope picker and the whole-company scope.
+expected: step 1 the line counts the open actions with no stamp ("N open actions have no org stamp yet."); the button reports "N open actions checked, N stamped" and the line then reads "Every open action carries its org stamp."; step 3 the first site lists the action assigned there and the shared one; under "Raised here, assigned elsewhere · 1" it lists the one handed to the second site; the first site's department lists the same only when its people are in that department; the second site lists the action assigned there and the shared one, and has no "Raised here" group; step 4 the whole-company scope paints at once with "Loading… N actions read so far" until every action is in; step 5 the moved person's action leaves the first site's scope and shows in the second's (and, raised at the first site, under its "Raised here, assigned elsewhere"); step 6 a note "Updating actions" counts while the rename runs; the actions show under the department's new name; step 7 the archived site is not offered in the picker; its open actions still show in the whole-company scope, on its boards and in each person's own list. Before step 1 (rows not yet stamped) every list in step 3 is already complete: unstamped actions are found the old way

@@ -43,8 +43,17 @@ the backlog. **Built and on dev 2026-11-25, not released**; as built:
 the programme's "Tranche 3" section. Ben's test walk (2026-11-25): all
 four pass on dev, with three changes made in it (the stale mark drawn
 larger; a Leads-linked metric's empty chart fixed; Change link… and
-Unlink on a linked metric's row). Dev holds `v0.99.0-35-g130a6d8`.
-Next: tranche 4's walk.
+Unlink on a linked metric's row).
+
+**Tranche 4 is built and on dev (2026-11-25), not released, and is
+SCHEMA-CARRYING** — two columns on `ben_ltkaction` for the org stamp
+(E13), deployed to dev. Six built: E2 (attachment captions and an
+image viewer), E6 (the Gantt's picture), E8 (a card's picture as it is
+left), E10 (due-date moves by reason), E11 (the endorser's "📎 n"),
+E13 (the org on the action row); E1 off. As built and its limits: the
+programme's "Tranche 4" section. The next release imports the managed
+solution first, then "Re-stamp actions" once, then locks older builds.
+Next: Ben's test walk of tranche 4, then tranche 5's walk.
 What 1A was: the nine reports of the 2026-11-23 issue export
 (`issues-plan-2026-11-23.md`): Teams group messages refused over a
 colon in the chat topic, Replace content's false "landed wrong" on
@@ -700,6 +709,16 @@ deferrals still open (details in leanboard-cascade-improvement-plan.md).
   the org it was raised at, go on the action row (two columns, SCHEMA-
   CARRYING) so the server filters; the whole-company scope paints as
   it loads.
+- **A site rename does not reach initiatives or priorities** (found
+  2026-11-25 while building the org stamp; NOT built, older than this
+  work). Settings → Organisation → Rename site rewrites the site's
+  settings row, its boards, its people, its process tree and the
+  Organisation term set. It does not rewrite `ben_site` on
+  `ben_ltkinitiative` or the org on `ben_ltkpriority`, so a renamed
+  site's initiatives and priorities stay under the old name and leave
+  its scope. Department and area renames have the same gap. To walk
+  with Ben before any real rename; the action org stamp (E13) is moved
+  as text for this reason.
 - **The initiative actions read** (raised 2026-11-25, not built):
   `actionsForInitiatives` reads every action of every initiative, open
   and closed, for the Priorities page, the Improvement tab and the hub.
