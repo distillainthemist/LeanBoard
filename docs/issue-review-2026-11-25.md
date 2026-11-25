@@ -167,3 +167,27 @@ and three fields with no place (type, release, date).
 | N1 | "Prepare" (choice 1) | Preview, then apply, in one sitting: rows can be unticked and messages edited in the preview; nothing is stored until Apply. No stored drafts |
 | N1 | The starting file (choice 1) | "Export to CSV" beside "Export to PDF": the ticked issues in the import's layout, ids filled in, with title, reporter and present status as reference columns the import ignores. `issue-review-prompt.md` §4.5 to say the import ignores columns it does not know |
 | N1 | Common rules | Faults shown per row before anything runs (unknown id, status not in the list, missing message, message over 400 characters, a duplicate with no parent); Apply runs row by row and reports each; a failed row does not stop the rest; the same file run twice changes nothing |
+
+### Cluster C — reviewed 2026-11-26, NOT yet decided
+
+Findings (code read; nothing run):
+
+- **4, 26** — confirmed for a library change: `switchTo`
+  (`docs/docsScreen.ts`) stashes only the ticked libraries and
+  remounts; the new mount has no view, so `chosenColumns` is empty and
+  the default columns return. The Favourites toggle does the same.
+  The chosen columns live only in the open view: `DocUiPrefs`
+  (`docs/views.ts`) remembers a person's libraries and panel, never
+  their columns, so reopening the app loses them too unless they were
+  saved as a named view. 26's "a new filter" is NOT confirmed: a
+  filter change does not remount. 4 and 26 are one fault reported
+  twice. A library change also drops the search text, filters and sort.
+- **25** — by design: the register adds the Library column itself
+  whenever more than one library is in view (`libraryLabel` in
+  `buildColumns`); it is not in the column chooser, so it cannot be
+  left out.
+- **7** — no fault found: someone who has never chosen gets EVERY
+  library; after that the app opens with the libraries last ticked
+  (`uiState.libraries`, saved per person by `persistUi`). Clicking a
+  library's NAME selects only that one, and that becomes the remembered
+  selection. The hub opens Documents with no library forced.
