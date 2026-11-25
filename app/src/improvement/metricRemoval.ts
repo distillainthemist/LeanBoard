@@ -29,6 +29,17 @@ export function removeMetricWords(name: string, readings: number): { title: stri
   };
 }
 
+/** The question for a metric that IS a value driver (Ben, 2026-11-25:
+ *  "make the × ask also" — it went without a word and read as a
+ *  delete). Nothing of the driver's is removed, and the words say so. */
+export function removeDriverMetricWords(name: string, noun: "initiative" | "priority"): { title: string; note: string } {
+  const what = name.trim() !== "" ? name.trim() : "this metric";
+  return {
+    title: `Remove ${what} from this ${noun}?`,
+    note: "Its readings belong to the value driver and are kept.",
+  };
+}
+
 /** The metrics a save removed for good: taken off the list while it was
  *  open and not on it now (one added back under the same name has the
  *  same key and keeps its readings). Each once. */

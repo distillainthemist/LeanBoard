@@ -386,6 +386,11 @@ E5, E17 part 1). App-only, no schema.
   Edit details deletes at Save (Cancel undoes it); a priority's own
   metrics save at once, so the readings go at once. A value driver's
   series is never touched. UAT-IMP-013, UAT-PRI-016 step 11.
+  **From Ben's test walk (2026-11-25):** the × on a metric that IS a
+  value driver went without a word and read as a delete. It now asks
+  too — "Remove <name> from this initiative?", "Its readings belong to
+  the value driver and are kept." (`removeDriverMetricWords`). An own
+  metric with NO readings still goes without a question.
 - **D10 — calendar year is the only period.** `PeriodSettings` is
   `{ mode: "calendar" }`; `periodFor` is the date's year; the fy and
   custom branches, the start month, the prefix and the label list are

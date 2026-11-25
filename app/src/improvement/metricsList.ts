@@ -14,7 +14,7 @@ import { todayIso } from "../../../shared/schema/id";
 import { directionOf, keyFor, MetricKind, MetricOption, normalizeMetrics, OWN_CADENCES, OwnCadence, TemplateMetric, Tracking } from "./templateModel";
 import { DriverNode, isLeaf, newNode, pathOf } from "./vdt/model";
 import { openDriverLinkPicker } from "./vdt/linkPicker";
-import { hasOwnReadings, removeMetricWords } from "./metricRemoval";
+import { hasOwnReadings, removeDriverMetricWords, removeMetricWords } from "./metricRemoval";
 
 const btn = (label: string, cls = "app-btn"): HTMLButtonElement => {
   const b = el("button", cls, label) as HTMLButtonElement;
@@ -214,6 +214,12 @@ export function renderMetricsList(o: MetricsListOpts): { refresh: () => void } {
       x.title = "Remove metric";
       x.addEventListener("click", () => {
         void (async () => {
+          // a metric that IS a value driver is asked about too, on an
+          // existing initiative or priority: its readings stay with the
+          // driver, and the question says so
+          if (o.readingsOf && !hasOwnReadings(m)) {
+            if (!(await promptConfirm({ ...removeDriverMetricWords(m.name, noun), confirmLabel: "Remove", danger: true }))) return;
+          }
           // readings of its own are counted, and the person is asked
           if (o.readingsOf && hasOwnReadings(m)) {
             x.disabled = true;

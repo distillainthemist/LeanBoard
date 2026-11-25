@@ -1,7 +1,7 @@
 // Removing a metric takes its readings with it (programme C8, 2026-11-24).
 
 import { describe, expect, it } from "vitest";
-import { hasOwnReadings, removedForGood, removeMetricWords } from "../improvement/metricRemoval";
+import { hasOwnReadings, removedForGood, removeDriverMetricWords, removeMetricWords } from "../improvement/metricRemoval";
 
 const own = (key: string): { key: string; name: string; driverId?: string; driverLink?: "drives" | "leads" } => ({ key, name: key });
 const driver = (key: string, driverLink?: "drives" | "leads") => ({ key, name: key, driverId: "d1", ...(driverLink ? { driverLink } : {}) });
@@ -23,6 +23,13 @@ describe("the question", () => {
   });
   it("is still asked when the readings could not be counted", () => {
     expect(removeMetricWords("Scrap rate", -1)).toEqual({ title: "Remove Scrap rate and its readings?", note: "Its readings could not be counted. This cannot be undone." });
+  });
+});
+
+describe("the question for a metric that is a value driver", () => {
+  it("says its readings are kept", () => {
+    expect(removeDriverMetricWords("Scrap rate", "initiative")).toEqual({ title: "Remove Scrap rate from this initiative?", note: "Its readings belong to the value driver and are kept." });
+    expect(removeDriverMetricWords("", "priority").title).toBe("Remove this metric from this priority?");
   });
 });
 
