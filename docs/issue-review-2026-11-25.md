@@ -132,3 +132,12 @@ Findings (code read; one harness run):
   explained. Leads: production runs v0.99.0 and the year code has
   changed since (tranche 2 made the calendar year the only period);
   the harness rows are seeded by code, not made through Settings.
+- **1 — the fault was NOT reproduced (Ben, 2026-11-26).** The same
+  steps worked on dev (current build) and now work in production
+  (v0.99.0) too. Cause unknown. Two innocent states could look like
+  part of it — the old sub-pillars ended and saved before the new rows
+  with their follow links were saved; the Priorities page serving its
+  60-second copy of the pillars after a Settings save (`memo`,
+  `prioritiesScreen.ts`, the cascade entry follows no change topic) —
+  but neither explains a site with no pillar row while the company
+  showed one. Carried as "not reproducible; reopen if seen again".
