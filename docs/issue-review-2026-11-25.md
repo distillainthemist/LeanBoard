@@ -354,3 +354,7 @@ Findings (code read; nothing run):
   command does not go on to restore there was not worked out from the
   code — to be understood before the command is touched, so the right
   outcome is not an accident.
+
+| # | Decision | Option chosen |
+|---|---|---|
+| 19 | Not a software issue (Ben, 2026-11-26) | The app did what Ben expects: cancelling a revision with nothing checked in returns the document to its last published version. NO record of an aborted start is wanted, and no message is added. The test script UAT-DOC-040 is corrected to describe that case with its own expected result; Holly gets a reply |
