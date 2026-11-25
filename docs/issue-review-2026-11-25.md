@@ -315,3 +315,11 @@ Findings (code read; nothing run):
   the browser's PDF viewer's doing. Not explained; the report does not
   say which file type, which browser, or whether "the bottom" is the
   document's last page or the details panel.
+- Ben (2026-11-26): an approver DOES see the tracked changes once the
+  document is opened in Word. For 11: it is the document shown as a PDF
+  that opens scrolled to the bottom.
+
+| # | Decision | Option chosen |
+|---|---|---|
+| 17 | Build (Ben's choice 1) | On a Word document awaiting review or approval, the decision card carries one line — "Tracked changes do not show in this preview" — with an "Open in Word" button beside it; on every such card, tracked or not. Word files only. Not built: reading the file to say it only when true; the approved version side by side |
+| 11 | Build, as a try (Ben) | The preview's address asks the PDF viewer for page 1, for converted files and for PDFs. The cause was NOT found and the fault was not reproduced, so this cannot be proved before it ships: Ben's or Ellen's check in the hosted app decides whether the report closes |
