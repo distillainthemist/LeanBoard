@@ -4245,9 +4245,9 @@
         "Open the first priority again and click initiative C's row; on its board use the crumb back to Priorities.",
         "✕ Exit summary. On a phone, open Priorities."
        ],
-       "expected": "step 1 the button reads \"Executive summary\" (no \"Present\") and the summary fills the app's window WITHOUT taking the browser full screen; each card's open / close control is a round button with a chevron, pointing right when closed and down (filled) when open; the head shows the year pill, \"Executive summary · <org>\" and \"Pillar : Sub-pillar\"; each priority is one card with its status edge, title, owner, the three labelled circles On track / Support needed / Off track and its objectives as sparkline tiles (a line over a green band where the metric is good and red where it is not; at most four, then \"+n\"); step 2 the card's own metric tiles go and the initiatives show under the SAME header and as the SAME rows as the popup and the Improvement list, larger: Initiative (status in small caps above the title, the i for the reasons — press it, nothing hovers on a wall screen; the primary first, heavy-bordered) · Stage pill · Actions Done / Future / Late · Key metrics as sparkline tiles · Support needed, which carries the note of an initiative that asked; confidential initiatives the viewer may not see are counted and summed in one \"not shown\" line; step 3 every card on the page opens, then closes; the arrows step sub-pillar by sub-pillar and a final \"Cascades to accept\" step appears when any are pending; the title opens the priority's popup; step 4 the board opens, and coming back lands in the summary on the same step with the same cards open; step 5 the wall returns; on a phone the summary IS the page, stacked, with no Exit",
-       "hash": "1c99fa60",
-       "changed": "2026-11-22"
+       "expected": "step 1 the button reads \"Executive summary\" (no \"Present\") and the summary fills the app's window WITHOUT taking the browser full screen; each card's open / close control is a round button with a chevron, pointing right when closed and down (filled) when open; the head shows the year pill, \"Executive summary · <org>\" and \"Pillar : Sub-pillar\"; each priority is one card with its status edge, title, owner, the three labelled circles On track / Support needed / Off track and its objectives as sparkline tiles (a line over a green band where the metric is good and red where it is not; at most four, then \"+n\"); step 2 the card's own metric tiles go and the initiatives show under the SAME header and as the SAME rows as the popup and the Improvement list, larger: Initiative (status in small caps above the title, the i for the reasons — press it, nothing hovers on a wall screen; the primary first, heavy-bordered) · Stage pill · Actions Done / Future / Late · Key metrics as sparkline tiles · Support needed, which carries the note of an initiative that asked; confidential initiatives the viewer may not see are counted and summed in one \"not shown\" line; step 3 every card on the page opens, then closes; the arrows step sub-pillar by sub-pillar and a final \"Awaiting a decision\" step appears when anything waits on the org (UAT-PRI-020); the title opens the priority's popup; step 4 the board opens, and coming back lands in the summary on the same step with the same cards open; step 5 the wall returns; on a phone the summary IS the page, stacked, with no Exit",
+       "hash": "f9c7a462",
+       "changed": "2026-11-25"
       },
       {
        "id": "UAT-PRI-014",
@@ -4441,6 +4441,28 @@
        ],
        "expected": "step 1 there is NO \"Also take the parent's sub-pillar\" tick; step 2 the line reads \"It moves to <the company priority's sub-pillar>. 1 priority made from it moves with it.\"; step 3 a message is offered to the company priority's owner and the department's owner — it says the priority was linked under \"<company>'s “…”\", that it now counts toward that priority, and what moved; nothing is sent unless you send it; step 4 this year both the site's priority and the department's sit under the company priority's sub-pillar; last year both are still in the column they had; step 5 with nothing to move the line is absent; step 6 unlinking leaves the priority in the column it is in. A parent with no sub-pillar moves nothing",
        "hash": "71f5506a",
+       "changed": "2026-11-25"
+      },
+      {
+       "id": "UAT-PRI-020",
+       "title": "The decision zone on a phone and in the executive summary",
+       "journey": "Journey 7 — Metrics on a priority (2026-11-18)",
+       "persona": "orgowner",
+       "modules": [
+        "priorities/prioritiesScreen.ts",
+        "priorities/walk.ts",
+        "priorities/lifecycle.ts"
+       ],
+       "preconditions": "a site you own with, waiting on it: a priority proposed by a direct report, a cascade sent from the company, a cascade you put on hold, and a priority whose sub-pillar ended this year with nothing following it; a phone (or a window under 720 px wide)",
+       "steps": [
+        "On a desktop open Priorities at the site and read the chip in the bar. Press ▶ Executive summary and step to the last step.",
+        "Read the step's title and what it lists. Click the cascade; in its popup press Accept. Read the step again.",
+        "✕ Exit summary. On the phone open Priorities at the site. Read the chip; press it.",
+        "Read what stands under the priorities. Tap the proposal and decline it with a reason; tap \"Place under…\" on the unplaced priority and choose a sub-pillar.",
+        "Answer everything that is left."
+       ],
+       "expected": "step 1 the chip reads \"N awaiting a decision\" (the proposal and the cascade — a held one and an unplaced one are in the zone but not counted); the summary's last step is titled \"Awaiting a decision · N\"; step 2 it lists \"Proposed\" and \"Cascaded to you\" with the same dashed cards as the matrix (the held cascade greyed, \"On hold · from <company>\") and \"Unplaced\" with its \"Place under…\" link — there are NO Accept / Hold / Decline buttons in the list; a card opens the priority's popup, where the answer is given, and the summary repaints on the same step with one fewer; step 3 the phone shows the SAME chip, \"N awaiting a decision\" — not \"⇩ N cascades to accept\" — and it scrolls to the zone; step 4 the three groups stand one under another below the sub-pillar walk; a proposal and an unplaced priority can be answered on the phone (they could not be seen there before); step 5 with nothing left the chip, the zone and the summary's last step are gone. The pop-up \"Cascades to accept\" list is not offered anywhere",
+       "hash": "5a6bcf2b",
        "changed": "2026-11-25"
       }
      ]

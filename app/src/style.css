@@ -3578,6 +3578,11 @@ button.app-doclist-hsort:hover { color: var(--app-accent, #2563eb); }
 /* phone stacking */
 .app-cp-phone { display: flex; flex-direction: column; gap: 6px; }
 .app-cp-ph-h { font-weight: 700; font-size: 13px; padding: 8px 10px; background: #6d675c; color: #fff; border-radius: 6px; margin-top: 6px; }
+/* the decision zone as a stack (2026-11-25): the phone, and the executive summary's last step */
+.app-cp-zonestack { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+.app-cp-zonestack > .app-cp-card { width: 100%; text-align: left; }
+.app-cp-zonestack .app-cp-unplacedband { margin-top: 0; }
+.app-cp-walk-body > .app-cp-zonestack { margin-top: 0; max-width: 760px; }
 /* dialogs */
 .app-cp-modal-body { display: flex; flex-direction: column; gap: 12px; }
 .app-cp-modal-body .app-field { max-width: none; }

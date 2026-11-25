@@ -71,7 +71,7 @@ import { mountWalk } from "./walk";
 import { rememberSummary, summaryView } from "../sessionView";
 import { prioritiesViewUrl, takePendingPrioritiesView } from "../links";
 import { decodePrioritiesView, encodePrioritiesView } from "./viewLink";
-import { cascadeDialog, cascadeReview, closeDialog, closePriority, LifecycleCtx, moveBackToProposed, openPriorityOverlay, pullFromAbove, reopenPriority, sendCascade } from "./lifecycle";
+import { cascadeDialog, closeDialog, closePriority, LifecycleCtx, moveBackToProposed, openPriorityOverlay, pullFromAbove, reopenPriority, sendCascade } from "./lifecycle";
 import { Initiative, adminScopeFor, initiativesByPriority, ownersLabel, ownersTitle, statusOf } from "../improvement/initiativeModel";
 import { actionCounts, actionCountsFor, PriorityOwn, PriorityOwnAt, PriorityState, priorityStatus, PriorityStatus, statusColour, StatusResult } from "../improvement/status";
 import { ownBelow } from "./ownBelow";
@@ -898,8 +898,7 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       // proposals raised from below and the cascades sent from above —
       // they were two chips, one opening a row and one a pop-up. It
       // takes the person to the zone at the foot of the page.
-      const waiting = waitingHere();
-      const awaiting = proposedFor(state.org).length + waiting.fromBelow.filter((a) => a.status === "proposed").length + waiting.fromAbove.filter((a) => a.status === "proposed").length;
+      const awaiting = awaitingCount();
       if (awaiting > 0) {
         const chip = el("button", "app-cp-cascadechip", `${awaiting} awaiting a decision`) as HTMLButtonElement;
         chip.type = "button";
@@ -1058,11 +1057,13 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
         );
       }
       const acts = el("div", "app-cp-phoneacts");
-      const pending = pendingCascades(state.org, data.assignments).length;
-      if (pending > 0) {
-        const chip = el("button", "app-cp-cascadechip", `⇩ ${pending} cascade${pending === 1 ? "" : "s"} to accept`) as HTMLButtonElement;
+      // the same ONE chip as the desktop (programme D11): everything
+      // waiting on this org, shown in the zone under the walk
+      const awaiting = awaitingCount();
+      if (awaiting > 0) {
+        const chip = el("button", "app-cp-cascadechip", `${awaiting} awaiting a decision`) as HTMLButtonElement;
         chip.type = "button";
-        chip.addEventListener("click", () => cascadeReview(ctx, state.org));
+        chip.addEventListener("click", () => wrap.querySelector(".app-cp-zonestack")?.scrollIntoView({ block: "start", behavior: "smooth" }));
         acts.appendChild(chip);
       }
       if (canManage() && ctx.canCustomise(state.org)) {
@@ -1109,6 +1110,11 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
         onOpen: (p) => openOverlay(p),
       });
       cleanups.push(() => closeWalk?.());
+      // the decision zone, stacked under the priorities (programme D11):
+      // Proposed, Cascaded to you, Unplaced — a phone had only a chip
+      // and the old cascade list, and showed the other two nowhere
+      const zone = renderZoneStack();
+      if (zone) wrap.appendChild(zone);
     };
 
     /** The walk (§15): objectives visible under the current filters. */
@@ -1142,6 +1148,7 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
         onMenu: (anchor, p) => openCardMenu(anchor, p),
         canMenu: () => canManage(),
         startStep: walkStep,
+        zone: { any: zoneAny, count: awaitingCount, render: renderZoneStack },
         className: card ? "" : "app-cp-walk-fixed",
         onStep: (i) => {
           walkStep = i;
@@ -1440,6 +1447,45 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
 
     /** The cascades and pulls waiting on the org in view. */
     const waitingHere = () => waitingAt(state.org, data.assignments);
+    /** How many await a decision here: the proposals raised from below
+     *  and the cascades sent from above (on hold and unplaced are in the
+     *  zone but are not "awaiting"). The chip's number, on every screen. */
+    const awaitingCount = (): number => {
+      const waiting = waitingHere();
+      return proposedFor(state.org).length + waiting.fromBelow.filter((a) => a.status === "proposed").length + waiting.fromAbove.filter((a) => a.status === "proposed").length;
+    };
+    /** Is there anything at all in the decision zone? */
+    const zoneAny = (): boolean => {
+      const waiting = waitingHere();
+      return proposedFor(state.org).length + waiting.fromBelow.length + waiting.fromAbove.length + orphansOf(visibleFor(state.org), colOf, livePillars()).length > 0;
+    };
+    /** The decision zone as a STACK (programme D11, 2026-11-25): the
+     *  matrix lays its rows out in the sub-pillar columns; the phone and
+     *  the executive summary's last step have no columns, so the same
+     *  three groups stand one under another. The same cards: each opens
+     *  its priority's popup, where the answer is given. */
+    const renderZoneStack = (): HTMLElement | null => {
+      const waiting = waitingHere();
+      const cardsOf = (list: PriorityAssignment[]) =>
+        list.flatMap((a) => {
+          const p = data.priorities.find((x) => x.id === a.priorityId);
+          return p ? [waitingCard(a, p)] : [];
+        });
+      const groups: [string, HTMLElement[]][] = [
+        ["Proposed", [...proposedFor(state.org).map((p) => proposedCard(p)), ...cardsOf(waiting.fromBelow)]],
+        ["Cascaded to you", cardsOf(waiting.fromAbove)],
+      ];
+      const unplaced = renderUnplaced();
+      if (groups.every(([, cards]) => cards.length === 0) && unplaced === null) return null;
+      const box = el("div", "app-cp-zonestack");
+      for (const [name, cards] of groups) {
+        if (cards.length === 0) continue;
+        box.appendChild(el("div", "app-cp-ph-h app-cp-zonestack-h", name));
+        for (const c of cards) box.appendChild(c);
+      }
+      if (unplaced) box.appendChild(unplaced);
+      return box;
+    };
 
     const renderMatrix = (columns: Pillar[], onlyL1: Pillar | null): HTMLElement => {
       const density = densityFor(columns.length);

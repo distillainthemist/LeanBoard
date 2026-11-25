@@ -36,7 +36,6 @@ import {
   descendantPriorities,
   isDeclined,
   isPulledProposal,
-  lineageFor,
   spreadOf,
   OrgRef,
   orgLevel,
@@ -631,88 +630,10 @@ export async function decideCascade(ctx: LifecycleCtx, org: OrgRef, a: PriorityA
   return true;
 }
 
-export function cascadeReview(ctx: LifecycleCtx, org: OrgRef): void {
-  const m = modal(ctx.host, "Cascades to accept", `Sent to ${orgName(org)} from above or beside. Accept as-is, accept and customise the wording, hold, or decline — the sender sees your reason.`, true);
-  const list = el("div", "app-cp-review");
-  m.body.appendChild(list);
-  renderReviewList(ctx, org, list);
-  const close = btn("Close", "app-link");
-  close.addEventListener("click", () => m.close());
-  m.footer.appendChild(close);
-}
-
-/** The review list itself — the modal above and the walk's final
- *  "Cascades to accept" step (§15) both render it. Repaints in place
- *  after every decision. */
-export function renderReviewList(ctx: LifecycleCtx, org: OrgRef, list: HTMLElement): void {
-  const paint = () => {
-    clear(list);
-    const data = ctx.data();
-    const queue = reviewQueue(org, data.assignments);
-    if (queue.length === 0) {
-      list.appendChild(el("div", "app-cp-muted", "Nothing waiting on this org."));
-      return;
-    }
-    let lastStatus = "";
-    for (const a of queue) {
-      const p = data.priorities.find((x) => x.id === a.priorityId);
-      if (!p) continue;
-      if (a.status !== lastStatus) {
-        list.appendChild(el("div", "app-cp-menu-h", a.status === "proposed" ? "Awaiting your decision" : "Parked (on hold)"));
-        lastStatus = a.status;
-      }
-      const row = el("div", "app-cp-review-row");
-      const main = el("div", "app-cp-review-main");
-      main.appendChild(el("div", "app-cp-review-statement", p.statement));
-      const pillar = data.pillars.find((x) => x.id === p.pillarId);
-      const parentL1 = pillar ? data.pillars.find((x) => x.id === pillar.parentId) : undefined;
-      const lin = lineageFor(p, data.priorities, data.assignments);
-      const pulled = isPulledProposal(a);
-      const meta = [
-        pulled ? `Pulled from ${orgName(p.org)} by ${a.decidedByName !== "" ? a.decidedByName : "a team member"} — proposed` : `Cascaded from ${orgName(p.org)}${p.ownerName !== "" ? ` · ${p.ownerName}` : ""}`,
-        pillar ? `${parentL1 ? parentL1.name + " › " : ""}${pillar.name}` : "",
-        lin.from ? `↑ ${orgName(lin.from)}` : "",
-        p.period,
-        a.status === "onhold" && a.reason !== "" ? `parked — “${a.reason}”` : "",
-      ].filter((s) => s !== "");
-      main.appendChild(el("div", "app-cp-review-meta", meta.join(" · ")));
-      row.appendChild(main);
-      const acts = el("div", "app-cp-review-acts");
-      // a cascade sent from above: any manager decides, as before; a pull
-      // proposed by someone who cannot approve: the owner or an admin
-      const can = pulled ? ctx.canApprove(org) : ctx.canManage(org);
-      const accept = btn("Accept", "app-btn app-btn-primary");
-      const customise = btn("Accept & customise");
-      const hold = btn(a.status === "onhold" ? "Update hold" : "Hold");
-      // "Decline", the proposals' word (2026-11-18 — it read "Reject")
-      const reject = btn("Decline…", "app-btn");
-      for (const b of [accept, customise, hold, reject]) b.disabled = !can;
-      accept.addEventListener("click", () => void decide(a, p, "accepted"));
-      customise.addEventListener("click", () => void acceptCustomised(a, p));
-      hold.addEventListener("click", () => void decide(a, p, "onhold"));
-      reject.addEventListener("click", () => void decide(a, p, "rejected"));
-      // the site's customisation floor (Settings → Priorities): below it a
-      // cascade is adopted as-is — no customise button, a quiet note instead
-      if (ctx.canCustomise(org)) acts.append(accept, customise, hold, reject);
-      else {
-        acts.append(accept, hold, reject);
-        main.appendChild(el("div", "app-cp-muted app-cp-review-note", "Cascades to this level are adopted as-is — customising is set off for this site."));
-      }
-      row.appendChild(acts);
-      list.appendChild(row);
-    }
-  };
-
-  const decide = async (a: PriorityAssignment, p: Priority, status: "accepted" | "onhold" | "rejected") => {
-    if (await decideCascade(ctx, org, a, p, status)) paint();
-  };
-
-  const acceptCustomised = async (a: PriorityAssignment, p: Priority) => {
-    if (await customiseInto(ctx, org, p, a, `Accept & customise — from ${orgName(p.org)}`)) paint();
-  };
-
-  paint();
-}
+// The pop-up "Cascades to accept" list and the walk's last step that
+// showed it are retired (programme D11, 2026-11-25): a cascade is
+// answered in its priority's popup, on every screen. `decideCascade` and
+// `customiseInto` are what the popup calls.
 
 // ---- customise / pull / drop (issue round 2026-11-06, #2) -------------------------
 

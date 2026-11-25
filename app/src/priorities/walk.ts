@@ -24,8 +24,8 @@ import { initiativeRow, initiativeRowHead, metricTiles, rowRank } from "../impro
 import { actionCounts } from "../improvement/status";
 import { actionCircles, priorityCounts } from "../improvement/statusUi";
 import { todayIso } from "../../../shared/schema/id";
-import { LifecycleCtx, renderReviewList } from "./lifecycle";
-import { OrgRef, orgName, parentClosed, pendingCascades, Pillar, Priority, ragPaletteKey } from "./model";
+import type { LifecycleCtx } from "./lifecycle";
+import { OrgRef, orgName, parentClosed, Pillar, Priority, ragPaletteKey } from "./model";
 
 /** How many metric tiles a card or a row shows before "+n". */
 export const SUMMARY_METRIC_CAP = 4;
@@ -54,6 +54,13 @@ export interface WalkOpts {
   onMenu?: (anchor: HTMLElement, p: Priority) => void;
   canMenu?: (p: Priority) => boolean;
   startStep?: number;
+  /** The decision zone (programme D11, 2026-11-25): what waits on this
+   *  org — Proposed, Cascaded to you, Unplaced — as the page shows it.
+   *  It is the summary's LAST step, "Awaiting a decision"; every item
+   *  opens its priority's popup, where the answer is given. The old
+   *  "Cascades to accept" list with its own buttons is retired. Inline
+   *  (the phone) the page puts the zone under the walk instead. */
+  zone?: { any: () => boolean; count: () => number; render: () => HTMLElement | null };
   /** ✕ Exit summary / Esc — leave the summary. */
   onExit: () => void;
   onOpen: (p: Priority) => void;
@@ -76,13 +83,14 @@ const btn = (label: string, cls = "app-btn"): HTMLButtonElement => {
 export function mountWalk(o: WalkOpts): () => void {
   const root = el("div", "app-cp-walk" + (o.className ? ` ${o.className}` : ""));
   o.host.appendChild(root);
-  const pending = () => pendingCascades(o.org, o.ctx.data().assignments).length;
-  const stepCount = () => o.columns.length + (pending() > 0 ? 1 : 0);
+  const hasZone = () => o.inline !== true && (o.zone?.any() ?? false);
+  const stepCount = () => o.columns.length + (hasZone() ? 1 : 0);
   let step = Math.min(Math.max(0, o.startStep ?? 0), Math.max(0, stepCount() - 1));
 
   const stepTitle = (i: number): string => {
     if (i < o.columns.length) return o.columns[i].name;
-    return `Cascades to accept · ${pending()}`;
+    const waiting = o.zone?.count() ?? 0;
+    return `Awaiting a decision${waiting > 0 ? ` · ${waiting}` : ""}`;
   };
 
   const paint = () => {
@@ -174,9 +182,8 @@ export function mountWalk(o: WalkOpts): () => void {
     // body
     const body = el("div", "app-cp-walk-body");
     if (isReview) {
-      const list = el("div", "app-cp-review app-cp-walk-review");
-      renderReviewList(o.ctx, o.org, list);
-      body.appendChild(list);
+      const zone = o.zone?.render() ?? null;
+      if (zone) body.appendChild(zone);
     } else if (col) {
       const items = o.byColumn.get(col.id) ?? [];
       if (items.length === 0) body.appendChild(el("div", "app-cp-walk-empty", "No priorities in this objective."));

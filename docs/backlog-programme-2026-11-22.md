@@ -489,6 +489,55 @@ E5, E17 part 1). App-only, no schema.
 
 Tranche 2 stands tested on dev.
 
+### Tranche 3 (built 2026-11-25, on dev, NOT released)
+
+Four items built; C2 off the backlog. App-only, no schema.
+
+- **D1 — a stale metric is marked.** `improvement/staleMetric.ts`:
+  `overduePeriod(cadence, today)` is the newest period that ended more
+  than five working days ago (`workingDaysAfter`, Monday to Friday, by
+  calendar fields); a metric whose newest reading is before that
+  period's start is stale; `staleWords` → "No reading for 9 weeks".
+  `MetricValue.stale` (computed in `metricValueOf` from the newest
+  reading's date and the cadence its readings are kept at —
+  `DriverLast.cadence`). Shown: a faded chart and a ◷ leading the
+  caption on a tile, with the words in the tooltip (the tile carries no
+  words); "· ◷ no reading for …" on the Improvement tile's metric
+  line; "◷ No reading for …" on the popup's Objectives rows; a neutral
+  tag in the lower left of the Metrics card's chart. NO status effect.
+  A metric never read is not stale. An older in-card KPI document
+  (readings with no dates) is not judged. UAT-IMP-015.
+- **D5 — Link… and Promote… on a priority's own metric.**
+  `priorities/ownMetricsTab.ts` drops `noRelink` for a priority with a
+  site, asks the initiative's role question for Promote
+  (`mayPromote`), and MOVES the readings: `beforeMerge` counts them and
+  asks ("Move N readings into <driver>?", `moveReadingsWords`), then
+  `mergeCardSeriesIntoDriver` and `deleteSeriesAt` on the priority's own
+  location, so nothing is left to come back. A link that only LEADS a
+  driver moves nothing and asks nothing. Not on a company-level
+  priority. An INITIATIVE's link is as it was: it tells after, and
+  leaves its own readings where they were. UAT-PRI-018.
+- **D9 — a re-parented priority takes its parent's sub-pillar.**
+  `priorities/relinkPillar.ts` `relinkPillarPlan`: the parent's
+  sub-pillar in the year in view; the linked priority and every
+  priority made from it move from that year (`moveFrom`), earlier years
+  kept. The dialog's tick is gone; a line says what moves. After the
+  link a message is offered (step "linked") to the parent's owner and
+  the owners below. `LifecycleCtx.viewYear`. UAT-PRI-019.
+- **D11 — the decision zone everywhere.** `renderZoneStack`
+  (`prioritiesScreen.ts`): Proposed, Cascaded to you and Unplaced as a
+  stack of the matrix's own cards. The phone shows it under the walk,
+  with the same "N awaiting a decision" chip; the executive summary's
+  last step is "Awaiting a decision · N" (`WalkOpts.zone`).
+  `cascadeReview` and `renderReviewList` — the pop-up list with its
+  own Accept / Hold / Decline buttons — are DELETED. UAT-PRI-020.
+- **Seen in the harness:** the phone layout with the chip and the
+  three groups under the walk; the executive summary's last step; Link…
+  and Promote… on a priority's own metric row. **Not seen anywhere:**
+  the stale mark on real readings, a link's merge, the sub-pillar move
+  on a real family (rules tested; the surfaces need the hosted app and
+  a real phone).
+
 ## Tranche 1A — the 2026-11-23 issue export (inserted by Ben, 2026-11-23)
 
 Nine reports from the DMS UAT re-run, reviewed in

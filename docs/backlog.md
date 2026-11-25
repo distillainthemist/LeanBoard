@@ -39,7 +39,9 @@ mark, on his five-working-days rule, no effect on status), D5 (Link… /
 Promote… on a priority's own metric), D9 (a re-parented priority takes
 its parent's sub-pillar, carried down, with a message), D11 (the
 decision zone on the phone and in the executive summary) — and C2 off
-the backlog. Next: build tranche 3.
+the backlog. **Built and on dev 2026-11-25, not released**; as built:
+the programme's "Tranche 3" section. Next: Ben's test walk of tranche
+3, then tranche 4's walk.
 What 1A was: the nine reports of the 2026-11-23 issue export
 (`issues-plan-2026-11-23.md`): Teams group messages refused over a
 colon in the chat topic, Replace content's false "landed wrong" on
@@ -94,9 +96,10 @@ each step (UAT-PRI-014); the sub-pillar year by year and "Follows" in
 Settings (UAT-PRI-011); actions raised ON a priority (UAT-PRI-015);
 metrics defined ON a priority with their full trend in the Objectives
 tab (UAT-PRI-016). Owed from it:
-- **Left as found:** phone and the executive summary's last step keep
-  the old cascade list; a proposed pull put on hold shows afterwards
-  under "Cascaded to you". (A priority's own actions and metrics now
+- **Left as found:** a proposed pull put on hold shows afterwards
+  under "Cascaded to you". (The phone and the executive summary's last
+  step moved to the decision zone on 2026-11-25, programme D11; the old
+  cascade list is deleted.) (A priority's own actions and metrics now
   COUNT toward the priority it was cascaded from — programme C1, built
   2026-11-24; they still show only where they were raised.)
 - **Metrics follow-ups:** "Metrics — open items" below.
@@ -611,9 +614,11 @@ that keep the scroll (v0.88.1).
   label on its details; the end is stamped on completion / archive.
   An initiative whose label was never set shows in every year — LEFT
   AS IT IS (Ben, 2026-11-24, programme D8).
-- **Re-parenting is single-level.** Linking a child under a parent
-  does not re-send the child's own cascades; the child's children keep
-  their links. A re-parented priority keeps its owner and order.
+- **Re-parenting** (programme D9, built 2026-11-25): a re-parented
+  priority always takes its new parent's sub-pillar, the priorities
+  made from it follow, and a message is offered. The parent's Cascade
+  tab still lists one level (two levels at most, 2026-11-18). A
+  re-parented priority keeps its owner and order.
 - **Custom periods: REMOVED 2026-11-24** (programme D10). Calendar
   year is the only period; financial year and custom labels are gone
   from Settings and the model. Dev and production were already
@@ -631,12 +636,10 @@ did not look like the same metric's chart). Nothing here is built.
   driver on dev showed an 11-point climb on the tile and two points on
   the card. **Decided (Ben, 2026-11-19): leave it** — the sparkline
   stays the last 12 readings. Kept here as the explanation, not as work.
-- **A stale metric looks current.** The status rule judges the LAST
-  reading whatever its age, and the sparkline shows no gap. A metric
-  not filled in for nine weeks still reads on track. Offered: a "no
-  reading for N periods" mark on the metric, and whether that counts
-  toward the initiative's or priority's status. The periods would
-  follow the metric's cadence.
+- **A stale metric looks current: MARKED, 2026-11-25** (programme D1).
+  Stale = a period of its cadence ended more than five working days
+  ago with no reading in it or since (Ben's rule). A mark only: the
+  status rule still judges the last reading, by his choice.
 - **The Metrics card chart opens around today.** A metric last filled
   in weeks ago opens almost empty, though its history is there.
   Offered: open on the page that holds the latest reading, or show a
@@ -651,9 +654,9 @@ did not look like the same metric's chart). Nothing here is built.
   not. Batch them if priorities come to carry many metrics.
 - **Removing a metric leaves its readings: BUILT 2026-11-24**
   (programme C8) — the × counts them and asks, and they are deleted.
-- **A priority's own metric stays own.** No Link… or Promote… into the
-  value driver tree, because its readings would not move with it. To
-  build: carry the series across, as an initiative's metric does.
+- **A priority's own metric stays own: BUILT 2026-11-25** (programme
+  D5) — Link… and Promote… move its readings into the driver's series,
+  after a question that counts them.
 - **The values grid's note says "this card's own readings"** when it
   is opened from a priority. Wording only.
 - **Short of plan and outside the limits read the same on a priority.**
