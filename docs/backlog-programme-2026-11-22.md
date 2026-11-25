@@ -278,6 +278,13 @@ The walk began 2026-11-25, after tranche 2's test walk.
   Status is unchanged: stale does not make anything off track. A metric
   that has never had a reading is left as it is today. Public holidays
   are not known to the app; only Saturdays and Sundays are skipped.
+- **D5** — **both Link… and Promote…, as on an initiative** (Ben,
+  2026-11-25). A priority's own metric can be joined to an existing
+  driver or promoted into a new one (the same role check); its readings
+  are carried into the driver's series, the driver's value kept where
+  both have one. Not on a company-level priority (no site, no tree).
+  The merge cannot be undone, so it ASKS FIRST, naming how many
+  readings move.
 
 ## As built
 
