@@ -201,3 +201,25 @@ Findings (code read; nothing run):
 | 26 | Duplicate of 4 | Same fault, same fix |
 | 25 | Build (choice 1) | Library is an ordinary column in the chooser: shown with the default columns when several libraries are ticked, as now; with a chosen set, only if ticked |
 | 7 | Not a software issue + one small build | A reply: tick the three and they stay; clicking a name selects that library alone. Ben added: a tooltip on a library's name, "Show only this library" |
+
+### Reports 21 and 22 — reviewed 2026-11-26, NOT yet decided
+
+Findings (code read; nothing run):
+
+- **21** — confirmed: the kanban's columns follow an action's STATUS
+  (`controls/ActionBoard/editor.ts` `columns`); the PDCA state is a
+  second field (`shared/schema/actions.ts`, "a parallel axis"). The
+  dialog sets only PDCA. The status "in-progress" is set by ONE thing
+  in the whole app: dragging a card into Doing. A new action is stored
+  open + Do, so it sits in To do wearing the Do mark (21 of the 22 in
+  Sue's screenshot). A drag between open columns does not change a
+  PDCA state already set. Check and Act have no column.
+- **22** — confirmed: a priority's popup lists every initiative linked
+  to it and to its counted descendants (`initiativesFor`,
+  `priorities/prioritiesScreen.ts`), whatever org is in view; the tile's
+  circles count the same. "This org" on a row means "linked to this
+  priority itself", not the org being viewed. So a department that
+  adopted a site priority sees the whole site's initiatives and
+  actions. The Actions hub's organisation scope is tranche 4's E13
+  (built, tested, unreleased), which stamps each action with where its
+  assignees sit.
