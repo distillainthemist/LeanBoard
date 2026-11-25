@@ -249,3 +249,27 @@ Findings (code read; production's term store NOT seen):
   Medium: it fits the screenshot; the store's history was not seen.
 - The other reading: the areas were entered under Metal Delivery in
   Settings → Processes (data, no fault in the app).
+- **What Ben found (2026-11-26):** in Settings → Processes, BSL's own
+  tree has "General" and "Inspection, Homogenising & Sawing" under BOTH
+  Casthouse and Metal Delivery, and "Cooling Towers & Water Management"
+  under Metal Delivery only. So the Filters pane shows the master
+  faithfully; the sync's guess did NOT cause this. The rows were all
+  created at the same time: they came across in the v0.83 copy of the
+  site's tree (`processes/migrate.ts`), from the old type's tree or by
+  the copy itself — not looked at.
+- **A move in Processes would not reach SharePoint:** the sync renames
+  a term's label and never moves it to another parent
+  (`executeOrgSync`, `docs/orgSync.ts`).
+- **AN INGESTION DEFECT, confirmed in the code after Ben asked.** Ben
+  saw a file whose task value was correctly under Casting land tagged
+  with the Metal Delivery copy. Ingestion cannot change the tree, but
+  its grid turns a file's SAVED term value back into a term by NAME
+  alone: `termIdsFor` (`docs/ingestionScreen.ts`) builds a map from a
+  term's last label to its id, so of two terms with one name the last
+  in the walk wins. `valueOf` uses it when a cell's editor opens and
+  when a value is dragged down with the fill handle; either can then
+  write the wrong term. The feed has carried the real term id since
+  v0.99.0 (`<col>#termid`, `docs/rows.ts`) and this lookup does not use
+  it. I had first told Ben ingestion could not be at fault; that was
+  wrong for the tag, right for the tree. Other name-only lookups exist
+  in Documents and were not all checked.
