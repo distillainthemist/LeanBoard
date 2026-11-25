@@ -95,3 +95,40 @@ Findings (code read; nothing run):
 | 18 | Build | Covered by the hand-over rule: people added in the dialog are messaged like any other reviewer; the false line goes |
 | 15, 18 | Build (Ben's choice 2) | EVERY hand-over step sends its Teams card at once — Review complete, Submit for approval, Approve, Request revision, as Submit for review does. The panel stays for a second send with edited words, or an email. A failed send shows as a warning. This reverses, for these steps, the 2026-10-26 decision that nothing is sent until the button is pressed (UAT DOC-042) |
 | N2 | Build | A version's comment shows under its row in the history |
+
+### Cluster F — reviewed 2026-11-26, NOT yet decided
+
+Findings (code read; one harness run):
+
+- **2** — confirmed: after "＋ Add sub-pillar" the code focuses the
+  LAST sub-pillar box in the whole list, not the new one
+  (`priorities/settingsTab.ts`, the `addSub` handler); the browser
+  scrolls to it, and the cursor is in the wrong row unless the pillar
+  is the last.
+- **23** — confirmed: nothing on a tile past its planned end offers to
+  extend it; and a changed START year carries the old sub-pillar id
+  across as it is (`priorities/dialogs.ts`, the `period` change
+  handler) without finding the version in force that year, so the
+  sub-pillar goes blank even when a follower exists. Moving the start
+  also takes the priority off the earlier year's record. The "greyed
+  out department" is the priority's own org in the Cascade list.
+  Whether Sue's sub-pillar list was empty is not known (Ben not sure).
+- **1** — the model's limits are confirmed: a priority crosses a year
+  only through the follow link (`pillarIdIn`, `succeedsId`); one old
+  sub-pillar per new one, so a merge cannot be expressed
+  (`followCandidates`); "Follows" shows only on a row that starts in a
+  year, after an old one was ended the year before. Ben needs at least
+  one many-to-one for 2027.
+- **1 — AN UNEXPLAINED FAULT.** Ben (2026-11-26): the 2027 sub-pillars
+  were NEW rows WITH a follow link, one to one ("Safety" follows
+  "Continuous Improvement Safety"), and "as soon as we introduced the
+  new sub-pillars and follow link, it broke it": at Weipa in 2027 the
+  page has NO pillar row at all and every priority is Unplaced, while
+  the company's 2027 view shows the pillars. Sue's screenshot of the
+  day before shows the same page. The code always draws the pillar row,
+  and the same set-up WORKS in the local harness on the current build
+  (`harness/priorities.html`, Weipa, 2027: the row is there and a
+  priority follows "Asset Reliability" into "Asset Health"). Not
+  explained. Leads: production runs v0.99.0 and the year code has
+  changed since (tranche 2 made the calendar year the only period);
+  the harness rows are seeded by code, not made through Settings.
