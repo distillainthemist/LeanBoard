@@ -83,6 +83,20 @@ export function mayRemoveAttachment(a: Pick<Attachment, "byId">, viewer: { whoId
   return viewer.managesParent || (viewer.whoId !== "" && a.byId === viewer.whoId);
 }
 
+/** The image types the app can SHOW (programme E2, 2026-11-25): what a
+ *  browser draws. Everything else — a PDF, a HEIC photo — downloads. */
+const PREVIEW_EXT = ["jpg", "jpeg", "png", "gif", "webp"];
+
+/** Does a click on this attachment open it in the app's viewer? */
+export function previewable(a: Pick<Attachment, "kind" | "fileName">): boolean {
+  return a.kind === "file" && PREVIEW_EXT.includes(fileExt(a.fileName));
+}
+
+/** A caption as it is stored: trimmed, within the column. */
+export function cleanCaption(raw: string): string {
+  return raw.trim().slice(0, MAX_CAPTION);
+}
+
 /** Newest first. */
 export function sortAttachments<T extends Pick<Attachment, "at">>(list: T[]): T[] {
   return [...list].sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
@@ -108,6 +122,7 @@ export function mimeFor(fileName: string): string {
     jpg: "image/jpeg",
     jpeg: "image/jpeg",
     gif: "image/gif",
+    webp: "image/webp",
     txt: "text/plain",
     csv: "text/csv",
     docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",

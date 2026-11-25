@@ -3,10 +3,10 @@
 // a file (picked, or dropped on the block) or a link; open or download;
 // remove. Data in the store (store/attachments.ts), rules in model.ts.
 
-import { el, clear } from "../../../shared/ui/dom";
+import { el, clear, onEscape } from "../../../shared/ui/dom";
 import { confirmRemoval } from "../prompts";
 import { fileTypeChip } from "../../../shared/ui/format";
-import { Attachment, AttachmentParent, attachmentMeta, attachmentTitle, cleanUrl, fileExt, fileProblem, MAX_ATTACHMENT_MB, MAX_CAPTION, mayRemoveAttachment } from "./model";
+import { Attachment, AttachmentParent, attachmentMeta, attachmentTitle, cleanCaption, cleanUrl, fileExt, fileProblem, MAX_ATTACHMENT_MB, MAX_CAPTION, mayRemoveAttachment, previewable } from "./model";
 
 export interface AttachmentsOpts {
   host: HTMLElement;
@@ -27,6 +27,52 @@ export interface AttachmentsHandle {
   teardown: () => void;
 }
 
+/** An image attachment in a viewer inside the app (programme E2,
+ *  2026-11-25): the picture, its name, Download and Close. A viewer, not
+ *  a form — Escape or a click beside it closes it. The bytes are already
+ *  here, so Download hands over the same blob. */
+function showImage(a: Attachment, blob: Blob, download: (blob: Blob) => Promise<void>): void {
+  const url = URL.createObjectURL(blob);
+  const overlay = el("div", "app-modal-overlay app-modal-top app-att-viewer");
+  const box = el("div", "app-modal app-att-viewerbox");
+  const head = el("div", "app-att-viewerhead");
+  head.appendChild(el("div", "app-modal-title", attachmentTitle(a)));
+  const tools = el("div", "app-att-viewertools");
+  const save = el("button", "app-btn", "Download") as HTMLButtonElement;
+  save.type = "button";
+  save.addEventListener("click", () => void download(blob));
+  const shut = el("button", "app-btn app-btn-primary", "Close") as HTMLButtonElement;
+  shut.type = "button";
+  tools.append(save, shut);
+  head.appendChild(tools);
+  const img = el("img", "app-att-viewerimg") as HTMLImageElement;
+  img.alt = attachmentTitle(a);
+  img.src = url;
+  const stage = el("div", "app-att-viewerstage");
+  stage.appendChild(img);
+  box.append(head, stage);
+  overlay.appendChild(box);
+  const close = () => {
+    document.removeEventListener("keydown", onKey, true);
+    overlay.remove();
+    URL.revokeObjectURL(url);
+  };
+  const onKey = (e: KeyboardEvent) => {
+    if (e.key !== "Escape") return;
+    // the viewer's alone: the dialog underneath stays open
+    e.preventDefault();
+    e.stopPropagation();
+    close();
+  };
+  document.addEventListener("keydown", onKey, true);
+  shut.addEventListener("click", close);
+  overlay.addEventListener("pointerdown", (e) => {
+    if (e.target === overlay) close();
+  });
+  document.body.appendChild(overlay);
+  shut.focus();
+}
+
 const btn = (label: string, cls = "app-link"): HTMLButtonElement => {
   const b = el("button", cls, label) as HTMLButtonElement;
   b.type = "button";
@@ -41,6 +87,8 @@ export function mountAttachments(o: AttachmentsOpts): AttachmentsHandle {
   let busy = "";
   let error = "";
   let linkOpen = false;
+  /** The row whose caption is being edited (its row id), or null. */
+  let renaming: string | null = null;
 
   const head = el("div", "app-att-head");
   const title = el("span", "app-att-title", o.heading ?? "Attachments & links");
@@ -208,7 +256,51 @@ export function mountAttachments(o: AttachmentsOpts): AttachmentsHandle {
       chip.classList.add("app-att-chip");
       row.appendChild(chip);
       const main = el("div", "app-att-main");
-      if (a.kind === "link") {
+      const mayChange = mayRemoveAttachment(a, { whoId: o.actor.whoId, managesParent: o.managesParent });
+      if (renaming === a.rowId) {
+        // the caption, edited in place (programme E2): Enter saves,
+        // Escape leaves it; emptied, the row reads by its file name again
+        const box = el("input", "app-input app-att-rename") as HTMLInputElement;
+        box.value = a.caption;
+        box.maxLength = MAX_CAPTION;
+        box.placeholder = a.kind === "file" ? a.fileName : a.url;
+        box.setAttribute("aria-label", "Caption");
+        const done = (save: boolean) => {
+          if (renaming !== a.rowId) return;
+          renaming = null;
+          const next = cleanCaption(box.value);
+          if (!save || next === a.caption) {
+            paint();
+            return;
+          }
+          void (async () => {
+            try {
+              const { renameAttachment } = await import("../store/attachments");
+              await renameAttachment(a, next);
+              error = "";
+            } catch (e) {
+              error = `The caption could not be saved: ${e instanceof Error ? e.message : String(e)}`;
+            }
+            await load();
+          })();
+        };
+        box.addEventListener("keydown", (e) => {
+          if (e.key !== "Enter") return;
+          e.preventDefault();
+          e.stopPropagation();
+          done(true);
+        });
+        onEscape(box, () => {
+          done(false);
+          return true;
+        });
+        box.addEventListener("blur", () => done(true));
+        main.appendChild(box);
+        setTimeout(() => {
+          box.focus();
+          box.select();
+        }, 0);
+      } else if (a.kind === "link") {
         const link = el("a", "app-att-name", attachmentTitle(a)) as HTMLAnchorElement;
         link.href = a.url;
         link.target = "_blank";
@@ -217,16 +309,19 @@ export function mountAttachments(o: AttachmentsOpts): AttachmentsHandle {
         main.appendChild(link);
       } else {
         const open = btn(attachmentTitle(a), "app-link app-att-name");
-        open.title = `Download ${a.fileName}`;
+        // an image opens in the app's viewer; every other file downloads
+        const shows = previewable(a);
+        open.title = shows ? `Open ${a.fileName}` : `Download ${a.fileName}`;
         open.addEventListener("click", () => {
           open.disabled = true;
           void (async () => {
             try {
-              const { downloadAttachment } = await import("../store/attachments");
-              await downloadAttachment(a);
+              const { attachmentBlob, downloadAttachment } = await import("../store/attachments");
+              if (shows) showImage(a, await attachmentBlob(a), (blob) => downloadAttachment(a, blob));
+              else await downloadAttachment(a);
               error = "";
             } catch (e) {
-              error = `“${a.fileName}” could not be downloaded: ${e instanceof Error ? e.message : String(e)}`;
+              error = `“${a.fileName}” could not be ${shows ? "opened" : "downloaded"}: ${e instanceof Error ? e.message : String(e)}`;
             }
             open.disabled = false;
             paint();
@@ -236,7 +331,16 @@ export function mountAttachments(o: AttachmentsOpts): AttachmentsHandle {
       }
       main.appendChild(el("div", "app-att-meta", attachmentMeta(a)));
       row.appendChild(main);
-      if (mayRemoveAttachment(a, { whoId: o.actor.whoId, managesParent: o.managesParent })) {
+      if (mayChange && renaming !== a.rowId) {
+        const rename = btn("Rename", "app-link app-att-rename-link");
+        rename.title = a.caption !== "" ? "Change the caption" : "Give it a caption";
+        rename.addEventListener("click", () => {
+          renaming = a.rowId;
+          paint();
+        });
+        row.appendChild(rename);
+      }
+      if (mayChange) {
         const x = btn("✕", "app-link app-att-x");
         x.title = `Remove ${attachmentTitle(a)}`;
         x.setAttribute("aria-label", x.title);

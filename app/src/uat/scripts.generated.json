@@ -3917,6 +3917,28 @@
        "expected": "step 1 the weekly metric's chart carries \"◷ No reading for <n> weeks\" in its lower left corner; the monthly one carries no mark until the sixth working day of this month has come with nothing entered for last month; the metric never read carries no mark; step 2 the Improvement tile's metric line ends \"· ◷ no reading for <n> weeks\"; on the priority's tile the chart is faded and a small ◷ leads its caption — no words are added to the tile — and the tooltip ends \"· No reading for <n> weeks\"; step 3 the row reads \"Plan … · Actual …\" then \"◷ No reading for <n> weeks\"; step 4 both are still ON TRACK: the mark changes no status; step 5 the mark is gone everywhere. Saturdays and Sundays do not count toward the five working days; public holidays do",
        "hash": "f488dc82",
        "changed": "2026-11-25"
+      },
+      {
+       "id": "UAT-IMP-016",
+       "title": "An attachment's caption can be changed; an image opens in the app",
+       "journey": "Journey 2 — Initiatives",
+       "persona": "member",
+       "modules": [
+        "attachments/list.ts",
+        "attachments/model.ts",
+        "store/attachments.ts"
+       ],
+       "preconditions": "an initiative you hold a role on with, attached by you: a JPG or PNG photo, a PDF, a HEIC photo and a link added with a caption; a second account that can see the initiative but holds no role on it and attached none of them",
+       "steps": [
+        "Open the initiative's details pane → \"Attachments & links\". Read the photo's row. Press Rename on it, type a caption and press Enter.",
+        "Press Rename on the link, clear the caption and press Enter. Press Rename on the PDF, type something and press Escape.",
+        "Click the photo's name. Read the viewer; press Download; press Escape.",
+        "Click the photo again and click on the dark area beside the picture. Click the PDF's name, then the HEIC photo's.",
+        "As the second account, open the same block and read the rows."
+       ],
+       "expected": "step 1 a file added with no caption shows its file name; Rename turns the title into a text box holding the caption (empty for the file, its file name as the hint); Enter saves — the row is now titled by the caption, with the file name under it; step 2 a link with its caption cleared reads by its address again; Escape leaves the PDF's caption as it was, and the dialog or pane around it stays open; step 3 the photo opens in a viewer INSIDE the app, sized to fit, titled by its caption, with Download and Close; Download saves the file; Escape closes the viewer only; step 4 a click beside the picture closes it; the PDF and the HEIC photo download as before (a browser cannot draw HEIC); step 5 someone who may not remove an attachment sees no Rename and no ✕. The list shows no thumbnails: a picture is fetched when it is opened",
+       "hash": "b04cc2dd",
+       "changed": "2026-11-25"
       }
      ]
     }

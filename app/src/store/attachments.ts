@@ -8,7 +8,7 @@ import type { Ben_ltkattachments } from "../generated/models/Ben_ltkattachmentsM
 import { allWhere, odata } from "./dv";
 import { memoRead, writing } from "./changes";
 import { nowIso } from "../../../shared/schema/id";
-import { Attachment, AttachmentParent, AttachmentParentKind, MAX_CAPTION, mimeFor, sortAttachments } from "../attachments/model";
+import { Attachment, AttachmentParent, AttachmentParentKind, cleanCaption, MAX_CAPTION, mimeFor, sortAttachments } from "../attachments/model";
 
 const TOPIC = "attachments";
 
@@ -85,13 +85,27 @@ export async function removeAttachment(a: Attachment): Promise<void> {
   await writing(TOPIC, Ben_ltkattachmentsService.delete(a.rowId));
 }
 
-/** A file's bytes, handed to the browser as a download. */
-export async function downloadAttachment(a: Attachment): Promise<void> {
+/** Change an attachment's caption (programme E2, 2026-11-25) — it could
+ *  only be set as a link was added, and a file had none. "" clears it:
+ *  the row then reads by its file name or its address again. */
+export async function renameAttachment(a: Attachment, caption: string): Promise<void> {
+  const next = cleanCaption(caption);
+  await writing(TOPIC, Ben_ltkattachmentsService.update(a.rowId, { ben_caption: next, ben_name: (next || a.fileName || a.url).slice(0, 300) } as never));
+}
+
+/** A file's bytes as a blob of its own type — the download's, and the
+ *  image viewer's. */
+export async function attachmentBlob(a: Attachment): Promise<Blob> {
   const [{ getClient }, { dataSourcesInfo }] = await Promise.all([import("@microsoft/power-apps/data"), import("../../.power/schemas/appschemas/dataSourcesInfo")]);
   const down = await getClient(dataSourcesInfo).downloadFileFromRecord("ben_ltkattachments", a.rowId, "ben_file");
   if (down.success === false || !(down.data instanceof Uint8Array)) throw new Error(down.error?.message ?? "the file could not be read");
+  return new Blob([down.data as BlobPart], { type: mimeFor(a.fileName) });
+}
+
+/** A file's bytes, handed to the browser as a download. */
+export async function downloadAttachment(a: Attachment, blob?: Blob): Promise<void> {
   const link = document.createElement("a");
-  link.href = URL.createObjectURL(new Blob([down.data as BlobPart], { type: mimeFor(a.fileName) }));
+  link.href = URL.createObjectURL(blob ?? (await attachmentBlob(a)));
   link.download = a.fileName !== "" ? a.fileName : "attachment";
   document.body.appendChild(link);
   link.click();
