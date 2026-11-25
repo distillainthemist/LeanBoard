@@ -38,9 +38,39 @@ export function openEndorseReview(o: EndorseReviewOpts): void {
     row.appendChild(el("div", "app-er-title", a.issue !== "" ? a.issue : a.description));
     if (a.issue !== "" && a.description !== "") row.appendChild(el("div", "app-er-meta", a.description));
     const who = a.assignees.map((x) => x.who).filter((n) => n !== "").join(", ");
-    row.appendChild(el("div", "app-er-meta", [who !== "" ? who : "Unassigned", a.due !== "" ? `due ${a.due}` : "", a.comments.length > 0 ? `💬 ${a.comments.length}` : ""].filter((s) => s !== "").join(" · ")));
+    const metaLine = el("div", "app-er-meta", [who !== "" ? who : "Unassigned", a.due !== "" ? `due ${a.due}` : "", a.comments.length > 0 ? `💬 ${a.comments.length}` : ""].filter((s) => s !== "").join(" · "));
+    row.appendChild(metaLine);
     const last = a.comments[a.comments.length - 1];
     if (last) row.appendChild(el("div", "app-er-meta", `“${last.text}” — ${last.who ?? "someone"}`));
+    // the evidence on the action (programme E11, 2026-11-25): its
+    // attachments and links, counted here and opened in place — the
+    // endorser had to leave the review and open the action to see them
+    const evidenceHost = el("div", "app-er-evidence");
+    evidenceHost.style.display = "none";
+    void (async () => {
+      try {
+        const { listAttachments } = await import("../store/attachments");
+        const n = (await listAttachments({ kind: "action", id: a.id })).length;
+        if (n === 0 || !row.isConnected) return;
+        const chip = btn(`📎 ${n}`, "app-link app-er-evidencechip");
+        chip.title = `${n} attachment${n === 1 ? "" : "s"} on this action — show ${n === 1 ? "it" : "them"}`;
+        chip.setAttribute("aria-expanded", "false");
+        let mounted = false;
+        chip.addEventListener("click", () => {
+          const open = evidenceHost.style.display === "none";
+          evidenceHost.style.display = open ? "" : "none";
+          chip.setAttribute("aria-expanded", String(open));
+          if (!open || mounted) return;
+          mounted = true;
+          void import("../attachments/list").then(({ mountAttachments }) =>
+            mountAttachments({ host: evidenceHost, parent: { kind: "action", id: a.id }, actor: o.by, canAdd: false, managesParent: false, heading: "Attachments & links" })
+          );
+        });
+        metaLine.appendChild(chip);
+      } catch {
+        /* no count: the action still opens from its card */
+      }
+    })();
     const btns = el("div", "app-er-btns");
     const back = btn("Send back…", "app-btn app-ib-gatebtn");
     const ok = btn("Endorse", "app-btn app-btn-primary app-ib-gatebtn");
@@ -89,7 +119,7 @@ export function openEndorseReview(o: EndorseReviewOpts): void {
       reason.focus();
     });
     btns.append(back, ok);
-    row.appendChild(btns);
+    row.append(evidenceHost, btns);
     list.appendChild(row);
   }
 

@@ -187,3 +187,14 @@ steps:
 4. Click the photo again and click on the dark area beside the picture. Click the PDF's name, then the HEIC photo's.
 5. As the second account, open the same block and read the rows.
 expected: step 1 a file added with no caption shows its file name; Rename turns the title into a text box holding the caption (empty for the file, its file name as the hint); Enter saves — the row is now titled by the caption, with the file name under it; step 2 a link with its caption cleared reads by its address again; Escape leaves the PDF's caption as it was, and the dialog or pane around it stays open; step 3 the photo opens in a viewer INSIDE the app, sized to fit, titled by its caption, with Download and Close; Download saves the file; Escape closes the viewer only; step 4 a click beside the picture closes it; the PDF and the HEIC photo download as before (a browser cannot draw HEIC); step 5 someone who may not remove an attachment sees no Rename and no ✕. The list shows no thumbnails: a picture is fetched when it is opened
+
+### UAT-IMP-017 — The endorser sees an action's attachments in the review
+persona: sponsor
+modules: improvement/endorseReview.ts attachments/list.ts store/attachments.ts
+preconditions: an initiative with endorsement switched on and you as an endorser; two actions closed by someone else and waiting for endorsement — one with a photo and a link attached, one with nothing attached
+steps:
+1. Open the initiative's board and open "Actions awaiting endorsement".
+2. Read each action's line. Press the 📎 chip on the first.
+3. Click the photo's name; close the viewer. Press the chip again.
+4. Endorse the first action; send the second back with a reason.
+expected: step 2 the action with attachments shows "📎 2" after who and when; the one with none shows no chip; pressing the chip opens that action's attachments and links under it, in place — read-only (no Add, no Rename, no ✕); step 3 the photo opens in the app's viewer (UAT-IMP-016) and the review is still open behind it; the chip folds the block away again; step 4 Endorse and Send back work as before
