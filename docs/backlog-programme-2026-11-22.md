@@ -356,6 +356,45 @@ The walk began 2026-11-25, after tranche 3's test walk.
   list shows "📎 n" on each waiting action, and opening it lands on its
   attachments. Requiring evidence to close was offered and not chosen.
   The old table stays in the solution.
+- **E13** — **the org goes on the action row** (Ben, 2026-11-25: "we
+  need to assume there are going to be 1000s of actions"; he asked why
+  the read could not be filtered in the query, then how a cross-org
+  action and a removed org are handled, and answered "Yes to all
+  three"). SCHEMA-CARRYING: two text columns on `ben_ltkaction`.
+  - **Where its assignees sit** — a stamp written on every save, so the
+    organisation scope asks the server for the org in view. The scope
+    keeps its meaning: "assigned to people who sit here"; an action
+    shared across orgs carries each.
+  - **Where it was raised** — the org of the board, initiative or
+    priority it belongs to. The raising org's scope shows these as a
+    group of their own, **"Raised here, assigned elsewhere"**.
+  - **Existing actions** have no stamp: the scope also reads open
+    actions with an empty stamp and matches those the old way, so
+    nothing is missing before the backfill. A super admin's **"Re-stamp
+    actions"** button in Settings stamps them, and repairs a drifted
+    stamp at any time.
+  - **A person who moves org**: their open actions are re-stamped.
+    **A rename** (site, department, area) re-stamps the open actions of
+    the people it rewrites — a site rename can run for minutes, with a
+    count. **A removed department**: its people keep the old name until
+    reassigned; their actions show at site level. **An archived site**:
+    nothing is deleted; its actions stay on its boards, in each
+    person's list and — Ben's answer — in the whole-company scope.
+  - **The whole-company scope** is every open action whatever the
+    filter: it paints as the pages arrive, with a count.
+  - Lock older builds after the release: an older bundle saves an
+    action without updating the stamp.
+
+**To build (six):** E2, E6, E8, E10, E11 (the endorser's "📎 n"), E13.
+**Off the backlog:** E1. Ben, 2026-11-25: "Yes to all three, build
+tranche 4".
+
+**Raised in the walk, for the backlog (not built):** the Priorities
+page, the Improvement tab and the hub each read EVERY action of every
+initiative, open and closed (`actionsForInitiatives`), to work out
+statuses and counts. With thousands of actions that is the heavier
+read, on pages opened daily. Closed actions feed the Done counts, so
+narrowing it is a rule question to walk with Ben.
 
 ## As built
 

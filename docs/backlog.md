@@ -695,9 +695,17 @@ deferrals still open (details in leanboard-cascade-improvement-plan.md).
   2026-11-25 (programme E11): the endorse review shows "📎 n".
 - **Confidential actions, hardened** — a separately secured table with
   per-record sharing if app-level hiding ever proves insufficient.
-- **Organisation-scope Actions read** — one query of all open actions,
-  filtered in the app; page by board once open rows pass a few
-  thousand.
+- **Organisation-scope Actions read** — TO BUILD in tranche 4
+  (programme E13, 2026-11-25): the org of an action's assignees, and
+  the org it was raised at, go on the action row (two columns, SCHEMA-
+  CARRYING) so the server filters; the whole-company scope paints as
+  it loads.
+- **The initiative actions read** (raised 2026-11-25, not built):
+  `actionsForInitiatives` reads every action of every initiative, open
+  and closed, for the Priorities page, the Improvement tab and the hub.
+  With thousands of actions this is the heavier read. Closed actions
+  feed the Done counts, so narrowing it is a rule question — walk it
+  with Ben.
 - **Picklist option library** (site-level reusable option sets) and a
   **target-state row** for picklist KPIs — if the same lists keep being
   retyped / a "short of plan" state is wanted.
