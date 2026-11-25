@@ -191,3 +191,13 @@ Findings (code read; nothing run):
   (`uiState.libraries`, saved per person by `persistUi`). Clicking a
   library's NAME selects only that one, and that becomes the remembered
   selection. The hub opens Documents with no library forced.
+- Ben checked (2026-11-26): columns hold through filter and folder
+  changes — only a library change clears them. And all three libraries
+  stay ticked across a reopen, so 7 is the remembered selection.
+
+| # | Decision | Option chosen |
+|---|---|---|
+| 4 | Build (Ben's choice 2) | The columns are the person's: a library change and Favourites carry the open view (columns, filters, search, sort); the chosen columns are SAVED for the person and every visit opens with them until "Reset to default"; a saved view or shared link shows its own columns while it is open. One set per person, whatever libraries are ticked |
+| 26 | Duplicate of 4 | Same fault, same fix |
+| 25 | Build (choice 1) | Library is an ordinary column in the chooser: shown with the default columns when several libraries are ticked, as now; with a chosen set, only if ticked |
+| 7 | Not a software issue + one small build | A reply: tick the three and they stay; clicking a name selects that library alone. Ben added: a tooltip on a library's name, "Show only this library" |
