@@ -130,10 +130,9 @@ Owed from it:
 `ben_ltkinitiative`, `ben_doneat` and a widened `ben_assigneesjson` on
 `ben_ltkaction`, and the new `ben_ltkattachment` table. Owed from it:
 
-- **Duplicate… on the other action-raising cards** (5 Whys, Agenda,
-  Fishbone…): the dialog offers it only where the host passes
-  `onDuplicate` — the Action card, My day and the Improvement Gantt's
-  editor do.
+- **Duplicate… on the other action-raising cards: DECLINED** (Ben,
+  2026-11-25, programme E1). It stays on the Action card, My day and
+  the Improvement Gantt.
 - **Attachment captions cannot be edited**, and a file is added with
   none (remove and add again). No preview.
 - **Escape in the message panel's search** does not close its list —

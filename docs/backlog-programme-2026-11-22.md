@@ -311,6 +311,14 @@ priority's own metric), D9 (a re-parented priority takes its parent's
 sub-pillar, carried down, with a message), D11 (the decision zone on
 the phone and in the executive summary). **Off the backlog:** C2.
 
+### Tranche 4
+
+The walk began 2026-11-25, after tranche 3's test walk.
+
+- **E1** — **not built; off the backlog** (Ben, 2026-11-25).
+  "Duplicate…" stays where it is: the Action card, My day and the
+  Improvement Gantt. The other action-raising cards do not offer it.
+
 ## As built
 
 ### Tranche 1 (built 2026-11-22, RELEASED in v0.99.0 on 2026-11-23)
