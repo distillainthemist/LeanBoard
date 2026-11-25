@@ -358,3 +358,18 @@ Findings (code read; nothing run):
 | # | Decision | Option chosen |
 |---|---|---|
 | 19 | Not a software issue (Ben, 2026-11-26) | The app did what Ben expects: cancelling a revision with nothing checked in returns the document to its last published version. NO record of an aborted start is wanted, and no message is added. The test script UAT-DOC-040 is corrected to describe that case with its own expected result; Holly gets a reply |
+
+### Report 12 — reviewed and decided 2026-11-26
+
+Findings (code read): there is no "on behalf" step — a controller may
+press Approve on any document as an admin, and the version's comment
+reads "Approved by <the controller>" plus whatever is typed, so the
+record names the wrong person unless the controller writes otherwise.
+Nothing can be attached to a document's approval: attachments exist
+for initiatives and actions only (`attachments/model.ts`); the table's
+parent kind and id are text, so a document's evidence needs no schema
+change.
+
+| # | Decision | Option chosen |
+|---|---|---|
+| 12 | Build (Ben's choice 1) | When a controller approves a document they are not a named approver or owner of, the Approve dialog asks "On behalf of" (the document's named approvers and owner) and the comment reads "Approved by A on behalf of B" — MY addition, accepted by Ben. The same dialog has "Attach evidence", one or more files, OFFERED not required, kept in the app's attachment table with that approval (Ben: in the app, not in SharePoint). That version's card in the history shows "📎 Evidence"; ANYONE who can open the history can open the files (Ben's choice 2). App-level: the table is readable in Dataverse. Approvals only; not Review complete or other steps |
