@@ -373,3 +373,19 @@ change.
 | # | Decision | Option chosen |
 |---|---|---|
 | 12 | Build (Ben's choice 1) | When a controller approves a document they are not a named approver or owner of, the Approve dialog asks "On behalf of" (the document's named approvers and owner) and the comment reads "Approved by A on behalf of B" — MY addition, accepted by Ben. The same dialog has "Attach evidence", one or more files, OFFERED not required, kept in the app's attachment table with that approval (Ben: in the app, not in SharePoint). That version's card in the history shows "📎 Evidence"; ANYONE who can open the history can open the files (Ben's choice 2). App-level: the table is readable in Dataverse. Approvals only; not Review complete or other steps |
+
+### Cluster D — reviewed and decided 2026-11-26 (the lighter review)
+
+Findings (code read): the Filters pane is a pop-over 400 px wide and at
+most 480 px high (`.app-docs-filterpop`, `style.css`), its arrows are
+small text characters and only the arrow expands a branch; "Hide
+panel" hides the whole left side and nothing folds the Libraries list
+alone; the Document tasks panel already groups tasks by type and each
+row opens its document.
+
+| # | Decision | Option chosen |
+|---|---|---|
+| 8 | Build (choice 1) | The Filters pane grows to the height of the window; larger expand arrows; clicking anywhere on a branch's row expands it. Not built: a side panel, a pop-up window |
+| 6 | Duplicate of 8 in effect | Covered by 8's larger arrows and whole-row expand |
+| 9 | Build (choice 1) | The Libraries card folds to one line, "Libraries, 3 of 4", remembered for the person |
+| 10 | Build — BEN'S CHOICE 3, against my recommendation to defer | The Document tasks button opens a larger screen, grouped by type, with QUICK ACTIONS on each task without opening the document: Approve, Review complete, Check in. I told Ben this lets someone approve a document they have not opened, the thing report 17 was decided to prevent; he chose it. Shape still to settle with him |
