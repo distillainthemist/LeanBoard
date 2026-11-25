@@ -4003,6 +4003,28 @@
        "expected": "step 2 the action with attachments shows \"📎 2\" after who and when; the one with none shows no chip; pressing the chip opens that action's attachments and links under it, in place — read-only (no Add, no Rename, no ✕); step 3 the photo opens in the app's viewer (UAT-IMP-016) and the review is still open behind it; the chip folds the block away again; step 4 Endorse and Send back work as before",
        "hash": "08ccf329",
        "changed": "2026-11-25"
+      },
+      {
+       "id": "UAT-IMP-018",
+       "title": "Due-date moves, counted by reason",
+       "journey": "Journey 2 — Initiatives",
+       "persona": "siteadmin",
+       "modules": [
+        "improvement/moveReport.ts",
+        "improvement/improvementTab.ts",
+        "shared/schema/reschedule.ts"
+       ],
+       "preconditions": "Settings → Improvement → Due date changes set to \"Initiative actions only\" with its reasons list; two initiatives at your site with actions; you can edit their actions",
+       "steps": [
+        "On the first initiative move one action's due date LATER and choose a reason with a note; move a second action later and choose \"Other\" with a note; move a third action EARLIER.",
+        "On the second initiative move an action's due date later twice, each time with the first reason.",
+        "Open Improvement at the site, this year. Press ⋮ at the end of the toolbar and choose \"Due-date moves…\".",
+        "Read the two tables. Click the second initiative's row.",
+        "Open the panel again with the year picker on LAST year, and again at a department that holds neither initiative."
+       ],
+       "expected": "step 3 the toolbar ends with a ⋮ holding \"Due-date moves…\"; step 4 the panel is headed by the org, the year and \"moves to a later date\"; \"By reason · 4\" lists the first reason with 3 (the note is not part of the reason), then \"Other\" with 1 — the move EARLIER is not counted; a move recorded with no reason (an older one, or one on a meeting board when only initiative actions ask) is in a row of its own, \"No reason given\", last; \"Initiatives with the most\" lists the second initiative (2) above the first (2 or by name on a tie); clicking a row opens that initiative; step 5 last year and the other department read \"No due date moved later.\" The register's search and filters do not narrow the count",
+       "hash": "4065fdeb",
+       "changed": "2026-11-25"
       }
      ]
     }

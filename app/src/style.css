@@ -5498,6 +5498,16 @@ button.app-ta-opt:hover, button.app-ta-opt.app-ta-opt-on { background: #f1ede6; 
 .app-att-name:hover { text-decoration: underline; }
 .app-att-meta { font-size: 11.5px; color: #6d675c; overflow-wrap: anywhere; }
 button.app-link.app-att-x { flex: 0 0 auto; min-width: 32px; min-height: 32px; color: #6d675c; }
+/* due-date moves by reason (2026-11-25) */
+.app-im-moves { width: min(520px, 94vw); }
+.app-im-moves-h { font-size: 12px; font-weight: 700; color: #6d675c; margin: 14px 0 4px; }
+.app-im-moves-table { display: flex; flex-direction: column; border: 1px solid #e4dfd6; border-radius: 8px; overflow: hidden; }
+.app-im-moves-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 7px 10px; border: none; border-bottom: 1px solid #f1efec; background: #fff; font: inherit; font-size: 13px; text-align: left; color: #26241f; }
+.app-im-moves-row:last-child { border-bottom: none; }
+button.app-im-moves-rowlink { cursor: pointer; }
+button.app-im-moves-rowlink:hover { background: #faf8f4; }
+.app-im-moves-label { min-width: 0; overflow-wrap: anywhere; }
+.app-im-moves-count { flex: none; font-variant-numeric: tabular-nums; font-weight: 600; }
 /* the endorser's review: an action's attachments, opened in place (2026-11-25) */
 button.app-link.app-er-evidencechip { margin-left: 8px; font-size: 12px; }
 .app-er-evidence { margin: 6px 0 4px; padding: 8px 10px; background: #faf8f4; border: 1px solid #ece8e0; border-radius: 8px; }

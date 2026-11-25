@@ -15,6 +15,7 @@ import { boardHash, boardUrl } from "../links";
 import { rememberBoardOrigin } from "./boardOrigin";
 import { renderMetricsList } from "./metricsList";
 import { staleTag } from "./staleMark";
+import { moveReport } from "./moveReport";
 import { dayLabel } from "../linkTitle";
 import { listPeople, viewerPerson } from "../store/people";
 import type { RosterPerson } from "../store/mappers";
@@ -31,9 +32,10 @@ import { actionCountsFor, PriorityState, statusColour, StatusResult } from "./st
 import { actionCircles, statusChip } from "./statusUi";
 import { initiativeRow, InitiativeRowData, initiativeRowHead } from "./initiativeRow";
 import { actionBelongsTo, newAction } from "../../../shared/schema/actions";
+import type { LtkAction } from "../../../shared/schema/actions";
 import { promptConfirm } from "../prompts";
 import { parseOrgTree } from "../../../shared/schema/meeting";
-import { effectiveEnd, groupPrioritiesForPicker, isDescendant, orgFromKey, orgKey, orgName, OrgRef, orgRef, orgLevel, orgPath, periodFor, periodsOnOffer, parsePrioritySettings, ragPaletteKey, sameOrg, spanLiveIn } from "../priorities/model";
+import { effectiveEnd, groupPrioritiesForPicker, isDescendant, orgFromKey, orgKey, orgName, OrgRef, orgRef, orgLevel, orgPath, periodFor, periodsOnOffer, periodWindow, parsePrioritySettings, ragPaletteKey, sameOrg, spanLiveIn } from "../priorities/model";
 import { paletteMap } from "../../../shared/palette";
 import { appPalettes } from "../store/config";
 import { todayIso } from "../../../shared/schema/id";
@@ -478,7 +480,91 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
         seg.appendChild(b);
       }
       head.appendChild(seg);
+      // ⋮ — what is asked of the whole register, not of one initiative
+      const more = btn("⋮", "app-btn app-cp-more");
+      more.title = "More";
+      more.setAttribute("aria-label", "More");
+      more.addEventListener("click", () => {
+        document.querySelectorAll(".app-cp-menu").forEach((m) => m.remove());
+        const menu = el("div", "app-cp-menu");
+        const item = btn("Due-date moves…", "app-cp-menu-item");
+        item.title = "How often action due dates moved later, by the reason given";
+        item.addEventListener("click", () => {
+          menu.remove();
+          openMoveReport();
+        });
+        menu.appendChild(item);
+        const r = more.getBoundingClientRect();
+        menu.style.top = `${r.bottom + 4}px`;
+        menu.style.left = `${Math.max(8, Math.min(r.left, window.innerWidth - 240))}px`;
+        document.body.appendChild(menu);
+        const close = (e: PointerEvent) => {
+          if (!menu.contains(e.target as Node)) {
+            menu.remove();
+            document.removeEventListener("pointerdown", close, true);
+          }
+        };
+        setTimeout(() => document.addEventListener("pointerdown", close, true), 0);
+        cleanups.push(() => menu.remove());
+      });
+      head.appendChild(more);
       return head;
+    };
+
+    /** Why due dates slip (programme E10, 2026-11-25): the moves to a
+     *  later date on the actions of the initiatives in the org and the
+     *  year in view, by the reason given. The actions are the ones this
+     *  tab already holds — no read. The register's own filters (search,
+     *  status, method) do not narrow it: it is asked of the org. */
+    const openMoveReport = () => {
+      const inView = initiatives.filter((i) => orgsOf(i).some(inScope) && liveIn(i, f.period));
+      const window = f.period !== "" ? periodWindow(prSettings.period, f.period) : null;
+      const report = moveReport(
+        initActions,
+        (a) => {
+          const i = inView.find((x) => actionBelongsTo(x, a as LtkAction));
+          return i ? { id: i.id, title: i.title } : null;
+        },
+        window
+      );
+      const overlay = el("div", "app-modal-overlay");
+      const box = el("div", "app-modal app-im-moves");
+      box.appendChild(el("div", "app-modal-title", "Due-date moves"));
+      box.appendChild(el("div", "app-modal-note", `${orgName(scope)}${f.period !== "" ? ` · ${f.period}` : ""} · moves to a later date`));
+      if (report.total === 0) {
+        box.appendChild(el("div", "app-cp-muted", "No due date moved later."));
+      } else {
+        const table = (heading: string, rows: [string, number][], onRow?: (k: number) => void) => {
+          box.appendChild(el("div", "app-im-moves-h", heading));
+          const t = el("div", "app-im-moves-table");
+          rows.forEach(([label, count], k) => {
+            const row = el(onRow ? "button" : "div", "app-im-moves-row" + (onRow ? " app-im-moves-rowlink" : ""));
+            if (onRow) {
+              (row as HTMLButtonElement).type = "button";
+              row.addEventListener("click", () => onRow(k));
+            }
+            row.append(el("span", "app-im-moves-label", label), el("span", "app-im-moves-count", String(count)));
+            t.appendChild(row);
+          });
+          box.appendChild(t);
+        };
+        table(`By reason · ${report.total}`, report.byReason.map((r) => [r.reason, r.count]));
+        table("Initiatives with the most", report.byInitiative.map((r) => [r.title, r.count]), (k) => {
+          const i = initiatives.find((x) => x.id === report.byInitiative[k].id);
+          if (!i) return;
+          overlay.remove();
+          openInitiative(i);
+        });
+      }
+      const foot = el("div", "app-modal-footer");
+      const shut = btn("Close", "app-btn app-btn-primary");
+      shut.addEventListener("click", () => overlay.remove());
+      foot.appendChild(shut);
+      box.appendChild(foot);
+      overlay.appendChild(box);
+      document.body.appendChild(overlay);
+      cleanups.push(() => overlay.remove());
+      shut.focus();
     };
 
     const openFilters = (anchor: HTMLElement) => {
