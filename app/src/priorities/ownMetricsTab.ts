@@ -16,6 +16,7 @@ import { defaultTheme } from "../../../shared/tokens";
 import { mountMetricsCard } from "../improvement/metricsCard";
 import type { MetricValue } from "../improvement/metricValues";
 import { ownMetricLocation } from "../improvement/metricValues";
+import { seriesDriver } from "../improvement/metricLocation";
 import { renderMetricsList } from "../improvement/metricsList";
 import { hasOwnReadings, moveReadingsWords } from "../improvement/metricRemoval";
 import { promptConfirm } from "../prompts";
@@ -71,8 +72,11 @@ export function mountOwnMetrics(o: OwnMetricsOpts): void {
    *  from the tree, else the priority's own location. */
   const openValues = async (m: TemplateMetric, readOnly: boolean) => {
     const all = m.driverId ? await driversNow() : [];
-    const d = m.driverId ? (all.find((x) => x.id === m.driverId) ?? null) : null;
-    const loc = ownMetricLocation(p.id, m, d);
+    // a metric that only LEADS a driver is measured as itself (its own
+    // readings, unit and tracking): the driver counts only when it IS one
+    const found = seriesDriver(m, all);
+    const loc = ownMetricLocation(p.id, m, found);
+    const d = loc.driverId !== "" ? found : null;
     const cols = pageColumns(loc.cadence, pageOriginAround(todayIso(), loc.cadence));
     const { openValueGridDialog } = await import("../improvement/vdt/gridDialog");
     await openValueGridDialog({

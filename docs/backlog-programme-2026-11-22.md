@@ -521,6 +521,14 @@ Four items built; C2 off the backlog. App-only, no schema.
   driver moves nothing and asks nothing. Not on a company-level
   priority. An INITIATIVE's link is as it was: it tells after, and
   leaves its own readings where they were. UAT-PRI-018.
+  **From Ben's test walk (2026-11-25):** he linked a metric as LEADS
+  (Drives was greyed: the driver was computed, or its unit differed)
+  and its chart went empty — "now it is missing". The Metrics card
+  treated ANY linked driver as the metric's series and read the
+  driver's key at the metric's own location. `seriesDriver`
+  (`improvement/metricLocation.ts`) is now the one answer: the driver
+  only when the metric IS it. The readings were never touched. The
+  same fault sat on an initiative's Metrics card for a Leads link.
 - **D9 — a re-parented priority takes its parent's sub-pillar.**
   `priorities/relinkPillar.ts` `relinkPillarPlan`: the parent's
   sub-pillar in the year in view; the linked priority and every

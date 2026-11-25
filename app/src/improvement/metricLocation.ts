@@ -43,6 +43,23 @@ export function metricLocation(
   };
 }
 
+/** The driver whose SERIES a metric reads, or null: only a metric that
+ *  IS the driver ("drives"). One that merely LEADS a driver is measured
+ *  as itself — its own readings, unit and tracking — and the driver is
+ *  an influence only. Every reader of a metric's readings asks this
+ *  (2026-11-25: the Metrics card took any linked driver, read the
+ *  driver's key at the metric's own location and drew nothing). */
+export function seriesDriver<D extends { id: string }>(m: Pick<TemplateMetric, "driverId" | "driverLink">, drivers: D[]): D | null {
+  if (!m.driverId || m.driverLink === "leads") return null;
+  return drivers.find((d) => d.id === m.driverId) ?? null;
+}
+
+/** The driver a metric only LEADS (an influence), or null. */
+export function ledDriver<D extends { id: string }>(m: Pick<TemplateMetric, "driverId" | "driverLink">, drivers: D[]): D | null {
+  if (!m.driverId || m.driverLink !== "leads") return null;
+  return drivers.find((d) => d.id === m.driverId) ?? null;
+}
+
 /** The register's display for a non-value metric's last reading. */
 export function trackingDisplay(m: Pick<TemplateMetric, "tracking" | "options">, raw: string): { label: string; rag: "green" | "amber" | "red" | null } {
   if (m.tracking === "goodbad") {

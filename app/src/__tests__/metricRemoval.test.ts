@@ -2,6 +2,7 @@
 
 import { describe, expect, it } from "vitest";
 import { hasOwnReadings, moveReadingsWords, removedForGood, removeDriverMetricWords, removeMetricWords } from "../improvement/metricRemoval";
+import { ledDriver, seriesDriver } from "../improvement/metricLocation";
 
 const own = (key: string): { key: string; name: string; driverId?: string; driverLink?: "drives" | "leads" } => ({ key, name: key });
 const driver = (key: string, driverLink?: "drives" | "leads") => ({ key, name: key, driverId: "d1", ...(driverLink ? { driverLink } : {}) });
@@ -43,6 +44,23 @@ describe("the question before readings move into a value driver (programme D5)",
     expect(w.note).toContain("cannot be separated again");
     expect(w.note).toContain("the driver's value is kept");
     expect(moveReadingsWords(1, "").title).toBe("Move 1 reading into the new driver?");
+  });
+});
+
+describe("whose series a linked metric reads (2026-11-25)", () => {
+  const drivers = [{ id: "d1", name: "Scrap rate" }, { id: "d2", name: "Yield" }];
+  it("the driver's, only when the metric IS the driver", () => {
+    expect(seriesDriver({ driverId: "d1", driverLink: "drives" }, drivers)?.name).toBe("Scrap rate");
+    expect(seriesDriver({ driverId: "d1" }, drivers)?.name).toBe("Scrap rate");
+  });
+  it("its own when it only LEADS a driver, or is linked to none", () => {
+    expect(seriesDriver({ driverId: "d1", driverLink: "leads" }, drivers)).toBeNull();
+    expect(seriesDriver({}, drivers)).toBeNull();
+    expect(seriesDriver({ driverId: "gone", driverLink: "drives" }, drivers)).toBeNull();
+  });
+  it("names the driver it leads", () => {
+    expect(ledDriver({ driverId: "d2", driverLink: "leads" }, drivers)?.name).toBe("Yield");
+    expect(ledDriver({ driverId: "d2", driverLink: "drives" }, drivers)).toBeNull();
   });
 });
 

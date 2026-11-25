@@ -29,7 +29,7 @@ import { listSpecSeries } from "../store/driverSeries";
 import { diffPoints, pointsFromCells } from "../store/seriesMap";
 import { ragPaletteKey } from "../priorities/model";
 import { normalizeMetrics, TemplateMetric } from "./templateModel";
-import { metricLocation, MetricLocation } from "./metricLocation";
+import { ledDriver, metricLocation, MetricLocation, seriesDriver } from "./metricLocation";
 import { DriverNode, DriverTracking, driverDiffPoints, driverDiffStatePoints, driverPointsFromCells, driverStatePointsFromCells, stateOf, trackingOptions } from "./vdt/model";
 import { GridSource, loadGridCells } from "./vdt/grid";
 import { GridCell, pageColumns, pageOriginAround } from "./vdt/gridModel";
@@ -55,6 +55,9 @@ interface Row {
   /** What the chart reads: the last twelve readings through to today,
    *  or the readings alone when they are too old (readWindow.ts). */
   win: ChartWindow;
+  /** The driver this metric LEADS (its name), when the link is an
+   *  influence only; "" otherwise. `driver` is null for such a metric. */
+  leads: string;
   /** "No reading for 9 weeks" when the metric is stale, else ""
    *  (staleMetric.ts, programme D1). */
   stale: string;
@@ -118,7 +121,11 @@ export function mountMetricsCard(opts: CardMount & { source?: MetricsCardSource 
   });
 
   const loadRow = async (m: TemplateMetric): Promise<Row> => {
-    const d = m.driverId ? (drivers.find((x) => x.id === m.driverId) ?? null) : null;
+    // a metric that only LEADS a driver keeps readings of its own: the
+    // driver is an influence, not its series. Treating it as the driver
+    // read the driver's key at the metric's own location and drew an
+    // empty chart (Ben, 2026-11-25: linked as Leads, "now it is missing").
+    const d = seriesDriver(m, drivers);
     const loc = opts.source ? opts.source.locate(m, d) : metricLocation(m, opts.boardId, opts.cardId, slots, d);
     const source = sourceFor(m, loc, d);
     const origin = pageOriginAround(today, loc.cadence);
@@ -143,7 +150,7 @@ export function mountMetricsCard(opts: CardMount & { source?: MetricsCardSource 
       if (old) dates = [old.date];
     }
     const newest = dates.reduce((a, b) => (b > a ? b : a), "");
-    return { m, loc, driver: d, source, cells, lastRaw, tracking, win: chartWindow(today, loc.cadence, dates, page), page, stale: staleWords(newest, loc.cadence, today) };
+    return { m, loc, driver: d, leads: ledDriver(m, drivers)?.name ?? "", source, cells, lastRaw, tracking, win: chartWindow(today, loc.cadence, dates, page), page, stale: staleWords(newest, loc.cadence, today) };
   };
 
   const load = async () => {
@@ -230,7 +237,7 @@ export function mountMetricsCard(opts: CardMount & { source?: MetricsCardSource 
     editors.push(ed);
     ed.setTheme(opts.theme);
     const lastSeen = r.win.asOf !== "" ? ` · last reading ${parseDay(r.win.asOf).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}` : "";
-    ed.setChrome(`${r.m.primary ? "★ " : ""}${r.m.name}${r.driver ? " · VDT" : ""}\n${r.loc.cadence}${r.driver ? ` · from value driver ${r.driver.name}` : ""}${lastSeen}`, "");
+    ed.setChrome(`${r.m.primary ? "★ " : ""}${r.m.name}${r.driver ? " · VDT" : ""}\n${r.loc.cadence}${r.driver ? ` · from value driver ${r.driver.name}` : r.leads !== "" ? ` · leads ${r.leads}` : ""}${lastSeen}`, "");
     ed.setTrendAsOf(r.win.asOf);
     ed.setReadOnly(opts.readOnly);
     ed.setPeople(opts.people);
