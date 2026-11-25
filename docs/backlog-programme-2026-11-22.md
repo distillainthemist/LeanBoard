@@ -263,6 +263,22 @@ The walk began 2026-11-23, paused for the v0.99.0 release, and resumed.
 G8. **Off the backlog, nothing built (five):** C5, D7, D8, E5, E17
 part 1. Ben, 2026-11-24: "Second option, build tranche 2."
 
+### Tranche 3
+
+The walk began 2026-11-25, after tranche 2's test walk.
+
+- **D1** — **a mark only, on Ben's own rule** (Ben, 2026-11-25: "go
+  stale when it is more than 5 working days (M–F) after the end of its
+  last period … a mark only"). As I read it, and told him: a metric is
+  stale when a period of its cadence ENDED more than five working days
+  ago and there is no reading in that period or since. So a monthly
+  metric has five working days into the new month to get last month's
+  reading in; a weekly one has the following Monday to Friday. The mark
+  reads "No reading for <span>" wherever the metric's value shows.
+  Status is unchanged: stale does not make anything off track. A metric
+  that has never had a reading is left as it is today. Public holidays
+  are not known to the app; only Saturdays and Sundays are skipped.
+
 ## As built
 
 ### Tranche 1 (built 2026-11-22, RELEASED in v0.99.0 on 2026-11-23)
