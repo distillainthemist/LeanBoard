@@ -149,6 +149,19 @@ export const TABLES = [
       // the moment the action reached done / verify (2026-11-17, issue 2:
       // "recently completed"); cleared on a reopen. Older rows carry none.
       ben_doneat: { kind: "datetime", display: "Done at" },
+      // the org on the action row (2026-11-25, programme E13): so the
+      // hub's organisation scope is filtered BY THE SERVER, not by
+      // reading every open action. Both are "|token|token|" stamps
+      // (app/src/actions/orgStamp.ts), written on every save.
+      //   ben_assigneeorgs — where its assignees sit: for each, the
+      //     site, "site>department" and "site>department>area";
+      //     "|-|" = stamped, nobody placed.
+      //   ben_raisedorg — where it was raised: the org of its board,
+      //     initiative or priority, the same three tokens.
+      // Empty = not stamped yet (rows from before): the scope reads
+      // those the old way until "Re-stamp actions" has run.
+      ben_assigneeorgs: { ...text(4000), display: "Assignee orgs (stamp)" },
+      ben_raisedorg: { ...text(1000), display: "Raised at org (stamp)" },
     },
     key: ["ben_actionid"],
   },

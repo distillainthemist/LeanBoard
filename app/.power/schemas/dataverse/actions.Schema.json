@@ -27,6 +27,14 @@
           "required": true,
           "maxLength": 40
         },
+        "ben_assigneeorgs": {
+          "type": "string",
+          "title": "Assignee orgs (stamp)",
+          "x-ms-dataverse-attribute": "ben_assigneeorgs",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "ben_assigneeorgs",
+          "maxLength": 4000
+        },
         "ben_assigneesjson": {
           "type": "string",
           "title": "Assignees (JSON)",
@@ -209,6 +217,14 @@
           "x-ms-dataverse-type": "StringType",
           "x-ms-schema-name": "ben_pdca",
           "maxLength": 10
+        },
+        "ben_raisedorg": {
+          "type": "string",
+          "title": "Raised at org (stamp)",
+          "x-ms-dataverse-attribute": "ben_raisedorg",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "ben_raisedorg",
+          "maxLength": 1000
         },
         "ben_source": {
           "type": "string",

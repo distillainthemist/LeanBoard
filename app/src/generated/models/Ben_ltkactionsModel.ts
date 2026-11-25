@@ -16,6 +16,7 @@ export type Ben_ltkactionsstatuscode = keyof typeof Ben_ltkactionsstatuscode;
 export interface Ben_ltkactionsBase {
   ben_acknowledgedjson?: string;
   ben_actionid: string;
+  ben_assigneeorgs?: string;
   ben_assigneesjson?: string;
   ben_boardid?: string;
   ben_commentsjson?: string;
@@ -33,6 +34,7 @@ export interface Ben_ltkactionsBase {
   ben_ltkactionid: string;
   ben_name?: string;
   ben_pdca?: string;
+  ben_raisedorg?: string;
   ben_source?: string;
   ben_sourceid?: string;
   ben_start?: string;
