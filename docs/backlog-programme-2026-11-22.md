@@ -347,6 +347,15 @@ The walk began 2026-11-25, after tranche 3's test walk.
   extra reads (the tab already holds the actions). **Per-site reasons:
   not built** — one organisation-wide list stays, so counts compare
   across sites; "Other" with a note covers the local case.
+- **E11** — **already built; one small addition** (Ben, 2026-11-25).
+  Evidence on an action IS its attachments and links (v0.95,
+  `ben_ltkattachment`, which superseded the never-used
+  `ben_ltkactionfile`). The backlog line predated v0.95 and was never
+  struck, and the programme sized it at 6–8 h without checking — said
+  to Ben. To build: **show it to the endorser** — the endorse review
+  list shows "📎 n" on each waiting action, and opening it lands on its
+  attachments. Requiring evidence to close was offered and not chosen.
+  The old table stays in the solution.
 
 ## As built
 

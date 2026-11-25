@@ -689,8 +689,10 @@ deferrals still open (details in leanboard-cascade-improvement-plan.md).
 - **Endorsement** — built 2026-09-30 (see "Actions card" above for the
   Verify column's name). The endorser is not messaged — a count in
   the app only, Ben's call.
-- **Evidence attach on actions** — table exists (`ben_ltkactionfile`),
-  no UI.
+- **Evidence attach on actions: BUILT in v0.95** as attachments and
+  links on an action (`ben_ltkattachment`; the old `ben_ltkactionfile`
+  was never used and stays in the solution). Remaining, chosen by Ben
+  2026-11-25 (programme E11): the endorse review shows "📎 n".
 - **Confidential actions, hardened** — a separately secured table with
   per-record sharing if app-level hiding ever proves insufficient.
 - **Organisation-scope Actions read** — one query of all open actions,
