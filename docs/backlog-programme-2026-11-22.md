@@ -395,9 +395,9 @@ E5, E17 part 1). App-only, no schema.
   "LiF Plan on a Page"), so the × now ALWAYS asks on an existing
   initiative or priority: with none, "Remove <name>?", "It has no
   readings." This replaces the walk's "a metric with no readings goes
-  without a prompt". OPEN: whether that metric really had no readings —
-  if it had, the count missed them and the location needs reading on
-  dev with a sign-in.
+  without a prompt". Ben then read the question on that metric ("It has
+  no readings") and passed the test: the count was right, the metric
+  simply had none.
 - **D10 — calendar year is the only period.** `PeriodSettings` is
   `{ mode: "calendar" }`; `periodFor` is the date's year; the fy and
   custom branches, the start month, the prefix and the label list are
