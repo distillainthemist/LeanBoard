@@ -173,3 +173,16 @@ steps:
 3. As that other person: open the action and hover their own box; press it to undo, Save; press it again, Save; hover it.
 4. On a board, tick your own part of another shared action; open it and hover your box.
 expected: step 1 both parts read done and the action stays open (one part is outstanding); step 2 the other person's box reads "Signed off by <you> for <them>, <day month> — click to undo"; your own reads "<you> has done their part — click to undo"; step 3 they see the same words on their box; after their own undo and press it reads "<them> has done their part" — the record of your press is gone; step 4 a part ticked on a board is the person's own and names nobody else. Anyone who can edit the action may still press anyone's box
+
+### UAT-ACT-015 — The Gantt's picture download is styled and holds every row
+persona: owner
+modules: controls/ActionBoard/editor.ts shared/export/png.ts improvement/gantt.ts
+preconditions: an initiative board whose Action card holds more actions than fit its height, with due dates spread over several months
+steps:
+1. Open the Action card and switch to Gantt. Choose the range "All". Scroll the rows so the first ones are out of view.
+2. ⋮ → Download PNG. Open the picture.
+3. ⋮ → Download SVG. Open it in a browser.
+4. Choose the range "26w" and download the PNG again.
+5. Switch to Kanban and download the PNG.
+6. Switch back to Gantt, leave the card, show the board's stored snapshots (a meeting board's Live button) or approve a gate, and read the Action card's tile.
+expected: step 2 the picture shows the Gantt as on screen — bars in their colours, the month lines, the today line, the labels in their column — with EVERY row, including those scrolled out of view, and the whole range; it is taller than the card; step 3 the same as a vector picture, its text selectable; step 4 the picture holds the 26 weeks chosen, every row; step 5 the Kanban picture is the card as it stands, as before; step 6 the stored tile of a card left in Gantt view is styled too (it was bare). The page is not disturbed by a download: nothing jumps or stays stretched

@@ -11,7 +11,7 @@ import { renderKebab } from "../../shared/ui/menu";
 import {
   pdcaDisc, actionRow, completeCircle, openActionDialog, confidentialGlyph, commentGlyph, movedGlyph, partsChip, supportFlag } from "../../shared/ui/actionUi";
 import { makeInteractive } from "../../shared/interact/drag";
-import { htmlToPng, htmlToSvg, saveSvg, SnapshotScheduler } from "../../shared/export/png";
+import { cssForSubtree, htmlToPng, htmlToSvg, saveSvg, SnapshotScheduler } from "../../shared/export/png";
 import { assigneesLabel, isShared, pdcaOf, ActionStatus, isOverdue, LtkAction, newAction, partsOutstanding, partsTitle, RECENT_DONE_DAYS, recentlyDone, supportLabel } from "../../shared/schema/actions";
 import { todayIso } from "../../shared/schema/id";
 import { applyEndorsementRule } from "../../shared/schema/actionEndorsement";
@@ -1440,25 +1440,47 @@ export class ActionBoardEditor {
 
   // ---- snapshot + downloads ----
 
+  /** The styles a picture of this card needs. The HOST's Gantt is drawn
+   *  with the page's styles, not this control's, so in the Gantt view
+   *  the page's rules for what is on the card are gathered too
+   *  (2026-11-25, programme E6 — the Gantt's picture came out bare, in a
+   *  download and in the stored tile). Gathered once per card: the
+   *  Gantt's class names do not change. */
+  private hostCss: string | null = null;
+  private pictureCss(): string {
+    if (this.currentView() !== "gantt" || !this.ganttRenderer) return LTK_BASE_CSS + ACTIONBOARD_CSS;
+    if (this.hostCss === null) this.hostCss = cssForSubtree(this.root);
+    return LTK_BASE_CSS + ACTIONBOARD_CSS + "\n" + this.hostCss;
+  }
+  /** A download of the Gantt holds the range chosen and EVERY row, not
+   *  only what fits the card; the other views are the card as it stands. */
+  private fullPicture(): boolean {
+    return this.currentView() === "gantt" && this.ganttRenderer !== null;
+  }
+
   private generateSnapshot(): void {
     if (!this.cb.onSnapshot) return;
-    htmlToSvg(this.root, LTK_BASE_CSS + ACTIONBOARD_CSS, this.theme.background, (svg) =>
+    htmlToSvg(this.root, this.pictureCss(), this.theme.background, (svg) =>
       this.cb.onSnapshot!(svg)
     );
   }
 
-    private downloadSvg(): void {
-    htmlToSvg(this.root, LTK_BASE_CSS + ACTIONBOARD_CSS, this.theme.background, (svg) =>
-      saveSvg(svg, "action-board.svg")
-    );
+  private downloadSvg(): void {
+    htmlToSvg(this.root, this.pictureCss(), this.theme.background, (svg) => saveSvg(svg, "action-board.svg"), this.fullPicture());
   }
 
-private downloadPng(): void {
-    htmlToPng(this.root, LTK_BASE_CSS + ACTIONBOARD_CSS, this.theme.background, (uri) => {
-      const link = document.createElement("a");
-      link.href = uri;
-      link.download = "action-board.png";
-      link.click();
-    });
+  private downloadPng(): void {
+    htmlToPng(
+      this.root,
+      this.pictureCss(),
+      this.theme.background,
+      (uri) => {
+        const link = document.createElement("a");
+        link.href = uri;
+        link.download = "action-board.png";
+        link.click();
+      },
+      this.fullPicture()
+    );
   }
 }
