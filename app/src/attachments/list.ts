@@ -31,8 +31,18 @@ export interface AttachmentsHandle {
  *  2026-11-25): the picture, its name, Download and Close. A viewer, not
  *  a form — Escape or a click beside it closes it. The bytes are already
  *  here, so Download hands over the same blob. */
-function showImage(a: Attachment, blob: Blob, download: (blob: Blob) => Promise<void>): void {
-  const url = URL.createObjectURL(blob);
+/** A blob as a `data:` address. The player's content policy refuses a
+ *  `blob:` address as a picture's source, so the viewer never uses one. */
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onerror = () => reject(new Error("the picture could not be read"));
+    reader.readAsDataURL(blob);
+  });
+}
+
+function showImage(a: Attachment, blob: Blob, url: string, download: (blob: Blob) => Promise<void>): void {
   const overlay = el("div", "app-modal-overlay app-modal-top app-att-viewer");
   const box = el("div", "app-modal app-att-viewerbox");
   const head = el("div", "app-att-viewerhead");
@@ -47,15 +57,19 @@ function showImage(a: Attachment, blob: Blob, download: (blob: Blob) => Promise<
   head.appendChild(tools);
   const img = el("img", "app-att-viewerimg") as HTMLImageElement;
   img.alt = attachmentTitle(a);
-  img.src = url;
   const stage = el("div", "app-att-viewerstage");
+  img.addEventListener("error", () => {
+    // never a broken picture: say so, and Download still works
+    img.remove();
+    stage.appendChild(el("div", "app-cp-muted app-att-viewernone", "This picture cannot be shown here. Download it to open it."));
+  });
+  img.src = url;
   stage.appendChild(img);
   box.append(head, stage);
   overlay.appendChild(box);
   const close = () => {
     document.removeEventListener("keydown", onKey, true);
     overlay.remove();
-    URL.revokeObjectURL(url);
   };
   const onKey = (e: KeyboardEvent) => {
     if (e.key !== "Escape") return;
@@ -317,8 +331,10 @@ export function mountAttachments(o: AttachmentsOpts): AttachmentsHandle {
           void (async () => {
             try {
               const { attachmentBlob, downloadAttachment } = await import("../store/attachments");
-              if (shows) showImage(a, await attachmentBlob(a), (blob) => downloadAttachment(a, blob));
-              else await downloadAttachment(a);
+              if (shows) {
+                const blob = await attachmentBlob(a);
+                showImage(a, blob, await blobToDataUrl(blob), (again) => downloadAttachment(a, again));
+              } else await downloadAttachment(a);
               error = "";
             } catch (e) {
               error = `“${a.fileName}” could not be ${shows ? "opened" : "downloaded"}: ${e instanceof Error ? e.message : String(e)}`;

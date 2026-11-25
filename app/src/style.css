@@ -5522,6 +5522,7 @@ button.app-link.app-att-rename-link { flex: 0 0 auto; min-height: 32px; font-siz
 .app-att-viewertools { display: flex; gap: 8px; flex: 0 0 auto; }
 .app-att-viewerstage { flex: 1 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center; background: #f4f1ea; border-radius: 8px; overflow: auto; }
 .app-att-viewerimg { max-width: 100%; max-height: calc(92vh - 110px); object-fit: contain; display: block; }
+.app-att-viewernone { padding: 28px 16px; font-size: 13px; }
 .app-att-none { font-size: 12.5px; padding: 4px; }
 .app-ib-attach { padding: 12px 0 4px; border-top: 1px solid #ece8e0; margin-top: 12px; }
 button.app-ib-attachchip { border: 1px solid #d9d3c8; background: #fff; cursor: pointer; font: inherit; font-size: 12px; }

@@ -1550,8 +1550,10 @@ no ad-hoc credential handling.
   tag guard blocks it in proposals, feeds shrink-retry, and in-app
   probes (Test document feed / character classes) diagnose on-device.
   Reported to Microsoft.
-- The mobile player's CSP blocks `blob:` images — screenshots render
-  as `data:` URLs.
+- The player's CSP blocks `blob:` images, on the phone and in the
+  browser (seen again 2026-11-26 in the attachment viewer) — every
+  picture renders from a `data:` URL. A `blob:` URL is for downloads
+  only.
 - Entra group membership propagates slowly to SP tokens — which is why
   temporary edit grants seat a SharePoint **site group** (instant)
   instead.
