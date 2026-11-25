@@ -26,6 +26,7 @@ import {
 } from "../../shared/tokens";
 import { LTK_BASE_CSS } from "../../shared/ui/baseCss";
 import { ensureStylesheet } from "../../shared/ui/dom";
+import { SnapshotScheduler } from "../../shared/export/png";
 import { parsePrompts, Prompts, renderTitleBar } from "../../shared/ui/chrome";
 import { FISHBONE_CSS } from "./styles";
 
@@ -131,7 +132,7 @@ export class FishboneEditor {
   private getActionBadge?: (causeId: string) => number;
   private measurer: SVGTextElement | null = null;
   private lastLayout: Layout | null = null;
-  private snapshotTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly snapshots = new SnapshotScheduler(() => this.generateSnapshot());
 
   // drag & drop state
   private drag: {
@@ -243,7 +244,7 @@ export class FishboneEditor {
   }
 
   destroy(): void {
-    if (this.snapshotTimer) clearTimeout(this.snapshotTimer);
+    this.snapshots.cancel();
     window.removeEventListener("pointermove", this.onDragMove);
     window.removeEventListener("pointerup", this.onDragUp);
     if (this.root.parentElement) this.root.parentElement.removeChild(this.root);
@@ -1071,8 +1072,9 @@ export class FishboneEditor {
 
   private scheduleSnapshot(): void {
     if (!this.onSnapshot) return;
-    if (this.snapshotTimer) clearTimeout(this.snapshotTimer);
-    this.snapshotTimer = setTimeout(() => this.generateSnapshot(), 400);
+    // the shared scheduler: a card left inside the delay has its picture
+    // drawn as it is left (flushPendingSnapshots, 2026-11-25)
+    this.snapshots.schedule();
   }
 
   /** Serialise the current SVG into standalone markup — the card's tile. */

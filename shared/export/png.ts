@@ -114,6 +114,24 @@ export function saveSvg(svg: string, filename: string): void {
   setTimeout(() => URL.revokeObjectURL(url), 4000);
 }
 
+/** The schedulers with a picture still waiting on its delay. */
+const waitingSnapshots = new Set<SnapshotScheduler>();
+
+/** Draw every waiting picture NOW (2026-11-25, programme E8). A card
+ *  left inside the delay was saved with the picture of the edit before:
+ *  the save was flushed, the picture's timer was cancelled with the
+ *  editor. The picture is the record's — a closed meeting and a gate
+ *  snapshot stamp it. Drawing is synchronous, so a host calls this just
+ *  before it flushes its saves and the save carries the fresh picture.
+ *  Returns how many were drawn. */
+export function flushPendingSnapshots(): number {
+  let n = 0;
+  for (const s of [...waitingSnapshots]) {
+    if (s.flush()) n++;
+  }
+  return n;
+}
+
 /** Debounced snapshot scheduling (the Fishbone 400 ms pattern). */
 export class SnapshotScheduler {
   private timer: ReturnType<typeof setTimeout> | null = null;
@@ -123,10 +141,29 @@ export class SnapshotScheduler {
   ) {}
   schedule(): void {
     if (this.timer) clearTimeout(this.timer);
-    this.timer = setTimeout(() => this.generate(), this.delayMs);
+    this.timer = setTimeout(() => this.run(), this.delayMs);
+    waitingSnapshots.add(this);
   }
   cancel(): void {
     if (this.timer) clearTimeout(this.timer);
     this.timer = null;
+    waitingSnapshots.delete(this);
+  }
+  /** Draw now if a picture is waiting; true when one was. */
+  flush(): boolean {
+    if (this.timer === null) return false;
+    clearTimeout(this.timer);
+    this.run();
+    return true;
+  }
+  private run(): void {
+    this.timer = null;
+    waitingSnapshots.delete(this);
+    try {
+      this.generate();
+    } catch (err) {
+      // a picture that cannot be drawn must never stop a save
+      console.warn("snapshot failed", err);
+    }
   }
 }

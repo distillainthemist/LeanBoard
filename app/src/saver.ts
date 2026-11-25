@@ -5,14 +5,20 @@
 // document instead. Lives in its own module (not cardRegistry) so tests
 // can import it without dragging the Power Apps SDK into node.
 
+import { flushPendingSnapshots } from "../../shared/export/png";
+
 /** Savers with a save waiting on their debounce. The focused card view
  *  flushes them all as it is left, so the last edit is written at once
  *  rather than after the timer — and the board mounting next waits for
  *  that write (store/inflight.ts) before it reads. */
 const pending = new Set<() => void>();
 
-/** Fire every waiting save now. */
+/** Fire every waiting save now — with the card's picture drawn first
+ *  (2026-11-25, programme E8): a picture still on its delay is drawn
+ *  there and then, so the save carries the edit just made and not the
+ *  one before. Drawing is synchronous; nothing waits. */
 export function flushPendingSaves(): void {
+  flushPendingSnapshots();
   for (const fire of [...pending]) fire();
 }
 

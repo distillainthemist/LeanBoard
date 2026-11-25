@@ -176,3 +176,14 @@ steps:
 4. As the first site's admin: Settings → Rituals; read the same ritual's card.
 5. As a super admin: read the same card.
 expected: step 1 the note reads "Rituals at <site>, and those from other sites that are also shown there."; the shared ritual is listed, the first site's unshared ritual is not; step 2 the card carries "Also at your site, from <first site>" and offers Open and Copy link only — no Edit meeting, Replicate or Archive; Open opens the board; step 3 the wizard does not open: "This meeting is run from <first site>. Its admins or its owner can edit it."; step 4 and 5 the card has no "Also at your site" line and offers Edit meeting, Replicate and Archive as before. The ritual's owner keeps Edit meeting wherever they sit
+
+### UAT-RIT-017 — A card left straight after an edit keeps the picture of that edit
+persona: participant
+modules: saver.ts screens/cardEditor.ts
+preconditions: a meeting board with a 5 Whys, a Fishbone and an Action card, an open meeting on it, and the board's Live switch available
+steps:
+1. Open the 5 Whys card. Type a new cause and, without pausing, leave the card (the back arrow) within half a second of the last keystroke.
+2. On the board press the Live button to show stored snapshots. Read the 5 Whys tile.
+3. Do the same on the Fishbone (add a cause, leave at once) and the Action card (add an action, leave at once). Read both tiles in the stored view.
+4. Close the meeting. Open it again from the schedule and read the three tiles.
+expected: step 2 the stored tile shows the cause just typed — it is not one edit behind; step 3 the same for the Fishbone and the Action card; step 4 the closed meeting's pictures show every last edit. (Before this, a card left inside the half second was saved with the picture of the edit before.) A live board was never affected: it draws each tile fresh

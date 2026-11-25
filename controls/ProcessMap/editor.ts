@@ -25,6 +25,7 @@ import { applyThemeVars, textOn, Theme } from "../../shared/tokens";
 import { fieldRow, openDialog, selectInput, textInput } from "../../shared/ui/dialog";
 import { parsePrompts, Prompts, renderTitleBar } from "../../shared/ui/chrome";
 import { ensureStylesheet } from "../../shared/ui/dom";
+import { SnapshotScheduler } from "../../shared/export/png";
 import { LTK_BASE_CSS } from "../../shared/ui/baseCss";
 import { PROCESS_MAP_CSS } from "./styles";
 
@@ -117,7 +118,11 @@ export class ProcessMapEditor {
   private onSnapshot?: (svgMarkup: string) => void;
   private onManageActions?: (nodeId: string) => void;
   private getActionBadge?: (nodeId: string) => number;
-  private snapshotTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly snapshots = new SnapshotScheduler(() => {
+    if (this.model.nodes.length === 0) return;
+    const { svg } = this.buildExportSvg(); // true vector — the card's tile
+    if (this.onSnapshot) this.onSnapshot(svg);
+  });
   private uid = newId("pm");
 
   // interaction state
@@ -274,7 +279,7 @@ export class ProcessMapEditor {
     window.removeEventListener("pointermove", this.onWinMove);
     window.removeEventListener("pointerup", this.onWinUp);
     window.removeEventListener("keydown", this.onKey);
-    if (this.snapshotTimer) clearTimeout(this.snapshotTimer);
+    this.snapshots.cancel();
     if (this.root.parentElement) this.root.parentElement.removeChild(this.root);
   }
 
@@ -1665,13 +1670,9 @@ export class ProcessMapEditor {
 
   private scheduleSnapshot(): void {
     if (!this.onSnapshot) return;
-    if (this.snapshotTimer) clearTimeout(this.snapshotTimer);
-    this.snapshotTimer = setTimeout(() => {
-      this.snapshotTimer = null;
-      if (this.model.nodes.length === 0) return;
-      const { svg } = this.buildExportSvg(); // true vector — the card's tile
-      if (this.onSnapshot) this.onSnapshot(svg);
-    }, 400);
+    // the shared scheduler: a card left inside the delay has its picture
+    // drawn as it is left (flushPendingSnapshots, 2026-11-25)
+    this.snapshots.schedule();
   }
 }
 

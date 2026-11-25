@@ -3188,6 +3188,26 @@
        "expected": "step 1 the note reads \"Rituals at <site>, and those from other sites that are also shown there.\"; the shared ritual is listed, the first site's unshared ritual is not; step 2 the card carries \"Also at your site, from <first site>\" and offers Open and Copy link only — no Edit meeting, Replicate or Archive; Open opens the board; step 3 the wizard does not open: \"This meeting is run from <first site>. Its admins or its owner can edit it.\"; step 4 and 5 the card has no \"Also at your site\" line and offers Edit meeting, Replicate and Archive as before. The ritual's owner keeps Edit meeting wherever they sit",
        "hash": "1c76d543",
        "changed": "2026-11-24"
+      },
+      {
+       "id": "UAT-RIT-017",
+       "title": "A card left straight after an edit keeps the picture of that edit",
+       "journey": "Journey 2 — The Action card's views",
+       "persona": "participant",
+       "modules": [
+        "saver.ts",
+        "screens/cardEditor.ts"
+       ],
+       "preconditions": "a meeting board with a 5 Whys, a Fishbone and an Action card, an open meeting on it, and the board's Live switch available",
+       "steps": [
+        "Open the 5 Whys card. Type a new cause and, without pausing, leave the card (the back arrow) within half a second of the last keystroke.",
+        "On the board press the Live button to show stored snapshots. Read the 5 Whys tile.",
+        "Do the same on the Fishbone (add a cause, leave at once) and the Action card (add an action, leave at once). Read both tiles in the stored view.",
+        "Close the meeting. Open it again from the schedule and read the three tiles."
+       ],
+       "expected": "step 2 the stored tile shows the cause just typed — it is not one edit behind; step 3 the same for the Fishbone and the Action card; step 4 the closed meeting's pictures show every last edit. (Before this, a card left inside the half second was saved with the picture of the edit before.) A live board was never affected: it draws each tile fresh",
+       "hash": "1d145479",
+       "changed": "2026-11-25"
       }
      ]
     }
