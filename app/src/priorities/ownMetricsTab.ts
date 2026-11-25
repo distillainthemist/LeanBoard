@@ -138,6 +138,7 @@ export function mountOwnMetrics(o: OwnMetricsOpts): void {
       text.appendChild(el("span", "app-cp-ov-objname", m.objective ? `${m.name}: ${m.objective}` : m.name));
       const plan = v && v.target !== null ? `${v.target}${v.unit}` : "";
       text.appendChild(el("span", "app-cp-ov-objnums", `Plan ${plan !== "" ? plan : "—"} · Actual ${v && v.display !== "" ? v.display : "—"}`));
+      if (v && v.stale !== "") text.appendChild(el("span", "app-cp-ov-objstale", `◷ ${v.stale}`));
       const open = link("Values…");
       open.title = "The readings behind this metric";
       open.addEventListener("click", () => void openValues(m, true));

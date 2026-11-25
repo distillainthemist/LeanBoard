@@ -87,6 +87,20 @@ describe("a priority's own metrics as values", () => {
     const good = metricValueOf(mood, { last: null, raw: "0", date: "2026-11-09", spec: EMPTY_SPEC_SERIES });
     expect([good.display, good.rag]).toEqual(["Bad", "red"]);
   });
+  it("marks a stale metric and leaves its state alone (programme D1)", () => {
+    // weekly, newest reading Mon 9 Nov 2026: the week of 16–22 Nov is due by Fri 27 Nov
+    const ml = last(5);
+    expect(metricValueOf(trifr, ml, null, "2026-11-27").stale).toBe("");
+    const stale = metricValueOf(trifr, ml, null, "2026-11-30");
+    expect(stale.stale).toBe("No reading for 3 weeks");
+    // a mark only: the light is still the last reading's
+    expect(stale.rag).toBe("red");
+    // the cadence the readings are KEPT at wins over the definition's
+    expect(metricValueOf(trifr, { ...ml, cadence: "monthly" }, null, "2026-11-30").stale).toBe("");
+    // good / bad metrics are marked too; a metric never read is not
+    expect(metricValueOf(mood, { last: null, raw: "0", date: "2026-09-01", spec: EMPTY_SPEC_SERIES }, null, "2026-11-30").stale).toBe("No reading for 12 weeks");
+    expect(metricValueOf(trifr, null, null, "2026-11-30").stale).toBe("");
+  });
   it("is keyed by priority: another priority's reading is not read", () => {
     const lasts = new Map<string, DriverLast>([["pr-2|trifr", last(5)]]);
     expect(ownMetricValues("pr-1", [trifr], lasts)[0].last).toBeNull();

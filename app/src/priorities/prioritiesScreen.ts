@@ -612,6 +612,7 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
               plan: v.target !== null ? `${v.target}${v.unit}` : "",
               actual: v.display,
               rag: v.rag,
+              stale: v.stale,
             }));
             if (metrics.length > 0) out.push({ initiativeId: i.id, title: i.title, inheritedFrom: pr.id === p.id ? "" : orgName(pr.org), metrics });
           }

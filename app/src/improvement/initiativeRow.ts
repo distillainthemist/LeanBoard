@@ -116,7 +116,8 @@ export function metricTileTitle(mv: MetricValue): string {
   const head = mv.objective !== "" ? `${mv.name}: ${mv.objective}` : mv.name;
   const reading = mv.display !== "" ? mv.display : "No data";
   const plan = mv.target !== null ? ` · plan ${mv.target}${mv.unit}` : "";
-  return `${head} — ${reading}${plan}`;
+  // a stale metric says so (programme D1) — the reading is an old one
+  return `${head} — ${reading}${plan}${mv.stale !== "" ? ` · ${mv.stale}` : ""}`;
 }
 
 /** One metric as a tile: its caption, then the sparkline over its good
@@ -128,7 +129,18 @@ export function metricTile(mv: MetricValue, o: Pick<InitiativeRowOpts, "colour" 
   const tile = el("div", "app-ir-metric");
   const title = metricTileTitle(mv);
   tile.title = title;
-  tile.appendChild(el("div", "app-ir-metric-name", caption !== "" ? caption : mv.name));
+  const name = el("div", "app-ir-metric-name");
+  // stale (programme D1): a mark, no words — the tile carries no numbers.
+  // The chart fades and a small clock LEADS the caption (a long caption
+  // is cut at its end); the tooltip says "No reading for 9 weeks".
+  if (mv.stale !== "") {
+    tile.classList.add("app-ir-metric-stale");
+    const mark = el("span", "app-ir-metric-stalemark", "◷ ");
+    mark.setAttribute("aria-label", mv.stale);
+    name.appendChild(mark);
+  }
+  name.appendChild(document.createTextNode(caption !== "" ? caption : mv.name));
+  tile.appendChild(name);
   if (mv.tail.length > 0) {
     tile.appendChild(sparklineSvg(mv.tail, { target: mv.target, usl: mv.usl, lsl: mv.lsl, direction: mv.direction }, { good: o.colour("good"), bad: o.colour("bad"), line: "#26241f" }, 92, h, title));
   } else {

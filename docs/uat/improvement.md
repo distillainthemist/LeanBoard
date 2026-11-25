@@ -163,3 +163,15 @@ steps:
 3. Pass the first gate again (request, approve). Open the list again; open the folded line under the first stage; open the older snapshot and read the banner.
 4. Go back to the live board.
 expected: step 1 one line per stage in stage order, "Gate — <stage> · <date>", with nothing after the date; step 2 both snapshots are still listed and each now ends "· reverted <the day of the revert>"; step 3 the first stage's NEW snapshot leads with nothing after its date, and under it a folded line "▸ 1 superseded" opens to show the older one, "<date> · superseded"; the second stage's snapshot still reads "reverted" until that gate is passed again; the older snapshot opens read-only and its banner ends "· superseded — read-only"; step 4 nothing was deleted and nobody was asked to approve the revert
+
+### UAT-IMP-015 — A stale metric is marked, and changes no status
+persona: lead
+modules: improvement/staleMetric.ts improvement/metricValues.ts improvement/initiativeRow.ts improvement/metricsCard.ts improvement/improvementTab.ts priorities/ownMetricsTab.ts priorities/lifecycle.ts priorities/prioritiesScreen.ts
+preconditions: an initiative you lead that is on track, with a WEEKLY metric whose newest reading is on plan and at least three weeks old, a MONTHLY metric whose newest reading is in last month, and a metric that has never had a reading; a priority that shows that initiative's metric as an objective
+steps:
+1. Open the initiative's board and read the Metrics card.
+2. Open Improvement and find the initiative's tile; open Priorities with Objectives switched on and read the priority's tile; hover the metric's chart.
+3. Open the priority → Objectives and read the metric's row.
+4. Read the initiative's and the priority's status.
+5. Press "Update values" on the weekly metric and enter this week's reading; read the card and the tile again.
+expected: step 1 the weekly metric's chart carries "◷ No reading for <n> weeks" in its lower left corner; the monthly one carries no mark until the sixth working day of this month has come with nothing entered for last month; the metric never read carries no mark; step 2 the Improvement tile's metric line ends "· ◷ no reading for <n> weeks"; on the priority's tile the chart is faded and a small ◷ leads its caption — no words are added to the tile — and the tooltip ends "· No reading for <n> weeks"; step 3 the row reads "Plan … · Actual …" then "◷ No reading for <n> weeks"; step 4 both are still ON TRACK: the mark changes no status; step 5 the mark is gone everywhere. Saturdays and Sundays do not count toward the five working days; public holidays do

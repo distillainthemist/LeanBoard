@@ -21,6 +21,7 @@ import { parseManifest } from "../store/mappers";
 import { appPalettes } from "../store/config";
 import { listDrivers } from "../store/valueDrivers";
 import { applySeries, latestSeriesCell, listSeries } from "../store/series";
+import { staleWords } from "./staleMetric";
 import { parseDay } from "../../../shared/schema/buckets";
 import { chartWindow, ChartWindow, READ_FROM_START, readFrom } from "./readWindow";
 import { listSpecSeries } from "../store/driverSeries";
@@ -53,6 +54,9 @@ interface Row {
   /** What the chart reads: the last twelve readings through to today,
    *  or the readings alone when they are too old (readWindow.ts). */
   win: ChartWindow;
+  /** "No reading for 9 weeks" when the metric is stale, else ""
+   *  (staleMetric.ts, programme D1). */
+  stale: string;
   /** The page around today — where the values grid opens. */
   page: { from: string; to: string };
 }
@@ -137,7 +141,8 @@ export function mountMetricsCard(opts: CardMount & { source?: MetricsCardSource 
       const old = await latestSeriesCell(loc.boardId, loc.cardId, loc.actualKey).catch(() => null);
       if (old) dates = [old.date];
     }
-    return { m, loc, driver: d, source, cells, lastRaw, tracking, win: chartWindow(today, loc.cadence, dates, page), page };
+    const newest = dates.reduce((a, b) => (b > a ? b : a), "");
+    return { m, loc, driver: d, source, cells, lastRaw, tracking, win: chartWindow(today, loc.cadence, dates, page), page, stale: staleWords(newest, loc.cadence, today) };
   };
 
   const load = async () => {
@@ -291,6 +296,8 @@ export function mountMetricsCard(opts: CardMount & { source?: MetricsCardSource 
       const cell = el("div", "app-mc-chart" + (r.m.primary ? " app-mc-chart-primary" : ""));
       grid.appendChild(cell);
       mountChart(cell, r);
+      // a stale metric says so on its chart (a mark only — no status)
+      if (r.stale !== "") cell.appendChild(el("div", "app-mc-stale", `◷ ${r.stale}`));
       cell.addEventListener("click", (e) => {
         const t = e.target as HTMLElement;
         if (t.closest("button, .ltk-dialog-overlay, .ltk-kebab, .ltk-menu, circle")) return;

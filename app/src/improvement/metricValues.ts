@@ -18,6 +18,7 @@ import { READ_FROM_START, readFrom } from "./readWindow";
 import { metricLocation, trackingDisplay } from "./metricLocation";
 import type { MetricLocation } from "./metricLocation";
 import type { DriverNode } from "./vdt/model";
+import { StaleCadence, staleWords } from "./staleMetric";
 
 /** A metric's last reading + its spec history (grid entry: per-period
  *  targets carry forward, so the RAG reads the spec in force on the
@@ -34,6 +35,9 @@ export interface DriverLast {
   /** The last few numeric readings, oldest first — the sparkline
    *  (2026-11-17). The read already carried every point. */
   tail?: number[];
+  /** The cadence its readings are kept at — what "stale" is judged by
+   *  (staleMetric.ts, 2026-11-25). Absent: the definition's own. */
+  cadence?: StaleCadence;
 }
 
 /** How many readings a sparkline shows. */
@@ -59,6 +63,11 @@ export interface MetricValue {
   usl: number | null;
   lsl: number | null;
   direction: "up" | "down" | "range";
+  /** "No reading for 9 weeks" when the metric is STALE (staleMetric.ts,
+   *  programme D1): a period ended more than five working days ago with
+   *  no reading in it or since. "" otherwise. A mark only — it never
+   *  changes `rag` or any status. */
+  stale: string;
 }
 
 /** An initiative's metrics as the status rule reads them — EVERY metric,
@@ -80,15 +89,19 @@ export interface InitiativeMetricState {
 export function metricValueOf(
   def: TemplateMetric,
   ml: DriverLast | null,
-  doc: { points: { value: number }[]; target?: number | null; usl?: number | null; lsl?: number | null; unit?: string } | null = null
+  doc: { points: { value: number }[]; target?: number | null; usl?: number | null; lsl?: number | null; unit?: string } | null = null,
+  today: string = todayIso()
 ): MetricValue {
   const key = def.key;
+  // stale: judged from the newest reading's date at the cadence the
+  // readings are kept at (an older in-card document carries no dates)
+  const stale = ml && ml.date !== "" ? staleWords(ml.date, ml.cadence ?? def.cadence ?? "weekly", today) : "";
   if (ml?.display) {
-    return { key, name: def.name, unit: "", last: null, display: ml.display.label, target: null, rag: ml.display.rag, starred: def.primary === true, objective: def.objective ?? "", tail: [], usl: null, lsl: null, direction: directionOf(def) };
+    return { key, name: def.name, unit: "", last: null, display: ml.display.label, target: null, rag: ml.display.rag, starred: def.primary === true, objective: def.objective ?? "", tail: [], usl: null, lsl: null, direction: directionOf(def), stale };
   }
   if (def.tracking !== "value") {
     const disp = trackingDisplay(def, ml?.raw ?? "");
-    return { key, name: def.name, unit: "", last: null, display: disp.label, target: null, rag: disp.rag, starred: def.primary === true, objective: def.objective ?? "", tail: [], usl: null, lsl: null, direction: directionOf(def) };
+    return { key, name: def.name, unit: "", last: null, display: disp.label, target: null, rag: disp.rag, starred: def.primary === true, objective: def.objective ?? "", tail: [], usl: null, lsl: null, direction: directionOf(def), stale };
   }
   const points = doc?.points ?? [];
   const last = ml ? ml.last : points.length > 0 ? points[points.length - 1].value : null;
@@ -120,6 +133,7 @@ export function metricValueOf(
     usl: reading.usl,
     lsl: reading.lsl,
     direction: reading.goodDirection,
+    stale,
   };
 }
 
@@ -250,7 +264,7 @@ export async function loadOwnMetricLasts(items: { id: string; site: string; metr
   );
   const jobs: Promise<void>[] = linked.map(async (x) => {
     const v = await readLast(x.loc, x.d).catch(() => null);
-    if (v !== null) out.set(`${x.id}|${x.m.key}`, v);
+    if (v !== null) out.set(`${x.id}|${x.m.key}`, { ...v, cadence: x.loc.cadence });
   });
   if (typed.length > 0) {
     // ONE read for every typed metric's readings and one for their plan
@@ -270,7 +284,7 @@ export async function loadOwnMetricLasts(items: { id: string; site: string; metr
               const old = await latestSeriesCell(x.loc.boardId, x.loc.cardId).catch(() => null);
               if (old) mine = [old];
             }
-            out.set(`${x.id}|${x.m.key}`, lastFromCells(mine, x.loc.isActual, specSeriesFromCells(sorted[k].spec)));
+            out.set(`${x.id}|${x.m.key}`, { ...lastFromCells(mine, x.loc.isActual, specSeriesFromCells(sorted[k].spec)), cadence: x.loc.cadence });
           })
         );
       })().catch(() => undefined)
@@ -324,8 +338,9 @@ export async function loadMetricLasts(
         i.metrics.map(async (m) => {
           const d = m.driverId ? (drivers.find((x) => x.id === m.driverId) ?? null) : null;
           const loc = metricLocation(m, i.boardId, metricsCardId, slots, d);
-          const v = await readLast(loc, d).catch(() => null);
-          if (v === null) return;
+          const read = await readLast(loc, d).catch(() => null);
+          if (read === null) return;
+          const v: DriverLast = { ...read, cadence: loc.cadence };
           out.set(`${i.id}|${m.key}`, v);
           if (loc.driverId !== "") out.set(loc.driverId, v);
         })
