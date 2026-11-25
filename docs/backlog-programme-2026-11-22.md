@@ -713,6 +713,23 @@ Six items built; E1 off the backlog. Two columns on `ben_ltkaction`
   **Not seen anywhere:** the image viewer on a real file, the endorser's
   chip, the moves panel on real history, and all of E13.
 
+#### Ben's test walk of tranche 4 on dev (2026-11-26, `v0.99.0-51-g5c3f799`)
+
+| # | Check | Result |
+|---|---|---|
+| 1 | E2 — attachment captions and the image viewer | Pass, after one fix: the viewer showed a broken picture, because the player refuses a `blob:` address as a picture's source in the browser too; the picture now rides a `data:` address, and one that will not draw says so |
+| 2 | E11 — the endorser's "📎 n" | Pass |
+| 3 | E6 — the Gantt's picture | Pass |
+| 4 | E8 — a card left straight after an edit | Pass |
+| 5 | E10 — due-date moves by reason | Pass |
+| 6 | E13 — the organisation scope on actions | Pass |
+
+Tranche 4 stands tested on dev. **Tranche 5 is held:** on 2026-11-26
+Ben put the 2026-11-25 issue export (30 reports) ahead of it, under the
+new review process in `issue-review-prompt.md`, with one item of his
+own added to the round: a CSV import that prepares responses and
+closes issues in bulk.
+
 ## Tranche 1A — the 2026-11-23 issue export (inserted by Ben, 2026-11-23)
 
 Nine reports from the DMS UAT re-run, reviewed in

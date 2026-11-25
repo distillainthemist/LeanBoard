@@ -53,7 +53,14 @@ left), E10 (due-date moves by reason), E11 (the endorser's "📎 n"),
 E13 (the org on the action row); E1 off. As built and its limits: the
 programme's "Tranche 4" section. The next release imports the managed
 solution first, then "Re-stamp actions" once, then locks older builds.
-Next: Ben's test walk of tranche 4, then tranche 5's walk.
+Ben's test walk of tranche 4 (2026-11-26): all six pass on dev, with
+one fix made in it (the image viewer's picture rides a `data:` address;
+the player refuses `blob:` pictures in the browser too).
+**Next: the 2026-11-25 issue export (30 reports), ahead of tranche 5**,
+run by the four phases of `issue-review-prompt.md` (triage, deep
+review, plan document, close-out with a resolution CSV). Ben added one
+item of his own to the round: a CSV import that prepares responses and
+closes issues in bulk. Tranche 5's walk follows it.
 What 1A was: the nine reports of the 2026-11-23 issue export
 (`issues-plan-2026-11-23.md`): Teams group messages refused over a
 colon in the chat topic, Replace content's false "landed wrong" on

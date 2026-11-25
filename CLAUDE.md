@@ -713,6 +713,13 @@ workflow (the asset is replaced) and import again.
 
 ## Key docs
 
+- docs/issue-review-prompt.md — HOW AN ISSUE EXPORT IS REVIEWED, from
+  2026-11-26 (Ben's standing process): four phases with a stop after
+  each — triage table, deep review with options, the plan document
+  `docs/issue-review-YYYY-MM-DD.md` covering every issue, close-out
+  with `issue-resolutions-YYYY-MM-DD.csv` (one row per issue id, the
+  Dataverse row id exactly as exported). No code in phases 1–3. Never
+  mark an issue Resolved without evidence it was built and tested.
 - docs/uat-proposal-2026-10.md + docs/uat/ — UAT runs in the app: the
   script format, the two tables, Settings → UAT, the testers' tab.
 - docs/release-gate-2026-10-31.md — the release gate and the 2026-11-02
