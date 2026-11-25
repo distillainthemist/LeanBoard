@@ -301,6 +301,15 @@ The walk began 2026-11-25, after tranche 2's test walk.
   executive summary's last step becomes "Awaiting a decision" with all
   three kinds. Every item opens its priority's popup. The old cascade
   review list retires. The feel on a real phone is Ben's check.
+- **C2** — **not built; off the backlog** (Ben, 2026-11-25). Canvas
+  labels wrap and carry no style of their own: the 2026-11-18 decision
+  ("Labels wrap. No label styles.") stands. Ben was told C2 would have
+  reversed it.
+
+**To build (four):** D1 (the stale mark), D5 (Link… / Promote… on a
+priority's own metric), D9 (a re-parented priority takes its parent's
+sub-pillar, carried down, with a message), D11 (the decision zone on
+the phone and in the executive summary). **Off the backlog:** C2.
 
 ## As built
 

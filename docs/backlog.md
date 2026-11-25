@@ -31,7 +31,15 @@ snapshots read reverted / superseded), G8 (a shared ritual seen, not
 changed) — and five off the backlog with nothing built: C5, D7, D8, E5,
 E17 part 1. As built: the programme's "Tranche 2" section. Ben's test
 walk (2026-11-25): all six pass on dev; in it the metric × was made to
-ask always. Dev holds `v0.99.0-20-g5ce4709`. Next: tranche 3's walk.
+ask always. Dev holds `v0.99.0-20-g5ce4709`.
+
+**Tranche 3 was walked with Ben on 2026-11-25** (the programme's
+"Walked with Ben" → Tranche 3): four to build — D1 (a stale metric's
+mark, on his five-working-days rule, no effect on status), D5 (Link… /
+Promote… on a priority's own metric), D9 (a re-parented priority takes
+its parent's sub-pillar, carried down, with a message), D11 (the
+decision zone on the phone and in the executive summary) — and C2 off
+the backlog. Next: build tranche 3.
 What 1A was: the nine reports of the 2026-11-23 issue export
 (`issues-plan-2026-11-23.md`): Teams group messages refused over a
 colon in the chat topic, Replace content's false "landed wrong" on
@@ -97,8 +105,8 @@ tab (UAT-PRI-016). Owed from it:
 issues export (45 reports) and its build — status of every report,
 Ben's decisions and the as-built record in `issues-plan-2026-11-18.md`.
 Owed from it:
-- **Open with Ben:** a style for canvas labels (33: size, bold, colour;
-  4–6 h) — Alicia asked for formatting, and only wrap was built; the
+- **A style for canvas labels (33): DECLINED again** (Ben, 2026-11-25,
+  programme C2) — labels wrap, no styles. **Open with Ben:** the
   four card dialogs that raise an action with an entry (5 Whys, fault
   tree, risk matrix, heatmap) enforce the required fields on the press,
   not by disabling their own Add button; whether the Documents forms'
