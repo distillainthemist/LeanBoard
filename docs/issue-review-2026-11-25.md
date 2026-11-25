@@ -347,3 +347,10 @@ Findings (code read; nothing run):
   version — and the cancel would restore that, publishing the previous
   approved content as a new major. Holly's document shows no such
   version, which this does not explain. Needs one run on dev.
+- **Ben's run on dev (2026-11-26): NO rollback.** Start revision on an
+  approved document, then Cancel revision with nothing checked in: the
+  history is unchanged and the last published version is still the
+  current one. The suspected fault is NOT real in that case. Why the
+  command does not go on to restore there was not worked out from the
+  code — to be understood before the command is touched, so the right
+  outcome is not an accident.
