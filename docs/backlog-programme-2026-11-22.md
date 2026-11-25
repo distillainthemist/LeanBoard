@@ -507,6 +507,10 @@ Four items built; C2 off the backlog. App-only, no schema.
   tag in the lower left of the Metrics card's chart. NO status effect.
   A metric never read is not stale. An older in-card KPI document
   (readings with no dates) is not judged. UAT-IMP-015.
+  **From Ben's test walk (2026-11-25):** the "◷" character rendered
+  tiny ("mark works, but is too small"). The mark is now a DRAWN clock
+  (`improvement/staleMark.ts`, an SVG at 1.3em in the text's colour),
+  on the tile and before the words everywhere else.
 - **D5 — Link… and Promote… on a priority's own metric.**
   `priorities/ownMetricsTab.ts` drops `noRelink` for a priority with a
   site, asks the initiative's role question for Promote

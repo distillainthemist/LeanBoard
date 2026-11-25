@@ -22,6 +22,7 @@ import { appPalettes } from "../store/config";
 import { listDrivers } from "../store/valueDrivers";
 import { applySeries, latestSeriesCell, listSeries } from "../store/series";
 import { staleWords } from "./staleMetric";
+import { staleTag } from "./staleMark";
 import { parseDay } from "../../../shared/schema/buckets";
 import { chartWindow, ChartWindow, READ_FROM_START, readFrom } from "./readWindow";
 import { listSpecSeries } from "../store/driverSeries";
@@ -297,7 +298,7 @@ export function mountMetricsCard(opts: CardMount & { source?: MetricsCardSource 
       grid.appendChild(cell);
       mountChart(cell, r);
       // a stale metric says so on its chart (a mark only — no status)
-      if (r.stale !== "") cell.appendChild(el("div", "app-mc-stale", `◷ ${r.stale}`));
+      if (r.stale !== "") cell.appendChild(staleTag(r.stale, "app-mc-stale"));
       cell.addEventListener("click", (e) => {
         const t = e.target as HTMLElement;
         if (t.closest("button, .ltk-dialog-overlay, .ltk-kebab, .ltk-menu, circle")) return;

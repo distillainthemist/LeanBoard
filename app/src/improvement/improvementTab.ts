@@ -14,6 +14,7 @@ import { currentViewer } from "../runtime";
 import { boardHash, boardUrl } from "../links";
 import { rememberBoardOrigin } from "./boardOrigin";
 import { renderMetricsList } from "./metricsList";
+import { staleTag } from "./staleMark";
 import { dayLabel } from "../linkTitle";
 import { listPeople, viewerPerson } from "../store/people";
 import type { RosterPerson } from "../store/mappers";
@@ -713,9 +714,10 @@ export function mountImprovement(parent: HTMLElement, _opts: ImprovementMountOpt
       if (tileChip) line.appendChild(tileChip);
       tile.appendChild(line);
       const mv = (metricState.get(i.id)?.values ?? [])[0] ?? null;
-      tile.appendChild(
-        el("div", "app-im-tile-metric" + (mv && mv.display !== "" ? "" : " app-cp-muted"), mv && mv.display !== "" ? `${mv.name} ${mv.display}${mv.target !== null ? ` / ${mv.target}${mv.unit}` : ""}${mv.stale !== "" ? ` · ◷ ${mv.stale.toLowerCase()}` : ""}` : "No metric value")
-      );
+      const metricLine = el("div", "app-im-tile-metric" + (mv && mv.display !== "" ? "" : " app-cp-muted"), mv && mv.display !== "" ? `${mv.name} ${mv.display}${mv.target !== null ? ` / ${mv.target}${mv.unit}` : ""}` : "No metric value");
+      // a stale metric says so beside its value (programme D1)
+      if (mv && mv.display !== "" && mv.stale !== "") metricLine.appendChild(staleTag(mv.stale, "app-im-tile-stale"));
+      tile.appendChild(metricLine);
       tile.appendChild(el("div", "app-im-tile-owner", [ownersLabel(i) || "no owner", i.org.department || i.org.site, processText(i)].filter((x) => x !== "").join(" · ")));
       // the same action circles as the list's column
       if (i.status === "active") tile.appendChild(actionCountsCell(i, "app-im-tile-actions"));

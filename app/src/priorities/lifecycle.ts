@@ -29,6 +29,7 @@ import { initiativeRow, initiativeRowHead, rowRank } from "../improvement/initia
 import { offerStepMessage } from "./stepMessage";
 import { openOwn } from "./actionsTabModel";
 import { relinkPillarPlan, relinkPillarWords } from "./relinkPillar";
+import { staleTag } from "../improvement/staleMark";
 import {
   CLOSE_REASONS,
   CloseReason,
@@ -1497,7 +1498,7 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
           const text = el("span", "app-cp-ov-objtext");
           text.appendChild(el("span", "app-cp-ov-objname", m.objective !== "" ? `${m.name}: ${m.objective}` : m.name));
           text.appendChild(el("span", "app-cp-ov-objnums", `Plan ${m.plan !== "" ? m.plan : "—"} · Actual ${m.actual !== "" ? m.actual : "—"}`));
-          if ((m.stale ?? "") !== "") text.appendChild(el("span", "app-cp-ov-objstale", `◷ ${m.stale}`));
+          if ((m.stale ?? "") !== "") text.appendChild(staleTag(m.stale ?? "", "app-cp-ov-objstale"));
           row.append(box, light, text);
           box.addEventListener("change", () => {
             const rest = live.objectives.filter((o) => !(o.initiativeId === c.initiativeId && o.metricKey === m.key));

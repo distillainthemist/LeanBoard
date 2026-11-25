@@ -4532,8 +4532,10 @@ a.app-ib-folderbtn { text-decoration: none; white-space: nowrap; }
 /* a stale metric (2026-11-25): a neutral mark, never a state colour — it changes no status */
 .app-mc-stale { position: absolute; left: 10px; bottom: 6px; font-size: 11px; color: #6d675c; background: #f4f1ea; border: 1px solid #e4dfd6; border-radius: 10px; padding: 1px 8px; pointer-events: none; }
 .app-ir-metric-stale .app-spark, .app-ir-metric-stale .app-ir-metric-state { opacity: 0.45; }
-.app-ir-metric-stalemark { color: #6d675c; }
-.app-cp-ov-objstale { font-size: 12px; color: #6d675c; margin-left: 8px; }
+/* the clock (staleMark.ts): sized by the text beside it, in the text's colour */
+.app-stalemark { width: 1.3em; height: 1.3em; vertical-align: -0.26em; margin-right: 4px; flex: none; }
+.app-cp-ov-objstale { font-size: 12px; color: #6d675c; margin-left: 8px; white-space: nowrap; }
+.app-im-tile-stale { color: #6d675c; margin-left: 8px; white-space: nowrap; }
 .app-mc-chart-primary { border-color: var(--app-accent, #b8521c); }
 .app-mc-chart > .ltk-root { flex: 1; min-height: 0; min-width: 0; }
 .app-mc-chart .ltk-kt-svg { flex: 1; min-height: 0; }

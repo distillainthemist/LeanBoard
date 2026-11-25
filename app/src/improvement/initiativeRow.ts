@@ -20,6 +20,7 @@
 // Support needed column and a larger size. DOM only — the status is
 // status.ts, the counts actionCounts, the metrics metricValues.
 
+import { staleMark } from "./staleMark";
 import { el } from "../../../shared/ui/dom";
 import { pdcaQuadrant } from "../../../shared/ui/actionUi";
 import type { MetricValue } from "./metricValues";
@@ -131,13 +132,11 @@ export function metricTile(mv: MetricValue, o: Pick<InitiativeRowOpts, "colour" 
   tile.title = title;
   const name = el("div", "app-ir-metric-name");
   // stale (programme D1): a mark, no words — the tile carries no numbers.
-  // The chart fades and a small clock LEADS the caption (a long caption
+  // The chart fades and a clock (staleMark.ts) LEADS the caption (a long caption
   // is cut at its end); the tooltip says "No reading for 9 weeks".
   if (mv.stale !== "") {
     tile.classList.add("app-ir-metric-stale");
-    const mark = el("span", "app-ir-metric-stalemark", "◷ ");
-    mark.setAttribute("aria-label", mv.stale);
-    name.appendChild(mark);
+    name.appendChild(staleMark(mv.stale));
   }
   name.appendChild(document.createTextNode(caption !== "" ? caption : mv.name));
   tile.appendChild(name);
