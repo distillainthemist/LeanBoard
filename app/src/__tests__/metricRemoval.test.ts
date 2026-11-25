@@ -21,6 +21,9 @@ describe("the question", () => {
     expect(removeMetricWords("Scrap rate", 1).title).toBe("Remove Scrap rate and its 1 reading?");
     expect(removeMetricWords("  ", 3).title).toBe("Remove this metric and its 3 readings?");
   });
+  it("is asked of a metric with no readings too, and says so", () => {
+    expect(removeMetricWords("Scrap rate", 0)).toEqual({ title: "Remove Scrap rate?", note: "It has no readings." });
+  });
   it("is still asked when the readings could not be counted", () => {
     expect(removeMetricWords("Scrap rate", -1)).toEqual({ title: "Remove Scrap rate and its readings?", note: "Its readings could not be counted. This cannot be undone." });
   });

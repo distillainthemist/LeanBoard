@@ -16,13 +16,17 @@ export function hasOwnReadings(m: Pick<TemplateMetric, "driverId" | "driverLink"
   return !m.driverId || m.driverLink === "leads";
 }
 
-/** The question asked before a metric with readings is removed.
+/** The question asked before a metric of its own is removed — always,
+ *  on an existing initiative or priority, with what it holds.
  *  `readings` below zero: they could not be counted — the question is
  *  asked all the same, never skipped (a failed read must not delete
  *  readings unasked). */
 export function removeMetricWords(name: string, readings: number): { title: string; note: string } {
   const what = name.trim() !== "" ? name.trim() : "this metric";
   if (readings < 0) return { title: `Remove ${what} and its readings?`, note: "Its readings could not be counted. This cannot be undone." };
+  // none: still asked (Ben, 2026-11-25 — a × that removes without a word
+  // reads as a fault), and the words say there is nothing to lose
+  if (readings === 0) return { title: `Remove ${what}?`, note: "It has no readings." };
   return {
     title: `Remove ${what} and its ${readings} reading${readings === 1 ? "" : "s"}?`,
     note: "This cannot be undone.",

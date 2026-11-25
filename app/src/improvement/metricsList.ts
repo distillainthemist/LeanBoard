@@ -49,9 +49,11 @@ export interface MetricsListOpts {
   /** More links on a row, ahead of × ("Values…"). */
   rowTools?: (m: TemplateMetric) => HTMLElement[];
   /** How many readings this metric has stored (programme C8,
-   *  2026-11-24). When given, × counts them and asks before removing a
-   *  metric that has any — "Remove <name> and its N readings?". Only
-   *  asked of a metric with readings of its own (never a value driver). */
+   *  2026-11-24). When given — an EXISTING initiative or priority — the
+   *  × always asks first (Ben, 2026-11-25): "Remove <name> and its N
+   *  readings?", "Remove <name>?" with "It has no readings.", or, for a
+   *  metric that is a value driver, that its readings are kept. The
+   *  count is only asked of a metric with readings of its own. */
   readingsOf?: (m: TemplateMetric) => Promise<number>;
   /** A metric left the list by its ×. The host deletes its readings —
    *  at once where the list saves at once, at Save where it is a draft. */
@@ -227,7 +229,7 @@ export function renderMetricsList(o: MetricsListOpts): { refresh: () => void } {
             // read as "none"
             const n = await o.readingsOf(m).catch(() => -1);
             x.disabled = false;
-            if (n !== 0 && !(await promptConfirm({ ...removeMetricWords(m.name, n), confirmLabel: "Remove", danger: true }))) return;
+            if (!(await promptConfirm({ ...removeMetricWords(m.name, n), confirmLabel: "Remove", danger: true }))) return;
           }
           const at = o.metrics.indexOf(m);
           if (at < 0) return;

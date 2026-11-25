@@ -220,7 +220,8 @@ The walk began 2026-11-23, paused for the v0.99.0 release, and resumed.
   `ben_assigneesjson`).
 - **C8** — **delete, after a confirmation that counts them** (Ben,
   2026-11-24). "Remove <name> and its N readings? This cannot be
-  undone." A metric with no readings goes without a prompt. On an
+  undone." A metric with no readings goes without a prompt (CHANGED in
+  his test walk, 2026-11-25: the × always asks). On an
   initiative and on a priority. A driver-linked metric never takes the
   driver's readings with it. Where the list saves from a Save bar the
   readings go at Save, not at the ✕, so Discard still undoes it.
@@ -389,8 +390,14 @@ E5, E17 part 1). App-only, no schema.
   **From Ben's test walk (2026-11-25):** the × on a metric that IS a
   value driver went without a word and read as a delete. It now asks
   too — "Remove <name> from this initiative?", "Its readings belong to
-  the value driver and are kept." (`removeDriverMetricWords`). An own
-  metric with NO readings still goes without a question.
+  the value driver and are kept." (`removeDriverMetricWords`). Then an
+  own metric with NO readings went silently too ("Test metric yall" on
+  "LiF Plan on a Page"), so the × now ALWAYS asks on an existing
+  initiative or priority: with none, "Remove <name>?", "It has no
+  readings." This replaces the walk's "a metric with no readings goes
+  without a prompt". OPEN: whether that metric really had no readings —
+  if it had, the count missed them and the location needs reading on
+  dev with a sign-in.
 - **D10 — calendar year is the only period.** `PeriodSettings` is
   `{ mode: "calendar" }`; `periodFor` is the date's year; the fy and
   custom branches, the start month, the prefix and the label list are
