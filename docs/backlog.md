@@ -202,8 +202,10 @@ Recent decisions of record:
   action dialog lists the moves and cards carry "↷ n". The per-card
   "Reschedule reasons" setting is retired and the Gantt no longer asks
   on every move. Stored in the app row's improvement settings JSON
-  (`reschedule`), no schema. Not built: a count of moves by reason in the
-  initiative report; per-site reasons.
+  (`reschedule`), no schema. A count of moves by reason: TO BUILD in
+  tranche 4 as a panel on the Improvement tab (programme E10,
+  2026-11-25). Per-site reasons: DECLINED the same day — one
+  organisation-wide list stays.
 - **The 2026-11-11/12 rounds** (released as v0.93.0): a re-exposed
   document library keeps its columns (levelled with SharePoint at every
   Save and every open of Settings → Documents; unused mappings shelved,

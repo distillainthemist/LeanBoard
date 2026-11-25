@@ -339,6 +339,14 @@ The walk began 2026-11-25, after tranche 3's test walk.
   second, after which the save goes with what it has. Told to Ben: this
   is the record's picture too — a closed meeting and a gate snapshot
   stamp the same stored pictures.
+- **E10** — two parts (Ben, 2026-11-25). **A count by reason: a panel
+  on the Improvement tab.** The tab's ⋮ gets "Due-date moves…": for the
+  org and year in view, one row per reason with its count (most common
+  first), then the initiatives with the most moves. Later moves only;
+  moves with no reason in a row of their own, "No reason given". No
+  extra reads (the tab already holds the actions). **Per-site reasons:
+  not built** — one organisation-wide list stays, so counts compare
+  across sites; "Other" with a note covers the local case.
 
 ## As built
 
