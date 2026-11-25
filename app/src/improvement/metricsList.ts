@@ -13,8 +13,8 @@ import { bucketSpan } from "../../../shared/schema/buckets";
 import { todayIso } from "../../../shared/schema/id";
 import { directionOf, keyFor, MetricKind, MetricOption, normalizeMetrics, OWN_CADENCES, OwnCadence, TemplateMetric, Tracking } from "./templateModel";
 import { DriverNode, isLeaf, newNode, pathOf } from "./vdt/model";
-import { openDriverLinkPicker } from "./vdt/linkPicker";
-import { hasOwnReadings, removeDriverMetricWords, removeMetricWords } from "./metricRemoval";
+import { DriverLink, openDriverLinkPicker } from "./vdt/linkPicker";
+import { hasOwnReadings, leaveDriverWords, removeDriverMetricWords, removeMetricWords } from "./metricRemoval";
 
 const btn = (label: string, cls = "app-btn"): HTMLButtonElement => {
   const b = el("button", cls, label) as HTMLButtonElement;
@@ -214,6 +214,17 @@ export function renderMetricsList(o: MetricsListOpts): { refresh: () => void } {
         promote.title = o.canPromote ? "Create a driver in the tree from this metric" : "Promoting needs the Value-drivers editor role";
         promote.addEventListener("click", () => void promoteOwn(m));
         acts.appendChild(promote);
+      }
+      // a linked metric can be re-linked or set free again (2026-11-25)
+      if (kindOf(m) === "driver" && o.noRelink !== true) {
+        const change = btn("Change link…", "app-link");
+        change.title = "Link to another driver, or change between Drives and Leads";
+        change.addEventListener("click", () => void linkOwn(m));
+        acts.appendChild(change);
+        const un = btn("Unlink", "app-link");
+        un.title = m.driverLink === "leads" ? "Stop leading this driver — the metric keeps its own readings" : "Stop being this driver — its readings stay with the driver";
+        un.addEventListener("click", () => void unlink(m));
+        acts.appendChild(un);
       }
       for (const tool of o.rowTools?.(m) ?? []) acts.appendChild(tool);
       const x = btn("×", "app-im-link-x");
@@ -489,12 +500,23 @@ export function renderMetricsList(o: MetricsListOpts): { refresh: () => void } {
   /** Own → an existing driver (the host migrates the card's series). */
   const linkOwn = async (m: TemplateMetric) => {
     await loadDrivers();
-    const r = await openDriverLinkPicker(document.body, o.site(), { name: m.name, unit: m.unit }, null);
-    if (r === null || r === "clear") return;
+    // the link it has now, when it is already linked (Change link…)
+    const cur: DriverLink | null = m.driverId ? { driverId: m.driverId, mode: m.driverLink === "leads" ? "leads" : "drives" } : null;
+    const r = await openDriverLinkPicker(document.body, o.site(), { name: m.name, unit: m.unit }, cur);
+    if (r === null) return;
+    if (r === "clear") {
+      await unlink(m);
+      return;
+    }
+    if (cur !== null && r.driverId === cur.driverId && r.mode === cur.mode) return;
     const n = drivers.find((d) => d.id === r.driverId);
     if (!n) return;
-    // its readings would join the driver's series for good: asked first
-    if (r.mode === "drives" && o.beforeMerge && !(await o.beforeMerge(m, n.name))) return;
+    // leaving a driver it WAS: the readings it showed stay with that driver
+    const wasDrives = cur?.mode === "drives";
+    if (wasDrives && !(await promptConfirm({ ...leaveDriverWords(m.name, drivers.find((d) => d.id === cur?.driverId)?.name ?? ""), confirmLabel: "Change link" }))) return;
+    // readings of its own (an own metric, or one that only led a driver)
+    // would join the driver's series for good: asked first
+    if (!wasDrives && r.mode === "drives" && o.beforeMerge && !(await o.beforeMerge(m, n.name))) return;
     m.driverId = n.id;
     m.driverLink = r.mode;
     m.kind = "driver";
@@ -505,7 +527,26 @@ export function renderMetricsList(o: MetricsListOpts): { refresh: () => void } {
       await seedDriverSpecIfEmpty(n.id, bucketSpan(todayIso(), n.cadence).from, { target: m.target, lsl: m.lsl ?? null, usl: m.usl ?? null }).catch(() => false);
       driverSpec.delete(n.id);
     }
-    if (o.onLinked) await o.onLinked(m);
+    // only readings of its own are carried across; a metric that was a
+    // driver has none (and an older board's stale copy must not follow it)
+    if (o.onLinked && !wasDrives) await o.onLinked(m);
+    changed();
+  };
+
+  /** Linked → own again (Ben, 2026-11-25: once linked, a row offered
+   *  only ×). A metric that only LED a driver kept its own readings, so
+   *  this loses nothing and asks nothing; one that WAS the driver leaves
+   *  its readings with the driver, and is asked first. */
+  const unlink = async (m: TemplateMetric) => {
+    if (!m.driverId) return;
+    await loadDrivers();
+    if (m.driverLink !== "leads") {
+      const from = drivers.find((d) => d.id === m.driverId)?.name ?? "";
+      if (!(await promptConfirm({ ...leaveDriverWords(m.name, from), confirmLabel: "Unlink" }))) return;
+    }
+    delete m.driverId;
+    delete m.driverLink;
+    m.kind = "own";
     changed();
   };
 

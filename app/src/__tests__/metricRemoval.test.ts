@@ -1,7 +1,7 @@
 // Removing a metric takes its readings with it (programme C8, 2026-11-24).
 
 import { describe, expect, it } from "vitest";
-import { hasOwnReadings, moveReadingsWords, removedForGood, removeDriverMetricWords, removeMetricWords } from "../improvement/metricRemoval";
+import { hasOwnReadings, leaveDriverWords, moveReadingsWords, removedForGood, removeDriverMetricWords, removeMetricWords } from "../improvement/metricRemoval";
 import { ledDriver, seriesDriver } from "../improvement/metricLocation";
 
 const own = (key: string): { key: string; name: string; driverId?: string; driverLink?: "drives" | "leads" } => ({ key, name: key });
@@ -61,6 +61,13 @@ describe("whose series a linked metric reads (2026-11-25)", () => {
   it("names the driver it leads", () => {
     expect(ledDriver({ driverId: "d2", driverLink: "leads" }, drivers)?.name).toBe("Yield");
     expect(ledDriver({ driverId: "d2", driverLink: "drives" }, drivers)).toBeNull();
+  });
+});
+
+describe("the question before a metric stops being a value driver", () => {
+  it("says the readings stay with the driver", () => {
+    expect(leaveDriverWords("Scrap rate", "Scrap rate")).toEqual({ title: "Unlink Scrap rate from Scrap rate?", note: "The readings entered while it was linked stay with the value driver." });
+    expect(leaveDriverWords("", "").title).toBe("Unlink this metric from the value driver?");
   });
 });
 

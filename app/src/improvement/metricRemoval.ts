@@ -56,6 +56,19 @@ export function moveReadingsWords(readings: number, driver: string): { title: st
   };
 }
 
+/** The question before a metric stops BEING a value driver (Unlink, or
+ *  a change of link): the readings it showed are the driver's and stay
+ *  there. A metric that only LED a driver is not asked — it kept its own
+ *  readings all along, so nothing is lost (2026-11-25). */
+export function leaveDriverWords(name: string, driver: string): { title: string; note: string } {
+  const what = name.trim() !== "" ? name.trim() : "this metric";
+  const from = driver.trim() !== "" ? driver.trim() : "the value driver";
+  return {
+    title: `Unlink ${what} from ${from}?`,
+    note: "The readings entered while it was linked stay with the value driver.",
+  };
+}
+
 /** The metrics a save removed for good: taken off the list while it was
  *  open and not on it now (one added back under the same name has the
  *  same key and keeps its readings). Each once. */

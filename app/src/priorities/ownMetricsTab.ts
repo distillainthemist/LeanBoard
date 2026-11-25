@@ -164,6 +164,10 @@ export function mountOwnMetrics(o: OwnMetricsOpts): void {
   /** A link or promote moved readings: the values are read again after
    *  the definitions are saved. */
   let relinked = false;
+  /** Which driver each metric is linked to, and how: a change (a link,
+   *  a change of link, an unlink) means the values must be read again. */
+  const linkSig = (): string => metrics.map((m) => `${m.key}:${m.driverId ?? ""}:${m.driverLink ?? ""}`).join("|");
+  let savedLinks = linkSig();
   const persist = () => {
     const now = JSON.stringify(metrics);
     if (now === saved) return;
@@ -177,8 +181,10 @@ export function mountOwnMetrics(o: OwnMetricsOpts): void {
     // the charts follow the definitions (a metric added, renamed, removed)
     mountCharts();
     // a metric joined to a driver reads the driver's series from now on
-    const reread = relinked;
+    const sig = linkSig();
+    const reread = relinked || sig !== savedLinks;
     relinked = false;
+    savedLinks = sig;
     writing = writing.then(o.save).then(() => (reread ? o.valuesChanged() : undefined)).catch((e) => {
       console.warn("priority metrics: save failed", e);
       err.textContent = "The metrics could not be saved. Check the connection and try again.";

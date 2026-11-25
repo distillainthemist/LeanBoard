@@ -529,6 +529,16 @@ Four items built; C2 off the backlog. App-only, no schema.
   (`improvement/metricLocation.ts`) is now the one answer: the driver
   only when the metric IS it. The readings were never touched. The
   same fault sat on an initiative's Metrics card for a Leads link.
+  Ben then looked for the metric in the tree: Link… does not add a
+  node (Promote… does), and a linked row offered only ×. He chose
+  **"Change link…" and "Unlink" on a linked metric's row**
+  (`metricsList.ts` `unlink`, `linkOwn` with the current link;
+  `leaveDriverWords`), on priorities and initiatives alike: a Leads
+  link unlinks with nothing lost and no question; a metric that WAS
+  the driver is asked first, and its readings stay with the driver.
+  NOT built (offered, option 2): listing priorities on the tree's
+  Simulate view — it would change what the simulation counts and
+  needs a walk first.
 - **D9 — a re-parented priority takes its parent's sub-pillar.**
   `priorities/relinkPillar.ts` `relinkPillarPlan`: the parent's
   sub-pillar in the year in view; the linked priority and every
