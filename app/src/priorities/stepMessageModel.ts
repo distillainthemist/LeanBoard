@@ -19,7 +19,9 @@ export type PriorityStep =
   /** the answers to a proposal */
   | "proposal-accepted"
   | "proposal-held"
-  | "proposal-declined";
+  | "proposal-declined"
+  /** a priority linked under a parent after the fact (programme D9) */
+  | "linked";
 
 export interface StepFacts {
   statement: string;
@@ -31,6 +33,10 @@ export interface StepFacts {
   by: string;
   /** Hold and decline carry the reason given. */
   reason?: string;
+  /** A link: the parent it now sits under — "<org>'s “<statement>”". */
+  parent?: string;
+  /** A link: what moved column with it, as a sentence ("" = nothing). */
+  moved?: string;
 }
 
 const short = (s: string): string => (s.length > 80 ? `${s.slice(0, 77)}…` : s);
@@ -60,6 +66,14 @@ export function stepDraft(step: PriorityStep, f: StepFacts): { title: string; su
       return { title: "Let them know", subject: `On hold for ${f.org}: ${short(f.statement)}`, body: `${f.by} has put the proposed priority ${what} on hold for ${f.org}.${why}` };
     case "proposal-declined":
       return { title: "Let them know", subject: `Declined for ${f.org}: ${short(f.statement)}`, body: `${f.by} has declined the proposed priority ${what} for ${f.org}.${why}` };
+    case "linked": {
+      const moved = f.moved && f.moved.trim() !== "" ? `\n${f.moved.trim()}` : "";
+      return {
+        title: "Let them know",
+        subject: `Priority linked to a parent: ${short(f.statement)}`,
+        body: `${f.by} has linked ${f.org}'s priority ${what} under ${f.parent ?? "a parent priority"}.\nIt now counts toward that priority, and so does everything made from it.${moved}`,
+      };
+    }
   }
 }
 

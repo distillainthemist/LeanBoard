@@ -28,10 +28,12 @@ import { promptConfirm } from "../prompts";
 import { initiativeRow, initiativeRowHead, rowRank } from "../improvement/initiativeRow";
 import { offerStepMessage } from "./stepMessage";
 import { openOwn } from "./actionsTabModel";
+import { relinkPillarPlan, relinkPillarWords } from "./relinkPillar";
 import {
   CLOSE_REASONS,
   CloseReason,
   DECLINED_PREFIX,
+  descendantPriorities,
   isDeclined,
   isPulledProposal,
   lineageFor,
@@ -87,6 +89,8 @@ export interface LifecycleCtx {
   ownerPickerFor: (org: OrgRef) => import("./dialogs").OwnerPickerExtras;
   periodsOnOffer: () => string[];
   currentPeriod: string;
+  /** The year the page is showing (the current one when no year is). */
+  viewYear: () => string;
   /** The status of every initiative counted under a priority (its own
    *  and its counted descendants'), by the ONE status rule. */
   statusesFor: (p: Priority) => import("../improvement/status").StatusResult[];
@@ -1652,8 +1656,38 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
         pick.addEventListener("click", () => {
           void pickParent(ctx, live, cands, parent ?? null).then(async (r) => {
             if (r === null) return;
-            if (r.takePillar) live.pillarId = r.parent.pillarId;
+            // a re-parented priority ALWAYS takes its new parent's
+            // sub-pillar, and so does everything made from it (programme
+            // D9, 2026-11-25) — from the year in view
+            const all = ctx.data().priorities;
+            const plan = relinkPillarPlan(ctx.settings.period, live, r.parent, all, ctx.viewYear());
+            for (const mv of plan.below) {
+              mv.priority.pillarId = mv.pillarId;
+              mv.priority.placements = mv.placements;
+              await savePriority(mv.priority, ctx.data());
+            }
+            if (plan.child) {
+              live.pillarId = plan.child.pillarId;
+              live.placements = plan.child.placements;
+            }
             await relinkParent(live, r.parent, ctx.data(), ctx.actor());
+            // tell the parent's owner and the owners below (offered, never sent by itself)
+            const below = descendantPriorities(live, all);
+            const orgsBelow = [live, ...below].flatMap((x) => ctx.data().assignments.filter((a) => a.priorityId === x.id && a.status === "accepted").map((a) => a.org));
+            offerStepMessage(
+              {
+                step: "linked",
+                statement: live.statement,
+                org: live.org,
+                parent: `${orgName(r.parent.org)}'s “${r.parent.statement}”`,
+                moved: relinkPillarWords(plan, ctx.data().pillars.find((x) => x.id === plan.pillarId)?.name ?? ""),
+                to: [r.parent.ownerId, ...below.map((x) => x.ownerId), ...orgsBelow.map((o) => ctx.ownerFor(o)?.whoId ?? "")],
+                linkOrg: live.org,
+                period: ctx.viewYear(),
+              },
+              ctx.actor(),
+              ctx.roster
+            );
             await ctx.changed();
             events = null;
             if (scrim.isConnected) paint();
@@ -1768,7 +1802,7 @@ function pickParent(
   child: Priority,
   cands: Priority[],
   current: Priority | null
-): Promise<{ parent: Priority; takePillar: boolean } | null> {
+): Promise<{ parent: Priority } | null> {
   return new Promise((resolve) => {
     const m = modal(ctx.host, current ? "Change parent priority" : "Link to a parent priority", `“${child.statement.slice(0, 100)}” becomes part of the priority you choose — it counts in that priority's roll-up and shows under it on the Cascade tab.`, true);
     const chain = orgPath(child.org).map(orgKey);
@@ -1790,7 +1824,12 @@ function pickParent(
     const rows: { b: HTMLButtonElement; p: Priority }[] = [];
     const paint = () => {
       for (const r of rows) r.b.classList.toggle("app-cp-reason-on", chosen?.id === r.p.id);
-      pillarRow.style.display = chosen && chosen.pillarId !== child.pillarId ? "" : "none";
+      // what the link moves (programme D9): the priority takes the
+      // parent's sub-pillar, and everything made from it follows
+      const plan = chosen ? relinkPillarPlan(ctx.settings.period, child, chosen, ctx.data().priorities, ctx.viewYear()) : null;
+      const words = plan ? relinkPillarWords(plan, ctx.data().pillars.find((x) => x.id === plan.pillarId)?.name ?? "") : "";
+      pillarRow.textContent = words;
+      pillarRow.style.display = words !== "" ? "" : "none";
       ok.disabled = chosen === null || chosen.id === current?.id;
     };
     for (const k of keys) {
@@ -1811,13 +1850,9 @@ function pickParent(
       }
     }
     m.body.appendChild(list);
-    const pillarRow = el("label", "app-check") as HTMLLabelElement;
-    const takePillar = el("input") as HTMLInputElement;
-    takePillar.type = "checkbox";
-    takePillar.checked = child.pillarId === "";
-    pillarRow.append(takePillar, document.createTextNode(" Also take the parent's sub-pillar (moves this priority to that column)"));
+    const pillarRow = el("div", "app-cp-muted app-cp-relinkmove");
     m.body.appendChild(pillarRow);
-    const done = (v: { parent: Priority; takePillar: boolean } | null) => {
+    const done = (v: { parent: Priority } | null) => {
       m.close();
       resolve(v);
     };
@@ -1826,7 +1861,7 @@ function pickParent(
     const ok = btn("Link", "app-btn app-btn-primary");
     ok.addEventListener("click", () => {
       if (chosen === null) return;
-      done({ parent: chosen, takePillar: takePillar.checked });
+      done({ parent: chosen });
     });
     m.footer.append(cancel, ok);
     paint();

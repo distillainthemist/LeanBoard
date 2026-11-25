@@ -16,6 +16,9 @@ export interface StepMessage {
   org: OrgRef;
   toOrgs?: OrgRef[];
   reason?: string;
+  /** A link: the parent, and what moved with it (stepMessageModel.ts). */
+  parent?: string;
+  moved?: string;
   /** Who should hear: person ids. */
   to: string[];
   /** The org whose Priorities page the message links to. */
@@ -29,7 +32,7 @@ export function offerStepMessage(m: StepMessage, actor: { whoId: string; who: st
   const person = (id: string) => roster.find((p) => p.whoId === id);
   const to = stepRecipients(m.to, (id) => person(id)?.who ?? "", (id) => person(id)?.email ?? "", actor.whoId);
   if (to.length === 0) return;
-  const draft = stepDraft(m.step, { statement: m.statement, org: orgName(m.org), toOrgs: (m.toOrgs ?? []).map(orgName), by: actor.who !== "" ? actor.who : "Someone", reason: m.reason });
+  const draft = stepDraft(m.step, { statement: m.statement, org: orgName(m.org), toOrgs: (m.toOrgs ?? []).map(orgName), by: actor.who !== "" ? actor.who : "Someone", reason: m.reason, parent: m.parent, moved: m.moved });
   const link = prioritiesViewUrl(encodePrioritiesView({ org: orgKey(m.linkOrg), period: m.period, status: "", view: "", l1: "", focus: [], rule: "", showOther: null, groupByPillar: null }));
   void import("../actions/message").then(({ openMessagePanel }) =>
     openMessagePanel({ title: draft.title, note: "", recipients: () => to, subject: draft.subject, body: draft.body, link, cancelLabel: "Skip" })

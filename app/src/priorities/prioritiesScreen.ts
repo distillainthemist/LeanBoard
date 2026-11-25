@@ -574,6 +574,7 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       ownerPickerFor,
       periodsOnOffer: () => periodsOnOffer(),
       currentPeriod,
+      viewYear: () => (state.period !== "" ? state.period : currentPeriod),
       statusesFor,
       statusOf: pStatus,
       own: {

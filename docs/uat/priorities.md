@@ -251,3 +251,16 @@ steps:
 6. Open the company-level priority → Objectives and read its own metric's row.
 7. As someone who manages the site but does not hold the value drivers editor role: read the Promote… link.
 expected: step 1 each own metric's row carries Link… and Promote… beside Edit…; step 2 the question reads "Move N readings into <driver>?" with N the readings entered, and says they cannot be separated again and that the driver's value is kept where it already has one; Cancel changes nothing; step 3 the metric now reads as the driver (its name and unit), its chart shows the driver's series with the moved readings in it, and in the week the driver already had a value the driver's value stands; step 4 a new driver sits under the chosen parent carrying the metric's readings; step 5 the new metric starts EMPTY — the readings moved, they were not copied; step 6 no Link… or Promote… on a company-level priority (it has no site and no tree); step 7 Promote… is greyed, with a tooltip naming the role; Link… is still offered. A link that only LEADS a driver moves no readings and asks nothing
+
+### UAT-PRI-019 — A re-parented priority takes its parent's sub-pillar, and its family follows
+persona: orgowner
+modules: priorities/relinkPillar.ts priorities/lifecycle.ts priorities/stepMessageModel.ts priorities/stepMessage.ts
+preconditions: a site you own with a priority of its own under one sub-pillar, and a department priority made from it (customised) in the same sub-pillar; an active company priority under a DIFFERENT sub-pillar; the company's owner and the department's owner have an email on the roster; the year picker on the current year
+steps:
+1. Open the site priority → Cascade → "Link to a parent priority…". Read the dialog before choosing.
+2. Choose the company priority. Read the line under the list. Press Link.
+3. Read the message panel that opens; Skip (or send).
+4. Read the site's matrix, then the department's. Switch the year picker to LAST year and read both again.
+5. Open the site priority → Cascade → "Change parent…", choose a parent in the sub-pillar it already has, and read the line.
+6. Press Unlink and confirm. Read the matrix.
+expected: step 1 there is NO "Also take the parent's sub-pillar" tick; step 2 the line reads "It moves to <the company priority's sub-pillar>. 1 priority made from it moves with it."; step 3 a message is offered to the company priority's owner and the department's owner — it says the priority was linked under "<company>'s “…”", that it now counts toward that priority, and what moved; nothing is sent unless you send it; step 4 this year both the site's priority and the department's sit under the company priority's sub-pillar; last year both are still in the column they had; step 5 with nothing to move the line is absent; step 6 unlinking leaves the priority in the column it is in. A parent with no sub-pillar moves nothing

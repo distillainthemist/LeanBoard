@@ -56,6 +56,15 @@ describe("the message a step offers", () => {
     expect(stepDraft("cascaded", { ...facts, org: "PacOps", toOrgs: ["Weipa", "BSL"] }).body).toContain("from PacOps to Weipa, BSL");
     expect(stepDraft("accepted", facts).subject).toBe("Weipa accepted: Zero Harm - CRM Maturity Uplift");
   });
+  it("a link names the parent and what moved with it (programme D9)", () => {
+    const d = stepDraft("linked", { ...facts, parent: "PacOps's “Zero Harm”", moved: "It moves to Safety. 2 priorities made from it move with it." });
+    expect(d.subject).toBe("Priority linked to a parent: Zero Harm - CRM Maturity Uplift");
+    expect(d.body).toContain("has linked Weipa's priority “Zero Harm - CRM Maturity Uplift” under PacOps's “Zero Harm”.");
+    expect(d.body).toContain("It now counts toward that priority");
+    expect(d.body).toContain("2 priorities made from it move with it.");
+    // nothing moved: no extra line
+    expect(stepDraft("linked", { ...facts, parent: "PacOps's “Zero Harm”" }).body.split("\n")).toHaveLength(2);
+  });
   it("carries the reason for a hold or a decline, and only then", () => {
     expect(stepDraft("held", { ...facts, reason: " No capacity until Q3 " }).body).toContain("Reason: No capacity until Q3");
     expect(stepDraft("declined", { ...facts, reason: "" }).body).not.toContain("Reason");

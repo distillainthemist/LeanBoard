@@ -3380,6 +3380,7 @@ button.app-doclist-hsort:hover { color: var(--app-accent, #2563eb); }
 .app-cp-wrap:has(> .app-loading) { min-height: calc(100vh - 180px); justify-content: center; }
 .app-cp-cardmount:has(> .app-loading) { min-height: 100%; }
 .app-cp-muted { color: #6d675c; }
+.app-cp-relinkmove { font-size: 12px; margin-top: 10px; }
 /* org bar */
 .app-cp-orgbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
 .app-cp-crumbs { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
