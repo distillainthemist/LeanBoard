@@ -55,6 +55,10 @@ export interface MetricsListOpts {
    *  metric that is a value driver, that its readings are kept. The
    *  count is only asked of a metric with readings of its own. */
   readingsOf?: (m: TemplateMetric) => Promise<number>;
+  /** Asked before an own metric's readings are merged into a driver's
+   *  series (Link… as the driver itself, or Promote… as a driver):
+   *  false stops the link. The host counts and asks (programme D5). */
+  beforeMerge?: (m: TemplateMetric, driverName: string) => Promise<boolean>;
   /** A metric left the list by its ×. The host deletes its readings —
    *  at once where the list saves at once, at Save where it is a draft. */
   onRemoved?: (m: TemplateMetric) => void;
@@ -489,6 +493,8 @@ export function renderMetricsList(o: MetricsListOpts): { refresh: () => void } {
     if (r === null || r === "clear") return;
     const n = drivers.find((d) => d.id === r.driverId);
     if (!n) return;
+    // its readings would join the driver's series for good: asked first
+    if (r.mode === "drives" && o.beforeMerge && !(await o.beforeMerge(m, n.name))) return;
     m.driverId = n.id;
     m.driverLink = r.mode;
     m.kind = "driver";
@@ -542,6 +548,8 @@ export function renderMetricsList(o: MetricsListOpts): { refresh: () => void } {
       void (async () => {
         const parent = parents.find((p) => p.id === parentSel.value);
         if (!parent) return;
+        // promoted as a driver, its readings become the new driver's: asked first
+        if (kindSel.value !== "leading" && o.beforeMerge && !(await o.beforeMerge(m, ""))) return;
         const n = newNode(o.site(), parent.id, m.name);
         n.unit = m.unit;
         n.kind = kindSel.value === "leading" ? "leading" : "driver";

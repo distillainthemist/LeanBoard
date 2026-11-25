@@ -44,6 +44,18 @@ export function removeDriverMetricWords(name: string, noun: "initiative" | "prio
   };
 }
 
+/** The question before an own metric's readings are MOVED into a value
+ *  driver's series (Link… / Promote…, programme D5, 2026-11-25): the
+ *  merge cannot be taken apart again, so it is asked first, with the
+ *  count. `driver`: the driver's name ("" = one about to be created). */
+export function moveReadingsWords(readings: number, driver: string): { title: string; note: string } {
+  const into = driver.trim() !== "" ? driver.trim() : "the new driver";
+  return {
+    title: `Move ${readings} reading${readings === 1 ? "" : "s"} into ${into}?`,
+    note: "They join the value driver's series and cannot be separated again. Where the driver already has a value for a period, the driver's value is kept.",
+  };
+}
+
 /** The metrics a save removed for good: taken off the list while it was
  *  open and not on it now (one added back under the same name has the
  *  same key and keeps its readings). Each once. */

@@ -17,12 +17,14 @@ import { mountMetricsCard } from "../improvement/metricsCard";
 import type { MetricValue } from "../improvement/metricValues";
 import { ownMetricLocation } from "../improvement/metricValues";
 import { renderMetricsList } from "../improvement/metricsList";
-import { hasOwnReadings } from "../improvement/metricRemoval";
+import { hasOwnReadings, moveReadingsWords } from "../improvement/metricRemoval";
+import { promptConfirm } from "../prompts";
+import { currentViewer } from "../runtime";
 import type { TemplateMetric } from "../improvement/templateModel";
 import type { DriverNode, DriverTracking } from "../improvement/vdt/model";
 import { pageColumns, pageOriginAround } from "../improvement/vdt/gridModel";
 import { listDrivers } from "../store/valueDrivers";
-import { OBJECTIVES_JSON_MAX, objectivesJson, OWN_METRIC_CAP, OWN_SERIES_BOARD, Priority, ragPaletteKey } from "./model";
+import { OBJECTIVES_JSON_MAX, objectivesJson, OWN_METRIC_CAP, OWN_SERIES_BOARD, ownSeriesCard, Priority, ragPaletteKey } from "./model";
 
 export interface OwnMetricsOpts {
   host: HTMLElement;
@@ -154,6 +156,9 @@ export function mountOwnMetrics(o: OwnMetricsOpts): void {
   // one write after another, the last state winning
   let writing: Promise<void> = Promise.resolve();
   let saved = JSON.stringify(metrics);
+  /** A link or promote moved readings: the values are read again after
+   *  the definitions are saved. */
+  let relinked = false;
   const persist = () => {
     const now = JSON.stringify(metrics);
     if (now === saved) return;
@@ -166,23 +171,83 @@ export function mountOwnMetrics(o: OwnMetricsOpts): void {
     p.ownMetrics = metrics.map((m) => ({ ...m }));
     // the charts follow the definitions (a metric added, renamed, removed)
     mountCharts();
-    writing = writing.then(o.save).catch((e) => {
+    // a metric joined to a driver reads the driver's series from now on
+    const reread = relinked;
+    relinked = false;
+    writing = writing.then(o.save).then(() => (reread ? o.valuesChanged() : undefined)).catch((e) => {
       console.warn("priority metrics: save failed", e);
       err.textContent = "The metrics could not be saved. Check the connection and try again.";
     });
   };
 
+  /** Where this priority keeps a metric's OWN readings. */
+  const ownAt = (m: TemplateMetric) => ({ boardId: OWN_SERIES_BOARD, cardId: ownSeriesCard(p.id, m.key) });
+  /** May this viewer create drivers at the priority's site? The same
+   *  check as on an initiative: a super admin, or a filler of the value
+   *  drivers editor role at that site. */
+  const mayPromote = async (): Promise<boolean> => {
+    if (site === "") return false;
+    try {
+      const who = currentViewer();
+      if (!who) return false;
+      const [{ viewerPerson }, { improvementSettingsJson }, { parseImprovementSettings, roleFillersAt }, { effectivePerson }] = await Promise.all([
+        import("../store/people"),
+        import("../store/config"),
+        import("../improvement/templateModel"),
+        import("../viewAs"),
+      ]);
+      const stored = await viewerPerson(who.objectId);
+      const me = stored ? effectivePerson(stored) : null;
+      if (me?.role === "superadmin") return true;
+      const imp = parseImprovementSettings(await improvementSettingsJson());
+      const role = imp.standardRoles.find((r) => r.key === imp.vdtEditorRole);
+      return role !== undefined && roleFillersAt(role, site).some((x) => x.whoId === who.objectId);
+    } catch {
+      return false;
+    }
+  };
+
   const list = el("div");
   o.host.append(list, err, chartsHost);
-  renderMetricsList({
+  void mayPromote().then((canPromote) => {
+    if (!list.isConnected) return;
+    renderList(canPromote);
+  });
+  const renderList = (canPromote: boolean) => renderMetricsList({
     host: list,
     metrics,
     site: () => site,
-    canPromote: false,
+    canPromote,
     noun: "priority",
     noStar: true,
     noTree: site === "",
-    noRelink: true,
+    // Link… / Promote… into the site's value driver tree (programme D5,
+    // 2026-11-25): the readings are carried across. A company-level
+    // priority has no site and so no tree to link into.
+    noRelink: site === "",
+    beforeMerge: async (m, driverName) => {
+      const at = ownAt(m);
+      const { countReadings } = await import("../store/series");
+      const n = await countReadings(at.boardId, at.cardId).catch(() => -1);
+      if (n === 0) return true; // nothing to move
+      const words = n < 0 ? { title: `Move this metric's readings into ${driverName !== "" ? driverName : "the new driver"}?`, note: "Its readings could not be counted. They join the value driver's series and cannot be separated again." } : moveReadingsWords(n, driverName);
+      return promptConfirm({ ...words, confirmLabel: "Move" });
+    },
+    onLinked: async (m) => {
+      drivers = null; // a promoted node is new to the cache
+      if (!m.driverId || m.driverLink === "leads") return; // it only leads a driver: its readings stay its own
+      const at = ownAt(m);
+      try {
+        const [{ mergeCardSeriesIntoDriver }, { deleteSeriesAt }] = await Promise.all([import("../store/driverSeries"), import("../store/series")]);
+        await mergeCardSeriesIntoDriver(at.boardId, at.cardId, m.driverId);
+        // moved, not copied: nothing is left behind to come back later
+        await deleteSeriesAt(at.boardId, at.cardId);
+        relinked = true;
+      } catch (e) {
+        console.warn("priority metrics: readings not moved", e);
+        err.textContent = `The readings of ${m.name} could not be moved into the driver. They are still stored with this priority.`;
+      }
+    },
     max: OWN_METRIC_CAP,
     onChanged: persist,
     // this list saves at once, so a removed metric's readings go at once

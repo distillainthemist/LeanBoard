@@ -1,7 +1,7 @@
 // Removing a metric takes its readings with it (programme C8, 2026-11-24).
 
 import { describe, expect, it } from "vitest";
-import { hasOwnReadings, removedForGood, removeDriverMetricWords, removeMetricWords } from "../improvement/metricRemoval";
+import { hasOwnReadings, moveReadingsWords, removedForGood, removeDriverMetricWords, removeMetricWords } from "../improvement/metricRemoval";
 
 const own = (key: string): { key: string; name: string; driverId?: string; driverLink?: "drives" | "leads" } => ({ key, name: key });
 const driver = (key: string, driverLink?: "drives" | "leads") => ({ key, name: key, driverId: "d1", ...(driverLink ? { driverLink } : {}) });
@@ -33,6 +33,16 @@ describe("the question for a metric that is a value driver", () => {
   it("says its readings are kept", () => {
     expect(removeDriverMetricWords("Scrap rate", "initiative")).toEqual({ title: "Remove Scrap rate from this initiative?", note: "Its readings belong to the value driver and are kept." });
     expect(removeDriverMetricWords("", "priority").title).toBe("Remove this metric from this priority?");
+  });
+});
+
+describe("the question before readings move into a value driver (programme D5)", () => {
+  it("counts them, names the driver and says it cannot be undone", () => {
+    const w = moveReadingsWords(12, "Scrap rate");
+    expect(w.title).toBe("Move 12 readings into Scrap rate?");
+    expect(w.note).toContain("cannot be separated again");
+    expect(w.note).toContain("the driver's value is kept");
+    expect(moveReadingsWords(1, "").title).toBe("Move 1 reading into the new driver?");
   });
 });
 

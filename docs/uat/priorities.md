@@ -237,3 +237,17 @@ steps:
 4. At the adopting site, read the adopted priority's tile and tooltip.
 5. Bring the metric back on plan.
 expected: step 1 the priority reads off track at the site AND at the company; the company's tooltip ends "1 late priority action at <site>"; step 2 the company's Actions tab does NOT list the site's action — it shows only where it was raised; step 3 the company priority is off track again with "<metric> short of plan at <site>" (outside its limits reads "outside its limits at <site>"); step 4 the adopting site's tile is not touched by the other site's metric — nothing counts sideways or downward; step 5 the company priority is on track once nothing below it is late or off plan
+
+### UAT-PRI-018 — Link or promote a priority's own metric into the value driver tree
+persona: orgowner
+modules: priorities/ownMetricsTab.ts improvement/metricsList.ts improvement/metricRemoval.ts store/driverSeries.ts store/series.ts
+preconditions: a site you own with a value driver tree; a site priority with two metrics of its own, each with three or more readings; a driver in the tree that already has a value in one of the same weeks; you hold the value drivers editor role at the site (or are a super admin); a company-level priority with a metric of its own
+steps:
+1. Open the site priority → Objectives. Read the links on each of its own metrics' rows.
+2. On the first metric press Link…; pick the existing driver and choose that this metric IS the driver. Read the question; Cancel.
+3. Press Link… again, pick the same driver, and Move. Read the row, its chart, and the driver's values in Settings → Value drivers.
+4. On the second metric press Promote…; choose a parent and "A driver"; Promote; read the question and Move. Read the tree.
+5. Add a metric under the first metric's old name and open its values.
+6. Open the company-level priority → Objectives and read its own metric's row.
+7. As someone who manages the site but does not hold the value drivers editor role: read the Promote… link.
+expected: step 1 each own metric's row carries Link… and Promote… beside Edit…; step 2 the question reads "Move N readings into <driver>?" with N the readings entered, and says they cannot be separated again and that the driver's value is kept where it already has one; Cancel changes nothing; step 3 the metric now reads as the driver (its name and unit), its chart shows the driver's series with the moved readings in it, and in the week the driver already had a value the driver's value stands; step 4 a new driver sits under the chosen parent carrying the metric's readings; step 5 the new metric starts EMPTY — the readings moved, they were not copied; step 6 no Link… or Promote… on a company-level priority (it has no site and no tree); step 7 Promote… is greyed, with a tooltip naming the role; Link… is still offered. A link that only LEADS a driver moves no readings and asks nothing
