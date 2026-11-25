@@ -40,8 +40,11 @@ Promote… on a priority's own metric), D9 (a re-parented priority takes
 its parent's sub-pillar, carried down, with a message), D11 (the
 decision zone on the phone and in the executive summary) — and C2 off
 the backlog. **Built and on dev 2026-11-25, not released**; as built:
-the programme's "Tranche 3" section. Next: Ben's test walk of tranche
-3, then tranche 4's walk.
+the programme's "Tranche 3" section. Ben's test walk (2026-11-25): all
+four pass on dev, with three changes made in it (the stale mark drawn
+larger; a Leads-linked metric's empty chart fixed; Change link… and
+Unlink on a linked metric's row). Dev holds `v0.99.0-35-g130a6d8`.
+Next: tranche 4's walk.
 What 1A was: the nine reports of the 2026-11-23 issue export
 (`issues-plan-2026-11-23.md`): Teams group messages refused over a
 colon in the chat topic, Replace content's false "landed wrong" on

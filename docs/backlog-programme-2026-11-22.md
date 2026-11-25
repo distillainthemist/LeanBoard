@@ -560,6 +560,17 @@ Four items built; C2 off the backlog. App-only, no schema.
   on a real family (rules tested; the surfaces need the hosted app and
   a real phone).
 
+#### Ben's test walk of tranche 3 on dev (2026-11-25, `v0.99.0-35-g130a6d8`)
+
+| # | Check | Result |
+|---|---|---|
+| 1 | D1 — the stale mark | Pass, after the mark was redrawn: the "◷" character was too small, so it is a drawn clock sized to the text |
+| 2 | D5 — Link… and Promote… on a priority's own metric | Pass, after two changes: a metric linked as Leads charted empty (fixed, `seriesDriver`), and a linked row now offers Change link… and Unlink |
+| 3 | D9 — re-parenting takes the parent's sub-pillar | Pass |
+| 4 | D11 — the decision zone on the phone and in the executive summary | Pass |
+
+Tranche 3 stands tested on dev.
+
 ## Tranche 1A — the 2026-11-23 issue export (inserted by Ben, 2026-11-23)
 
 Nine reports from the DMS UAT re-run, reviewed in
