@@ -396,6 +396,99 @@ statuses and counts. With thousands of actions that is the heavier
 read, on pages opened daily. Closed actions feed the Done counts, so
 narrowing it is a rule question to walk with Ben.
 
+### Tranche 5
+
+The walk began 2026-11-27, after the 2026-11-25 issue round's six
+tranches were built and walked (R4, R5 and R6 on dev, unreleased).
+Six items: F1, F2, F3, F4, F5 (nine places since tranche 1A took one),
+and keyboard entry in the ingestion grid — report 3 of that round,
+deferred here.
+
+- **F1** — **one builder; pool fields list the group on focus** (Ben,
+  2026-11-27, choice 1). Found: FOUR copies of the older inline people
+  search — the document person fields (`docs/fieldEditors.ts`: Add,
+  Edit properties, ingestion, and now bulk change), "Add reviewers" in
+  Submit for review (`docs/lifecycleCmds.ts`), "With" in role reassign
+  (`docs/roleReassign.ts`) and the people filter in the Filters pane
+  (`docs/docsScreen.ts`): results drawn in the form, pushing it down,
+  no arrow keys, Enter and Escape dead. Built as: one people
+  type-ahead to `ui-standard.md` §2.x for all four — held matches at
+  once, the directory after 350 ms and three letters with "Searching…"
+  under its own heading; in a several-person field a pick clears the
+  box and keeps the cursor. Owner and approver fields (the Owners &
+  Approvers group only) LIST THE GROUP when clicked into; reviewers
+  and ordinary person fields stay empty until typed in. Chips, pool
+  rules and what is saved are unchanged.
+- **F2** — **the button stays; the list is fixed** (Ben, 2026-11-27,
+  choice 1 — my recommendation against the survey that listed it).
+  Found: the Users register's ONE box filters the roster as it is
+  typed in, and "Search directory & add" sends the same text to the
+  directory — Ben's own decision of 2026-10-08. That box is a FILTER
+  over a table on screen (the standard leaves those alone), and adding
+  is a second, rarer intent: a type-ahead would fire a directory call
+  whenever an admin filtered the roster. Built as: the directory is
+  searched only at the button; its matches are capped at twelve with a
+  line asking for more of the name; Enter in the box presses the
+  button. About an hour against the three to four planned.
+- **F3** — **one box each; nothing listed until typed** (Ben,
+  2026-11-27, choice 1). Found in `controls/MeetingWizard/editor.ts`:
+  the Owner box searches roster then directory but draws its results
+  in the form, with no keys; Participants has TWO searches — "Add from
+  the roster", which lists 25 people before anything is typed, and
+  "Add from the directory" with a Search button. Built as: Owner is
+  the standard people type-ahead (roster at once, directory under its
+  own heading, "new to the app" marked); Participants has ONE box that
+  searches both, a pick adding to the list above and keeping the
+  cursor; the Search button and the unasked list of 25 go. The chosen
+  list with its crew select is unchanged. A shared control, so it uses
+  `shared/ui`'s builder, not the Documents one.
+- **F4** — **the priority owner picker, and a new person lands at
+  the org they will own** (Ben, 2026-11-27, choice 1). Found:
+  Settings → Organisation's "Choose an owner" (`pickPerson`,
+  `screens/settings.ts`) is a private copy with two searches and a
+  Search button, and a private directory add that skips
+  `people/directoryAdd.ts`. TWO FAULTS in it: a person added from the
+  directory gets NO site; and a REVOKED person picked here is quietly
+  restored with their site cleared and their role reset — the fault
+  the shared rule fixed everywhere else on 2026-11-16. Built as:
+  Organisation owners use `pickOwner` (`priorities/dialogs.ts`) with
+  the shared directory road; "Clear owner" stays; the private copy is
+  deleted. A new person is placed at the org they are made owner of
+  (its site, and its department where it has one); a company owner
+  still gets no site.
+- **F5** — **all nine places** (Ben, 2026-11-27: "All 9" — taken as
+  the nine of the table, without the tags select; said back to him).
+  Checked against the code that day: of the ten places left on the
+  2026-11-16 list, the action dialog's Support search was done on
+  2026-11-18 (the one people search) and the two document searches in
+  tranche 1A; the Filters pane's people search is F1's fourth copy.
+  The nine: team import's "Add another starting person" (a directory
+  call per keystroke — a fault); issue merge (a late answer can be
+  drawn over a newer one — a fault); ingestion task assignees;
+  document group members' Add; the hub's person scope (a browser
+  datalist); the Agenda card's who-search; the notify panel's "Add a
+  person" and the initiative form's priority menu (already float: keys
+  and timing only); UAT testers. **Left out, my recommendation:** the
+  tags select in the document forms — a drop-down of a term set, not a
+  search; it belongs with F11 in tranche 6 if long tag lists become a
+  problem. About 11 hours.
+- **Keyboard entry in the ingestion grid (report 3 of the
+  2026-11-25 round)** — **finish the road that is there** (Ben,
+  2026-11-27, choice 1). **Corrected:** in the review I said the grid
+  had no keyboard road and priced spreadsheet movement at two days; I
+  had not read the cells. Text, choice and date cells are live boxes —
+  Tab moves between them, Enter goes down a row, Escape reverts; term,
+  person and long-text cells are buttons that open a small editor with
+  Enter or Space. What is missing is INSIDE that editor: Enter does
+  not apply, and after Set, Cancel or Escape the cursor is lost.
+  Built as: in the editor Enter applies and moves down a row, Escape
+  cancels, and either way the cursor returns to the grid; Shift+Enter
+  moves up a row everywhere; Tab and Shift+Tab stay the way across.
+  About half a day. Arrow-key cell movement was offered (two to three
+  days, and it would change the grid for mouse users) and not chosen.
+
+**Tranche 5 as walked:** about 24 hours (plan 25–34). No schema.
+
 ## As built
 
 ### Tranche 1 (built 2026-11-22, RELEASED in v0.99.0 on 2026-11-23)
