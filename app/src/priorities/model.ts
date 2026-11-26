@@ -159,6 +159,24 @@ export interface Pillar {
    *  that names it. "" = none. Priorities follow the chain into the year
    *  being viewed, so nothing is rewritten per priority. */
   succeedsId?: string;
+  /** EVERY row this one follows (issue review 2026-11-25, report 1):
+   *  two sub-pillars that merge into one are both followed by it, which
+   *  one id could not say. `succeedsId` stays the first of them, for a
+   *  build that reads only that. Absent = [succeedsId] when it is set. */
+  succeedsIds?: string[];
+}
+
+/** The rows a pillar follows: the list, else the single id of old. */
+export function followsOf(p: Pick<Pillar, "succeedsId" | "succeedsIds">): string[] {
+  const out: string[] = [];
+  for (const id of [...(p.succeedsIds ?? []), p.succeedsId ?? ""]) if (id !== "" && !out.includes(id)) out.push(id);
+  return out;
+}
+
+/** `p` with its follow links set to `ids` (both fields kept in step). */
+export function withFollows<P extends Pick<Pillar, "succeedsId" | "succeedsIds">>(p: P, ids: string[]): P {
+  const clean = [...new Set(ids.filter((x) => x !== ""))];
+  return { ...p, succeedsIds: clean, succeedsId: clean[0] ?? "" };
 }
 
 /** Level-2 pillars in display order, optionally under one L1. */
@@ -924,8 +942,8 @@ export function pillarVersions(id: string, pillars: Pillar[]): Pillar[] {
     const p = byId.get(pid);
     if (!p) return;
     out.push(p);
-    visit(p.succeedsId ?? "");
-    for (const q of pillars) if ((q.succeedsId ?? "") === pid) visit(q.id);
+    for (const before of followsOf(p)) visit(before);
+    for (const q of pillars) if (followsOf(q).includes(pid)) visit(q.id);
   };
   visit(id);
   return out;
@@ -1120,22 +1138,6 @@ export function lastSetUpYear(settings: PeriodSettings, pillars: Pillar[]): stri
     if (p.toPeriod !== "") consider(nextPeriod(settings, p.toPeriod));
   }
   return last;
-}
-
-/** The sub-pillars a sub-pillar that STARTS in a year may be said to
- *  follow (Settings, 2026-11-18): those of its company that ended the
- *  year before it starts, and that no other row already follows — one
- *  follows one. The one it follows now is always among them. Until this,
- *  only a rename or a move "from a year" linked two rows; a sub-pillar
- *  added new for a year had no way to say what it replaced, and the
- *  priorities under the old one dropped out of their column. */
-export function followCandidates(settings: PeriodSettings, pillars: Pillar[], p: Pillar): Pillar[] {
-  if (p.level !== 2 || p.fromPeriod === "") return [];
-  const before = prevPeriod(settings, p.fromPeriod);
-  const taken = new Set(pillars.filter((x) => x !== p && x.id !== p.id && (x.succeedsId ?? "") !== "").map((x) => x.succeedsId ?? ""));
-  return pillars.filter(
-    (x) => x.level === 2 && x.id !== p.id && x.company === p.company && (x.id === (p.succeedsId ?? "") || (before !== "" && x.toPeriod === before && !taken.has(x.id)))
-  );
 }
 
 /** The sub-pillars in force in `year`, in column order. */

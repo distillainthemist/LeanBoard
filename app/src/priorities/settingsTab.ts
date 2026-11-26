@@ -28,7 +28,7 @@ import {
 } from "../store/config";
 import { deletePillar, listPillars, loadCascade, savePillar } from "../store/priorities";
 import { DEFAULT_STATUS_SETTINGS, parseStatusSettings, STATE_LABELS, StatusState } from "../improvement/status";
-import { promptChoice, promptConfirm } from "../prompts";
+import { promptConfirm } from "../prompts";
 import {
   parsePrioritySettings,
   periodFor,
@@ -39,7 +39,8 @@ import {
   comparePeriods,
   pillarUse,
   spanLiveIn,
-  followCandidates,
+  nextPeriod,
+  parseTopicMap,
 } from "./model";
 import { newId, todayIso } from "../../../shared/schema/id";
 
@@ -80,12 +81,12 @@ export async function renderPrioritiesSettings(
   // vision statements are edited where they are read — the band's ⋮ on
   // the Priorities tab (Ben, 2026-10-08; the settings list was removed)
   if (isSuper) {
-    await renderPillars(body, ctx, saves);
+    await renderPillars(body, ctx, saves, () => renderPrioritiesSettings(body, me, ctx));
     await renderPeriod(body, ctx, saves);
   }
 }
 
-async function renderPillars(body: HTMLElement, ctx: DirtyCtx, saves: (() => Promise<void>)[]) {
+async function renderPillars(body: HTMLElement, ctx: DirtyCtx, saves: (() => Promise<void>)[], rerender: () => Promise<void>) {
   const box = sectionTitle(
     "Strategic pillars",
     "Pillars appear as filter chips above the priorities matrix; their sub-pillars are the matrix columns. Company-wide; typically change every few years. Order here is the order on screen. From / to set the periods a pillar is in force — the year picker shows the pillars live in the viewed year, so a strategy refresh adds the new ones and ends the old without losing either."
@@ -120,9 +121,6 @@ async function renderPillars(body: HTMLElement, ctx: DirtyCtx, saves: (() => Pro
   let lens = currentPeriod;
   let showOthers = false;
   const inLens = (p: Pillar): boolean => lens === "" || spanLiveIn(periodSettings, { start: p.fromPeriod, end: p.toPeriod }, lens);
-  /** In force before the year in view: it has earlier years to keep. */
-  const hasEarlier = (p: Pillar): boolean => lens !== "" && p.rowId !== undefined && (p.fromPeriod === "" || comparePeriods(periodSettings, p.fromPeriod, lens) < 0) && prevPeriod(periodSettings, lens) !== "";
-  const savedNames = new Map(pillars.map((p) => [p.id, p.name]));
   // the priorities that sit under each pillar, in any year (a failed read
   // counts none — the guard then never blocks a delete it cannot justify)
   const priorities = await loadCascade("")
@@ -151,6 +149,48 @@ async function renderPillars(body: HTMLElement, ctx: DirtyCtx, saves: (() => Pro
     paint();
   });
   lensRow.appendChild(lensSel);
+  // the change between two years is made in ONE place (issue review
+  // 2026-11-25, report 1): the year in view, into the next
+  const changeBtn = el("button", "app-btn app-pr-yearchange", "") as HTMLButtonElement;
+  changeBtn.type = "button";
+  changeBtn.addEventListener("click", () => {
+    const to = nextPeriod(periodSettings, lens);
+    if (lens === "" || to === "") return;
+    if (ctx.isDirty()) {
+      void promptConfirm({ title: "Save or discard your changes first", note: `The change from ${lens} to ${to} is worked out from what is saved.`, confirmLabel: "Close", hideCancel: true });
+      return;
+    }
+    void import("./yearChangePanel").then(({ openYearChange }) =>
+      openYearChange({
+        settings: periodSettings,
+        pillars,
+        priorities,
+        companies: companyList.length > 0 ? companyList : [...new Set(pillars.map((p) => p.company))],
+        from: lens,
+        to,
+        currentPeriod,
+        mintId: () => newId("pl"),
+        rotatingCards: async () => {
+          const [{ listBoards }, { parseManifest }] = await Promise.all([import("../store/boards"), import("../store/mappers")]);
+          const out: { board: string; ids: string[] }[] = [];
+          for (const b of await listBoards()) {
+            for (const slot of parseManifest(b.manifestRaw).slots) {
+              const raw = (slot.settings as Record<string, unknown> | undefined)?.prTopicMap;
+              if (typeof raw !== "string" || raw === "") continue;
+              const ids = [...new Set(Object.values(parseTopicMap(raw)).flat())];
+              if (ids.length > 0) out.push({ board: b.name, ids });
+            }
+          }
+          return out;
+        },
+        save: savePillar,
+        remove: deletePillar,
+        reload: async () => ({ pillars: await listPillars(), priorities: await loadCascade("").then((d) => d.priorities) }),
+        onSaved: () => void rerender(),
+      })
+    );
+  });
+  lensRow.appendChild(changeBtn);
   const lensNote = el("span", "app-settings-note app-pr-lensnote");
   lensRow.appendChild(lensNote);
   box.appendChild(lensRow);
@@ -158,21 +198,6 @@ async function renderPillars(body: HTMLElement, ctx: DirtyCtx, saves: (() => Pro
   const list = el("div", "app-pr-pillars");
   box.appendChild(list);
 
-  /** `p` continues from the year in view as a NEW row with `changes`;
-   *  the old row ends the year before and keeps its years as they were.
-   *  A pillar takes its live sub-pillars with it (each succeeds its own). */
-  const succeed = (p: Pillar, changes: Partial<Pillar>): Pillar => {
-    const before = prevPeriod(periodSettings, lens);
-    const next: Pillar = { ...p, ...changes, rowId: undefined, id: newId("pl"), fromPeriod: lens, toPeriod: p.toPeriod, succeedsId: p.id };
-    const kids = p.level === 1 ? pillars.filter((c) => c.level === 2 && c.parentId === p.id && inLens(c)) : [];
-    p.toPeriod = before;
-    pillars.push(next);
-    for (const c of kids) {
-      pillars.push({ ...c, rowId: undefined, id: newId("pl"), parentId: next.id, company: next.company, fromPeriod: lens, toPeriod: c.toPeriod, succeedsId: c.id });
-      c.toPeriod = before;
-    }
-    return next;
-  };
 
   const l1sOrdered = () =>
     pillars.filter((p) => p.level === 1).sort((a, b) => a.order - b.order || a.name.localeCompare(b.name));
@@ -195,13 +220,29 @@ async function renderPillars(body: HTMLElement, ctx: DirtyCtx, saves: (() => Pro
     paint();
   };
 
+  /** The cursor goes to the row just added — found by WHICH pillar it
+   *  is, never by its position: the last box in the list can be a row of
+   *  another pillar, or of another year (report 2, 2026-11-25). */
+  const focusRow = (id: string) => {
+    for (const row of Array.from(list.querySelectorAll<HTMLElement>(".app-pr-pillar"))) {
+      if (row.dataset.pillarId === id) {
+        row.querySelector<HTMLInputElement>("input[type=text]")?.focus();
+        return;
+      }
+    }
+  };
+
   const paint = () => {
     clear(list);
     paintLens();
     lensNote.textContent =
       lens === ""
         ? "Every pillar, whatever years it covers."
-        : `The pillars in force in ${lens}. What you add here starts in ${lens}; renaming or moving one asks whether it applies from ${lens} or to every year.`;
+        : `The pillars in force in ${lens}. What you add here starts in ${lens}.`;
+    const toYear = lens !== "" ? nextPeriod(periodSettings, lens) : "";
+    changeBtn.style.display = toYear !== "" ? "" : "none";
+    changeBtn.textContent = `Change for ${toYear}…`;
+    changeBtn.title = `What each pillar and sub-pillar of ${lens} becomes in ${toYear}: continues, becomes another, or ends`;
     const l1s = l1sOrdered().filter(inLens);
     if (l1s.length === 0) {
       list.appendChild(el("div", "app-settings-note", pillars.length === 0 ? "No pillars yet — add one to start." : `No pillars are in force in ${lens}.`));
@@ -234,8 +275,7 @@ async function renderPillars(body: HTMLElement, ctx: DirtyCtx, saves: (() => Pro
         });
         touch();
         paint();
-        const rows = list.querySelectorAll<HTMLInputElement>(".app-pr-pillar-l2 input[type=text]");
-        rows[rows.length - 1]?.focus();
+        focusRow(pillars[pillars.length - 1].id);
       });
       list.appendChild(addSub);
     }
@@ -299,8 +339,7 @@ async function renderPillars(body: HTMLElement, ctx: DirtyCtx, saves: (() => Pro
       });
       touch();
       paint();
-      const rows = list.querySelectorAll<HTMLInputElement>(".app-pr-pillar:not(.app-pr-pillar-l2) input[type=text]");
-      rows[rows.length - 1]?.focus();
+      focusRow(pillars[pillars.length - 1].id);
     });
     list.appendChild(addL1);
     // the rest of the record: pillars that ended before the year in view
@@ -327,6 +366,7 @@ async function renderPillars(body: HTMLElement, ctx: DirtyCtx, saves: (() => Pro
 
   const pillarRow = (p: Pillar, parent: Pillar | null, siblings: Pillar[]): HTMLElement => {
     const row = el("div", "app-pr-pillar" + (parent ? " app-pr-pillar-l2" : ""));
+    row.dataset.pillarId = p.id;
     const arrows = el("span", "app-pr-arrows");
     const up = el("button", "app-pr-arrow", "▲") as HTMLButtonElement;
     up.type = "button";
@@ -355,32 +395,8 @@ async function renderPillars(body: HTMLElement, ctx: DirtyCtx, saves: (() => Pro
       p.name = name.value;
       touch();
     });
-    // a rename of a pillar that was in force in earlier years: from the
-    // year in view (the earlier years keep the old name), or everywhere?
-    name.addEventListener("change", () => {
-      const was = savedNames.get(p.id) ?? "";
-      const now = name.value.trim();
-      if (!hasEarlier(p) || was === "" || now === "" || now === was) return;
-      void promptChoice({
-        title: `Rename to “${now}” from ${lens}, or for every year?`,
-        note: `“${was}” was in force before ${lens}. “From ${lens}” keeps the old name on the earlier years, as a record${p.level === 1 ? " — its sub-pillars continue under the new name" : ""}; priorities under it follow. “Every year” corrects the name wherever it shows.`,
-        choices: [
-          { key: "all", label: "Every year" },
-          { key: "from", label: `From ${lens}`, primary: true },
-        ],
-      }).then((how) => {
-        if (how === null) {
-          p.name = was;
-        } else if (how === "from") {
-          p.name = was;
-          succeed(p, { name: now });
-        } else {
-          savedNames.set(p.id, now);
-        }
-        touch();
-        paint();
-      });
-    });
+    // (a rename here is the row's name for every year it covers; a new
+    // name FROM a year is "Becomes" in the year-change panel)
     const active = el("label", "app-check") as HTMLLabelElement;
     const box = el("input") as HTMLInputElement;
     box.type = "checkbox";
@@ -427,56 +443,15 @@ async function renderPillars(body: HTMLElement, ctx: DirtyCtx, saves: (() => Pro
         sel.addEventListener("change", () => {
           const target = tops.find((l) => l.id === sel.value);
           if (!target || target.id === p.parentId) return;
-          const apply = (how: "from" | "all") => {
-            if (how === "from") succeed(p, { parentId: target.id, company: target.company, order: childrenOf(target).length + 1 });
-            else {
-              p.parentId = target.id;
-              p.company = target.company;
-              p.order = childrenOf(target).length + 1;
-            }
-            touch();
-            paint();
-          };
-          if (!hasEarlier(p)) return apply("all");
-          void promptChoice({
-            title: `Move “${p.name}” under “${target.name}” from ${lens}, or for every year?`,
-            note: `It sat under “${parent.name}” before ${lens}. “From ${lens}” keeps it there on the earlier years, as a record; priorities under it follow. “Every year” moves it wherever it shows.`,
-            choices: [
-              { key: "all", label: "Every year" },
-              { key: "from", label: `From ${lens}`, primary: true },
-            ],
-          }).then((how) => {
-            if (how === null) sel.value = p.parentId;
-            else apply(how);
-          });
-        });
-        under = sel;
-      }
-    }
-    // what a sub-pillar that starts in a year FOLLOWS (2026-11-18): the
-    // one it replaces — priorities under that one carry over into this
-    // one without being asked. One follows one.
-    let follows: HTMLSelectElement | null = null;
-    if (parent) {
-      const cands = followCandidates(periodSettings, pillars, p);
-      if (cands.length > 0) {
-        const sel = el("select", "app-input app-pr-short app-pr-under") as HTMLSelectElement;
-        sel.title = "The sub-pillar this one replaces — priorities under it carry over into this one";
-        const none = el("option", "", "Follows: nothing") as HTMLOptionElement;
-        none.value = "";
-        sel.appendChild(none);
-        for (const c of cands) {
-          const o = el("option", "", `Follows: ${c.name.trim() !== "" ? c.name : "(unnamed)"}`) as HTMLOptionElement;
-          o.value = c.id;
-          sel.appendChild(o);
-        }
-        sel.value = cands.some((c) => c.id === (p.succeedsId ?? "")) ? (p.succeedsId ?? "") : "";
-        sel.addEventListener("change", () => {
-          p.succeedsId = sel.value;
+          // for every year the row covers; a move FROM a year is made
+          // in the year-change panel
+          p.parentId = target.id;
+          p.company = target.company;
+          p.order = childrenOf(target).length + 1;
           touch();
           paint();
         });
-        follows = sel;
+        under = sel;
       }
     }
     const x = el("button", "app-btn app-palette-x", "×") as HTMLButtonElement;
@@ -532,9 +507,9 @@ async function renderPillars(body: HTMLElement, ctx: DirtyCtx, saves: (() => Pro
       });
       row.append(arrows, swatch, name, co, from, to, active, x);
     } else if (under) {
-      row.append(arrows, swatch, name, under, ...(follows ? [follows] : []), from, to, active, x);
+      row.append(arrows, swatch, name, under, from, to, active, x);
     } else {
-      row.append(arrows, swatch, name, ...(follows ? [follows] : []), from, to, active, x);
+      row.append(arrows, swatch, name, from, to, active, x);
     }
     return row;
   };
@@ -555,7 +530,6 @@ async function renderPillars(body: HTMLElement, ctx: DirtyCtx, saves: (() => Pro
       p.rowId = await savePillar(p, pillars);
     }
     for (const d of removed) if (d.rowId) await deletePillar(d.rowId);
-    for (const p of pillars) savedNames.set(p.id, p.name);
     dirtyPillars = false;
   });
 }

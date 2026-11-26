@@ -160,9 +160,19 @@ model section) — the canvas/PCF sections there are historical.
   settings (period definition, the status rule's recency days and
   state colours — §3.3a).
   **Cascaded priorities:** `ben_ltkpillar` (with `ben_fromperiod` /
-  `ben_toperiod` = the span it is in force, and `ben_succeedsid` = the
-  row it follows when a pillar was renamed or moved "from a year",
-  2026-11-16), `ben_ltkpriority` (owned
+  `ben_toperiod` = the span it is in force, and `ben_succeedsjson` = the
+  rows it FOLLOWS, a JSON list of ids — one for a rename, several for a
+  merge; `ben_succeedsid` is the older single link, still read and
+  still written with the first of the list for older builds. The link
+  is set in ONE place, the year-change panel (Settings → Priorities →
+  "Change for <next year>…", 2026-11-26): `priorities/yearChange.ts`
+  is pure — `readYearChange` reads the stored rows back as one choice
+  per row (continues · becomes · ends), `planYearChange` turns the
+  choices into ordered writes (creates, updates, ends, deletes) so a
+  save that stops part-way leaves the earlier year as it was — and
+  `yearChangePanel.ts` is its dialog. `model.ts` `followsOf` /
+  `withFollows` are the only readers and writers of the link),
+  `ben_ltkpriority` (owned
   by its originating org by NAME; `ben_period` = START of its span,
   `ben_toperiod` stamped at close, `ben_plannedend` optional — the
   period picker is a lens over spans, nothing is copied at a year end

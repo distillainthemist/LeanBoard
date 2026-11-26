@@ -1797,6 +1797,8 @@ function eventWords(e: PriorityEvent): string {
     case "created":
       return str("customisedFrom") !== "" ? "created as a customised copy" : "created";
     case "edited":
+      // "Extend to <year>" on a tile past its planned end (2026-11-26)
+      if (str("fields") === "planned end") return `extended to ${str("to")}${str("from") !== "" ? ` — planned end was ${str("from")}` : ""}`;
       return str("keptAfterParentClosed") !== "" ? `kept after parent closed — “${str("keptAfterParentClosed")}”` : str("to") !== "" ? `statement → “${str("to")}”` : "properties changed";
     case "cascaded":
       return Array.isArray(d.to) ? `${d.resent === true ? "re-sent" : "sent"} to ${(d.to as string[]).join(", ")}` : "sent";

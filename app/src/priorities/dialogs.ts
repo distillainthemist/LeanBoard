@@ -724,6 +724,14 @@ export function priorityDialog(o: PriorityDialogOpts): Promise<PriorityDialogRes
       clear(subBox);
       const plan = planNow();
       plan.rows.forEach((row, n) => {
+        // a year with nothing to choose says so — never an empty
+        // required field that holds Save without a word (report 23)
+        if (row.options.length === 0) {
+          const f = field(n === 0 ? "Sub-pillar" : `Sub-pillar from ${row.year}`, el("div", "app-cp-nosubs", `No sub-pillars are set for ${row.year} yet. A super admin sets them in Settings → Priorities.`));
+          f.querySelector(".app-field-label")?.appendChild(requiredStar());
+          subBox.appendChild(f);
+          return;
+        }
         const f = field(n === 0 ? "Sub-pillar" : `Sub-pillar from ${row.year}`, subSelect(row));
         f.querySelector(".app-field-label")?.appendChild(requiredStar());
         // a move the person chose to make can be taken back; one the
@@ -764,7 +772,11 @@ export function priorityDialog(o: PriorityDialogOpts): Promise<PriorityDialogRes
     // that fall before it go
     period.addEventListener("change", () => {
       const next: Record<string, string> = {};
-      if (picks[startWas] !== undefined) next[period.value] = picks[startWas];
+      // the VERSION of that sub-pillar in force in the new start year: a
+      // sub-pillar that was followed by another is still the choice
+      // (report 23, 2026-11-25 — the raw id was carried, was not in force
+      // that year, and the field went blank)
+      if (picks[startWas] !== undefined) next[period.value] = pillarIdIn(ps, { pillarId: picks[startWas], placements: [] }, period.value, o.pillars);
       for (const [y, id] of Object.entries(picks)) if (comparePeriods(ps, y, period.value) > 0) next[y] = id;
       picks = next;
       startWas = period.value;

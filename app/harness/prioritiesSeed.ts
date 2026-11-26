@@ -77,7 +77,11 @@ export async function seed(): Promise<void> {
     [25, 30, 35, 40, 45, 50, 55, 52, 53, 56, 51].map((v, i) => ({ key: `y${i}`, date: ["2026-07-06", "2026-07-13", "2026-07-20", "2026-07-27", "2026-08-03", "2026-08-10", "2026-08-17", "2026-08-24", "2026-08-31", "2026-09-07", "2026-09-14"][i], shift: "-", value: String(v) }))
   );
   await pri("pr-w4", weipa, "Andoom: Optimise haulage and maintain yield", "S3");
-  await pri("pr-w5", weipa, "Fixed Cost Improvement Plan", "S4");
+  // past its planned end from 2027: "Extend to 2027" asks for a
+  // sub-pillar here (S4 ended with nothing following)
+  await pri("pr-w5", weipa, "Fixed Cost Improvement Plan", "S4", { plannedEnd: "2026" });
+  // …and asks nothing here (S1 carries on)
+  await pri("pr-w7", weipa, "Reduce haul road dust", "S1", { plannedEnd: "2026" });
   await pri("pr-w6", weipa, "Conveyor reliability programme", "S5old");
   await pri("pr-wp", weipa, "Uplift and Sustain Quality in Leadership in Field Activities", "S1", { status: "proposed", ownerId: "u2", ownerName: "Smith, Jane" });
   const c1 = await pri("pr-c1", company, "Contractor Safety Improvement Strategy", "S1", { ownerId: "u5", ownerName: "Vallance, Colin" });

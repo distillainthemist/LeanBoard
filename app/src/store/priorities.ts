@@ -30,6 +30,7 @@ import {
   orgName,
   parsePrioritySettings,
   periodFor,
+  followsOf,
 } from "../priorities/model";
 import { allWhere, eq } from "./dv";
 
@@ -75,7 +76,23 @@ function pillarFromRow(row: Ben_ltkpillars, guidToId: Map<string, string>): Pill
     fromPeriod: row.ben_fromperiod ?? "",
     toPeriod: row.ben_toperiod ?? "",
     succeedsId: row.ben_succeedsid ?? "",
+    succeedsIds: parseFollows(row.ben_succeedsjson, row.ben_succeedsid ?? ""),
   };
+}
+
+/** The follow list as stored: a JSON array of pillar ids; a row from
+ *  before the list existed has only the single id. */
+function parseFollows(raw: string | undefined, single: string): string[] {
+  try {
+    const v = JSON.parse(raw ?? "") as unknown;
+    if (Array.isArray(v)) {
+      const ids = v.filter((x): x is string => typeof x === "string" && x !== "");
+      if (ids.length > 0) return [...new Set(ids)];
+    }
+  } catch {
+    /* not a list: the single id is all there is */
+  }
+  return single !== "" ? [single] : [];
 }
 
 export async function listPillars(): Promise<Pillar[]> {
@@ -98,7 +115,10 @@ export async function savePillar(p: Pillar, all: Pillar[]): Promise<string> {
     ben_company: p.company,
     ben_fromperiod: p.fromPeriod,
     ben_toperiod: p.toPeriod,
-    ben_succeedsid: p.succeedsId ?? "",
+    // the list is the record; the single id stays its first, for a
+    // build that reads only that (report 1, 2026-11-25)
+    ben_succeedsid: followsOf(p)[0] ?? "",
+    ben_succeedsjson: JSON.stringify(followsOf(p)),
     "ben_ParentPillar@odata.bind": parent?.rowId ? `/ben_ltkpillars(${parent.rowId})` : undefined,
   } as never;
   if (p.rowId) {

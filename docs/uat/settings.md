@@ -159,12 +159,12 @@ preconditions: super admin; pillars and sub-pillars that have been in force sinc
 steps:
 1. Settings → Priorities → Strategic pillars. Read "Year in view" and the list.
 2. Set the year to next year. Add a sub-pillar and name it. Save. Look at this year and next year on the Priorities tab.
-3. With next year in view, rename a sub-pillar that priorities sit under and leave the field. Choose "From <next year>". Save.
-4. On the Priorities tab compare this year and next year. Back in Settings, open "Other years".
-5. With next year in view, change a sub-pillar's "Under:" to another pillar and choose "From <next year>". Save and compare the two years.
+3. With this year in view, rename a sub-pillar that priorities sit under and leave the field. Save.
+4. On the Priorities tab compare this year and last year. Back in Settings, open "Other years".
+5. Change a sub-pillar's "Under:" to another pillar. Save and compare the years.
 6. Press × on a sub-pillar that has priorities; read the question. Press × on one that has none.
-7. Rename another one and choose "Every year".
-expected: step 1 the list shows the pillars in force this year, with a note saying what adding and renaming do; step 2 the new sub-pillar is a column next year and NOT this year; step 3 the question names the old and new name; step 4 this year keeps the OLD name and next year shows the NEW one, each with the same priorities under it (they followed the rename — nothing was re-filed by hand); "Other years" lists the ended version with its span; step 5 the sub-pillar sits under the old pillar this year and the new one next year; step 6 a sub-pillar in use is ENDED after the year before the one in view ("ended rather than deleted"), never deleted; an unused one is removed as before; step 7 the name changes on every year
+7. Look along a sub-pillar's row for a "Follows" control.
+expected: step 1 the list shows the pillars in force this year, with a note saying what adding does, and a "Change for <next year>…" button beside the year; step 2 the new sub-pillar is a column next year and NOT this year; step 3 NOTHING is asked — a rename in the list is the row's name for every year it covers (a new name FROM a year is "Becomes" in the year-change panel, UAT-SET-017); step 4 the new name shows on every year the row covers, with the same priorities under it; "Other years" lists rows not in force in the year in view, with their spans; step 5 nothing is asked — it sits under the new pillar on every year the row covers; step 6 a sub-pillar in use is ENDED after the year before the one in view ("ended rather than deleted"), never deleted; an unused one is removed as before; step 7 there is none — which row follows which is set in the year-change panel only (2026-11-25 report 1)
 
 ### UAT-SET-015 — Status: the recency window and the three colours
 persona: superadmin
@@ -186,3 +186,29 @@ steps:
 2. Open Priorities and open the year picker; open Improvement and its Period filter.
 3. Create a priority and an initiative; read the year each starts in.
 expected: step 1 the section says the period is the calendar year and offers nothing to choose — no period mode, no financial-year start month, no label prefix, no custom label or label list; step 2 the years run in order from the earliest start to next year, the current year marked, every priority and initiative in the years it was live in before; step 3 both start in the year being viewed, written as four digits ("2026")
+
+### UAT-SET-017 — The year change: what each pillar and sub-pillar becomes next year
+persona: superadmin
+modules: priorities/yearChange.ts priorities/yearChangePanel.ts priorities/settingsTab.ts priorities/model.ts store/priorities.ts
+preconditions: super admin; this year's structure with two pillars, each with two or three sub-pillars, and priorities under them at the company AND at a site and a department; next year untouched; a meeting board whose Priorities card rotates on one sub-pillar
+steps:
+1. Settings → Priorities → Strategic pillars, year in view = this year. Press "Change for <next year>…". Read the panel; press Cancel. Press it again.
+2. Set two sub-pillars to "Becomes"; press "＋ Sub-pillar for <next year>", name it, choose its pillar, and pick it as the target of BOTH. Read the footer.
+3. Press "＋ Pillar for <next year>" and name it. Set one pillar to "Becomes" that new pillar. Read its sub-pillars' rows.
+4. Set the sub-pillar the board's card rotates on to "Ends". Read the footer.
+5. Set a pillar to "Ends" while one of its sub-pillars still reads "Continues". Read the footer and the Save button.
+6. Put step 5 right (move that sub-pillar under another pillar, or end it). Press "Save <next year> structure".
+7. On the Priorities tab read this year and next year, at the company, the site and the department.
+8. Back in Settings press "Change for <next year>…" again. Change one "Becomes" back to "Continues" and Save. Read next year again.
+9. Set the year in view to LAST year and press "Change for <this year>…".
+expected: step 1 the panel is titled "Change from <this year> to <next year>"; each pillar and sub-pillar of this year is a row with the number of priorities it carries across EVERY org, and one answer — Continues, Becomes, Ends; every row opens on Continues, the footer says "Nothing changes between …" and Save is greyed; Cancel leaves everything as it was; step 2 two rows naming one target is a merge — the footer says every priority keeps a place; step 3 the new pillar's row has the cursor when added; the sub-pillars of the pillar that becomes it read "Under <the new pillar>"; step 4 the footer counts the priorities that would be left Unplaced, by sub-pillar and by org, and NAMES the board whose card rotates on the ended sub-pillar; step 5 a red line says the sub-pillar continues but its pillar ends, and Save is greyed with "Still needed: …"; step 6 the save counts its steps and closes; step 7 THIS year is exactly as it was; NEXT year shows the new structure and every priority under the two merged sub-pillars sits under the new one, at the company, the site and the department alike — nobody re-filed anything; the priorities under the ended sub-pillar are in the Unplaced zone; step 8 the panel opens on what was saved (each row reads what was decided — a sub-pillar carried under a new pillar reads "Continues"); taken back, that sub-pillar is a column next year again and its priorities return to it; step 9 the panel opens for last year into this year with a line saying it is an earlier change and that later years' mappings stay as they are. If a save stops part-way the panel says how many of its steps were saved, that this year is as it was, and to press Save again
+
+### UAT-SET-018 — Adding a pillar or sub-pillar keeps the cursor in the new row
+persona: superadmin
+modules: priorities/settingsTab.ts
+preconditions: super admin; three or more pillars, each with sub-pillars; pillars from an earlier year so "Other years" has rows
+steps:
+1. Settings → Priorities → Strategic pillars. Open "Other years".
+2. Under the FIRST pillar press "＋ Add sub-pillar" and type a name straight away.
+3. Press "＋ Add pillar" and type a name straight away.
+expected: step 2 the cursor is in the new row, under the first pillar; the page has not jumped to the foot of the list; what is typed lands in the new row and nowhere else — never in another pillar's sub-pillar, and never in a row of "Other years" (2026-11-25 report 2: the cursor went to the last sub-pillar box in the whole list); step 3 the same for a new pillar

@@ -26,7 +26,7 @@ import { paletteMap } from "../../../shared/palette";
 import { todayIso } from "../../../shared/schema/id";
 import { openOwn } from "./actionsTabModel";
 import { showLoading } from "../loading";
-import { promptChoice } from "../prompts";
+import { promptChoice, promptConfirm } from "../prompts";
 import { currentViewer } from "../runtime";
 import {
   allSitePrioritySettings,
@@ -1886,6 +1886,10 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
         return;
       }
       item("Edit…", () => void editPriority(p));
+      // past its planned end in the year in view: the flag's own answer
+      // (report 23, 2026-11-25 — the form's Start period was changed
+      // instead, which blanked the sub-pillar and held Save)
+      if (reviewDue(settings.period, p, state.period)) item(`Extend to ${state.period}`, () => void extendPriority(p));
       item("Add action…", () => addActionTo(p), !canRaiseOn(p));
       const siblings = visibleFor(state.org).filter((x) => colOf(x) === colOf(p) && orgKey(x.org) === orgKey(state.org));
       const i = siblings.indexOf(p);
@@ -1909,6 +1913,37 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       };
       setTimeout(() => document.addEventListener("pointerdown", close, true), 0);
       cleanups.push(() => menu.remove());
+    };
+
+    /** "Extend to <the year in view>": the planned end moves to that
+     *  year and the review flag goes. Nothing more is asked while its
+     *  sub-pillar carries into the year; where it ended with nothing
+     *  following, the one question is which of the year's sub-pillars it
+     *  sits under from then on (placeUnder — earlier years keep their
+     *  home); with no sub-pillars set for the year it is extended and
+     *  said to be Unplaced until they are. */
+    const extendPriority = async (p: Priority) => {
+      const year = state.period;
+      if (year === "") return;
+      const was = p.plannedEnd;
+      const next: Priority = { ...p, plannedEnd: year };
+      await savePriority(next, data);
+      Object.assign(p, next);
+      await appendEvent(p, "edited", { fields: "planned end", from: was, to: year }, actor());
+      const subs = objectiveColumns(livePillars(), null);
+      const placed = subs.some((c) => c.id === colOf(p));
+      await reload();
+      if (placed) return;
+      if (subs.length === 0) {
+        await promptConfirm({
+          title: `Extended to ${year}`,
+          note: `No sub-pillars are set for ${year} yet, so “${p.statement.slice(0, 90)}” is Unplaced until they are.`,
+          confirmLabel: "Close",
+          hideCancel: true,
+        });
+        return;
+      }
+      await placeUnder(data.priorities.find((x) => x.id === p.id) ?? p);
     };
 
     const closeFromCard = async (p: Priority, mode: "complete" | "archive") => {

@@ -30,6 +30,10 @@ void (async () => {
       registerSave: (fn) => {
         run = fn;
       },
+      isDirty: () => !save.disabled,
+      saveCurrent: async () => {
+        await run?.();
+      },
     }
   );
 })();

@@ -82,8 +82,17 @@ As built and its limits: the plan's "R1 as built". **R1's test walk
 (2026-11-26): seven pass, reviewer seats to UAT** (no second account on
 dev). N4 closed in it: a PDF file's bytes come through the connector
 and `blob:` is added to the environment's code-app `frame-src` — a
-set-up step now, owed in production at the first release. Next: R2's
-walk (the year change), begun 2026-11-26.
+set-up step now, owed in production at the first release.
+**R2 walked and BUILT 2026-11-26, on dev, NOT released, SCHEMA-CARRYING
+(`ben_succeedsjson` on `ben_ltkpillar`, deployed to dev)** — the
+year-change panel (Settings → Priorities → "Change for <next year>…":
+each pillar and sub-pillar Continues, Becomes or Ends; merges, new
+rows, what would be lost said before the save), the "Follows" select
+and the from-a-year questions gone from the list, "Extend to <year>"
+on a priority past its planned end, the form's two sub-pillar fixes,
+and the cursor staying in an added row. As built and its limits: the
+plan's "R2 as built". Next: R2's test walk, then R3's walk (the CSV
+import and export for the Issues desk).
 What 1A was: the nine reports of the 2026-11-23 issue export
 (`issues-plan-2026-11-23.md`): Teams group messages refused over a
 colon in the chat topic, Replace content's false "landed wrong" on

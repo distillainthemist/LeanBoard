@@ -702,6 +702,10 @@ export const TABLES = [
       // a pillar renamed or re-parented "from a year" ends and a successor
       // row starts, naming the row it follows (2026-11-16, issue 4)
       ben_succeedsid: { ...text(40), display: "Succeeds (pillar Id)" },
+      // EVERY row it follows, as a JSON array of pillar ids (2026-11-26,
+      // issue review report 1): two sub-pillars that merge into one are
+      // both followed by it. The single id above stays the first.
+      ben_succeedsjson: { ...memo(4000), display: "Succeeds — every row (JSON)" },
     },
     key: ["ben_pillarid"],
     role: { delete: true },

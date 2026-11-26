@@ -1,7 +1,7 @@
 // A priority's sub-pillar, asked year by year (2026-11-18): the start
 // year always; a later year only when the choice cannot carry into it.
 import { describe, expect, it } from "vitest";
-import { followCandidates, lastSetUpYear, picksOf, Pillar, pillarIdIn, placementsFromRows, PeriodSettings, subPillarPlan } from "../priorities/model";
+import { lastSetUpYear, picksOf, Pillar, pillarIdIn, placementsFromRows, PeriodSettings, subPillarPlan } from "../priorities/model";
 
 const S: PeriodSettings = { mode: "calendar" };
 const pl = (id: string, level: 1 | 2, parentId: string, fromPeriod = "", toPeriod = "", succeedsId = ""): Pillar => ({ id, name: id, level, parentId, color: "", order: 0, active: true, company: "Co", fromPeriod, toPeriod, succeedsId });
@@ -94,21 +94,10 @@ describe("the rows as the record keeps them", () => {
   });
 });
 
-describe("what a new sub-pillar may follow", () => {
-  const byId = (id: string) => pillars.find((x) => x.id === id)!;
-  it("is a sub-pillar that ended the year before it starts and that nothing follows yet", () => {
-    // "brand" starts in 2027: "ends" ended in 2026 and is free; "old" is already followed by "new"
-    expect(followCandidates(S, pillars, byId("brand")).map((x) => x.id)).toEqual(["ends"]);
-  });
-  it("always includes the one it follows now", () => {
-    expect(followCandidates(S, pillars, byId("new")).map((x) => x.id)).toEqual(["ends", "old"]);
-  });
-  it("is nothing for a sub-pillar with no start year, a pillar, or one starting where none ended", () => {
-    expect(followCandidates(S, pillars, byId("stays"))).toEqual([]);
-    expect(followCandidates(S, pillars, byId("L1"))).toEqual([]);
-    expect(followCandidates(S, pillars, byId("late"))).toEqual([]);
-  });
-  it("then carries the priorities over: one follows one", () => {
+// (which sub-pillar follows which is set in the year-change panel now —
+// yearChange.test.ts; the carrying rule below is unchanged)
+describe("a sub-pillar that follows another", () => {
+  it("carries the priorities over without asking", () => {
     const linked = pillars.map((x) => (x.id === "brand" ? { ...x, succeedsId: "ends" } : x));
     const r = subPillarPlan(S, linked, "2026", "2029", { "2026": "ends" });
     expect(r.rows.map((x) => x.year)).toEqual(["2026"]);

@@ -1038,6 +1038,68 @@ The two form fixes stand.
 
 **R2 as walked:** about 10 days. One column on `ben_ltkpillar`.
 
+### R2 as built (2026-11-26, on dev, NOT released)
+
+**Schema, deployed to dev:** `ben_succeedsjson` on `ben_ltkpillar` —
+every row a pillar or sub-pillar follows, as a JSON list of ids. The
+old single column `ben_succeedsid` is still read (a row saved by an
+older build) and still written with the FIRST of the list, so an older
+build keeps reading a one-to-one change; it does not see a merge.
+
+**Report 2, the cursor.** "＋ Add pillar" and "＋ Add sub-pillar" give
+the cursor to the row just created, by its id
+(`settingsTab.ts` `focusRow`). UAT-SET-018.
+
+**Report 23, Extend.** The ⋮ menu of a tile past its planned end gains
+"Extend to <the year in view>" (`prioritiesScreen.ts`
+`extendPriority`): the planned end moves; then nothing more when its
+sub-pillar carries, "Place under a sub-pillar" when it does not, or a
+notice when that year has none set. History reads "extended to <year>
+— planned end was <year>". The form: a changed start year keeps the
+sub-pillar in force that year, and a year with none says so instead of
+an empty required select. UAT-PRI-021, UAT-PRI-022.
+
+**Report 1, the year-change panel.** Settings → Priorities → Strategic
+pillars → "Change for <next year>…" (`priorities/yearChange.ts`, pure
+and tested; `priorities/yearChangePanel.ts`). One row per pillar and
+sub-pillar of the year in view with its priority count across every
+org of the company; Continues, Becomes, Ends; new pillars and
+sub-pillars added in the panel; the footer says what would be lost.
+The "Follows" select and the two "From <year> / Every year" questions
+are gone from the list. UAT-SET-017, UAT-SET-014 rewritten.
+
+**Limits, said plainly:**
+
+- **The save is ordered, not atomic.** New rows, then links, then the
+  ending of old rows, then removals. A save that stops part-way leaves
+  the earlier year as it was and says "Saved N of M … Press Save again
+  to finish"; the later year may be half-built until then.
+- **One company at a time** — the panel works on the pillars of the
+  company the list is showing.
+- **A sub-pillar that continues under a pillar that changes** is
+  carried on a new row that follows it (the pillar a row sits under
+  is not a per-year field). The panel reads that back as "Continues";
+  "Other years" in the list shows the earlier row with its span.
+- **A rename or a move in the list is for every year the row covers.**
+  A new name from a year on is "Becomes" in the panel. This reverses
+  the 2026-11-16 choice of asking "From <year> / Every year" at the
+  rename (walk item 3, choice 1).
+- **A priority placed by hand for the later year keeps its place**; the
+  panel does not move it.
+- **The board-card line reads every board's card settings** when a row
+  is set to Ends; on a tenant with many boards it shows "Checking the
+  boards…" first.
+- **An earlier change re-opened** restates its own two years only;
+  the mappings of later years stay as they are (the panel says so).
+- **Seen in the harness only**: opening, a merge, a pillar "Becomes"
+  with its sub-pillars carried, a new pillar, the saved state read
+  back identically, Extend in its three outcomes. The hosted app and
+  the stored column are Ben's check in the R2 test walk.
+- **Report 1's own fault is still unexplained** (the Weipa 2027 view
+  with no pillar row; not reproduced, and working again in production
+  the same day). The panel removes the hand-set link it was blamed on;
+  it is not evidence the fault is fixed.
+
 ---
 
 ## Appendix — the review record (phases 1 and 2, as it was made)

@@ -131,6 +131,14 @@
           "x-ms-schema-name": "ben_succeedsid",
           "maxLength": 40
         },
+        "ben_succeedsjson": {
+          "type": "string",
+          "title": "Succeeds — every row (JSON)",
+          "x-ms-dataverse-attribute": "ben_succeedsjson",
+          "x-ms-dataverse-type": "MemoType",
+          "x-ms-schema-name": "ben_succeedsjson",
+          "maxLength": 4000
+        },
         "ben_toperiod": {
           "type": "string",
           "title": "To period",
@@ -301,23 +309,7 @@
           "x-ms-dataverse-attribute": "statecode",
           "x-ms-dataverse-type": "StateType",
           "x-ms-schema-name": "statecode",
-          "required": true,
-          "enum": [
-            "Active",
-            "Inactive"
-          ],
-          "x-ms-enum-values": [
-            0,
-            1
-          ],
-          "Color": [
-            null,
-            null
-          ],
-          "x-ms-optionsetmetadataid": "bc34f380-629b-f111-b8db-00224814800b",
-          "x-ms-isGlobal": false,
-          "x-ms-optionsetdisplayname": "Status",
-          "x-ms-optionSetType": "State"
+          "required": true
         },
         "statecodename": {
           "type": "string",
