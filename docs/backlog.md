@@ -61,6 +61,17 @@ run by the four phases of `issue-review-prompt.md` (triage, deep
 review, plan document, close-out with a resolution CSV). Ben added one
 item of his own to the round: a CSV import that prepares responses and
 closes issues in bulk. Tranche 5's walk follows it.
+**The 2026-11-25 issue round: phases 1 and 2 done with Ben on
+2026-11-26, the plan document written** — `issue-review-2026-11-25.md`:
+every issue decided (22 build, 2 duplicates, 4 not software, 1
+deferred to tranche 5, 1 declined), three items of Ben's own (N1 the
+CSV import and export for the Issues desk, N2 version comments under
+their rows, N3 bulk change of properties for controllers), about 38
+working days in six tranches R1–R6, one column change (the pillar
+follow link). NOTHING BUILT. Waiting on Ben: the plan's approval and
+the release split (proposed: R1–R3 with programme tranches 2–4 before
+the year change, then R4–R6). Each tranche is walked before it is
+built.
 What 1A was: the nine reports of the 2026-11-23 issue export
 (`issues-plan-2026-11-23.md`): Teams group messages refused over a
 colon in the chat topic, Replace content's false "landed wrong" on

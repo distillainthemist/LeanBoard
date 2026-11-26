@@ -1,19 +1,753 @@
 # LeanBoard Issue Review — 2026-11-25
 
-**WORKING RECORD — phase 2 in progress.** Source: `leanboard-issues-2026-11-25.pdf`
-(30 reports, all against v0.99.0), reviewed by `issue-review-prompt.md`.
-This file is completed as the plan document in phase 3; until then it
-holds the triage and each decision as Ben makes it, so nothing rests
-on a conversation.
+**The plan document (phase 3), written 2026-11-26.** Source:
+`leanboard-issues-2026-11-25.pdf`, 30 reports, all filed against
+v0.99.0. Reviewed by `issue-review-prompt.md`. Every decision below is
+Ben's, made one at a time on 2026-11-26; the appendix holds the
+findings and what was considered and not taken. Nothing in this
+document has been built.
 
-Ben added two items of his own to the round (no issue id, so no row in
-the resolution CSV unless filed):
+## Summary
 
-- **N1** — a CSV import that prepares responses and closes issues in bulk.
-- **N2** — a version's comment shows under its row in the history, in
-  place of the hover tooltip (2026-11-26, from question 1 of cluster A).
+**Received:** 30 issues — 17 from Ellen Black, 5 from Sue Vallance, 5
+from Ben O'Brien, 2 from Marie Dugre, 1 from Holly Keyes. 24 are about
+Documents, 5 about Priorities and boards, 1 about Settings.
 
-## Triage (phase 1, 2026-11-26)
+**Decided:**
+
+| Decision | Count | Issues |
+|---|---|---|
+| Build | 22 | 1, 2, 4, 6, 8, 9, 10, 11, 12, 13, 14, 16, 17, 18, 20, 21, 22, 23, 24, 25, 28, and 5's fix |
+| Duplicate, fixed with its primary | 2 | 15 (of 13), 26 (of 4) |
+| Not a software issue | 4 | 7 (with a tooltip added), 19, 29, 30 |
+| Deferred | 1 | 3, to tranche 5 |
+| Declined | 1 | 27 |
+
+**Three items of Ben's own**, with no issue id and so no row in the
+resolution CSV unless filed:
+
+- **N1** — a CSV import that answers and closes issues in bulk, and a
+  CSV export to start from.
+- **N2** — a version's comment shows under its row in the history.
+- **N3** — bulk change of properties, for document controllers.
+
+**Systemic causes found** (each fixed once, not per report):
+
+1. A step that fails halfway leaves its check-out behind (16, part of
+   14) — 15 places in 3 files.
+2. Review completion was inferred from comments by a narrower read than
+   the history's (13, 15).
+3. Only one hand-over step told the next person by itself (15, 18).
+4. A term was resolved by its NAME where two terms can share one (5).
+5. A year change of the pillar structure is made row by row, cannot
+   express a merge and can be left half done (1, 23).
+6. An action carries two states set in different places (21).
+7. A priority's metrics came from three sources by a hidden rule (20).
+8. The register's view did not survive a library change, and a
+   person's columns were never saved (4, 26).
+
+**Not explained, carried open:** why Approve failed on the edit request
+in 16; the Weipa 2027 page with no pillar row in 1 (not reproduced on
+dev or in production on 2026-11-26); the cause of 11 (the fix is a try).
+
+**Size:** about 38 working days in six tranches (below). **Schema:** one
+column change, for 1. The next release is already schema-carrying
+(tranche 4 of the backlog programme, built and unreleased).
+
+**Planned release:** not yet agreed — see "Order of work and release".
+
+## Decision log
+
+`#` is the export's number; the issue id is the Dataverse row id, the
+resolution CSV's import key. Tranche names are defined under "Order of
+work and release".
+
+| # | Issue id | Title | Type | Decision | Option chosen | Reason | Tranche | Status |
+|---|---|---|---|---|---|---|---|---|
+| 1 | 42db6c12-91e8-f111-84e9-7ced8da2c4f3 | Priority transition | Design gap | Build | Merge rule and a year-change panel, pillars and sub-pillars | A year change is row by row, cannot express a merge, and can be left half done | R2 | Planned |
+| 2 | a51354a0-8fe8-f111-84e9-7c1e528a7790 | Adding pillars | Defect | Build | The new row gets the cursor; the page stays put | The cursor went to the last sub-pillar in the whole list | R2 | Planned |
+| 3 | 9a809e66-88e8-f111-84e9-7c1e528a7790 | Ingestion task - use keyboard not mouse for data entry | Enhancement | Defer | Keyboard entry in the ingestion grid joins tranche 5 | Belongs with the type-ahead pickers; the spreadsheet round trip serves today | Tranche 5 | Planned |
+| 4 | ff668fcd-87e8-f111-84e9-7c1e528a7790 | Custom columms reset | Defect | Build | The chosen columns are the person's, kept across library changes and visits | A library change rebuilt the screen without the view; columns were never saved for the person | R6 | Planned |
+| 5 | ee83abdd-86e8-f111-84e7-6045bdc41cd5 | Metal Delivery process areas incorrect | Not software? | Build + non-software | Terms read by id, never guessed by name; BSL tree repaired by Ben | The ingestion grid resolved a saved term by name alone; BSL's tree holds duplicates from the v0.83 copy | R1, then repair after R4 | Planned |
+| 6 | 2c7da473-86e8-f111-84e9-7c1e528a7790 | Larger arrows to expand filter menus | Enhancement | Build | Covered by 8: larger arrows, whole-row expand | Arrows are small text and only the arrow expands | R6 | Planned |
+| 7 | 76457348-86e8-f111-84e9-7c1e528a7790 | Default select all three doc libraries | Design gap | Non-software + small build | A reply; a tooltip on a library's name | The app remembers the last selection; a click on a name selects that library alone | R6 | Planned |
+| 8 | ced74718-86e8-f111-84e9-7ced8da2c4f3 | Filter pane is small | Design gap | Build | Full-height Filters pane, larger arrows, whole-row expand | The pane is a small pop-over | R6 | Planned |
+| 9 | c3476cd8-85e8-f111-84e7-6045bdc41cd5 | Condense libraries panel | Enhancement | Build | The Libraries card folds to one line | Nothing folds the Libraries list alone | R6 | Planned |
+| 10 | 8b7517b2-85e8-f111-84e7-6045bdc41cd5 | Document tasks dashboard | New | Build | Document tasks as a larger screen with quick actions that open the same dialogs | Ben's choice, against a recommendation to defer | R4 | Planned |
+| 11 | 44bce45a-83e8-f111-84e9-7ced8da2c4f3 | Documents open at the bottom | Defect | Build (a try) | The preview asks the PDF viewer for page 1 | Cause not found; cheap to try | R1 | Planned |
+| 12 | e989517a-72e8-f111-84e9-6045bdc4133d | Evidence attachments for approvals on behalf | Enhancement | Build | "On behalf of" and "Attach evidence" in the Approve dialog | The record named the controller and held no proof | R4 | Planned |
+| 13 | 89b02c2d-5ae8-f111-84e7-6045bdc41cd5 | Reviews not marking as complete | Defect | Build | The review check uses the history's three-place read | The review check read comments from one place; the history reads three | R1 | Planned |
+| 14 | 549f68b2-59e8-f111-84e7-6045bdc41cd5 | Completion of review | Design gap | Build | Any step refused by Word's lock says so | Word's lock on an open file, read as an app fault | R1 | Planned |
+| 15 | 442001a1-54e8-f111-84e9-7c1e528a7790 | Review status not updating | Defect | Duplicate of 13 | Follows 13; its message is the hand-over rule | Same fault, plus a message that waited for a second press | R1 | Planned |
+| 16 | 2f2da526-54e8-f111-84e9-6045bdc4133d | I declined an edit request and now the document is checked out to me | Defect | Build | A failed step releases the check-out it took | A refused step stopped with the check-out held | R1 | Planned |
+| 17 | f74814d4-53e8-f111-84e7-6045bdc41cd5 | Tracked changes are not showing for the approver | Design gap | Build | A line and an "Open in Word" button on the review and approval card | The preview is a PDF with tracked changes applied | R1 | Planned |
+| 18 | ceda461a-53e8-f111-84e9-70a8a5567eb6 | Message not sent to reviewer | Defect | Build | Every hand-over step sends its Teams card at once; added reviewers included | The plan was empty when the document had no reviewers before the dialog | R1 | Planned |
+| 19 | 999d4611-47e8-f111-84e9-6045bdc4133d | UAT DOC-040: Cancel a revision | Defect? | Non-software | UAT-DOC-040 corrected; a reply | The app did the right thing; the script did not describe the case | R1 | Planned |
+| 20 | b7667d42-d0e7-f111-84e9-7c1e528a7790 | Priority-Level Metrics and Initiative Roll-Up | Enhancement | Build | One list of measures on a priority | Three sources decided a priority's metrics; duplicates were possible | R5 | Planned |
+| 21 | e2732115-cfe7-f111-84e9-7ced8da2c4f3 | Action Phase Not Reflecting in Workflow Columns | Design gap | Build | The kanban column comes from the PDCA state; new actions start at Plan; a "By PDCA state" view | Two separate states on an action, set in different places | R5 | Planned |
+| 22 | 961b76b8-cee7-f111-84e9-6045bdc4133d | Department Filtering Across Initiatives and Actions | Design gap | Build | The priority popup follows "Also shown in" | The popup listed every initiative whatever org was in view | R5 | Planned |
+| 23 | 11725f58-c4e7-f111-84e9-7c1e528a789c | Rolling over priority initiative to continue into another year fault | Defect | Build | "Extend" and "Complete" on a tile past its planned end; the form fixed | No direct step; a changed start year blanked the sub-pillar | R2 | Planned |
+| 24 | e8853a1a-c1e7-f111-84e9-7ced8da2c4f3 | Metrics timeframe (dates selection) | Enhancement | Build | The chart's axis starts at the first reading | The chart opened on a fixed span | R5 | Planned |
+| 25 | 8674251b-bee7-f111-84e9-7ced8da2c4f3 | Library column keeps appearing | Design gap | Build | Library is an ordinary column in the chooser | The register added it and the chooser could not remove it | R6 | Planned |
+| 26 | 79d69ea6-bde7-f111-84e9-7c1e528a7790 | Custom columns disappear | Defect | Duplicate of 4 | Same fault, same fix | — | R6 | Planned |
+| 27 | 8dafc340-94e7-f111-84e9-6045bdc4133d | Doc status update | Not software | Decline | Status changes go through the existing commands | Ben: use the existing workflows | — | Planned |
+| 28 | 5bcf3b53-92e7-f111-84e7-6045bdc41cd5 | Updating doc properties | Design gap | Build | Controller commands: Rename, Correct approval date | No rename existed; a wrong approval date from ingestion had no remedy | R4 | Planned |
+| 29 | 83cffed5-8ce7-f111-84e9-7c1e528a7790 | Can we have a link to directly open the Documents tab | Enhancement | Non-software | A reply: bookmark a view link | "Copy view link" already opens on Documents | — | Planned |
+| 30 | bd8489ab-8be7-f111-84e9-7c1e528a7790 | Status filter - remove Awaiting Owner Approval | Not software | Non-software | A reply: two different steps | The statuses are distinct by design | — | Planned |
+| N1 | none | CSV import and export for the Issues desk | New | Build | Import with three new statuses; one Teams card per person; preview then apply; export to CSV | Ben's item; this round's close-out needs it | R3 | Planned |
+| N2 | none | A version's comment under its row | Enhancement | Build | The comment shows under each version row in place of the tooltip | Ben's item, from question 1 of cluster A | R1 | Planned |
+| N3 | none | Bulk change of properties | New | Build | A controller changes one or more properties on a filtered or ticked set | Ben's item; a general need, and what makes the BSL repair practical | R4 | Planned |
+
+## Clusters and systemic causes
+
+| Cluster | Root cause | Issues it settles |
+|---|---|---|
+| A. The review step and check-out state | The review check read version comments from one place while the history reads three; a refused step stops with its check-out held; Word's lock reads as an app fault | 13, 14, 15, 16 |
+| B. Teams message not sent | Only Submit for review sent by itself; its plan was empty when the reviewers were added in the dialog | 15, 18 |
+| C. Columns and library selection | A library change rebuilds the screen carrying only the libraries; columns are not saved for the person; the Library column is outside the chooser | 4, 25, 26 (7 is the remembered selection) |
+| D. The Documents screen on a laptop | A small pop-over; nothing folds the Libraries list | 6, 8, 9 (10 is its own build) |
+| E. What Edit properties may change | Left out on purpose; no rename exists; a date wrong after ingestion had no remedy | 27 declined, 28 |
+| F. Moving priorities into a new year | The follow link is one to one and set row by row; no direct "continue into next year" step | 1, 2, 23 |
+| Terms by name | A saved term resolved by its last label; of two with one name the last in the walk wins | 5 |
+
+## Order of work and release
+
+About 38 working days. The year-change panel has a date: the pillar
+structure for 2027 has to be set before January.
+
+| Tranche | What | Items | Days |
+|---|---|---|---|
+| R1 | Documents: the review step, check-outs, messages, wrong tags | 13 (15), 14, 16, 18 with the hand-over rule, N2, 5's lookup fix and sweep, 17, 11, 19's script | 6 |
+| R2 | The year change | 2, 23, 1 | 9 |
+| R3 | The Issues desk | N1 | 4.5 |
+| R4 | Controller tools | N3, 28, 12, 10 | 10.5 |
+| R5 | Boards and priorities | 21, 22, 20, 24 | 6.5 |
+| R6 | The Documents screen | 4 (26), 25, 7's tooltip, 8 (6), 9 | 2 |
+
+Dependencies: 10 reuses the dialogs changed by 12, 14, 17 and the
+hand-over rule, so it follows them. The BSL repair needs N3, and 5's
+lookup fix goes in first so no new wrong tags are made meanwhile. N1
+has to be in production before this round's resolution CSV can be
+imported.
+
+**Each tranche is walked with Ben before it is built** (his standing
+rule), then built, pushed to dev and test-walked, one test at a time.
+
+**Release — proposed, for Ben to decide:** two releases. The first
+carries R1, R2 and R3 with the backlog programme's tranches 2, 3 and 4
+already built, in time for the year change (about 20 working days of
+build). The second carries R4, R5 and R6. The resolution CSV is
+produced once every issue has its evidence: after the second release,
+or after the first with the later issues listed as exceptions.
+
+## Implementation briefs
+
+Each brief is the agreed option. "Out of scope" lists what was
+considered and not taken. A behaviour change updates or adds its UAT
+case in the same commit; the case ids are assigned at build.
+
+### [13] Review complete never marks complete (and [15])
+
+- **Root cause:** `loadReviewState` and the submit warning in
+  `runLifecycle` (`docs/docsScreen.ts`) read version comments with
+  `itemVersions` alone; the history reads three places
+  (`itemVersions({ fillComments })`). Ben's production check: the
+  comment IS on the version.
+- **Change:** the review check uses the history's read and matches a
+  reviewer by who made the version (and the name in the comment). A
+  press by someone who already finished this round is refused before
+  any write. An unreadable history says so on the card in place of the
+  button.
+- **Out of scope:** recording the review in its own table (the
+  fallback if this fails on dev).
+- **Acceptance criteria:** Given a document in review with me as a
+  named reviewer, when I press Review complete, then my card reads
+  "✓ You completed your review on <date>" and no longer offers the
+  button. Given I have completed, when I open the document again, then
+  no second version can be made by me this round. Given the history
+  cannot be read, then the card says so.
+- **Affected components:** `docs/docsScreen.ts`, `docs/model.ts`
+  (`reviewsOutstanding`, `reviewProgress`), `docs/data.ts`,
+  `docs/lifecycleCmds.ts`.
+- **Data / schema impact:** none.
+- **Test cases:** the reported scenario — reviewers added at submit,
+  one presses Review complete (Ben, production: "Ellen's test
+  document"); a reviewer named on the document beforehand; two
+  reviewers, one done; the owner's submit warning with one outstanding;
+  a round after Request revision (the earlier completions do not
+  count). **Tested on dev with one account before release.**
+- **Risk & rollback:** two more reads when a major has no comment. If
+  the read fails the card says so, as designed. Revert is the one read.
+
+### [14] A step refused while the document is open in Word
+
+- **Root cause:** Word holds a lock on a file open in another tab; the
+  status write or the check-in is refused "The file … is locked for
+  exclusive use by …" (Ben confirmed). The person's own check-out is
+  accepted.
+- **Change:** one rule for every step that writes inside a check-out:
+  a refusal that names this lock reads "This document is open in Word.
+  Close it there, then press again." and, if refused again at once, to
+  wait a moment. The dialog stays ready.
+- **Out of scope:** a warning before the step.
+- **Acceptance criteria:** Given a document checked out to me and open
+  in Word, when I press Review complete, then the message says it is
+  open in Word and the dialog stays; when I close Word and press again,
+  then the step lands.
+- **Affected components:** `docs/lifecycleCmds.ts`, `docs/sp.ts`
+  (`spErrorText`), `docs/editProperties.ts`, `docs/accessRequests.ts`.
+- **Data / schema impact:** none.
+- **Test cases:** the reported scenario; the same on Check in and
+  Submit for approval; a lock held by ANOTHER person keeps its own
+  message.
+- **Risk & rollback:** wording only.
+
+### [16] A failed step leaves the document checked out
+
+- **Root cause:** every step that works inside a check-out stops at a
+  refused write with "the document stays checked out". Decline never
+  checks out; the failed Approve did.
+- **Change:** a step that TOOK the check-out releases it when it
+  fails, its half-made changes with it, and says nothing changed and
+  why. A check-out the person already held is left alone. Lifecycle
+  steps, edit requests, Edit properties.
+- **Out of scope:** Add document (a release would delete the new
+  file); the ingestion run; "Cancel revision" on a stray check-out;
+  finding why Approve failed (open until seen again).
+- **Acceptance criteria:** Given a document not checked out, when a
+  step is refused after taking the check-out, then the document is not
+  checked out afterwards and its properties are as before. Given I held
+  the check-out beforehand, when a step is refused, then my check-out
+  and my work in it remain.
+- **Affected components:** `docs/lifecycleCmds.ts`,
+  `docs/accessRequests.ts`, `docs/editProperties.ts`; one helper.
+- **Data / schema impact:** none.
+- **Test cases:** approve an edit request that is refused at the grant
+  write (the reported scenario, forced on dev); a lifecycle step
+  refused at the status write; the pre-held case.
+- **Risk & rollback:** discarding a check-out discards what was written
+  under it — guarded by "taken by this step". Revert is the helper.
+
+### [18] and the hand-over rule (also [15])
+
+- **Root cause:** `notifyPlanFor` returns nothing when the reviewers
+  column was empty before the dialog, and `showNotifyPanel` stops
+  before the people just added; the dialog then says "No reviewer is
+  named". Only Submit for review sent by itself.
+- **Change:** every hand-over step sends its Teams card as the step
+  lands — Review complete, Submit for approval, Approve, Request
+  revision — as Submit for review does; people added in the dialog are
+  recipients like any other; the panel stays for a second send with
+  edited words, or an email; a failed send shows as a warning.
+- **Out of scope:** editing the words before the first send.
+- **Acceptance criteria:** Given a document with no reviewers, when I
+  add one in the Submit for review dialog and submit, then that person
+  receives the card and the dialog says so. Given I press Review
+  complete, then the owner's card is sent without a second press.
+  Given the send fails, then a warning says the change is done and the
+  message did not go.
+- **Affected components:** `docs/notifyModel.ts`, `docs/notifyPanel.ts`,
+  `docs/lifecycleCmds.ts`.
+- **Data / schema impact:** none.
+- **Test cases:** the reported scenario; each of the four steps; a
+  step whose only recipient is the person acting (nothing sent, said
+  so); a send refused by Teams.
+- **Risk & rollback:** more messages than before, sent as the acting
+  person. Reverses the 2026-10-26 "nothing sent until pressed" for
+  these steps. Revert is `autoSend` per step.
+
+### [N2] A version's comment under its row
+
+- **Change:** in the version history each version row shows its
+  comment beneath it, drafts included, in place of the hover tooltip.
+- **Acceptance criteria:** Given a draft version with a comment, then
+  the comment is readable without hovering; a version with none shows
+  nothing extra.
+- **Affected components:** `docs/viewer.ts`, `style.css`.
+- **Risk & rollback:** a longer panel; none otherwise.
+
+### [5] Terms read by id, never guessed by name
+
+- **Root cause:** `termIdsFor` (`docs/ingestionScreen.ts`) maps a
+  term's last label to its id; of two terms with one name the last in
+  the walk wins. `valueOf` uses it when a cell's editor opens and when
+  a value is dragged with the fill handle. The feed has carried the
+  real id since v0.99.0 (`<col>#termid`).
+- **Change:** a saved term is read by its id. With no id and a name
+  shared by two terms, the cell opens with nothing selected and the
+  fill handle refuses; it never guesses. Every other name-only lookup
+  that leads to a WRITE is swept and treated the same; lookups that
+  only filter or display are listed and left.
+- **Out of scope:** the sync moving a term to another parent; the
+  sync's inferred rename (backlog).
+- **Acceptance criteria:** Given two areas named "General" under
+  different parents and a file tagged with one, when I open its cell
+  and apply without changing, then the file keeps the same term. When
+  I drag that cell over other files, then they receive the same term,
+  by id.
+- **Affected components:** `docs/ingestionScreen.ts`,
+  `docs/ingestionModel.ts`, and whatever the sweep finds
+  (`docs/docsScreen.ts`, `docs/editProperties.ts`,
+  `docs/fieldEditors.ts` to be read).
+- **Data / schema impact:** none in the app. Existing wrong tags stay
+  until the repair.
+- **Test cases:** the reported scenario on dev with two same-named
+  terms; a renamed term (still opens selected, by id); a file from
+  before ids were kept, with a unique name (resolves) and with a shared
+  name (opens unselected).
+- **Risk & rollback:** a cell that used to open pre-selected by a
+  guess now opens empty when it cannot be sure.
+
+### [17] The approver cannot see tracked changes
+
+- **Root cause:** the preview is SharePoint's PDF conversion, which
+  shows tracked changes applied with no markup. Word shows them to an
+  approver (Ben confirmed).
+- **Change:** on a Word document awaiting review or approval, the
+  decision card carries "Tracked changes do not show in this preview"
+  with an "Open in Word" button.
+- **Out of scope:** reading the file to say it only when true; the
+  approved version side by side.
+- **Acceptance criteria:** Given a .docx awaiting my approval, then
+  the card shows the line and the button, and the button opens the
+  document in Word. Given a PowerPoint or a PDF, then no line.
+- **Affected components:** `docs/viewer.ts`, `docs/docsScreen.ts`.
+- **Risk & rollback:** one line of chrome on those cards.
+
+### [11] Documents open at the bottom
+
+- **Root cause:** not found. Nothing in the viewer scrolls; where a PDF
+  opens is the browser viewer's doing.
+- **Change:** the preview's address asks for page 1, for converted
+  files and for PDFs.
+- **Acceptance criteria:** a document opens at the top of page 1 —
+  **Ben's or Ellen's check in the hosted app; cannot be proved before
+  release.**
+- **Affected components:** `docs/viewer.ts`, `docs/rows.ts`.
+- **Risk & rollback:** may do nothing. If documents still open at the
+  bottom the report stays open.
+
+### [2] Adding a pillar jumps to the bottom
+
+- **Root cause:** after "＋ Add sub-pillar" the code focuses the last
+  sub-pillar box in the whole list (`priorities/settingsTab.ts`).
+- **Change:** the row just added gets the cursor and the page stays
+  where it is; the same for "＋ Add pillar".
+- **Acceptance criteria:** Given several pillars, when I add a
+  sub-pillar under the first, then the cursor is in the new row and the
+  page has not scrolled away from it.
+- **Risk & rollback:** none.
+
+### [23] Continuing a priority into next year
+
+- **Root cause:** no direct step on a tile past its planned end; a
+  changed START year carries the old sub-pillar id as it is
+  (`priorities/dialogs.ts`) so the sub-pillar goes blank; a year with
+  nothing to choose is an empty required field.
+- **Change:** a tile past its planned end offers "Extend to <next
+  year>" and "Complete" in its menu — Extend sets the planned end and
+  asks nothing more unless the sub-pillar cannot carry into that year,
+  then asks for one. A changed start year finds the sub-pillar in force
+  that year. A year with no sub-pillars says so.
+- **Out of scope:** a warning that moving the start year forward takes
+  the priority off the earlier year.
+- **Acceptance criteria:** Given a priority planned to end in 2026,
+  viewed in 2027, when I choose Extend to 2027, then its planned end is
+  2027 and the flag goes, in two clicks. Given a sub-pillar that
+  follows into 2027, when I change the start year to 2027 in the form,
+  then the sub-pillar shown is the 2027 one and Save is live.
+- **Affected components:** `priorities/prioritiesScreen.ts`,
+  `priorities/dialogs.ts`, `priorities/model.ts`.
+- **Test cases:** the reported scenario (Sue: "Andoom: Optimise
+  haulage…"); Extend where the sub-pillar ended with no follower; a
+  year with no sub-pillars at all.
+- **Risk & rollback:** Extend is offered to whoever may edit the
+  priority today; no new permission.
+
+### [1] Changing the pillar structure for a new year
+
+- **Root cause:** a priority crosses a year only through the follow
+  link (`pillarIdIn`, `succeedsId`); one old row per new one
+  (`followCandidates`); "Follows" shows only after an old row was
+  ended; the change is several separate saves.
+- **Change — the rule:** several old sub-pillars, or pillars, may be
+  followed by one new one.
+- **Change — the panel:** Settings → Priorities, "Change from <year>
+  to <next year>". The earlier year's structure as it is, each pillar
+  with its sub-pillars. Each pillar and each sub-pillar answers
+  continues / becomes another (new, or one already in the later year;
+  several may become one) / ends. A sub-pillar also says which pillar
+  it sits under, by default whatever its pillar becomes. New pillars
+  and sub-pillars are added in the panel. Each row shows how many
+  priorities it carries across all orgs. The footer lists priorities
+  that would be left Unplaced, sub-pillars left with no pillar, and the
+  pillar filters and card rotations affected. ONE Save applies it all.
+- **Covered:** rename; merge; a pillar split (its sub-pillars shared
+  out); a pillar ending; a new pillar; a NEW pillar whose NEW
+  sub-pillars follow sub-pillars under an OLDER pillar.
+- **Out of scope:** carrying priorities through a sub-pillar SPLIT
+  (they must be placed, and are listed).
+- **Acceptance criteria:** Given two 2026 sub-pillars set to become
+  one 2027 sub-pillar, when I save, then in 2027 every priority that
+  sat under either, at every org, sits under the new one, and in 2026
+  each sits where it did. Given a sub-pillar set to end with priorities
+  under it, then the footer lists them before I save. Given I close the
+  panel without saving, then nothing has changed.
+- **Affected components:** `priorities/model.ts` (`pillarVersions`,
+  `followCandidates`, `subPillarPlan`), `priorities/settingsTab.ts`,
+  a new panel module, `store/priorities.ts`.
+- **Data / schema impact:** ONE COLUMN CHANGE on `ben_ltkpillar` — the
+  follow link must hold several rows (today `ben_succeedsid`, one id).
+  The shape (a list column beside the old one, read together) is
+  settled at the tranche's walk. Existing links keep working.
+- **Test cases:** Ben's case — new rows with one-to-one follows; a
+  merge; the pillar-level cases above; the unexplained Weipa page (a
+  site's 2027 view after a change made through the panel).
+- **Risk & rollback:** the panel writes many pillar rows at once: all
+  or nothing, with the plan shown before Save. An older build reads
+  only the single link — "Lock every older build" after release.
+
+### [N1] CSV import and export for the Issues desk
+
+- **Change — statuses:** three new ones, plain text, no schema.
+  **Deferred** (out of the open queue, its own filter), **Partially
+  resolved** (stays in the open queue), **Not a software issue**
+  (closed). Shown in the desk, its filters, the reporter's own list and
+  the PDF.
+- **Change — export:** "Export to CSV" beside "Export to PDF": the
+  ticked issues in the import's layout — IssueID, then Title, Reporter
+  and present Status for reference, then the answer columns blank.
+- **Change — import:** a file is read into a preview: each issue's
+  title, reporter, present status, new status and message. Rows can be
+  unticked and messages edited. Faults are shown per row before
+  anything runs: an unknown id, a status not in the list, a missing
+  message, a message over 400 characters, a duplicate with no parent.
+  Apply runs row by row through the desk's own actions — status (the
+  thread records it), the reporter message to the thread, InternalNote
+  as an internal thread message, Duplicate through the existing merge;
+  type, release and date go into the resolution line as text. Columns
+  the import does not know are ignored. A failed row does not stop the
+  rest; each row's result is reported. The same file run twice changes
+  nothing.
+- **Change — how people hear:** ONE Teams card per person listing
+  their reports and outcomes, with a link; each answer is also on its
+  own issue's thread.
+- **Out of scope:** stored drafts; columns for type, release and date;
+  a filter by release.
+- **Acceptance criteria:** Given 30 ticked issues, when I export, then
+  the file holds 30 rows with their ids. Given that file filled in and
+  loaded, then the preview shows 30 rows and names any fault. Given I
+  apply, then each issue carries its new status and its message in its
+  thread, and each reporter receives one card. Given I load the same
+  file again, then the preview says nothing would change.
+- **Affected components:** `issues/adminTab.ts`, a new pure module for
+  parsing and checking the CSV, `issues/report.ts`, `issues/exportPdf.ts`,
+  `issues/audience.ts`; `issue-review-prompt.md` §4.5 (the import
+  ignores unknown columns).
+- **Data / schema impact:** none. Three more values in `ben_status`.
+- **Test cases:** this round's own resolution CSV on dev; a file with
+  each fault; a duplicate pair; a reporter with many issues (one
+  card); quoted commas and doubled quotes; a file saved by Excel.
+- **Risk & rollback:** a bulk write to the Issues desk — nothing is
+  written before the preview's Apply; issues are never deleted. An
+  older build shows the new statuses as their raw words.
+
+### [N3] Bulk change of properties
+
+- **Change:** in Documents a controller filters to a set, or ticks
+  rows, and chooses "Change properties": one or more properties, each
+  with one new value, and a reason. A preview counts what will change
+  and what will be skipped and why. The run reports each document and
+  can be interrupted safely, as an ingestion run can.
+- **Rules:** controllers only, a site's controller on their own site's
+  documents. Changeable: tags, people, text. Not status, dates, the
+  document id or the name. Skipped: checked out to someone; part-way
+  through review or approval. Each document changed gets a new version
+  with the reason as its comment — a new published one for an approved
+  document. The review date is untouched.
+- **Out of scope:** rename and approval-date correction (28, one
+  document at a time).
+- **Acceptance criteria:** Given 40 documents filtered by a process
+  area, when I change that area to another with a reason, then the
+  preview says 40 will change, and after the run each carries the new
+  area, a new version with my reason, and its review date as before.
+  Given 3 are checked out to others, then the preview names them as
+  skipped and the run leaves them alone.
+- **Affected components:** `docs/docsScreen.ts`, a new run module on
+  the pattern of `docs/ingestionRun.ts`, `docs/editProperties.ts`
+  (the write road), `docs/publish.ts`, `docs/siteScope.ts`.
+- **Data / schema impact:** none planned (the run's record to be
+  settled at the tranche's walk).
+- **Test cases:** the BSL repair's shape on dev; a mixed set with
+  skips; an interrupted run resumed; a throttled run; a site
+  controller on another site's documents (refused).
+- **Risk & rollback:** the widest write in the app. The preview, the
+  skips and the per-document result are the guards; each change is a
+  version, so each can be seen and undone one by one. About 70 edits a
+  minute.
+
+### [28] Rename, and Correct approval date
+
+- **Change:** two commands in the document's menu for document
+  controllers. **Rename:** the new name and a reason; the file type is
+  kept; a name in use in that folder is refused. **Correct approval
+  date:** the date and a reason; a future date is refused; the review
+  date is counted again by the document's cadence. Each writes a new
+  version whose comment says what changed, from what, to what, by whom
+  and why.
+- **Out of scope:** typing the cadence or the review date; either
+  command for owners; either in the bulk change.
+- **Acceptance criteria:** Given a document ingested with the wrong
+  approval date, when a controller corrects it with a reason, then the
+  approval date is the new one, the review date has moved to match, and
+  the history shows both dates and the reason. Given a rename, then the
+  register shows the new name and a link copied from the app before the
+  rename still opens the document.
+- **Affected components:** `docs/lifecycleCmds.ts` or a new command
+  module, `docs/sp.ts`, `docs/docsScreen.ts`, `docs/model.ts` (the date
+  model).
+- **Data / schema impact:** none.
+- **Risk & rollback:** reverses, for controllers and this one date,
+  the 2026-08-10 "never typed" decision. A link copied from
+  SharePoint's address bar before a rename stops working.
+
+### [12] Approving on behalf, with evidence
+
+- **Change:** when a controller approves a document they are not a
+  named approver or owner of, the Approve dialog asks "On behalf of"
+  (the document's named approvers and owner) and the comment reads
+  "Approved by A on behalf of B". The dialog has "Attach evidence",
+  one or more files, offered not required, kept in the app's
+  attachment table with that approval. That version's card in the
+  history shows "📎 Evidence"; anyone who can open the history can
+  open the files.
+- **Out of scope:** filing the evidence in SharePoint; evidence on
+  other steps.
+- **Acceptance criteria:** Given a controller approving for a named
+  approver, when they choose that person and attach a PDF, then the
+  version's comment names both and its card shows the evidence, which
+  opens for a reader.
+- **Affected components:** `docs/lifecycleCmds.ts`,
+  `attachments/model.ts` (a third parent kind), `attachments/list.ts`,
+  `store/attachments.ts`, `docs/viewer.ts`.
+- **Data / schema impact:** none — the table's parent kind and id are
+  text.
+- **Risk & rollback:** app-level visibility; the table is readable in
+  Dataverse. Evidence is often someone's email.
+
+### [10] Document tasks with quick actions
+
+- **Change:** the Document tasks button opens a larger screen, grouped
+  as now. Rows gain their action: Awaiting your approval → Approve,
+  Request revision; Awaiting your review → Review complete; Checked
+  out to you → Check in, Discard; Review due → Mark reviewed;
+  edit-access requests keep Approve and Decline. Each opens THE SAME
+  DIALOG as on the document, over the list. Every row keeps "Open".
+- **Out of scope:** one-click actions with no dialog.
+- **Acceptance criteria:** Given three documents awaiting my approval,
+  when I press Approve on the first row, then the Approve dialog opens
+  with everything it has on the document (comment, on behalf of,
+  evidence, the tracked-changes line for a Word file), and when it
+  closes the row has left the list.
+- **Affected components:** `docs/docsScreen.ts` (the tasks panel).
+- **Risk & rollback:** an approval can be made without opening the
+  document (told to Ben; his choice). The dialog says what has not been
+  seen and offers the way to look.
+
+### [21] The kanban and the PDCA state
+
+- **Root cause:** the columns follow an action's status; the dialog
+  sets its PDCA state; only a drag into Doing sets "in progress".
+- **Change:** the column comes from the PDCA state — Plan = To do; Do,
+  Check, Act = Doing; awaiting endorsement = Endorse; Closed = Done.
+  The dialog moves the card; a drag sets the state (into To do = Plan,
+  into Doing = Do; Check and Act keep their mark within Doing). A new
+  action starts at PLAN. Existing cards stay in their column: an
+  action at Do never dragged into Doing reads as Plan. On hold sits in
+  To do with its pause mark. The grouping menu gains "By PDCA state" —
+  Plan, Do, Check, Act, Closed, awaiting endorsement in Closed with its
+  marker. Meeting boards follow the same rule on their three columns.
+- **Out of scope:** PDCA columns as the default; Check as Endorse.
+- **Acceptance criteria:** Given an action in To do, when I set Do in
+  its dialog, then its card is in Doing. Given I drag a card to To do,
+  then its mark is Plan. Given a new action, then it opens in To do at
+  Plan. Given the board as it stands the day before release, then
+  every card is in the same column the day after.
+- **Affected components:** `controls/ActionBoard/editor.ts`,
+  `shared/schema/actions.ts`, `shared/ui/actionUi.ts`,
+  `store/actions.ts` (the backstop).
+- **Data / schema impact:** none. "in-progress" is read as before and
+  no longer written as the thing that decides.
+- **Test cases:** the reported board (Sue: 21 cards at Do in To do);
+  each drag; a shared action; an action awaiting endorsement; On hold;
+  a meeting board.
+- **Risk & rollback:** reverses "a new action starts at Do"
+  (2026-08-31) and changes a mark some people set on purpose (told to
+  Ben). Tell the sites before release.
+
+### [22] A department's part of a shared priority
+
+- **Change:** on an org's page a priority's popup lists an initiative
+  filed under that org (or within it), or one whose "Also shown in"
+  list names that org — the rule the Improvement tab and the Gantt card
+  already use. A "Show all" switch with a count; each row names the org
+  the initiative is filed under, in place of "This org". With nothing
+  mapped the list is EMPTY ("0 of 5"). On the priority's own page
+  nothing changes.
+- **Out of scope:** splitting actions inside an initiative by
+  department; any rule by owner, sponsor, team or action holder;
+  scoping the tile's circles or status.
+- **Acceptance criteria:** Given a site priority with five initiatives,
+  two naming a department in "Also shown in", when that department
+  opens the priority, then it lists those two with "2 of 5" and Show
+  all lists five.
+- **Affected components:** `priorities/prioritiesScreen.ts`
+  (`initiativesFor`), `priorities/lifecycle.ts`,
+  `improvement/initiativeModel.ts` (`orgsOf`).
+- **Risk & rollback:** department pages open empty until initiatives
+  are mapped — a setup job for initiative owners, to be told before
+  release.
+
+### [20] One list of measures on a priority
+
+- **Root cause:** three sources by a hidden rule — the priority's own
+  metrics; a starred primary's starred metrics, which take over;
+  metrics ticked from its initiatives when there is no primary.
+- **Change:** a single list, "Measures": what the tile shows and what
+  leads the Objectives tab. "Add measure" = choose one from an
+  initiative (a reference, never a copy) or create one on the priority
+  (first showing similarly named metrics of its initiatives). An empty
+  list shows "No measure set". Starring a primary, when the list is
+  empty, offers once to add its key metrics as ordinary entries.
+  Existing priorities are carried in as they stand on the day. A
+  referenced metric its initiative deleted shows "No longer on its
+  initiative" until removed.
+- **Out of scope:** requiring a metric; a roll-up beside the value
+  driver tree.
+- **Acceptance criteria:** Given any priority the day before release,
+  then the day after it shows the same measures. Given a priority with
+  none, then "No measure set" shows with Objectives on. Given I choose
+  a metric from an initiative, then its readings are the initiative's
+  and are entered in one place.
+- **Affected components:** `priorities/lifecycle.ts`,
+  `priorities/ownMetricsTab.ts`, `priorities/model.ts`
+  (`parseObjectives`), `priorities/prioritiesScreen.ts`, the executive
+  summary.
+- **Data / schema impact:** none — the list lives in the objectives
+  column. A one-off conversion as each priority is first read.
+- **Risk & rollback:** reverses the 2026-11-16 ticked objectives and
+  "the primary's starred metrics take over". An older build misreads
+  the list — "Lock every older build".
+
+### [24] Where a chart's axis starts
+
+- **Change:** the axis starts at the first reading, with one empty
+  period before it; the Metrics card's chart and the tiles' small
+  charts agree. A metric with twelve or more readings is unchanged.
+- **Acceptance criteria:** Given a yearly metric with one reading in
+  2026, then its axis starts at 2025, not 2022.
+- **Affected components:** `improvement/readWindow.ts`
+  (`chartWindow`), the trend chart.
+- **Risk & rollback:** none.
+
+### [4] The columns are the person's (and [26])
+
+- **Root cause:** `switchTo` rebuilds the screen with only the ticked
+  libraries; `DocUiPrefs` never held columns.
+- **Change:** a library change and Favourites carry the open view
+  (columns, filters, search, sort). The chosen columns are saved for
+  the person; every visit opens with them until "Reset to default". A
+  saved view or shared link shows its own columns while open. One set
+  per person.
+- **Acceptance criteria:** Given my chosen columns, when I untick a
+  library, then they stay. When I close and reopen the app, then they
+  are there. When I open a shared view, then I see its columns, and
+  mine return when I leave it.
+- **Affected components:** `docs/docsScreen.ts`, `docs/views.ts`,
+  `docs/prefs.ts`.
+- **Data / schema impact:** none (the person's preferences row).
+- **Test cases:** the two reported scenarios (Ellen); Favourites; a
+  column a library does not carry (blank cells).
+
+### [25] The Library column
+
+- **Change:** Library is an ordinary column in the chooser — shown
+  with the default columns when several libraries are ticked, as now;
+  with a chosen set, only if ticked.
+- **Affected components:** `docs/docsScreen.ts`, `docs/registerCells.ts`.
+
+### [7] A tooltip on a library's name
+
+- **Change:** the name's tooltip reads "Show only this library".
+
+### [8] and [6] The Filters pane
+
+- **Change:** the pane grows to the height of the window; larger
+  expand arrows; clicking anywhere on a branch's row expands it.
+- **Out of scope:** a side panel; a pop-up window.
+- **Affected components:** `docs/docsScreen.ts`, `style.css`.
+
+### [9] The Libraries card folds
+
+- **Change:** the card folds to one line, "Libraries, 3 of 4",
+  remembered for the person.
+
+### [19] UAT-DOC-040
+
+- **Change (script only):** the case gains the revision that was only
+  started: cancelling it returns the document to its last published
+  version and leaves no version and no comment. No change in the app.
+
+## Non-software actions
+
+| ID | Action (training / process / config / data) | Owner | Due |
+|---|---|---|---|
+| 5 | Data: repair BSL's process tree — "Cooling Towers & Water Management" under Casthouse; the Metal Delivery copies of "Inspection, Homogenising & Sawing" and (if not a real area) "General" removed; affected documents re-tagged with N3; wrong entries archived, their terms retired | Ben | After N3 reaches production |
+| 1 | Config: set the 2027 pillar structure through the year-change panel | Ben | Before January 2027 |
+| 22 | Process: initiative owners add departments to "Also shown in"; a department that needs its own action set files its own initiative | Ben to tell the sites | At release |
+| 21 | Training: a new action starts at Plan; cards in To do now read Plan; moving a card and setting its state are one thing | Ben to tell the sites | At release |
+| 15, 18 | Training: every hand-over step now sends its Teams card by itself | Ben to tell document users | At release |
+| 13 | Check: Review complete on dev, with one account, before release | Ben | Before release |
+| 11 | Check: documents open at page 1 in the hosted app | Ben or Ellen | After release |
+| 16 | Evidence: if Approve on an edit request fails again, the message, word for word | Ellen, via Ben | When seen |
+| 7, 19, 27, 29, 30 | Replies with the guidance decided (in the resolution CSV) | Ben | At close-out |
+| all | After each release reaches an environment: "Lock every older build" | Ben | At release |
+
+## Deferred and declined
+
+| ID | Reason | Revisit trigger |
+|---|---|---|
+| 3 | Deferred: keyboard entry in the ingestion grid belongs with tranche 5's type-ahead pickers | Tranche 5's walk |
+| 27 | Declined: status moves through the existing commands, never a form (Ben) | None |
+
+**Considered within built items and not taken** (each is in its brief's
+"Out of scope"). **To the backlog, observed and not requested:**
+
+- The sync's inferred rename: one new name and one unmatched term under
+  the same parent is treated as a rename, children carried
+  (`orgSyncPlan`, `docs/model.ts`). Real; did not cause 5.
+- The sync cannot move a term to another parent (`docs/orgSync.ts`).
+- Moving a priority's start year forward takes it off the earlier
+  year with no warning.
+- "Cancel revision" is offered on an approved document with a stray
+  check-out.
+- Remembering the last tab (29), a site default for libraries (7), a
+  "Show from" year per metric (24), the approved version side by side
+  (17), a Filters side panel (8) — not chosen.
+
+## Close-out (completed in phase 4)
+
+| ID | Final status | Release | Tested (Y/N, how) | Deviation from plan |
+|---|---|---|---|---|
+| | | | | |
+
+---
+
+## Appendix — the review record (phases 1 and 2, as it was made)
+
+Kept as the evidence behind the plan: each finding with where it was read, each question with Ben's answer, each decision with what was considered and not taken.
+
+### Triage (phase 1, 2026-11-26)
 
 `#` is the export's number. Ids are the Dataverse row ids, in full.
 
@@ -60,7 +794,7 @@ message; then each clarifying question, then each decision, one per
 message): A+B; F; N1; C; 21 and 22; 5. Then 17, 19, 27, 28, 11, 12.
 Lighter at the end: D with 3, 10, 20, 24, 29, 30.
 
-## Decisions so far
+### Findings and decisions, in the order they were made
 
 ### Cluster A and B — reviewed and decided 2026-11-26
 
@@ -96,7 +830,7 @@ Findings (code read; nothing run):
 | 15, 18 | Build (Ben's choice 2) | EVERY hand-over step sends its Teams card at once — Review complete, Submit for approval, Approve, Request revision, as Submit for review does. The panel stays for a second send with edited words, or an email. A failed send shows as a warning. This reverses, for these steps, the 2026-10-26 decision that nothing is sent until the button is pressed (UAT DOC-042) |
 | N2 | Build | A version's comment shows under its row in the history |
 
-### Cluster F — reviewed 2026-11-26, NOT yet decided
+### Cluster F — reviewed 2026-11-26
 
 Findings (code read; one harness run):
 
@@ -168,7 +902,7 @@ and three fields with no place (type, release, date).
 | N1 | The starting file (choice 1) | "Export to CSV" beside "Export to PDF": the ticked issues in the import's layout, ids filled in, with title, reporter and present status as reference columns the import ignores. `issue-review-prompt.md` §4.5 to say the import ignores columns it does not know |
 | N1 | Common rules | Faults shown per row before anything runs (unknown id, status not in the list, missing message, message over 400 characters, a duplicate with no parent); Apply runs row by row and reports each; a failed row does not stop the rest; the same file run twice changes nothing |
 
-### Cluster C — reviewed 2026-11-26, NOT yet decided
+### Cluster C — reviewed 2026-11-26
 
 Findings (code read; nothing run):
 
@@ -202,7 +936,7 @@ Findings (code read; nothing run):
 | 25 | Build (choice 1) | Library is an ordinary column in the chooser: shown with the default columns when several libraries are ticked, as now; with a chosen set, only if ticked |
 | 7 | Not a software issue + one small build | A reply: tick the three and they stay; clicking a name selects that library alone. Ben added: a tooltip on a library's name, "Show only this library" |
 
-### Reports 21 and 22 — reviewed 2026-11-26, NOT yet decided
+### Reports 21 and 22 — reviewed 2026-11-26
 
 Findings (code read; nothing run):
 
@@ -229,7 +963,7 @@ Findings (code read; nothing run):
 | 21 | Build (2026-11-26) | The kanban column comes from the PDCA state: Plan = To do; Do, Check, Act = Doing; awaiting endorsement = Endorse; Closed = Done. Setting the state in the dialog moves the card; dragging sets the state (into To do = Plan, into Doing = Do; a card at Check or Act keeps its mark within Doing). The separate "in progress" status decides nothing. **A new action starts at PLAN** (reverses Ben's 2026-08-31 "starts at Do"). **Existing cards stay in their column**: an action at Do never dragged into Doing stays in To do and reads as Plan from then on (Ben told this rewrites a mark that was sometimes a choice; he chose it). **On hold sits in To do** with its pause mark (Plan in the PDCA view). The grouping menu gains **"By PDCA state"** — Plan, Do, Check, Act, Closed; awaiting endorsement sits in Closed with its marker — the default stays four columns (Ben's choice 3; PDCA columns as the default, with Check as Endorse, considered and not taken). Meeting boards follow the same rule on their three columns |
 | 22 | Build, narrowed by Ben | The priority popup follows the app's existing rule for where an initiative shows: on an org's page it lists an initiative filed under that org (or within it), or one whose "Also shown in" list names that org — the rule the Improvement tab and Gantt card already use. A "Show all" switch with a count ("Showing X, 2 of 5 initiatives"); each row names the org the initiative is filed under, in place of "This org"; on the priority's own page nothing changes. **Before any setup the list is EMPTY** ("0 of 5", then Show all) — Ben's choice 2, no fallback to all. NOT built: splitting actions inside a shared initiative by department (a department that needs its own action set files its own initiative — Ben); any rule by owner, sponsor, team or action holder (considered, dropped as complexity); scoping the tile's circles or status |
 
-### Report 5 — reviewed 2026-11-26, NOT yet decided
+### Report 5 — reviewed 2026-11-26
 
 Findings (code read; production's term store NOT seen):
 
@@ -296,7 +1030,7 @@ document's name; the approval date was wrong after ingestion.
 | 27 | Declined (Ben) | Status changes go through the existing commands in the document's menu. Nothing is added to the form — not even a pointer. The reply says where the commands are |
 | 28 | Build (Ben's choice 1) | Two commands in the document's menu, for DOCUMENT CONTROLLERS only. **Rename**: new name and a reason; the file type is kept; a name already in use in that folder is refused. **Correct approval date**: the date and a reason; a future date is refused; the review date is counted again from it by the document's cadence. Each writes a new version whose comment says what changed, from what, to what, by whom and why. Reverses, for controllers and for this one date, the 2026-08-10 "never typed" decision; cadence and review date stay calculated. Neither is in N3's bulk change |
 
-### Reports 17 and 11, the document preview — reviewed 2026-11-26, NOT yet decided
+### Reports 17 and 11, the document preview — reviewed 2026-11-26
 
 Findings (code read; nothing run):
 
@@ -324,7 +1058,7 @@ Findings (code read; nothing run):
 | 17 | Build (Ben's choice 1) | On a Word document awaiting review or approval, the decision card carries one line — "Tracked changes do not show in this preview" — with an "Open in Word" button beside it; on every such card, tracked or not. Word files only. Not built: reading the file to say it only when true; the approved version side by side |
 | 11 | Build, as a try (Ben) | The preview's address asks the PDF viewer for page 1, for converted files and for PDFs. The cause was NOT found and the fault was not reproduced, so this cannot be proved before it ships: Ben's or Ellen's check in the hosted app decides whether the report closes |
 
-### Report 19, UAT-DOC-040 Cancel revision — reviewed 2026-11-26, NOT yet decided
+### Report 19, UAT-DOC-040 Cancel revision — reviewed 2026-11-26
 
 Findings (code read; nothing run):
 
