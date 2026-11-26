@@ -786,6 +786,36 @@ the brief above.
 - Adds about two and a half days to R1 (seating and release, the
   request road, a setting, the per-site check).
 
+**Item 2 — report 14.** The rule goes beside `spErrorText`
+(`docs/model.ts`), once, for every step. Wordings agreed: own lock —
+"This document is open in Word. Close it there, then press again.";
+someone else's — "<Name> has this document open in Word. Ask them to
+close it, then press again."; refused again at once — the same line
+plus "Word can hold a document for a moment after it is closed. Wait a
+few seconds and press again." The holder shows by name where the app
+can match the sign-in address, else the address.
+
+**Item 3 — report 16.** As briefed. After a release the person reads
+"Nothing was changed." and the reason. Edit properties keeps what was
+typed; Start revision is not a failure; a refused release says "It is
+still checked out to you. Use Check in or Discard from the document's
+menu."; a refused check-in counts (the step is all or nothing).
+Check-outs already stray in production are cleared by hand, once.
+
+**Item 4 — the hand-over rule (18, 15).** Sends itself: Submit for
+review, Review complete, Submit for approval, an approver's Approve,
+Request revision. NOT sent by itself (Ben's choice 1): the final
+Approve's courtesy note and the Supersede / Mark obsolete / Reinstate
+notices — offered, waiting for a press, as now. The typed comment
+travels with the card; nobody is messaged about their own step
+("Nobody else to tell"); several recipients share one group chat; a
+reviewer waiting for a seat is told when seated, not at submit.
+
+**Item 5 — N2.** Draft rows only: the comment on a second line beneath
+the row; none shows no second line; long ones wrap; the card still
+shows two drafts and "Show more"; the tooltip goes. The explanatory
+lines above the list stay (not asked to go).
+
 ---
 
 ## Appendix — the review record (phases 1 and 2, as it was made)
