@@ -973,6 +973,7 @@ setting is in `deploy-to-new-org.md`; production needs it at release
 | 3 | Report 13 and N2 — a completed review is known; draft comments under their rows (`v0.99.0-100-gf055133`) | Pass |
 | 4 | Report 14 — a step refused while the document is open in Word | Pass. (The release of a check-out the step took could not be forced on purpose; it is unit-tested and waits for UAT.) |
 | 5 | Reports 15 and 18 — every hand-over tells the next person | Pass (which roles the document carried was not stated, so which steps truly sent a card and which read "Nobody else to tell." is not recorded) |
+| 6 | Report 5 — two terms with one name stay two terms (the filter; the ingestion grid) | Pass (whether Part B, the ingestion grid, was run was not stated) |
 
 ---
 
