@@ -1757,6 +1757,12 @@ Metrics card alone, leaving meeting-board KPI cards on the floor.
 | 2 | Report 21 — drags, a new action at Plan, a reopened one into Do | Pass |
 | 3 | Report 21 — the "By PDCA state" view, its drags, the Gantt, the settings | Pass |
 | 4 | Report 22 — a department's part of a shared priority, popup and executive summary | Pass. **Asked in it (Ben):** the grouping had to be chosen on the kanban before switching to the Gantt — "the grouping selector should also be available on the gantt tab". Built the same day: the select shows on the Gantt view too, reading "Not grouped" where the kanban reads "By status" (by status the Gantt is one flat list); one choice for both views. Seen in the harness |
+| 5 | Report 20 — "Convert measures": every tile as before, the one list, stars no longer taking over (on `v0.100.0-16-g6ff1ad0`) | Pass (the run's counts were not reported back) |
+| 6 | Report 20 — the list: add from an initiative, four at most, move, remove, an own measure with the similar-name question; an initiative's eight | Pass |
+
+**R5's test walk ended 2026-11-27 on `v0.100.0-16-g6ff1ad0`:** all six
+pass. Built in it at Ben's word: the grouping select on the Gantt
+view. Report 24 stays Held. Dev's priorities are now converted.
 
 **Limits:**
 

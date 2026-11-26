@@ -174,8 +174,12 @@ code-app `frame-src`, "Lock every older build". Owed from it:
   that a new action starts at Plan, that meeting boards read To do ·
   Doing · Done, and that department pages list only their own
   initiatives of a shared priority until "Also shown in" is filled in.
-- **Next:** R5's test walk, then walk R6, the second release, and the
-  round's full resolution CSV. Tranche 5 of the programme
+- **R5's test walk (2026-11-27, dev `v0.100.0-16-g6ff1ad0`): all six
+  pass.** Built in it: the grouping select on the Gantt view. Dev's
+  priorities are converted.
+- **Next:** walk R6 (the Documents screen: a person's columns, the
+  Library column, a library's tooltip, the Filters pane, the Libraries
+  card), then the second release and the round's full resolution CSV. Tranche 5 of the programme
   follows the round.
 
 **v0.99.0 (2026-11-23, app-only):** tranche 1 of the programme
