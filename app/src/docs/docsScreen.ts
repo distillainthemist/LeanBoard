@@ -102,6 +102,7 @@ import { taskGroupHeader, taskRowEl } from "./taskRows";
 import { CLOSED_SHOWN, closedTasksForPanel, savedTerm, tasksForPanel, IngestionTask } from "./ingestionModel";
 import { isUatHidden } from "./uatLibraries";
 import { SiteBranch, SiteVerdict, docSiteVerdict, scopedSite, siteBranchOf, taskInSite } from "./siteScope";
+import { approvalStep, behalfCandidates } from "./onBehalfModel";
 import { readsRunning, runStamp } from "./ingestionRun";
 import { accessRequestPlan, notifyPlanFor } from "./notifyModel";
 import {
@@ -761,7 +762,7 @@ export function mountDocs(
         (c) => termForStage(siteDict, c.to, statusTermList) !== null
       );
     };
-    const runLifecycle = (row: DocRow, cmd: LifecycleCommandDef) => {
+    const runLifecycle = (row: DocRow, cmd: LifecycleCommandDef, fromTasks?: { unseen: boolean; onDone: () => void }) => {
       const target = termForStage(siteDict, cmd.to, statusTermList);
       if (target === null) return;
       // submit-for-review carries the reviewers picker: the submitter
@@ -894,7 +895,22 @@ export function mountDocs(
             cmd.key === "submitReview"
               ? { owners: rolePeople(row, ownerInternal), by: { name: currentViewer()?.name ?? "", email: myEmail } }
               : undefined,
-          onDone: () => void refreshRow(row),
+          // a controller not named at this step says for whom (report 12)
+          onBehalf: (() => {
+            const step = cmd.key === "approve" && docAdmin() ? approvalStep(cmd.to) : null;
+            if (step === null) return undefined;
+            const people = behalfCandidates(step, { owners: rolePeople(row, ownerInternal), approvers: rolePeople(row, approversInternal) }, myEmail);
+            return people.length > 0 ? { step, people, actorId: whoId, link: docLinkUrlWork(row.listId, row.id) } : undefined;
+          })(),
+          // from the task list the document has not been looked at (report 10)
+          unseen:
+            fromTasks?.unseen === true
+              ? { open: () => onRowOpen(row, { details: true }), wordUrl: ["docx", "doc", "docm"].includes(row.ext) ? viewerPageUrl(app.siteUrl, row) : "" }
+              : undefined,
+          onDone: () => {
+            void refreshRow(row);
+            fromTasks?.onDone();
+          },
         });
       });
     };

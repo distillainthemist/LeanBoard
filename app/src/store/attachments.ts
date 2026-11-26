@@ -16,7 +16,7 @@ function fromRow(r: Ben_ltkattachments): Attachment {
   const url = r.ben_url ?? "";
   return {
     rowId: r.ben_ltkattachmentid,
-    parent: { kind: (r.ben_parentkind === "action" ? "action" : "initiative") as AttachmentParentKind, id: r.ben_parentid ?? "" },
+    parent: { kind: (r.ben_parentkind === "action" ? "action" : r.ben_parentkind === "docapproval" ? "docapproval" : "initiative") as AttachmentParentKind, id: r.ben_parentid ?? "" },
     kind: url !== "" ? "link" : "file",
     fileName: r.ben_filename ?? "",
     url,
@@ -34,6 +34,15 @@ const filterFor = (p: AttachmentParent): string => `ben_parentkind eq '${odata(p
 export async function listAttachments(parent: AttachmentParent): Promise<Attachment[]> {
   if (parent.id === "") return [];
   const rows = await memoRead(TOPIC, `${parent.kind}|${parent.id}`, () => allWhere(Ben_ltkattachmentsService.getAll, filterFor(parent)));
+  return sortAttachments(rows.map(fromRow));
+}
+
+/** Every attachment of a kind whose parent id starts with a prefix —
+ *  a document's approval evidence across all its versions, in one read
+ *  (report 12, 2026-11-27). */
+export async function listAttachmentsUnder(kind: AttachmentParentKind, prefix: string): Promise<Attachment[]> {
+  if (prefix === "") return [];
+  const rows = await memoRead(TOPIC, `${kind}|${prefix}*`, () => allWhere(Ben_ltkattachmentsService.getAll, `ben_parentkind eq '${odata(kind)}' and startswith(ben_parentid,'${odata(prefix)}')`));
   return sortAttachments(rows.map(fromRow));
 }
 

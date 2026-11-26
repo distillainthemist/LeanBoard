@@ -48,6 +48,8 @@ import {
   spErrorText,
 } from "./model";
 import { visibleLinks } from "./uatLibraries";
+import { EVIDENCE_KIND, evidenceLabel, evidencePrefix } from "./onBehalfModel";
+import type { Attachment } from "../attachments/model";
 
 interface ViewerOpts {
   site: string;
@@ -1260,6 +1262,42 @@ export function openDocViewer(opts: ViewerOpts): () => void {
         ? el("span", "app-docs-vercomment", `“${comment}”`)
         : el("span", "app-docs-vercomment app-docs-vernone", "No comment");
     const list = el("div", "app-docs-verlist");
+    // the evidence for approvals made on someone's behalf (report 12,
+    // 2026-11-27): kept in the app against the version, read once for
+    // the whole history and shown on the version it belongs to
+    const evidence = new Map<string, Attachment[]>();
+    const repaints: (() => void)[] = [];
+    void import("../store/attachments")
+      .then(({ listAttachmentsUnder }) => listAttachmentsUnder(EVIDENCE_KIND, evidencePrefix(row.uniqueId)))
+      .then((all) => {
+        for (const a of all) {
+          const label = evidenceLabel(a.parent.id);
+          evidence.set(label, [...(evidence.get(label) ?? []), a]);
+        }
+        if (all.length > 0 && list.isConnected) repaints.forEach((fn) => fn());
+      })
+      .catch(() => undefined);
+    const evidenceEl = (label: string): HTMLElement | null => {
+      const files = evidence.get(label) ?? [];
+      if (files.length === 0) return null;
+      const box = el("div", "app-docs-verevidence");
+      box.appendChild(el("span", "app-docs-verevidencehead", "📎 Evidence"));
+      for (const a of files) {
+        const b = el("button", "app-link", a.fileName !== "" ? a.fileName : "file") as HTMLButtonElement;
+        b.type = "button";
+        b.title = [a.caption, a.byName].filter((x) => x !== "").join(" · ");
+        b.addEventListener("click", (e) => {
+          e.stopPropagation();
+          b.disabled = true;
+          void import("../store/attachments")
+            .then(({ downloadAttachment }) => downloadAttachment(a))
+            .catch(() => undefined)
+            .finally(() => (b.disabled = false));
+        });
+        box.appendChild(b);
+      }
+      return box;
+    };
     for (const g of groups) {
       const card = el("div", "app-docs-vercard");
       let open = g.current;
@@ -1318,6 +1356,8 @@ export function openDocViewer(opts: ViewerOpts): () => void {
         const headOpen = g.head !== null ? openLink(g.head) : null;
         if (headOpen !== null) headMeta.appendChild(headOpen);
         if (headMeta.children.length > 0) card.appendChild(headMeta);
+        const headEvidence = g.head !== null ? evidenceEl(g.head.label) : null;
+        if (headEvidence !== null) card.appendChild(headEvidence);
         if (open && g.drafts.length > 0) {
           const trail = el("div", "app-docs-vertrail");
           const shown = showAll ? g.drafts : g.drafts.slice(0, 2);
@@ -1354,6 +1394,8 @@ export function openDocViewer(opts: ViewerOpts): () => void {
             // review", "Review complete by …") — read, not hovered for
             // (Ben, 2026-11-26); a draft with none shows nothing more
             if (d.comment.trim() !== "") trail.appendChild(el("div", "app-docs-verdraftnote", `“${d.comment.trim()}”`));
+            const draftEvidence = evidenceEl(d.label);
+            if (draftEvidence !== null) trail.appendChild(draftEvidence);
           }
           if (!showAll && g.drafts.length > 2) {
             const more = el(
@@ -1371,6 +1413,7 @@ export function openDocViewer(opts: ViewerOpts): () => void {
         }
       };
       paintCard();
+      repaints.push(paintCard);
       list.appendChild(card);
     }
     propsBox.appendChild(list);

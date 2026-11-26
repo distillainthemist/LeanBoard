@@ -5,7 +5,10 @@
 // what must not wander off with a folder. Visibility follows the parent
 // (app-level — the rows stay readable through Dataverse itself).
 
-export type AttachmentParentKind = "initiative" | "action";
+/** "docapproval" (2026-11-27, report 12): the evidence for an approval
+ *  made on someone's behalf — its parent id is "<file id>/<version>"
+ *  (docs/onBehalfModel.ts). */
+export type AttachmentParentKind = "initiative" | "action" | "docapproval";
 
 export interface AttachmentParent {
   kind: AttachmentParentKind;

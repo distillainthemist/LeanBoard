@@ -552,6 +552,13 @@ export function siteRelativePath(site: string, serverRelativeUrl: string): strin
   return sitePath !== "" && serverRelativeUrl.toLowerCase().startsWith(sitePath.toLowerCase()) ? serverRelativeUrl.slice(sitePath.length) : serverRelativeUrl;
 }
 
+/** The label of a file's current version ("12.0"), "" when unread. */
+export async function fetchVersionLabel(site: string, url: string): Promise<string> {
+  const r = await spRequest(site, "GET", `${filePath(url)}?$select=UIVersionLabel`);
+  const v = ((r.data ?? {}) as { UIVersionLabel?: unknown }).UIVersionLabel;
+  return r.ok && typeof v === "string" ? v : "";
+}
+
 export function fetchFileInfo(site: string, url: string): Promise<SpResult> {
   return spRequest(site, "GET", `${filePath(url)}?$select=Length,CheckOutType,Name,TimeLastModified`);
 }

@@ -33,6 +33,7 @@ import { DocRow, formatDayMonthYear } from "./rows";
 import { publishReaderFacing } from "./publish";
 import { newBracket, refused } from "./bracket";
 import { NO_SEATS, SeatOutcome, seatWords, waitingEmails } from "./reviewerSeatsModel";
+import { ApprovalStep, EVIDENCE_KIND, Person, behalfBase, behalfCard, evidenceParentId } from "./onBehalfModel";
 import {
   checkInFile,
   checkOutFile,
@@ -103,6 +104,16 @@ export interface LifecycleRunOpts {
    *  reviewer from outside the Owners & Approvers group can be let in
    *  to the draft — or the owner asked to (reviewerSeats.ts). */
   seatCtx?: { owners: { name: string; email: string }[]; by: { name: string; email: string } };
+  /** Approve by a controller who is NOT named at this step (report 12,
+   *  2026-11-27): who they may approve for. The dialog requires a
+   *  choice, names both in the comment, takes evidence, and tells the
+   *  person approved for. */
+  onBehalf?: { step: ApprovalStep; people: Person[]; actorId: string; link: string };
+  /** Opened from the Document tasks list, where the document itself
+   *  has not been looked at (report 10): the dialog says so and offers
+   *  the way to look. `wordUrl` = a Word file's viewing address, for
+   *  the tracked-changes line. */
+  unseen?: { open: () => void; wordUrl: string };
 }
 
 type Sp = { ok: boolean; status: string; data: unknown };
@@ -324,6 +335,101 @@ export function openLifecycleCommand(opts: LifecycleRunOpts): void {
     paintPicked();
     dlg.body.append(label, pickedBox, search.el);
   }
+  // opened from the task list: what has not been seen, and the way to
+  // look (report 10 — an approval can be made without opening it)
+  if (opts.unseen !== undefined && (command.key === "approve" || command.key === "reviewComplete")) {
+    const unseen = opts.unseen;
+    const note = el("div", "app-docs-unseen");
+    note.appendChild(el("span", "", "You have not opened this document here. "));
+    const openBtn = el("button", "app-link", "Open document") as HTMLButtonElement;
+    openBtn.type = "button";
+    openBtn.addEventListener("click", () => {
+      if (running) return;
+      dlg.close();
+      unseen.open();
+    });
+    note.appendChild(openBtn);
+    if (unseen.wordUrl !== "") {
+      const line = el("div", "");
+      line.appendChild(el("span", "", "Tracked changes do not show in the preview. "));
+      const a = el("a", "app-link", "Open in Word ↗") as HTMLAnchorElement;
+      a.href = unseen.wordUrl;
+      a.target = "_blank";
+      a.rel = "noopener";
+      line.appendChild(a);
+      note.appendChild(line);
+    }
+    dlg.body.appendChild(note);
+  }
+  // on behalf of (report 12): a controller who is not named at this
+  // step says for whom, and may attach the proof
+  const behalf = command.key === "approve" && opts.onBehalf !== undefined && opts.onBehalf.people.length > 0 ? opts.onBehalf : undefined;
+  const forWhom = new Set<Person>();
+  const evidence: File[] = [];
+  if (behalf !== undefined) {
+    const label = el("div", "app-field-label", "On behalf of");
+    label.appendChild(requiredMark());
+    const box = el("div", "app-docs-behalf");
+    for (const p of behalf.people) {
+      const lab = el("label", "app-docs-behalfrow");
+      const tick = el("input", "") as HTMLInputElement;
+      tick.type = "checkbox";
+      // one person to approve for: there is nothing to choose between
+      if (behalf.people.length === 1) {
+        tick.checked = true;
+        forWhom.add(p);
+      }
+      tick.addEventListener("change", () => {
+        if (tick.checked) forWhom.add(p);
+        else forWhom.delete(p);
+        sync();
+      });
+      lab.append(tick, el("span", "", p.name.trim() || p.email));
+      box.appendChild(lab);
+    }
+    const files = el("div", "app-docs-pplchips");
+    const pick = el("input", "") as HTMLInputElement;
+    pick.type = "file";
+    pick.multiple = true;
+    pick.style.display = "none";
+    const attach = el("button", "app-btn", "Attach evidence…") as HTMLButtonElement;
+    attach.type = "button";
+    attach.title = "The email or note that shows the approval was given. Kept with this version in the history.";
+    const fileNote = el("div", "app-docs-addstatus");
+    const paintFiles = () => {
+      clear(files);
+      for (const f of evidence) {
+        const chip = el("span", "app-docs-pplchip");
+        chip.appendChild(el("span", "", `📎 ${f.name}`));
+        const off = el("button", "app-docs-pplchipx", "✕") as HTMLButtonElement;
+        off.type = "button";
+        off.addEventListener("click", () => {
+          evidence.splice(evidence.indexOf(f), 1);
+          paintFiles();
+        });
+        chip.appendChild(off);
+        files.appendChild(chip);
+      }
+      files.style.display = evidence.length > 0 ? "" : "none";
+    };
+    attach.addEventListener("click", () => pick.click());
+    pick.addEventListener("change", () => {
+      void import("../attachments/model").then(({ fileProblem }) => {
+        const refusedFiles: string[] = [];
+        for (const f of Array.from(pick.files ?? [])) {
+          const why = fileProblem(f);
+          if (why !== "") refusedFiles.push(why);
+          else if (!evidence.some((x) => x.name === f.name && x.size === f.size)) evidence.push(f);
+        }
+        pick.value = "";
+        fileNote.textContent = refusedFiles.join(" ");
+        fileNote.classList.toggle("app-docs-addstatus-warn", refusedFiles.length > 0);
+        paintFiles();
+      });
+    });
+    paintFiles();
+    dlg.body.append(label, box, files, attach, pick, fileNote);
+  }
   const reasonLabel = el("div", "app-field-label", "Comment");
   if (command.needsReason) reasonLabel.appendChild(requiredMark());
   dlg.body.append(reasonLabel, reason);
@@ -331,7 +437,7 @@ export function openLifecycleCommand(opts: LifecycleRunOpts): void {
   dlg.body.appendChild(status);
 
   const sync = () => {
-    const still = [...(command.needsReason && reason.value.trim() === "" ? ["Comment"] : []), ...(needSuccessor && picked === null ? ["Superseded by"] : [])];
+    const still = [...(behalf !== undefined && forWhom.size === 0 ? ["On behalf of"] : []), ...(command.needsReason && reason.value.trim() === "" ? ["Comment"] : []), ...(needSuccessor && picked === null ? ["Superseded by"] : [])];
     goBtn.disabled = running || still.length > 0 || (regConfirm !== null && !regConfirm.checked);
     goBtn.title = stillNeeded(still);
   };
@@ -416,6 +522,7 @@ export function openLifecycleCommand(opts: LifecycleRunOpts): void {
   const run = async () => {
     if (running || (command.needsReason && reason.value.trim() === "")) return;
     if (regConfirm !== null && !regConfirm.checked) return;
+    if (behalf !== undefined && forWhom.size === 0) return;
     running = true;
     sync();
     status.classList.remove("app-docs-addstatus-warn");
@@ -425,10 +532,13 @@ export function openLifecycleCommand(opts: LifecycleRunOpts): void {
     // approve's and review-complete's comments name the person — the
     // version history is the audit trail, and the submit gate reads
     // "Review complete by X" (issue 4)
+    const approvedFor = behalf === undefined ? [] : behalf.people.filter((p) => forWhom.has(p));
     const base =
-      (command.key === "approve" || command.key === "reviewComplete") && opts.actorName !== ""
-        ? `${command.comment} by ${opts.actorName}`
-        : command.comment;
+      approvedFor.length > 0
+        ? behalfBase(command.comment, opts.actorName, approvedFor)
+        : (command.key === "approve" || command.key === "reviewComplete") && opts.actorName !== ""
+          ? `${command.comment} by ${opts.actorName}`
+          : command.comment;
     const note = reason.value.trim();
     let comment = note !== "" ? `${base} — ${note}` : base;
     if (picked !== null) comment = `Superseded by “${picked.name}”${note !== "" ? ` — ${note}` : ""}`;
@@ -660,6 +770,59 @@ export function openLifecycleCommand(opts: LifecycleRunOpts): void {
     // buttons must say so: "Cancel" becomes "Close" and the primary
     // action hides (Ben, 2026-08-06).
     const warnings: string[] = [];
+    // an approval on behalf: its evidence is kept against the version
+    // it has just made (which did not exist before the check-in), and
+    // the person approved for is told (report 12)
+    let againBtn: HTMLButtonElement | null = null;
+    if (behalf !== undefined && approvedFor.length > 0) {
+      let saved = 0;
+      if (evidence.length > 0) {
+        status.textContent = "Saving the evidence…";
+        const [{ fetchVersionLabel }, { addFileAttachment }] = await Promise.all([import("./sp"), import("../store/attachments")]);
+        const caption = behalfBase(command.comment, opts.actorName, approvedFor);
+        const label = await fetchVersionLabel(site, row.serverUrl).catch(() => "");
+        const save = async (): Promise<string[]> => {
+          const failed: string[] = [];
+          for (const f of [...evidence]) {
+            try {
+              if (label === "") throw new Error("the new version's number could not be read");
+              await addFileAttachment({ kind: EVIDENCE_KIND, id: evidenceParentId(row.uniqueId, label) }, f, caption, { whoId: behalf.actorId, who: opts.actorName });
+              evidence.splice(evidence.indexOf(f), 1);
+              saved++;
+            } catch (e) {
+              failed.push(`${f.name}: ${spErrorText(e instanceof Error ? e.message : String(e)).slice(0, 160)}`);
+            }
+          }
+          return failed;
+        };
+        const failed = await save();
+        if (failed.length > 0) {
+          warnings.push(`The approval stands, but ${failed.length === 1 ? "a file of evidence was" : `${failed.length} files of evidence were`} not saved (${failed.join("; ")}).`);
+          againBtn = el("button", "app-btn", "Attach again") as HTMLButtonElement;
+          againBtn.type = "button";
+          const btn = againBtn;
+          btn.addEventListener("click", () => {
+            btn.disabled = true;
+            status.textContent = "Saving the evidence…";
+            void save().then((still) => {
+              btn.disabled = false;
+              status.textContent = still.length === 0 ? "✓ The evidence is saved with this version." : `Still not saved: ${still.join("; ")}`;
+              status.classList.toggle("app-docs-addstatus-warn", still.length > 0);
+              if (still.length === 0) btn.remove();
+            });
+          });
+        }
+      }
+      const card = behalfCard(row.name, opts.actorName, behalf.step, reason.value, saved);
+      void import("./notify")
+        .then(({ sendNotifyTeams }) => sendNotifyTeams(approvedFor.map((p) => ({ name: p.name, email: p.email })), card.subject, card.text, behalf.link))
+        .then((sent) => {
+          const names = approvedFor.map((p) => p.name.trim() || p.email).join(", ");
+          const line = el("div", `app-docs-addstatus${sent.error === "" ? "" : " app-docs-addstatus-warn"}`, sent.error === "" ? `✓ ${names} ${approvedFor.length === 1 ? "has" : "have"} been told it was approved on their behalf.` : `${names} ${approvedFor.length === 1 ? "was" : "were"} not told (${spErrorText(sent.error).slice(0, 160)}). Tell them yourself.`);
+          if (dlg.root.isConnected) status.insertAdjacentElement("afterend", line);
+        })
+        .catch(() => undefined);
+    }
     const warnState = () => {
       const closeBtn = dlg.root.querySelector(".ltk-btn-secondary") as HTMLButtonElement | null;
       if (closeBtn !== null) closeBtn.textContent = "Close";
@@ -723,6 +886,7 @@ export function openLifecycleCommand(opts: LifecycleRunOpts): void {
     if (warnings.length > 0) {
       status.textContent = `${command.key === "approve" ? "Approved" : "Done"}. ${warnings.join(" ")}`;
       status.classList.add("app-docs-addstatus-warn");
+      if (againBtn !== null) status.insertAdjacentElement("afterend", againBtn);
       warnState();
       opts.onDone();
       return; // leave the dialog open so the warning is read
@@ -745,6 +909,15 @@ export function openLifecycleCommand(opts: LifecycleRunOpts): void {
             : [...(opts.reviewersPicker?.existing ?? []), ...added].length > 0
               ? "✓ Sent for review — the status has moved. You are the only reviewer named, so there is nobody else to tell."
               : "✓ Sent for review — the status has moved. No reviewer is named on this document, so nobody was messaged: add reviewers, or tell them yourself.";
+        return;
+      }
+      // an approval on behalf stays open to say whom it told
+      if (approvedFor.length > 0) {
+        const closeBtn = dlg.root.querySelector(".ltk-btn-secondary") as HTMLButtonElement | null;
+        if (closeBtn !== null) closeBtn.textContent = "Close";
+        goBtn.style.display = "none";
+        running = false;
+        status.textContent = `✓ ${command.label} — status is now “${opts.targetTerm.label}”.`;
         return;
       }
       dlg.close();

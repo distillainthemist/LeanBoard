@@ -3184,6 +3184,13 @@ button.app-doclist-hsort:hover { color: var(--app-accent, #2563eb); }
   .app-bulk-row { grid-template-columns: 22px 1fr; }
   .app-bulk-row > :nth-child(n+3) { grid-column: 2; }
 }
+/* Approving on behalf, with evidence (2026-11-27, R4 — report 12) */
+.app-docs-behalf { display: flex; flex-direction: column; gap: 4px; margin: 2px 0 8px; }
+.app-docs-behalfrow { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+.app-docs-verevidence { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 2px 0 4px 22px; font-size: 12px; }
+.app-docs-verevidencehead { color: #57534a; font-weight: 600; }
+/* a command opened from the task list: what has not been seen (report 10) */
+.app-docs-unseen { font-size: 12.5px; color: #92610f; background: #fdf3e0; border-radius: 6px; padding: 6px 8px; margin-bottom: 8px; }
 /* Rename and the date correction (2026-11-27, R4 — report 28) */
 .app-ctl-namerow { display: flex; align-items: center; gap: 6px; }
 .app-ctl-namerow .app-input { flex: 1; min-width: 0; }
