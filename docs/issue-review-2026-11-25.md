@@ -1525,7 +1525,15 @@ and the date correction against a FAKED SharePoint
 | 2 | Correct the effective date | Pass |
 | 3 | Change properties — the preview, nothing written | Pass |
 | 4 | Change properties — the run and the report | Pass (the run's measured rate was not reported back) |
-| 5 | Several properties and Importance | FOUND at its first step — Ben: "Why is there a property image tags?" The list offered every dictionary column the library has, where the walk said "the properties Edit properties offers": the form shows only what the Document Columns manager shows for the library's type (`dialogSections`), and bulk change did not apply that. Fixed the same day: `offeredFor(lib)`; a column the manager hides is neither offered nor written. Re-test owed |
+| 5 | Several properties and Importance | FOUND at its first step — Ben: "Why is there a property image tags?" The list offered every dictionary column the library has, where the walk said "the properties Edit properties offers": the form shows only what the Document Columns manager shows for the library's type (`dialogSections`), and bulk change did not apply that. Fixed the same day: `offeredFor(lib)`; a column the manager hides is neither offered nor written |
+| 5 (again) | The same, on `v0.100.0-8-g0242ded` | Pass: the list is the form's; both changes in one version; the review date moved, the effective date did not |
+| 6 | Report 12 — approving on behalf, evidence, the card | **To UAT** (Ben): dev has no document that can be set up for it. UAT-DOC-114 is its script. NOT seen anywhere: the evidence landing on the right version, the card to the approver, a named controller getting no "On behalf of" |
+| 7 | Report 10 — Document tasks, acting from the list | Pass |
+
+**R4's test walk ended 2026-11-27 on `v0.100.0-8-g0242ded`:** six
+pass, one to UAT. Found and fixed in it: bulk change offered columns
+the form hides. Not reported back: the bulk run's documents a minute
+(the summary line states it; the estimate still starts from 15).
 
 **Limits:**
 

@@ -154,8 +154,13 @@ code-app `frame-src`, "Lock every older build". Owed from it:
   with quick actions. As built and its limits: the plan's "R4 as
   built". An answers file for the sixteen issues v0.100.0 settles or
   answers is in `issue-resolutions-2026-11-25-v0.100.0.csv`.
-- **Next:** R4's test walk, then walk R5 and R6, the second release,
-  and the round's full resolution CSV. Tranche 5 of the programme
+- **R4's test walk (2026-11-27, dev `v0.100.0-8-g0242ded`): six pass,
+  approving on behalf TO UAT** (UAT-DOC-114). One fix in it: bulk
+  change now offers only the properties the Edit properties form
+  shows.
+- **Next:** walk R5 (the kanban and PDCA, a department's part of a
+  priority, one list of measures, the chart's axis), then R6, the
+  second release, and the round's full resolution CSV. Tranche 5 of the programme
   follows the round.
 
 **v0.99.0 (2026-11-23, app-only):** tranche 1 of the programme
