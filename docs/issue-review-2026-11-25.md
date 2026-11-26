@@ -919,9 +919,9 @@ UAT: UAT-DOC-040 and 042 updated; UAT-DOC-103 to 108 added.
 - **17: "Open in Word" opens Word's own VIEW of the document**
   (`Doc.aspx?…&action=view`). On the walk I told Ben it would open
   what "Open in new tab" opens — WRONG: that button opens the PDF
-  rendition, which is the very thing that hides the changes. Whether
-  Word's viewing mode shows tracked markup to an approver has not been
-  seen; if it does not, the address changes to Word's editing view.
+  rendition, which is the very thing that hides the changes. SEEN by
+  Ben on dev (test 7, 2026-11-26): the viewing mode shows the tracked
+  changes.
 - **Reviewer seats rest on two things not seen:** that the editors
   group's level lets a seated person open another's draft (Ben says it
   does in his libraries; the cookbook says drafts show to approvers and
@@ -974,6 +974,7 @@ setting is in `deploy-to-new-org.md`; production needs it at release
 | 4 | Report 14 — a step refused while the document is open in Word | Pass. (The release of a check-out the step took could not be forced on purpose; it is unit-tested and waits for UAT.) |
 | 5 | Reports 15 and 18 — every hand-over tells the next person | Pass (which roles the document carried was not stated, so which steps truly sent a card and which read "Nobody else to tell." is not recorded) |
 | 6 | Report 5 — two terms with one name stay two terms (the filter; the ingestion grid) | Pass (whether Part B, the ingestion grid, was run was not stated) |
+| 7 | Reports 17 and 11 — the tracked-changes line, Open in Word, page 1 | Pass, all four steps: Word's VIEWING mode shows the tracked changes to the person asked, so the address stays `action=view`; the converted preview opens at page 1 |
 
 ---
 
