@@ -1266,6 +1266,27 @@ mapping.
   the file picker and the CSV download in the hosted app, and a file
   saved by a spreadsheet program are Ben's check in the test walk.
 
+### R3 test walk (2026-11-26, dev `v0.99.0-112-gaad8991`)
+
+Six tests, one per message, run by Ben in the hosted app on dev.
+**Five pass; one goes to UAT. Nothing was changed in the walk.**
+
+| # | Test | Result |
+|---|---|---|
+| 1 | The status words: the filter, the chips, the Status select, My reports; "Done" reads "Resolved" | Pass |
+| 2 | Deferred and Not a software issue ask for a message; the deferred report in "Already reported in this area" | Pass |
+| 3 | Export to CSV: the file, its columns, no email, opened in Excel | Pass |
+| 4 | The preview of a file SAVED BY EXCEL: each fault named, the date read day first and shown in words, a message put right in the box, nothing written on Close | Pass |
+| 5 | Apply with the Teams tick off, the duplicate pair into a parent resolved in the same file, the same file again changes nothing | Pass |
+| 6 | One Teams card per person | **To UAT** — dev has no reports raised by a second person |
+
+**Owed in UAT** (with R1's reviewer seats): one card per person with
+several answers; the sender's own report getting no card; a duplicate's
+reporter getting their own row and not the parent's; a follower's
+card; "Send again". These were seen in the harness only, where Teams
+does not exist. Not run anywhere: Stop part-way through an apply, and
+a row whose step is refused.
+
 ---
 
 ## Appendix — the review record (phases 1 and 2, as it was made)

@@ -101,9 +101,13 @@ message as Declined does; "Export to CSV" of the ticked issues;
 "Import answers…" with a preview that names every fault before
 anything is written, applies row by row through the desk's own
 actions, changes nothing on a second run, and tells each person on ONE
-Teams card. As built and its limits: the plan's "R3 as built". Next:
-R3's test walk. After it the first release is ready to cut (R1, R2,
-R3 and programme tranches 2 to 4).
+Teams card. As built and its limits: the plan's "R3 as built". **R3's
+test walk (2026-11-26, dev `v0.99.0-112-gaad8991`): five pass, the
+Teams card per person TO UAT** (dev has no reports from a second
+person). **The first release is ready to cut on Ben's word**: R1, R2,
+R3 and programme tranches 2 to 4. It carries schema
+(`ben_assigneeorgs`, `ben_raisedorg`, `ben_succeedsjson`). Owed in UAT
+from this round: reviewer seats (R1) and one card per person (R3).
 What 1A was: the nine reports of the 2026-11-23 issue export
 (`issues-plan-2026-11-23.md`): Teams group messages refused over a
 colon in the chat topic, Replace content's false "landed wrong" on
