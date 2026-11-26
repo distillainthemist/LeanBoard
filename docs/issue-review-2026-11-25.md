@@ -1627,6 +1627,69 @@ two of five. **Found: the executive summary's expanded card uses the
 same list. Ben's choice 1:** it follows the same rule, with the same
 line and switch.
 
+**Item 5 — report 20, one list of measures.** Found: three sources by
+a rule the tab needs a paragraph to explain (`objectiveValues`,
+`priorities/model.ts`; the "metrics" tab, `lifecycle.ts`) — the
+priority's own metrics first; with a live primary its starred metrics,
+which take over; with none, the ticked ones — and with a primary the
+tab mounts that initiative's whole metrics card. Built as decided in
+phase 2: ONE list, "Measures", own entries and references in one
+order, stored in the objectives column as now (no schema); a
+referenced row names its initiative and links to it; "No measure set"
+when empty. Said plainly: a referenced measure's readings are entered
+on its initiative (the primary's card leaves the tab, so they can no
+longer be entered in the popup); a primary's unstarred metrics no
+longer show there unless added. **Found: "carried in as they stand on
+the day" needs a write** — the old rule is derived at every read.
+**Ben's choice 1:** a one-off "Convert measures" in Settings →
+Priorities, pressed once by a super admin after release (the
+"Re-stamp actions" pattern); until it is pressed a priority follows
+the old rule.
+
+**Item 6 — report 20, adding, ordering, removing; and two limits of
+Ben's.** "Add measure": from an initiative (a picker over the
+initiatives under the priority and its child priorities, the listed
+ones greyed, confidential ones not offered) or new on this priority
+(typing a name shows similarly named metrics of its initiatives with
+"Use this one"). The list keeps its order; Move up / Move down in each
+row's ⋮; the tile and the executive summary follow it. Removing a
+reference leaves the metric on its initiative; removing an own measure
+deletes it and its readings, as now. A reference that has gone says
+why ("No longer on its initiative" / "Its initiative is no longer
+under this priority") — today it vanishes silently. Starring a primary
+with an EMPTY list: the confirmation gains a tick, on, "Add its key
+metrics as measures". Whoever manages the priority's org may change
+the list.
+**The limit — Ben's own rule, in place of my two options
+(2026-11-27):** a priority holds AT MOST FOUR measures, own and
+referenced together (the list IS what is featured — his choice 1; no
+second tier), and an initiative holds AT MOST EIGHT metrics. Found:
+the executive summary already shows four then "+n"
+(`SUMMARY_METRIC_CAP`); a priority's own metrics were capped at eight
+(`OWN_METRIC_CAP`) with a primary's stars on top; an initiative had no
+limit. What follows, not objected to: a priority over four today is
+carried in WHOLE by "Convert measures" (which reports how many are
+over), shows its first four and "+n", and cannot be added to until
+trimmed; an initiative over eight keeps its metrics and cannot be
+added to; the own-metric cap of eight goes; templates carrying more
+than eight are checked at the build. The initiative limit is not in
+the plan or any report — Ben's item, about a quarter of a day.
+
+**Item 7 — report 24, where a chart's axis starts.** Found: the
+Metrics card's chart reads from the twelfth-last reading or the entry
+grid's page start, whichever is EARLIER (`chartWindow`,
+`improvement/readWindow.ts`), so a yearly metric with one reading in
+2026 opens from 2022. Built as decided: one empty period before the
+first reading; twelve or more readings unchanged; no readings keeps
+the page; the same for a metric whose last reading is old.
+**Corrected from the plan:** the tiles' small charts need no change —
+they draw the last readings with no time axis. **Found:** the rule
+counts ACTUAL readings, and plan values entered for earlier periods
+would be cut off the chart. **Ben's choice 1:** the axis starts at the
+first ENTERED value, actual or plan.
+
+**R5 as walked:** about 7.5 days (plan 6.5). No schema.
+
 ---
 
 ## Appendix — the review record (phases 1 and 2, as it was made)
