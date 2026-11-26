@@ -1171,9 +1171,9 @@
         "Read the done line.",
         "As a reviewer, check Teams."
        ],
-       "expected": "the status becomes the mapped \"in review\" value; the done line names the status and ends \"Reviewers notified ✓\" without the notify panel asking first; each reviewer has a card with the document link",
-       "hash": "a1463283",
-       "changed": "2026-10-19"
+       "expected": "the status becomes the mapped \"in review\" value; the done line names the status and ends \"Sent by Teams card to n people.\" without the notify panel asking first, and the dialog then shows only that line and the message panel; each reviewer has a card with the document link",
+       "hash": "587578fc",
+       "changed": "2026-11-26"
       },
       {
        "id": "UAT-DOC-034",

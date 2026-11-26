@@ -327,7 +327,7 @@ steps:
 1. Open it → Submit for review.
 2. Read the done line.
 3. As a reviewer, check Teams.
-expected: the status becomes the mapped "in review" value; the done line names the status and ends "Reviewers notified ✓" without the notify panel asking first; each reviewer has a card with the document link
+expected: the status becomes the mapped "in review" value; the done line names the status and ends "Sent by Teams card to n people." without the notify panel asking first, and the dialog then shows only that line and the message panel; each reviewer has a card with the document link
 
 ### UAT-DOC-034 — Check in and submit for review as one flow
 persona: owner
