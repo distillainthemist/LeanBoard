@@ -6110,6 +6110,87 @@ export function mountDocs(
       menu.style.left = `${Math.max(8, Math.min(r.right - 340, window.innerWidth - 348))}px`;
       document.body.appendChild(menu);
     };
+    /** Every document the current filters match in the given
+     *  libraries — the question the register and its export answer —
+     *  with the given columns on each row (bulk change, 2026-11-27). */
+    const gatherFiltered = async (
+      libs: DocLibrary[],
+      fields: string[],
+      cap: number,
+      onCount: (n: number) => void
+    ): Promise<{ rows: { row: DocRow; lib: DocLibrary }[]; capped: boolean; error: string }> => {
+      const rows: { row: DocRow; lib: DocLibrary }[] = [];
+      for (const lib of libs) {
+        const carried = new Set(lib.config.columns.map((c) => c.internal));
+        if (termFiltersFor(carried) === null) continue; // it cannot match
+        const viewXml = buildRenderViewXml({
+          sortName: true,
+          asc: true,
+          modifiedAfterIso: modifiedIso(),
+          modifiedBeforeIso: modifiedBeforeIso(),
+          nameWords: query.trim() === "" ? undefined : query.trim().split(/\s+/),
+          idIn: taskFilter?.get(lib.listId.toLowerCase()) ?? [],
+          termFilters: termFiltersFor(carried) ?? [],
+          dateRanges: dateFilters.filter((d) => carried.has(d.col)),
+          personFilters: personFilters.filter((p) => carried.has(p.col)),
+          presentCols: presentCols.filter((c) => carried.has(c)),
+          fields: [
+            ...new Set([
+              ...fields.filter((i) => carried.has(i) || KEPT_SYSTEM_FIELDS.has(i) || i === "CheckoutUser"),
+              // filtered columns ride along for their term ids
+              ...filters.flatMap((f) => (f.col === "" ? [...orgCols] : [f.col])).filter((i) => carried.has(i)),
+            ]),
+          ],
+          rowLimit: 100,
+        });
+        let next = "";
+        for (;;) {
+          const page = await renderListPage(app.siteUrl, lib.listId, viewXml, next);
+          if (page.error !== "") return { rows, capped: false, error: page.error };
+          for (const r of page.rows) {
+            if (!keepsByTerm(r)) continue; // the name matched, the term did not
+            if (rows.length >= cap) return { rows, capped: true, error: "" };
+            rows.push({ row: r, lib });
+          }
+          onCount(rows.length);
+          next = page.next;
+          if (next === "") break;
+        }
+      }
+      return { rows, capped: false, error: "" };
+    };
+    /** "Change properties…" (N3): a controller changes one or more
+     *  properties on everything the filters match. */
+    const openBulkChangeMenu = () => {
+      const libs = viewLibs().filter((l) => l.libType === "standard" || l.libType === "working");
+      if (libs.length === 0) {
+        status.textContent = "Change properties works on Controlled standards and Working documents. None is in view.";
+        return;
+      }
+      void Promise.all([import("./bulkChange"), controllerScope()]).then(([{ openBulkChange }, scope]) => {
+        openBulkChange({
+          host: dialogHost,
+          site: app.siteUrl,
+          actor: currentViewer()?.name ?? "",
+          libs,
+          dictBy,
+          gather: (fields, cap, onCount) => gatherFiltered(libs, fields, cap, onCount),
+          stageOf: stageOfRow,
+          isMine,
+          siteOf: (row) => (scope.branch === null ? "none" : rowSite(row, scope.branch)),
+          importanceInternal,
+          cadence: siteDict.cadence ?? {},
+          datesOf: (lib) => ({
+            effective: libInternal(lib, "effectiveDate", effectiveInternal),
+            review: libInternal(lib, "nextReviewDate", reviewInternal),
+            cadence: libInternal(lib, "reviewCadence", cadenceInternal),
+            org: orgFieldFor(lib),
+            status: statusInternal,
+          }),
+          onDone: () => void load(true),
+        });
+      });
+    };
     const EXPORT_CAP = 2000;
     let exporting = false;
     const exportRegister = () => {
@@ -6399,6 +6480,13 @@ export function mountDocs(
           "(search text is not applied).",
         exportRegister
       );
+      if (docAdmin() || meIsSuper) {
+        item(
+          "Change properties…",
+          "Change one or more properties on every document the current filters match. A preview comes first.",
+          openBulkChangeMenu
+        );
+      }
       // the CONTROLLERS' report: document controllers cannot open
       // Settings (documents settings is super-admin only), so their
       // corpus check lives here, with the register they work in.

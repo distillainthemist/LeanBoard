@@ -3146,6 +3146,44 @@ button.app-doclist-hsort:hover { color: var(--app-accent, #2563eb); }
 .app-issad-status-partial { background: #eef4e2; color: #4d6b1d; }
 .app-issad-status-deferred { background: #efeaf6; color: #5b3f8c; }
 .app-issad-status-notsoftware { background: #efede8; color: #6b675e; }
+/* Change properties (2026-11-27, R4 — N3): the bulk change dialog */
+.app-bulk-body { display: flex; flex-direction: column; gap: 8px; min-height: 0; font-size: 12.5px; }
+.app-bulk-scope { color: #6d675c; }
+.app-bulk-define { display: flex; flex-direction: column; gap: 8px; }
+.app-bulk-changes { display: flex; flex-direction: column; gap: 8px; }
+.app-bulk-change { display: grid; grid-template-columns: minmax(150px, 1fr) minmax(130px, 0.8fr) minmax(0, 1.6fr) minmax(0, 1.6fr) auto; gap: 8px; align-items: start; padding: 8px; border: 1px solid #e6e2d9; border-radius: 8px; background: #fcfbf8; }
+.app-bulk-value { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.app-bulk-value:empty { display: none; }
+.app-bulk-value .app-docs-addfield { margin: 0; }
+.app-bulk-cap { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #57534a; }
+.app-bulk-drop { align-self: center; }
+.app-bulk-reason { width: 100%; box-sizing: border-box; resize: vertical; }
+.app-bulk-tally { font-weight: 600; color: #3d3a33; }
+.app-bulk-tally:empty { display: none; }
+.app-bulk-list { display: flex; flex-direction: column; }
+.app-bulk-row { display: grid; grid-template-columns: 22px minmax(150px, 1fr) minmax(220px, 2fr) minmax(110px, 0.9fr); gap: 10px; align-items: start; padding: 7px 2px; border-bottom: 1px solid #e6e2d9; }
+.app-bulk-row-skip { opacity: 0.75; }
+.app-bulk-check { margin-top: 3px; }
+.app-bulk-name { font-weight: 600; color: #26241f; overflow-wrap: anywhere; }
+.app-bulk-meta { color: #6d675c; font-size: 11.5px; }
+.app-bulk-line { overflow-wrap: anywhere; }
+.app-bulk-prop { color: #57534a; }
+.app-bulk-before { color: #6d675c; text-decoration: line-through; }
+.app-bulk-arrow { color: #6d675c; }
+.app-bulk-after { font-weight: 600; color: #26241f; }
+.app-bulk-note { color: #92610f; }
+.app-bulk-row-skip .app-bulk-note { color: #6d675c; }
+.app-bulk-result { overflow-wrap: anywhere; }
+.app-bulk-result-ok { color: #1d6b2f; font-weight: 600; }
+.app-bulk-result-warn { color: #92610f; }
+.app-bulk-result-bad { color: #a3261b; }
+.app-bulk-skipped { margin-top: 8px; }
+.app-bulk-skipped > summary { cursor: pointer; font-weight: 600; color: #57534a; padding: 4px 0; }
+@media (max-width: 760px) {
+  .app-bulk-change { grid-template-columns: 1fr; }
+  .app-bulk-row { grid-template-columns: 22px 1fr; }
+  .app-bulk-row > :nth-child(n+3) { grid-column: 2; }
+}
 /* Import answers (2026-11-26, R3): the preview of a CSV of answers */
 .app-isimp-body { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
 .app-isimp-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 12.5px; }
