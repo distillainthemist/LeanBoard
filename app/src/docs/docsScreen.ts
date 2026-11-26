@@ -40,7 +40,7 @@ import {
   isNonCurrentStatus,
   pdfViewUrlFor,
   pickBrowseHead,
-  taxonomySearchProperty, FLAGS_FIELD, KEPT_SYSTEM_FIELDS, NAME_SLOT, VERSION_FIELD, termTreeOrder, viewerPageUrl } from "./rows";
+  taxonomySearchProperty, FLAGS_FIELD, KEPT_SYSTEM_FIELDS, LIBRARY_SLOT, NAME_SLOT, VERSION_FIELD, termTreeOrder, viewerPageUrl } from "./rows";
 import { DocFlag, flagChipText, flagKey, flagsByDoc, flagsForTasks, reviewLevelsOf } from "./docFlagsModel";
 import { DocLibrary, docsConfig, patchAppDocsConfig } from "./docsStore";
 import {
@@ -112,6 +112,7 @@ import {
   decodeDocView,
   emptyDocUiPrefs,
   emptyDocView,
+  columnsToShow,
   encodeDocView,
   parseDocViews,
   serializeDocViews,
@@ -131,6 +132,14 @@ import {
 let pendingView: DocView | null = null;
 let pendingFav = false;
 let pendingLibs: string[] | null = null;
+/** Carried across a remount with the view (reports 4 and 26,
+ *  2026-11-27): the sort is not part of a view; "Reset to default"
+ *  pressed on a NAMED view (the screen shows the default, the person's
+ *  own columns are left alone); and the view that was on screen when
+ *  Favourites was entered, put back on leaving. */
+let pendingSort: { key: string; asc: boolean } | null = null;
+let pendingDefaultCols = false;
+let viewBeforeFav: DocView | null = null;
 import { openDocViewer } from "./viewer";
 
 const PAGE = 50;
@@ -276,6 +285,10 @@ export function mountDocs(
 
     const stashedLibs = pendingLibs;
     pendingLibs = null;
+    const stashedSort = pendingSort;
+    pendingSort = null;
+    const defaultColsOnPurpose = pendingDefaultCols;
+    pendingDefaultCols = false;
 
     const whoId = currentViewer()?.objectId ?? "";
     /** Who I am to SharePoint. Email, because that is what a person
@@ -388,17 +401,20 @@ export function mountDocs(
       if (dead) return;
     }
     const validIds = new Set(allListIds.map((id) => id.toLowerCase()));
+    // the ticks carried across a library change lead (the view that
+    // rides with them names no library of its own); else a view's
+    // library, or all; else the person's last ticks
     const wantedIds: string[] =
-      bootView !== null
+      stashedLibs ??
+      (bootView !== null
         ? bootView.listId !== ""
           ? [bootView.listId]
           : allListIds
-        : (stashedLibs ??
-          (selected !== ""
-            ? [selected]
-            : uiState.libraries.length > 0
-              ? uiState.libraries
-              : allListIds));
+        : selected !== ""
+          ? [selected]
+          : uiState.libraries.length > 0
+            ? uiState.libraries
+            : allListIds);
     let selectedIds = wantedIds.filter((id) => validIds.has(id.toLowerCase()));
     if (selectedIds.length === 0) selectedIds = allListIds;
     const isSelected = (listId: string): boolean =>
@@ -437,6 +453,7 @@ export function mountDocs(
     const labelOf = (internal: string): string => {
       if (internal === VERSION_FIELD) return "Version";
       if (internal === NAME_SLOT) return "Document";
+      if (internal === LIBRARY_SLOT) return "Library";
       const c = dictBy.get(internal);
       return c && c.label !== "" ? c.label : internal;
     };
@@ -2685,6 +2702,22 @@ export function mountDocs(
       mountDocs(parent, "", opts);
     };
 
+    /** Into Favourites the columns and the sort ride along (filters are
+     *  hidden there, so none is applied unseen); out of it the view that
+     *  was on screen before comes back. */
+    const favCarry = (entering: boolean) => {
+      pendingLibs = selectedIds;
+      pendingSort = { ...sort };
+      pendingDefaultCols = defaultColsOnPurpose;
+      if (entering) {
+        viewBeforeFav = { ...currentView(), listId: "" };
+        pendingView = { ...emptyDocView(), columns: chosenColumns };
+      } else {
+        pendingView = viewBeforeFav ?? { ...emptyDocView(), columns: chosenColumns };
+        viewBeforeFav = null;
+      }
+    };
+
     const navCard = (label: string): { card: HTMLElement; head: HTMLElement } => {
       const card = el("section", "app-docs-navcard");
       const head = el("div", "app-docs-navhead");
@@ -2715,6 +2748,7 @@ export function mountDocs(
       // a second click leaves favourites (feedback round 1, A7 — three
       // testers expected the button to toggle)
       pendingFav = !favMode;
+      favCarry(!favMode);
       remount();
     });
     if (whoId !== "") nav.appendChild(favNav);
@@ -2723,12 +2757,40 @@ export function mountDocs(
     // Checkbox = include toggle (minimum one stays ticked); the name and
     // the hover/focus "Only" affordance solo-select (finding 3). One
     // ticked library keeps the fast browse path; two or more ride search.
+    /** What is on screen, carried across a remount: the columns, the
+     *  filters, the search and the sort (reports 4 and 26 — a library
+     *  change used to drop all four). */
+    const carryView = (ids: string[]) => {
+      pendingLibs = ids;
+      pendingView = { ...currentView(), listId: "" };
+      pendingSort = { ...sort };
+      pendingDefaultCols = defaultColsOnPurpose;
+    };
     const switchTo = (ids: string[]) => {
       persistUi({ libraries: ids });
-      pendingLibs = ids;
+      carryView(ids);
       remount();
     };
     const libCard = navCard("Libraries");
+    // the card folds to one line, remembered for the person (report 9,
+    // 2026-11-27): on a laptop it took room from the browse tree
+    let libsFolded = uiState.libsFolded;
+    const libLabel = libCard.head.querySelector(".app-docs-navheadlabel") as HTMLElement;
+    const libFold = el("button", "app-docs-navfold") as HTMLButtonElement;
+    libFold.type = "button";
+    libCard.head.replaceChild(libFold, libLabel);
+    const paintLibFold = () => {
+      const ticked = favMode ? [] : libraries.filter((l) => isSelected(l.listId));
+      libFold.textContent = `${libsFolded ? "▸" : "▾"} ${libsFolded ? `Libraries · ${ticked.length} of ${libraries.length}` : "Libraries"}`;
+      libFold.setAttribute("aria-expanded", String(!libsFolded));
+      libFold.title = libsFolded ? `Show the libraries. Ticked: ${ticked.map((l) => l.config.title || l.name).join(", ") || "none"}` : "Fold the libraries to one line";
+      libCard.card.classList.toggle("app-docs-navcard-folded", libsFolded);
+    };
+    libFold.addEventListener("click", () => {
+      libsFolded = !libsFolded;
+      persistUi({ libsFolded });
+      paintLibFold();
+    });
     const selectAll = el(
       "button",
       "app-linklike app-docs-navheadaction",
@@ -2776,6 +2838,7 @@ export function mountDocs(
       row.append(box, name, only);
       libCard.card.appendChild(row);
     }
+    paintLibFold();
     // (the ★ Favourites row and the libType subtitles were cut — Ben,
     // 2026-08-02; favourite toggles remain in the kebab and overlay, and
     // the favMode machinery stays for a future entry point)
@@ -3441,6 +3504,7 @@ export function mountDocs(
       const back = el("button", "app-btn app-docs-favback", "← Back to libraries") as HTMLButtonElement;
       back.addEventListener("click", () => {
         pendingFav = false;
+        favCarry(false);
         remount();
       });
       titleRow.appendChild(back);
@@ -4197,7 +4261,11 @@ export function mountDocs(
       paintPop();
       const r = filtersBtn.getBoundingClientRect();
       menu.style.top = `${r.bottom + 4}px`;
-      menu.style.left = `${Math.max(8, Math.min(r.left, window.innerWidth - 420))}px`;
+      menu.style.left = `${Math.max(8, Math.min(r.left, window.innerWidth - 500))}px`;
+      // the pane reaches from under the button to the bottom of the
+      // window (reports 8 and 6, 2026-11-27 — its list was capped at
+      // 480 px however tall the window was)
+      body.style.maxHeight = `${Math.max(240, window.innerHeight - r.bottom - 20)}px`;
       document.body.appendChild(menu);
     });
 
@@ -4340,7 +4408,9 @@ export function mountDocs(
 
     // the view's own column set beats the library default (Phase 3a —
     // carried by saved views and shared links; [] = default)
-    const chosenColumns = bootView?.columns ?? [];
+    // a view that names columns shows its own; else the person's own
+    // set, saved since 2026-11-27; [] = the library default
+    const chosenColumns = columnsToShow(bootView, uiState.columns, defaultColsOnPurpose);
     /** Column set for the current width bucket (Vault V3): which
      *  columns is the VIEW's question (the chooser, or what the
      *  libraries in view open with); order, meaning and narrowing are
@@ -4350,7 +4420,7 @@ export function mountDocs(
         wanted:
           chosenColumns.length > 0
             ? chosenColumns.filter((i) => {
-                  if (i === "Modified" || i === VERSION_FIELD || i === NAME_SLOT || i === FLAGS_FIELD) return true;
+                  if (i === "Modified" || i === VERSION_FIELD || i === NAME_SLOT || i === FLAGS_FIELD || i === LIBRARY_SLOT) return true;
                   const c = dictBy.get(i);
                   return c !== undefined && columnOffered(c);
                 })
@@ -4372,6 +4442,13 @@ export function mountDocs(
                 return lib ? lib.config.title || lib.name : "";
               }
             : undefined,
+        // …by itself with the DEFAULT columns; with a chosen set Library
+        // is a column like any other, shown where it was ticked (report 25)
+        libraryAuto: chosenColumns.length === 0,
+        libraryCell: (row) => {
+          const lib = byListId.get(row.listId);
+          return lib ? lib.config.title || lib.name : "";
+        },
         trailing: whoId !== "" ? [starCol, kebabCol] : [kebabCol],
       });
 
@@ -4893,7 +4970,7 @@ export function mountDocs(
     main.appendChild(listHost);
     // every row is rendered by the browse feed, so the chosen sort always
     // applies — there is no relevance order left to preserve
-    let sort: { key: string; asc: boolean } = { key: "modified", asc: false };
+    let sort: { key: string; asc: boolean } = stashedSort ?? { key: "modified", asc: false };
     const serverSorted = () => sort.key === "name" || sort.key === "modified";
     /** B2: order the loaded rows by a dictionary column — the ISO twin
      *  for dates, the display text otherwise; blanks last. */
@@ -6180,11 +6257,22 @@ export function mountDocs(
           });
           menu!.appendChild(upd);
           const leave = el("button", "app-docs-menuitem", `Close “${activeViewName}”`) as HTMLButtonElement;
-          leave.title = "Back to the plain register title — the filters stay, nothing is deleted";
+          leave.title = "Back to the plain register title — the filters stay, your own columns return, nothing is deleted";
           leave.addEventListener("click", () => {
             activeViewName = "";
-            paintTitle();
             closeMenu();
+            // the view's columns go with it: the person's own set comes
+            // back (reports 4 and 26, 2026-11-27). The filters, the
+            // search, the sort and the libraries stay as they are.
+            const mine = uiState.columns;
+            if (chosenColumns.length !== mine.length || chosenColumns.some((c, i) => c !== mine[i])) {
+              pendingLibs = selectedIds;
+              pendingSort = { ...sort };
+              pendingView = { ...currentView(), name: "", columns: [] };
+              remount();
+              return;
+            }
+            paintTitle();
           });
           menu!.appendChild(leave);
         }
@@ -6359,7 +6447,7 @@ export function mountDocs(
           [...dictBy.keys()]
         );
         const cols = wanted
-          .filter((i) => i !== "Modified" && i !== NAME_SLOT)
+          .filter((i) => i !== "Modified" && i !== NAME_SLOT && i !== LIBRARY_SLOT)
           .map((i) => ({ internal: i, label: labelOf(i) }));
         const rows: string[][] = [];
         let truncated = false;
@@ -6443,16 +6531,21 @@ export function mountDocs(
       dialog.appendChild(head);
       const body = el("div", "app-docs-propsbody");
       dialog.appendChild(body);
+      // with the default columns Library shows by itself beside Document
+      // when several libraries are ticked: the chooser says so, so that
+      // Apply keeps it unless it is unticked
       const effective =
         chosenColumns.length > 0
           ? chosenColumns
-          : defaultInternals().concat(dictBy.has("Modified") ? [] : ["Modified"]);
+          : [NAME_SLOT, ...(viewLibs().length > 1 ? [LIBRARY_SLOT] : []), ...defaultInternals().concat(dictBy.has("Modified") ? [] : ["Modified"])];
       // offerable = what the site says is available AND some library in
       // view actually carries; the chooser opens whatever the scope
       const carried = new Set(viewLibs().flatMap((l) => l.config.columns.map((c) => c.internal)));
       const entries = [
         // the Document column's own row: always on, draggable (issue 20)
         { internal: NAME_SLOT, label: "Document" },
+        // which library a row came from: a column like any other (report 25)
+        { internal: LIBRARY_SLOT, label: "Library" },
         ...siteDict.columns
           .filter((c) => columnOffered(c) && carried.has(c.internal))
           .map((c) => ({ internal: c.internal, label: c.label !== "" ? c.label : c.internal })),
@@ -6505,12 +6598,24 @@ export function mountDocs(
       apply.addEventListener("click", () => {
         const picked = rows.filter((r) => r.on).map((r) => r.internal);
         scrim.remove();
+        // the columns are the PERSON's (reports 4 and 26): saved for
+        // every visit — unless a named view is open, when they change
+        // the screen only and "Update view" changes the view
+        if (activeViewName === "") persistUi({ columns: picked });
+        pendingLibs = selectedIds;
+        pendingSort = { ...sort };
         pendingView = { ...currentView(), columns: picked };
         remount();
       });
       const reset = el("button", "app-btn", "Reset to default") as HTMLButtonElement;
       reset.addEventListener("click", () => {
         scrim.remove();
+        // the person's own set is cleared — or, on a named view, left
+        // alone while the screen shows the default
+        if (activeViewName === "") persistUi({ columns: [] });
+        else pendingDefaultCols = true;
+        pendingLibs = selectedIds;
+        pendingSort = { ...sort };
         pendingView = { ...currentView(), columns: [] };
         remount();
       });

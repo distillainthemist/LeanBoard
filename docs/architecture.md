@@ -1289,6 +1289,15 @@ Key concepts (details: [leanboard-standard-documents-plan.md](leanboard-standard
   report (`issues/audience.ts`); Decline does the same; a merge copies
   the child's followers and re-points reports already merged into the
   child. Settings → Issues filters by UAT run (§6).
+- **A person's Documents columns** (2026-11-27, R6, reports 4 and
+  26): `DocUiPrefs.columns` is the person's own set, saved with their
+  other Documents preferences; `columnsToShow(view, mine, default)`
+  (`docs/views.ts`) is the rule — a view that names columns shows its
+  own while it is open, else the person's. A remount carries the
+  screen: `carryView` stashes the view, the ticked libraries and the
+  sort (the sort is not part of a view). Library is a chooser slot
+  (`LIBRARY_SLOT`, `docs/rows.ts`), auto-placed beside Document only
+  with the default columns.
 - **An action's column and its PDCA state are one thing** (2026-11-27,
   R5, report 21). `shared/schema/actions.ts` `alignPdca(a, from)` is
   the ONE rule: To do = status open = Plan or On hold; Doing =

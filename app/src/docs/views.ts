@@ -294,6 +294,24 @@ export interface DocUiPrefs {
    *  Presentation state — SharePoint stays the hard gate; null = never
    *  recorded. */
   standing: DocStanding | null;
+  /** The columns this person chose for the register, in their order
+   *  (reports 4 and 26, 2026-11-27): every visit opens with them, on
+   *  whatever libraries are ticked, until "Reset to default". [] = the
+   *  library default. A saved view or a shared link that names columns
+   *  shows its own while it is open. */
+  columns: string[];
+  /** The Libraries card folded to one line (report 9). */
+  libsFolded: boolean;
+}
+
+/** The columns the register opens with. A view that names columns
+ *  shows its own; otherwise the person's; `defaultOnPurpose` = "Reset
+ *  to default" was pressed while a NAMED view is open — the screen
+ *  shows the default and the person's own set is left alone. [] = the
+ *  library default. */
+export function columnsToShow(view: { columns: string[] } | null, mine: string[], defaultOnPurpose = false): string[] {
+  if (defaultOnPurpose) return [];
+  return view !== null && view.columns.length > 0 ? view.columns : mine;
 }
 
 export interface DocStanding {
@@ -307,7 +325,7 @@ export interface DocStanding {
 }
 
 export function emptyDocUiPrefs(): DocUiPrefs {
-  return { libraries: [], viewMode: "", density: "", collapsed: {}, navHidden: false, navWidth: 0, standing: null };
+  return { libraries: [], viewMode: "", density: "", collapsed: {}, navHidden: false, navWidth: 0, standing: null, columns: [], libsFolded: false };
 }
 
 export function parseDocUiPrefs(raw: string | null | undefined): DocUiPrefs {
@@ -324,6 +342,8 @@ export function parseDocUiPrefs(raw: string | null | undefined): DocUiPrefs {
     out.navHidden = r.nav === 1 || r.nav === true;
     const w = Number(r.navw ?? 0);
     out.navWidth = Number.isFinite(w) && w >= 220 && w <= 640 ? Math.round(w) : 0;
+    out.columns = asStrings(r.cols);
+    out.libsFolded = r.lf === 1 || r.lf === true;
     if (r.st && typeof r.st === "object" && !Array.isArray(r.st)) {
       const st = r.st as Record<string, unknown>;
       out.standing = {
@@ -352,6 +372,8 @@ export function serializeDocUiPrefs(ui: DocUiPrefs): string {
   if (Object.keys(ui.collapsed).length > 0) o.collapsed = ui.collapsed;
   if (ui.navHidden) o.nav = 1;
   if (ui.navWidth > 0) o.navw = ui.navWidth;
+  if (ui.columns.length > 0) o.cols = ui.columns;
+  if (ui.libsFolded) o.lf = 1;
   if (ui.standing !== null) {
     o.st = {
       c: ui.standing.controller ? 1 : 0,

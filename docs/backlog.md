@@ -177,9 +177,15 @@ code-app `frame-src`, "Lock every older build". Owed from it:
 - **R5's test walk (2026-11-27, dev `v0.100.0-16-g6ff1ad0`): all six
   pass.** Built in it: the grouping select on the Gantt view. Dev's
   priorities are converted.
-- **Next:** walk R6 (the Documents screen: a person's columns, the
-  Library column, a library's tooltip, the Filters pane, the Libraries
-  card), then the second release and the round's full resolution CSV. Tranche 5 of the programme
+- **R6 walked (four items) and BUILT 2026-11-27, on dev, NOT
+  released, no schema** — the Documents screen: a person's columns
+  held through a library change and saved across visits; Library as a
+  column in the chooser; the Libraries card folds; the Filters pane as
+  tall as the window with larger arrows. Report 7's tooltip was
+  already there. As built: the plan's "R6 as built". Unseen running
+  until Ben's test walk.
+- **Next:** R6's test walk; then the second release is ready to cut
+  (R4, R5, R6), and the round's full resolution CSV follows it. Tranche 5 of the programme
   follows the round.
 
 **v0.99.0 (2026-11-23, app-only):** tranche 1 of the programme

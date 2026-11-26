@@ -347,6 +347,12 @@ export const VERSION_FIELD = "_UIVersionString";
  *  pseudo-entry the chooser lets the person drag (issue 20: "the
  *  Document ID before the title"). Absent = first, as always. */
 export const NAME_SLOT = "__name";
+/** The Library column's slot (report 25, 2026-11-27): which library a
+ *  row came from. It was added by the register itself whenever several
+ *  libraries were in view and could not be left out; it is now a row in
+ *  the chooser. With the DEFAULT columns it still appears by itself
+ *  beside Document; with a chosen set, only when this slot is in it. */
+export const LIBRARY_SLOT = "__library";
 /** The register's open-flags column (issue 23) — computed from the
  *  flags table, never a SharePoint field. */
 export const FLAGS_FIELD = "__flags";

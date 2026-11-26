@@ -151,10 +151,30 @@ describe("DocUiPrefs (Vault V1, ben_docuijson)", () => {
       navHidden: true,
       navWidth: 340,
       standing: null,
+      // the person's own columns and the folded Libraries card (R6)
+      columns: ["__name", "__library", "DMSOwner", "Modified"],
+      libsFolded: true,
     };
     expect(parseDocUiPrefs(serializeDocUiPrefs(ui))).toEqual(ui);
+    // a row saved before R6 has neither: the default columns, the card open
+    const old = parseDocUiPrefs(JSON.stringify({ libs: ["list-a"] }));
+    expect([old.columns, old.libsFolded]).toEqual([[], false]);
     // an out-of-range width is the default (issue 17)
     expect(parseDocUiPrefs(serializeDocUiPrefs({ ...ui, navWidth: 90 })).navWidth).toBe(0);
+  });
+  it("the register opens with a view's own columns, else the person's (reports 4 and 26)", async () => {
+    const { columnsToShow } = await import("../docs/views");
+    const mine = ["__name", "DMSOwner"];
+    // no view open: the person's
+    expect(columnsToShow(null, mine)).toEqual(mine);
+    // a view that names columns shows its own while it is open
+    expect(columnsToShow({ columns: ["__name", "DMSStatus"] }, mine)).toEqual(["__name", "DMSStatus"]);
+    // a view that names none (a library change carrying the screen, a view saved on the default): the person's
+    expect(columnsToShow({ columns: [] }, mine)).toEqual(mine);
+    // nobody has chosen: the library default
+    expect(columnsToShow(null, [])).toEqual([]);
+    // "Reset to default" on a named view: the default on screen, the person's set untouched
+    expect(columnsToShow({ columns: [] }, mine, true)).toEqual([]);
   });
   it("round-trips the remembered standing, pool unknown included (2026-11-01)", async () => {
     const { parseDocUiPrefs, serializeDocUiPrefs, emptyDocUiPrefs } = await import("../docs/views");

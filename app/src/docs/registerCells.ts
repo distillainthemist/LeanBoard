@@ -20,7 +20,7 @@ import { fileTypeChip, withStatusGlyph } from "../../../shared/ui/format";
 import { resolvePaletteColor } from "../../../shared/palette";
 import { textOn } from "../../../shared/tokens";
 import type { ListColumn } from "./listView";
-import { DocRow, formatWhen, linkCount, splitNameForEllipsis, FLAGS_FIELD, NAME_SLOT, VERSION_FIELD, versionLabel } from "./rows";
+import { DocRow, formatWhen, linkCount, splitNameForEllipsis, FLAGS_FIELD, LIBRARY_SLOT, NAME_SLOT, VERSION_FIELD, versionLabel } from "./rows";
 import {
   SiteDictionary,
   paletteEntryFor,
@@ -194,6 +194,14 @@ export interface RegisterColumnOpts {
    *  shows it when more than one library is in view, so a row says
    *  which one it came from. Suppressed in the narrow bucket. */
   libraryLabel?: (row: DocRow) => string;
+  /** False = the Library column is NOT put beside Document by itself
+   *  (report 25, 2026-11-27): the person has a chosen set of columns,
+   *  and Library shows only where `LIBRARY_SLOT` is in it. The phone's
+   *  line under the name still says the library. */
+  libraryAuto?: boolean;
+  /** The Library cell for `LIBRARY_SLOT` — given even when one library
+   *  is in view, because a person who ticked the column asked for it. */
+  libraryCell?: (row: DocRow) => string;
   /** Appended after Modified (the screen's kebab; cards pass none). */
   trailing?: ListColumn<DocRow>[];
   /** True when `wanted` carries an order the person SET (the chooser's
@@ -274,21 +282,21 @@ export function buildRegisterColumns(
   const libraryLabel = opts.libraryLabel;
   // the Document column sits where the chosen order puts its slot —
   // first when the order names no slot — and Library rides beside it
+  const libraryCol = (render: (row: DocRow) => string): ListColumn<DocRow> => ({ key: "library", label: "Library", width: "minmax(110px, 1fr)", render });
   const pushName = () => {
     columns.push(nameCol);
-    if (libraryLabel !== undefined) {
-      columns.push({
-        key: "library",
-        label: "Library",
-        width: "minmax(110px, 1fr)",
-        render: libraryLabel,
-      });
-    }
+    if (libraryLabel !== undefined && opts.libraryAuto !== false) columns.push(libraryCol(libraryLabel));
   };
   if (!wanted.includes(NAME_SLOT)) pushName();
   for (const internal of wanted) {
     if (internal === NAME_SLOT) {
       pushName();
+      continue;
+    }
+    if (internal === LIBRARY_SLOT) {
+      // the chooser's own Library row (report 25): where it was put
+      const cell = opts.libraryCell ?? libraryLabel;
+      if (cell !== undefined && !columns.some((c) => c.key === "library")) columns.push(libraryCol(cell));
       continue;
     }
     if (internal === "Modified") {

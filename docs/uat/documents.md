@@ -105,7 +105,7 @@ steps:
 1. Kebab → Choose columns.
 2. Untick one column, tick Version and Flags, drag Document below Modified, Apply.
 3. Reload the page.
-expected: the register shows exactly the ticked columns in the dragged order, Document where it was placed with Library beside it; Version reads "v3.0" (a minor version muted); the choice survives a reload
+expected: the register shows exactly the ticked columns in the dragged order, Document where it was placed; "Library" is a row of the chooser like the others (UAT-DOC-117); Version reads "v3.0" (a minor version muted); the choice survives a reload and every later visit — the columns are saved for the person (UAT-DOC-116)
 
 ### UAT-DOC-012 — Sort by a column
 persona: reader
@@ -1177,3 +1177,52 @@ steps:
 4. Press "Review complete" on the review row; "Check in…" on the checked-out row; "Mark reviewed…" on the review-due row.
 5. Press Escape with a dialog open over the list, then with the list alone.
 expected: step 1 Awaiting your approval → Approve, Request revision, Open; Awaiting your review → Review complete, Open; Checked out to you → Check in…, Discard, Open; Review due → Mark reviewed…, Open; Flagged for review → opens the document, no button; step 2 THE SAME Approve dialog as on the document, over the list, with a line "You have not opened this document here." and "Open document", which opens it; step 3 for the Word file the line also reads "Tracked changes do not show in the preview." with "Open in Word ↗"; when the step lands the list reads again and the row has left it; the badge follows; step 4 each opens its own dialog as on the document, and the row leaves when it lands; a reviewer who had already finished is refused by the dialog's own message (the list cannot know); step 5 Escape with a dialog open leaves the list where it was; with the list alone it closes the list. One document at a time: there is no "approve all"
+
+## Journey — the 2026-11-25 round, tranche R6 (the Documents screen)
+
+### UAT-DOC-116 — The columns are yours: they hold through a library change and across visits
+persona: reader
+modules: docs/docsScreen.ts docs/views.ts docs/prefs.ts
+preconditions: three exposed libraries, all ticked; a saved view of your own that names different columns; a link to a view someone else shared
+steps:
+1. ⋮ → Choose columns: pick a set and an order; Apply. Set a filter, type a search word and sort by a column.
+2. Untick one library. Tick it again. Click a library's name to show it alone.
+3. Open Favourites, then "← Back to libraries".
+4. Close the app completely and open Documents again.
+5. Open your saved view. In Choose columns change a column and Apply. Close the view (Views menu).
+6. Open the shared link. Then open Documents from the hub again.
+7. ⋮ → Choose columns → "Reset to default".
+expected: step 2 the columns, the filter, the search word and the sort ALL stay through each library change (before 2026-11-27 a library change dropped all four); a library that does not carry one of your columns shows blank cells in it; step 3 Favourites shows your columns; back in the libraries the filter and search are as you left them; step 4 Documents opens with YOUR columns, on whatever libraries are ticked; step 5 the view shows ITS columns; the change you make there changes the screen only — closing the view brings your own columns back unchanged ("Update view" is what changes the view); step 6 the link shows its columns while it is open; opened afresh, Documents shows yours; step 7 the default columns return and stay on later visits
+
+### UAT-DOC-117 — Library is a column you choose
+persona: reader
+modules: docs/docsScreen.ts docs/registerCells.ts docs/rows.ts
+preconditions: two or more libraries ticked; no columns chosen yet (press Reset to default first); a saved view made BEFORE this build that names columns
+steps:
+1. Read the register's columns. Tick one library only and read them again.
+2. With several libraries ticked: ⋮ → Choose columns. Read the list. Untick Library; Apply.
+3. Choose columns again: tick Library and drag it to the end; Apply. Tick one library only.
+4. Open the older saved view with several libraries ticked.
+5. ⋮ → Export register (CSV).
+expected: step 1 with the DEFAULT columns Library shows beside Document when several libraries are ticked and not when one is — as it always did; step 2 "Library" is a row in the chooser, ticked; unticked, the column is gone although several libraries are in view; step 3 it shows where it was dragged — and still shows with one library ticked, because it was asked for; step 4 the older view opens WITHOUT the Library column (it could not be chosen when the view was made): tick it and "Update view" to bring it back; step 5 the export always has its Library column. On a phone the library still reads in the line under each document's name
+
+### UAT-DOC-118 — The Libraries card folds to one line
+persona: reader
+modules: docs/docsScreen.ts docs/views.ts
+preconditions: three or more exposed libraries, two ticked; a laptop-height window
+steps:
+1. Read the Libraries card. Press its heading.
+2. Hover the folded line. Read the browse tree beneath.
+3. Close the app and open Documents again.
+4. Press the heading again. Read a library name's tooltip.
+expected: step 1 the heading has a small arrow; pressed, the card is ONE line, "Libraries · 2 of 3", and "Select all" is gone; step 2 the tooltip names the ticked libraries; the browse tree has the room the card gave up; step 3 it is still folded — remembered for you; someone who never folded it sees it open; step 4 the libraries are back; a name's tooltip reads "Show only this library" (it always did — report 7)
+
+### UAT-DOC-119 — The Filters pane is as tall as the window, with larger arrows
+persona: reader
+modules: docs/docsScreen.ts
+preconditions: a filterable column whose term set is a tree three or more levels deep; a tall window, then a short one
+steps:
+1. Press Filters in a tall window. Read where the pane ends.
+2. Make the window short and press Filters again.
+3. In a term tree press a branch's arrow. Then click a branch's NAME.
+expected: step 1 the pane reaches from under the Filters button to the bottom of the window, and is wider than before (480, or the phone's width); step 2 it fits the shorter window and its list scrolls inside it; step 3 the arrow is a larger target (32 by 32) and opens or closes the branch; a click on the NAME ticks the term as a filter, as it always did — only the arrow expands

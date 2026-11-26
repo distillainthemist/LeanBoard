@@ -1850,6 +1850,47 @@ grows; "whole row expands" is dropped.
 **R6 as walked:** about 2 days (plan 2). Report 7's tooltip comes out
 (already there); the sort carry-over goes in. No schema.
 
+### R6 as built (2026-11-27, on dev, NOT released)
+
+**No schema.** Two more fields in a person's Documents preferences
+(`cols`, `lf` in `ben_docuijson`).
+
+| Item | What was built | Where |
+|---|---|---|
+| 4, 26 | A library change and Favourites carry the view (columns, filters, search) and the sort; the chosen columns are saved for the person; a named view's columns change the screen only, and the person's own return when it is closed | `docs/views.ts` (`columnsToShow`, `DocUiPrefs.columns`), `docs/docsScreen.ts` (`carryView`, `favCarry`, the chooser, "Close view") |
+| 25 | "Library" is a row in the chooser (`LIBRARY_SLOT`); by itself beside Document only with the default columns | `docs/rows.ts`, `docs/registerCells.ts`, `docs/docsScreen.ts` |
+| 9 | The Libraries card folds to "Libraries · n of m", remembered | `docs/docsScreen.ts`, `docs/views.ts` (`libsFolded`), `style.css` |
+| 8, 6 | The Filters pane reaches the bottom of the window and is 480 wide; arrows 32 by 32 | `docs/docsScreen.ts`, `style.css` |
+| 7 | Nothing built: the tooltip was already there | — |
+
+UAT: UAT-DOC-011 corrected; UAT-DOC-116 to 119 added (248 cases).
+
+**Built beyond the walk, said plainly:**
+
+- **Closing a named view rebuilds the register with the person's own
+  columns.** "Close view" used only to clear the title; the view's
+  columns would otherwise have stayed on screen until the next visit.
+  The filters, search, sort and libraries stay.
+- **Choosing columns no longer resets the libraries.** A view names
+  one library or all, so pressing Apply with two of three libraries
+  ticked used to bring back all three. The ticks are carried now.
+- **With the default columns the chooser shows Library ticked** when
+  several libraries are in view, so that Apply keeps it unless it is
+  unticked.
+
+**Limits:**
+
+- **The sort is carried across a library change, not saved.** A new
+  visit opens on Modified, newest first; saved views and links still
+  do not carry a sort.
+- **One set of columns per person**, whatever libraries are ticked.
+- **A saved view made before this build opens without Library** (the
+  walk's decision).
+- **NOTHING of R6 has been seen running.** The Documents screen needs
+  SharePoint and cannot be mounted in the harness. The preferences and
+  the column rule are unit-tested; every screen behaviour here is
+  Ben's test walk.
+
 ---
 
 ## Appendix — the review record (phases 1 and 2, as it was made)
