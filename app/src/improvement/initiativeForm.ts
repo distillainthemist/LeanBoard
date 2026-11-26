@@ -11,7 +11,8 @@
 // data in (no store imports beyond the sub-renderers it reuses), so the
 // harness mounts it with stubs.
 
-import { el, clear } from "../../../shared/ui/dom";
+import { el, clear, onEscape } from "../../../shared/ui/dom";
+import { listKeys } from "../../../shared/ui/typeAhead";
 import type { OrgSite } from "../../../shared/schema/meeting";
 import { settingsSection } from "../settingsSection";
 import { renderAlsoOrgs, InitOrg } from "./alsoOrgs";
@@ -306,6 +307,13 @@ export function renderInitiativeForm(o: InitiativeFormOpts): InitiativeFormHandl
       search.setAttribute("aria-label", "Search priorities");
       const items = el("div", "app-im-priitems");
       menu.append(search, items);
+      const off = (e: PointerEvent) => {
+        if (!menu.contains(e.target as Node)) closeMenu();
+      };
+      const closeMenu = () => {
+        menu.remove();
+        document.removeEventListener("pointerdown", off, true);
+      };
       let showAbove = false;
       const draw = () => {
         clear(items);
@@ -318,7 +326,7 @@ export function renderInitiativeForm(o: InitiativeFormOpts): InitiativeFormHandl
             const item = btn(p.status === "proposed" ? `${p.statement.slice(0, 58)} (proposed)` : p.statement.slice(0, 70), "app-cp-menu-item");
             item.title = p.statement;
             item.addEventListener("click", () => {
-              menu.remove();
+              closeMenu();
               links.push({ priorityId: p.id, primary: links.length === 0, label: p.statement.slice(0, 40) });
               paintLinks();
             });
@@ -333,6 +341,8 @@ export function renderInitiativeForm(o: InitiativeFormOpts): InitiativeFormHandl
           more.addEventListener("click", () => {
             showAbove = true;
             draw();
+            keys.reset();
+            search.focus();
           });
           items.appendChild(more);
         } else if (openAbove) {
@@ -340,19 +350,23 @@ export function renderInitiativeForm(o: InitiativeFormOpts): InitiativeFormHandl
           if (aboveCount === 0 && here.length === 0 && q.trim() === "") items.appendChild(el("div", "app-cp-menu-h", "None you can link — pull a priority to this org on Priorities (＋ Priority → Pull from above)"));
         }
       };
-      search.addEventListener("input", draw);
+      // keys, as on every search-and-pick (tranche 5, F5): ↑ ↓ walk the
+      // priorities, Enter links the lit one, Escape closes the menu
+      const keys = listKeys(search, () => Array.from(items.querySelectorAll<HTMLButtonElement>("button.app-cp-menu-item")), "app-cp-menu-item-on");
+      search.addEventListener("input", () => {
+        draw();
+        keys.reset();
+      });
+      onEscape(search, () => {
+        closeMenu();
+        return true;
+      });
       draw();
       setTimeout(() => search.focus(), 0);
       const r = priAdd.getBoundingClientRect();
       menu.style.top = `${r.bottom + 4}px`;
       menu.style.left = `${Math.min(r.left, window.innerWidth - 340)}px`;
       document.body.appendChild(menu);
-      const off = (e: PointerEvent) => {
-        if (!menu.contains(e.target as Node)) {
-          menu.remove();
-          document.removeEventListener("pointerdown", off, true);
-        }
-      };
       setTimeout(() => document.addEventListener("pointerdown", off, true), 0);
     })();
   });

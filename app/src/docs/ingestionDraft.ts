@@ -96,3 +96,25 @@ export function applyToRows(
   }
   return touched;
 }
+
+/** What a key does in the grid's cell editor (the popover a term, person
+ *  or notes cell opens — backlog programme tranche 5, 2026-11-27):
+ *  Enter sets the value and moves down a row, Shift+Enter sets and moves
+ *  up, and anything else is the editor's own. A notes box keeps Enter for
+ *  a new line (Ctrl or ⌘ with Enter sets it); a button keeps Enter for
+ *  its own press; a search whose list is open keeps Enter for its pick.
+ *  Pure. */
+export function editorKey(e: { key: string; shiftKey: boolean; ctrlKey: boolean; metaKey: boolean }, on: { tag: string; listOpen: boolean }): "down" | "up" | null {
+  if (e.key !== "Enter") return null;
+  if (on.tag === "BUTTON" || on.listOpen) return null;
+  if (on.tag === "TEXTAREA" && !(e.ctrlKey || e.metaKey)) return null;
+  return e.shiftKey ? "up" : "down";
+}
+
+/** The row a move lands on: one up or down the SHOWN rows, staying put
+ *  at either end. Pure. */
+export function stepRow(ids: string[], id: string, step: 1 | -1 | 0): string {
+  const i = ids.indexOf(id);
+  if (i < 0) return id;
+  return ids[i + step] ?? id;
+}

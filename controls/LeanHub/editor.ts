@@ -17,6 +17,7 @@ import { applyThemeVars, defaultTheme, Theme } from "../../shared/tokens";
 import { LTK_BASE_CSS } from "../../shared/ui/baseCss";
 import { copyText } from "../../shared/ui/clipboard";
 import { clear, el, ensureStylesheet } from "../../shared/ui/dom";
+import { buildTypeAhead } from "../../shared/ui/typeAhead";
 import { parsePrompts, Prompts, renderGhost, renderTitleBar } from "../../shared/ui/chrome";
 import { pdcaOf, isOnHold, isOverdue, LtkAction, newAction, settleFromParts, isSupporter, supportLabel } from "../../shared/schema/actions";
 import { actionViewer, endorsementFor } from "../../shared/ui/actionLinkProvider";
@@ -1539,32 +1540,42 @@ export class LeanHubView {
    *  shortcut — the Cadence and Actions tabs share it. */
   private personPickerFor(current: string, pick: (whoId: string) => void, meTitle: string): HTMLElement {
     const wrap = el("span", "ltk-lh-person-pick");
-    const input = el("input", "ltk-lh-input ltk-lh-person-input") as HTMLInputElement;
-    input.type = "search";
-    input.placeholder = "Everyone — type a name…";
-    input.setAttribute("list", "ltk-lh-people-list");
+    // the standing type-ahead (tranche 5, F5) in place of a datalist,
+    // which no arrow key or styling reaches: a pick scopes to that
+    // person, an emptied box is everyone, and text that names nobody
+    // snaps back to the current person
     const currentPerson = this.people.find((p) => p.whoId === current);
+    const box = buildTypeAhead({
+      placeholder: "Everyone — type a name…",
+      label: "Person: type a name",
+      inputClass: "ltk-lh-input ltk-lh-person-input",
+      noneWords: "No one matches.",
+      keepText: true,
+      local: (ql) => this.people.filter((p) => p.who.toLowerCase().includes(ql)).map((p) => ({ label: p.who, run: () => pick(p.whoId) })),
+    });
+    const input = box.input;
+    input.type = "search";
     input.value = currentPerson ? currentPerson.who : "";
-    const suggestions = el("datalist") as HTMLDataListElement;
-    suggestions.id = "ltk-lh-people-list";
-    for (const p of this.people) {
-      const option = el("option") as HTMLOptionElement;
-      option.value = p.who;
-      suggestions.appendChild(option);
-    }
-    input.addEventListener("change", () => {
+    // Enter in a search box fires both "change" and "search": once is enough
+    let settled = false;
+    const settle = () => {
       const name = input.value.trim();
+      if (settled || name === (currentPerson?.who ?? "")) return;
+      settled = true;
       if (name === "") {
         pick("");
         return;
       }
-      const match = this.people.find(
-        (p) => p.who.toLowerCase() === name.toLowerCase()
-      );
+      const match = this.people.find((p) => p.who.toLowerCase() === name.toLowerCase());
       if (match) pick(match.whoId);
       else this.render(); // unmatched: snap the field back to the current person
+    };
+    input.addEventListener("change", settle);
+    // the box's own ✕
+    input.addEventListener("search", () => {
+      if (input.value === "") settle();
     });
-    wrap.append(input, suggestions);
+    wrap.appendChild(box.el);
     if (this.viewerId !== "" && current !== this.viewerId) {
       const me = el("button", "ltk-lh-btn", "Me") as HTMLButtonElement;
       me.type = "button";

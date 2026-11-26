@@ -14,6 +14,7 @@ import { mountProcessPicker } from "../../shared/ui/processPicker";
 import { applyThemeVars, defaultTheme, Theme } from "../../shared/tokens";
 import { LTK_BASE_CSS } from "../../shared/ui/baseCss";
 import { clear, el, ensureStylesheet } from "../../shared/ui/dom";
+import { TypeAheadRemote, buildTypeAhead } from "../../shared/ui/typeAhead";
 import { parsePrompts, Prompts, renderTitleBar } from "../../shared/ui/chrome";
 import { OrgSite } from "../../shared/schema/meeting";
 import { Person } from "../../shared/schema/people";
@@ -73,7 +74,6 @@ export class MeetingWizardView {
   /** Chips field to refocus after an add re-renders (typing flow). */
   private pendingFocus = "";
   /** The participants step's roster search, kept across renders. */
-  private peopleQuery = "";
   /** Re-applies the basics gate to forward nav without a full re-render. */
   private refreshGates: () => void = () => undefined;
   /** Named roster patterns per site (site settings library). */
@@ -102,7 +102,6 @@ export class MeetingWizardView {
   setDraft(draft: WizardDraft): void {
     this.draft = draft;
     this.stepKey = "basics";
-    this.peopleQuery = "";
     this.render();
   }
 
@@ -575,14 +574,8 @@ export class MeetingWizardView {
         ownerWrap.appendChild(el("div", "ltk-mw-help", "Not set."));
         return;
       }
-      const input = el("input", "ltk-mw-input") as HTMLInputElement;
-      input.type = "search";
-      input.placeholder =
-        this.directorySearch !== null
-          ? "Search the roster or directory…"
-          : "Search the roster…";
-      const box = el("div", "ltk-mw-people");
-      const note = el("div", "ltk-mw-people-count");
+      // the standing type-ahead (shared/ui/typeAhead.ts, tranche 5, F3):
+      // the roster matches at once, the directory under its own heading
       const pick = (p: Person, fromDirectory: boolean) => {
         this.draft.owner = { whoId: p.whoId, who: p.who, crew: "" };
         // a directory owner may not be an app user yet — register them
@@ -590,61 +583,22 @@ export class MeetingWizardView {
         this.commit();
         paintOwner();
       };
-      const resultRow = (p: Person, fromDirectory: boolean) => {
-        const row = el("div", "ltk-mw-result");
-        row.appendChild(el("span", "ltk-mw-result-add", "＋"));
-        row.appendChild(el("span", "ltk-mw-person-name", p.who));
-        if (fromDirectory && !this.people.some((x) => x.whoId === p.whoId)) {
-          row.appendChild(el("span", "ltk-mw-result-crew", "new to the app"));
-        }
-        row.addEventListener("click", () => pick(p, fromDirectory));
-        return row;
-      };
-      let dirTimer: ReturnType<typeof setTimeout> | null = null;
-      let dirSeq = 0;
-      const refresh = () => {
-        const q = input.value.trim().toLowerCase();
-        clear(box);
-        note.textContent = "";
-        if (dirTimer !== null) clearTimeout(dirTimer);
-        dirSeq++;
-        if (q === "") return;
-        const hits = this.people
-          .filter((p) => p.who.toLowerCase().includes(q))
-          .slice(0, 6);
-        for (const p of hits) box.appendChild(resultRow(p, false));
-        if (this.directorySearch !== null && q.length >= 2) {
-          // debounced so typing doesn't spam the directory connector
-          const mySeq = dirSeq;
-          dirTimer = setTimeout(() => {
-            void this.directorySearch!(input.value.trim())
-              .then((dirHits) => {
-                if (mySeq !== dirSeq) return; // superseded by newer input
-                for (const p of dirHits
-                  .filter((h) => !hits.some((x) => x.whoId === h.whoId))
-                  .slice(0, 6)) {
-                  box.appendChild(resultRow(p, true));
-                }
-                if (box.childElementCount === 0) note.textContent = "No matches.";
-              })
-              .catch(() => {
-                if (mySeq === dirSeq) note.textContent = "Directory search failed.";
-              });
-          }, 350);
-        } else if (hits.length === 0) {
-          note.textContent = "No roster match.";
-        }
-      };
-      input.addEventListener("input", refresh);
-      ownerWrap.append(input, box, note);
+      const search = buildTypeAhead({
+        placeholder: this.directorySearch !== null ? "Search the roster or directory…" : "Search the roster…",
+        label: "Owner: search people",
+        inputClass: "ltk-mw-input",
+        noneWords: "No one matches.",
+        local: (ql) => this.people.filter((p) => p.who.toLowerCase().includes(ql)).map((p) => ({ label: p.who, run: () => pick(p, false) })),
+        remote: this.directoryRemote(
+          () => [],
+          (p) => pick(p, true)
+        ),
+      });
+      ownerWrap.appendChild(search.el);
     };
     paintOwner();
     body.appendChild(
-      this.row(
-        "Owner",
-        ownerWrap,
-        "Pick from the app's user list or the org directory."
-      )
+      this.row("Owner", ownerWrap)
     );
 
     body.appendChild(
@@ -1151,26 +1105,44 @@ export class MeetingWizardView {
     );
   }
 
+  /** The directory as a type-ahead's slow source, null when the host
+   *  offers none: people already on the roster matched above by name, so
+   *  only the others are listed, marked "new to the app". */
+  private directoryRemote(taken: () => string[], pick: (p: Person) => void): TypeAheadRemote | null {
+    const dir = this.directorySearch;
+    if (dir === null) return null;
+    return {
+      heading: "In the directory",
+      failed: "The directory search failed. Check the connection and type again.",
+      search: async (q) => {
+        const ql = q.toLowerCase();
+        const off = new Set([...taken(), ...this.people.filter((p) => p.who.toLowerCase().includes(ql)).map((p) => p.whoId)]);
+        return (await dir(q))
+          .filter((h) => !off.has(h.whoId))
+          .map((h) => ({
+            label: h.who,
+            tag: this.people.some((x) => x.whoId === h.whoId) ? "" : "new to the app",
+            run: () => pick(h),
+          }));
+      },
+    };
+  }
+
   /**
    * Participants: the chosen people pinned on top (crew select + remove),
-   * a search over the roster below — built for org-scale rosters, so
-   * results are capped and refreshed IN PLACE (the search input is never
-   * rebuilt, keeping focus while typing).
+   * one type-ahead under them for the roster and the directory.
    */
   private renderPeople(body: HTMLElement): void {
     const d = this.draft;
     const crews = csvItems(d.crewList);
-    const MAX_RESULTS = 25;
 
     const selectedBox = el("div", "ltk-mw-people");
-    const resultsBox = el("div", "ltk-mw-people");
-    const countNote = el("div", "ltk-mw-people-count");
 
     const refreshSelected = () => {
       clear(selectedBox);
       if (d.participants.length === 0) {
         selectedBox.appendChild(
-          el("div", "ltk-mw-help", "No one selected yet — search the roster below.")
+          el("div", "ltk-mw-help", "No one selected yet.")
         );
         return;
       }
@@ -1197,7 +1169,6 @@ export class MeetingWizardView {
             d.participants = d.participants.filter((x) => x.whoId !== p.whoId);
             this.commit();
             refreshSelected();
-            refreshResults();
           });
           row.appendChild(remove);
         }
@@ -1205,119 +1176,34 @@ export class MeetingWizardView {
       }
     };
 
-    const refreshResults = () => {
-      clear(resultsBox);
-      countNote.textContent = "";
-      if (this.readOnly) return;
-      const q = this.peopleQuery.trim().toLowerCase();
-      const pool = this.people.filter(
-        (p) =>
-          !d.participants.some((x) => x.whoId === p.whoId) &&
-          (q === "" || p.who.toLowerCase().includes(q))
-      );
-      for (const p of pool.slice(0, MAX_RESULTS)) {
-        const row = el("div", "ltk-mw-result");
-        row.appendChild(el("span", "ltk-mw-result-add", "＋"));
-        row.appendChild(el("span", "ltk-mw-person-name", p.who));
-        if (p.crew) row.appendChild(el("span", "ltk-mw-result-crew", `Crew ${p.crew}`));
-        row.addEventListener("click", () => {
-          d.participants.push({ whoId: p.whoId, who: p.who, crew: p.crew ?? "" });
-          this.commit();
-          refreshSelected();
-          refreshResults();
-        });
-        resultsBox.appendChild(row);
-      }
-      if (pool.length > MAX_RESULTS) {
-        countNote.textContent = `Showing ${MAX_RESULTS} of ${pool.length} — keep typing to narrow.`;
-      } else if (pool.length === 0 && q !== "") {
-        countNote.textContent = "No roster match — add them by name below.";
-      }
-    };
-
     body.appendChild(this.row("Participants", selectedBox));
 
-    if (this.people.length > 0 && !this.readOnly) {
-      const search = el("input", "ltk-mw-input") as HTMLInputElement;
-      search.type = "search";
-      search.placeholder = `Search ${this.people.length} people…`;
-      search.value = this.peopleQuery;
-      search.addEventListener("input", () => {
-        this.peopleQuery = search.value;
-        refreshResults();
-      });
-      const searchWrap = el("div", "ltk-mw-row");
-      searchWrap.appendChild(el("label", "ltk-mw-label", "Add from the roster"));
-      searchWrap.append(search, resultsBox, countNote);
-      body.appendChild(searchWrap);
-    }
-
-    // org-directory search: adds people who may not be app users yet —
-    // the host registers them via onDirectoryAdd
-    if (this.directorySearch !== null && !this.readOnly) {
-      const dirWrap = el("div", "ltk-mw-row");
-      dirWrap.appendChild(el("label", "ltk-mw-label", "Add from the directory"));
-      const dirRow = el("div", "ltk-mw-dirrow");
-      const dirInput = el("input", "ltk-mw-input") as HTMLInputElement;
-      dirInput.type = "search";
-      dirInput.placeholder = "Name or email in your organisation…";
-      const dirBtn = el("button", "ltk-mw-btn", "Search") as HTMLButtonElement;
-      dirBtn.type = "button";
-      dirRow.append(dirInput, dirBtn);
-      const dirBox = el("div", "ltk-mw-people");
-      const dirNote = el("div", "ltk-mw-people-count");
-      dirWrap.append(dirRow, dirBox, dirNote);
-      body.appendChild(dirWrap);
-
-      const renderHits = (hits: Person[]) => {
-        clear(dirBox);
-        const fresh = hits.filter(
-          (p) => !d.participants.some((x) => x.whoId === p.whoId)
-        );
-        if (fresh.length === 0) {
-          dirNote.textContent = "No directory matches.";
-          return;
-        }
-        dirNote.textContent = "";
-        for (const p of fresh.slice(0, MAX_RESULTS)) {
-          const row = el("div", "ltk-mw-result");
-          row.appendChild(el("span", "ltk-mw-result-add", "＋"));
-          row.appendChild(el("span", "ltk-mw-person-name", p.who));
-          if (!this.people.some((x) => x.whoId === p.whoId)) {
-            row.appendChild(el("span", "ltk-mw-result-crew", "new to the app"));
-          }
-          row.addEventListener("click", () => {
-            d.participants.push({ whoId: p.whoId, who: p.who, crew: "" });
-            this.cb.onDirectoryAdd?.(p);
-            this.commit();
-            refreshSelected();
-            refreshResults();
-            renderHits(hits);
-          });
-          dirBox.appendChild(row);
-        }
+    // ONE box for the roster and the directory (tranche 5, F3): the
+    // roster matches at once, the directory follows under its own
+    // heading, and the cursor stays for the next person. Someone from
+    // the directory may not be an app user yet — the host registers them
+    // via onDirectoryAdd
+    if (!this.readOnly && (this.people.length > 0 || this.directorySearch !== null)) {
+      const taken = () => d.participants.map((x) => x.whoId);
+      const add = (p: Person, fromDirectory: boolean) => {
+        if (d.participants.some((x) => x.whoId === p.whoId)) return;
+        d.participants.push({ whoId: p.whoId, who: p.who, crew: fromDirectory ? "" : (p.crew ?? "") });
+        if (fromDirectory) this.cb.onDirectoryAdd?.(p);
+        this.commit();
+        refreshSelected();
       };
-      const runSearch = () => {
-        const q = dirInput.value.trim();
-        if (q.length < 2) {
-          dirNote.textContent = "Type at least two characters.";
-          return;
-        }
-        dirNote.textContent = "Searching…";
-        clear(dirBox);
-        void this.directorySearch!(q)
-          .then(renderHits)
-          .catch(() => {
-            dirNote.textContent = "Directory search failed — try again.";
-          });
-      };
-      dirBtn.addEventListener("click", runSearch);
-      dirInput.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          runSearch();
-        }
+      const search = buildTypeAhead({
+        placeholder: this.directorySearch !== null ? "Search the roster or directory…" : `Search ${this.people.length} people…`,
+        label: "Add a participant: search people",
+        inputClass: "ltk-mw-input",
+        noneWords: "No one matches.",
+        local: (ql) =>
+          this.people
+            .filter((p) => !taken().includes(p.whoId) && p.who.toLowerCase().includes(ql))
+            .map((p) => ({ label: p.who, sub: p.crew ? `Crew ${p.crew}` : "", run: () => add(p, false) })),
+        remote: this.directoryRemote(taken, (p) => add(p, true)),
       });
+      body.appendChild(this.row("Add a person", search.el));
     }
 
     if (!this.readOnly) {
@@ -1332,7 +1218,6 @@ export class MeetingWizardView {
           d.participants.push({ whoId, who: name, crew: "" });
           this.commit();
           refreshSelected();
-          refreshResults();
         }
         adder.value = "";
       });
@@ -1349,7 +1234,6 @@ export class MeetingWizardView {
     }
 
     refreshSelected();
-    refreshResults();
   }
 
   private renderRecords(body: HTMLElement): void {

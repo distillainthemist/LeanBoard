@@ -69,7 +69,8 @@ import {
   stageOfTerm,
   termForStage,
   termsForStage, isRegisterLibrary, libRoleInternal, SiteColumn, reviewsOutstanding, reviewProgress, orgTreePaths, orgTreePathsWithCompany, pathKey, paneLabels } from "./model";
-import { controllerLookupFailed, viewerInPool, viewerIsController } from "./accessGates";
+import { controllerLookupFailed, reviewerPeopleSource, viewerInPool, viewerIsController } from "./accessGates";
+import { docPeopleBox } from "./peopleField";
 import {
   TermNode,
   TermWalk,
@@ -4108,6 +4109,8 @@ export function mountDocs(
         // B6: people — a name fragment per person-role column the site
         // offers to filter (owner, reviewers, approvers)
         const PEOPLE_ROLES = new Set(["owner", "reviewers", "approvers"]);
+        // one read of the people source for every person filter in the pane
+        const filterPeople = reviewerPeopleSource();
         const peopleCols = siteDict.columns.filter(
           (c) => PEOPLE_ROLES.has(c.role) && columnOffered(c) && c.filterable
         );
@@ -4129,40 +4132,19 @@ export function mountDocs(
           }
           // a directory search, not free text (Ben, 2026-10-06): the
           // owners & approvers group lists first, Office 365 users behind
+          // the standing type-ahead (peopleField.ts, tranche 5)
           const box = el("div", "app-docs-ppl");
-          const inp = el("input", "app-input app-docs-fperson") as HTMLInputElement;
-          inp.type = "search";
-          inp.placeholder = "Search people…";
-          inp.setAttribute("aria-label", `${pc.label || pc.internal} — search people`);
-          const hits = el("div", "app-docs-pplhits");
-          box.append(inp, hits);
-          let seq = 0;
-          let timer: ReturnType<typeof setTimeout> | null = null;
-          inp.addEventListener("input", () => {
-            if (timer !== null) clearTimeout(timer);
-            timer = setTimeout(() => {
-              const mine = ++seq;
-              void import("./accessGates").then(({ reviewerPeopleSource }) =>
-                reviewerPeopleSource().then((src) =>
-                  src.search(inp.value).then((found) => {
-                    if (mine !== seq || !menu) return;
-                    clear(hits);
-                    for (const h of found.slice(0, 8)) {
-                      const hit = el("button", "app-docs-pplhit") as HTMLButtonElement;
-                      hit.type = "button";
-                      hit.append(el("span", "app-docs-pplhitname", h.displayName), el("span", "app-field-hint", h.mail));
-                      hit.addEventListener("click", () => {
-                        setPersonFilter(pc.internal, h.displayName);
-                        paintPop();
-                      });
-                      hits.appendChild(hit);
-                    }
-                    if (found.length === 0 && inp.value.trim() !== "") hits.appendChild(el("div", "app-field-hint", "No one matches."));
-                  })
-                )
-              );
-            }, 300);
+          const ta = docPeopleBox({
+            placeholder: "Search people…",
+            label: `${pc.label || pc.internal}: search people`,
+            source: filterPeople,
+            onPick: (h) => {
+              setPersonFilter(pc.internal, h.displayName);
+              paintPop();
+            },
           });
+          ta.input.classList.add("app-docs-fperson");
+          box.appendChild(ta.el);
           g.appendChild(box);
         }
         // B6: presence — linked documents (report 17's "how do I see

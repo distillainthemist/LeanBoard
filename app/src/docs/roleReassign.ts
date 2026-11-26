@@ -10,6 +10,7 @@
 import { clear, el } from "../../../shared/ui/dom";
 import { openDialog } from "../../../shared/ui/dialog";
 import { poolPeopleSource, reviewerPeopleSource } from "./accessGates";
+import { docPeopleBox, landed } from "./peopleField";
 import { checkInFile, checkOutFile, fetchListModeration, validateUpdateListItem } from "./sp";
 import { spErrorText, validateItemErrors } from "./model";
 
@@ -77,10 +78,26 @@ export function openReplacePerson(opts: {
   let to: { email: string; name: string } | null = null;
   const toBox = el("div", "app-docs-ppl");
   const toChip = el("div", "app-docs-pplchips");
-  const toSearch = el("input", "app-input") as HTMLInputElement;
-  toSearch.placeholder = "Search the owners & approvers group (anyone, for reviewers only)…";
-  const toHits = el("div", "app-docs-pplhits");
-  toBox.append(toChip, toSearch, toHits);
+  // the standing type-ahead (peopleField.ts, tranche 5). A reviewer may
+  // be anyone (C2): when only reviewers are ticked the replacement comes
+  // from the reviewer source (issue 9), otherwise from the pool
+  const poolLoad = poolPeopleSource();
+  const reviewerLoad = reviewerPeopleSource();
+  const poolSrc = landed(poolLoad);
+  const reviewerSrc = landed(reviewerLoad);
+  const toSearch = docPeopleBox({
+    placeholder: "Search the owners & approvers group (anyone, for reviewers only)…",
+    label: "With: search people",
+    source: () => (roles.size === 1 && roles.has("reviewers") ? reviewerSrc() : poolSrc()),
+    ready: Promise.all([poolLoad, reviewerLoad]),
+    listOnFocus: true,
+    onPick: (h) => {
+      to = { email: h.mail.toLowerCase(), name: h.displayName };
+      paintTo();
+      paintPreview();
+    },
+  });
+  toBox.append(toChip, toSearch.el);
   const paintTo = () => {
     clear(toChip);
     if (to === null) {
@@ -91,6 +108,7 @@ export function openReplacePerson(opts: {
     const chip = el("span", "app-docs-pplchip");
     chip.appendChild(el("span", "", to.name));
     const off = el("button", "app-docs-pplchipx", "✕") as HTMLButtonElement;
+    off.setAttribute("aria-label", `Remove ${to.name}`);
     off.addEventListener("click", () => {
       to = null;
       paintTo();
@@ -100,36 +118,6 @@ export function openReplacePerson(opts: {
     toChip.appendChild(chip);
   };
   paintTo();
-  let seq = 0;
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  toSearch.addEventListener("input", () => {
-    if (timer !== null) clearTimeout(timer);
-    timer = setTimeout(() => {
-      const mine = ++seq;
-      // a reviewer may be anyone (C2): when only reviewers are ticked the
-      // replacement comes from the reviewer source (issue 9)
-      const sourceFor = () => (roles.size === 1 && roles.has("reviewers") ? reviewerPeopleSource() : poolPeopleSource());
-      void sourceFor().then((src) =>
-        src.search(toSearch.value).then((hits) => {
-          if (mine !== seq) return;
-          clear(toHits);
-          for (const h of hits.filter((x) => x.mail !== "").slice(0, 8)) {
-            const row = el("button", "app-docs-pplhit") as HTMLButtonElement;
-            row.type = "button";
-            row.append(el("span", "app-docs-pplhitname", h.displayName), el("span", "app-field-hint", h.mail));
-            row.addEventListener("click", () => {
-              to = { email: h.mail.toLowerCase(), name: h.displayName };
-              toSearch.value = "";
-              clear(toHits);
-              paintTo();
-              paintPreview();
-            });
-            toHits.appendChild(row);
-          }
-        })
-      );
-    }, 300);
-  });
   body.appendChild(fieldRow("With", toBox));
   // roles (declared above the search handler that reads them)
   const rolesRow = el("div", "app-docs-fpills");

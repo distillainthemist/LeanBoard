@@ -823,6 +823,93 @@ new review process in `issue-review-prompt.md`, with one item of his
 own added to the round: a CSV import that prepares responses and
 closes issues in bulk.
 
+### Tranche 5 (built 2026-11-27, on dev, UNRELEASED) — no schema
+
+Six items, as walked. One new shared module carries all of it.
+
+- **The builder.** `shared/ui/typeAhead.ts` `buildTypeAhead` is the
+  standing search-picker as ONE piece: held matches (`local`) at once,
+  a slow source (`remote`) asked after 350 ms and three letters with
+  "Searching…" and its own heading, a stale answer dropped by a
+  sequence number, ↑ ↓ Enter Escape (`onEscape`, so it works over a
+  dialog), `mousedown` kept from taking the focus, the box emptied
+  after a pick with the cursor left in it. An option may carry a
+  second line, a mark (`tag`), be shown but not pickable (`disabled`),
+  and return a promise: it is busy until the promise settles, and a
+  refusal is said under it. `remotePhase`, `typeAheadNote` and
+  `nextActive` are its pure rules. **The list is laid over the page**
+  (`position: fixed`, placed from the box, opening upward when there
+  is no room below, following a scroll): a short dialog cut the old
+  absolute list off at its footer — seen in the harness. A scaled card
+  or a contained dialog body traps a fixed box, so the placement is
+  measured and such a host falls back to the stylesheet's place under
+  the box. `listKeys` gives ↑ ↓ Enter to a list a host draws itself.
+  The four older hand copies (the action dialog's two, the capture
+  card's person column, `docs/docSearch.ts`) are left as they are.
+- **F1.** `docs/peopleField.ts` `docPeopleBox` over the builder, for
+  the four Documents copies: `fieldEditors.ts` (Add, Edit properties,
+  ingestion, bulk change), "Add reviewers" (`lifecycleCmds.ts`), the
+  hand-over's "With" (`roleReassign.ts`, whose source follows its role
+  ticks) and the Filters pane (`docsScreen.ts`). `PeopleSource`
+  (`accessGates.ts`) now gives `held` (the people in memory) and
+  `directory` (null when the picker is bound to the group) in place of
+  one `search`; `directoryPeopleSource` is the unbound one. Owner and
+  approver fields and the hand-over's "With" list the group on a
+  click (`listOnFocus`, up to 50, then "n more. Type more of the
+  name."). UAT-DOC-120, 121.
+- **F2.** `capDirectoryMatches` (`people/directoryAdd.ts`): twelve at
+  most, then "Showing the first 12. Type more of the name and search
+  again." Enter in the Users search box presses "Search directory &
+  add". The connector itself answers with fifteen at most, so the line
+  appears for an answer of thirteen to fifteen. UAT-SET-020.
+- **F3.** The meeting wizard's Owner is the builder (roster, then "In
+  the directory" with "new to the app"); Participants has ONE box for
+  both, and the Search button, the second search and the unasked list
+  of 25 are gone (`directoryRemote` in the wizard). "Add by name" is
+  unchanged. UAT-RIT-018.
+- **F4.** Settings → Organisation's owner chips open `pickOwner` with
+  `directoryRoad(me, at, roster)`; `pickPerson` and its private add
+  are deleted (about 150 lines). `at` is the org the chip belongs to:
+  a site's owner lands at the site, a department's or an area's at the
+  site and department, a company's with no site. A revoked person is
+  offered nowhere in the picker. `OwnerPickerExtras.note` words the
+  line under the title. UAT-SET-021.
+- **F5, nine places.** Team import's starting person (one call after
+  the pause, "already a start" greyed); issue merge (the builder's
+  sequence guard; the pick reads "Merging into …" and enables Merge);
+  ingestion task assignees (roster at once, directory behind);
+  document group members' Add (a member greyed as "a member", the add
+  as the option's promise); the hub's person box (the datalist is
+  gone; an emptied box is everyone, an unknown name snaps back); the
+  Agenda card's "Search everyone…"; the notify panel's "Add a person";
+  UAT testers; and the initiative form's "Link a priority" menu, which
+  keeps its own grouped list and takes `listKeys` and Escape.
+  UAT-DOC-123, UAT-SET-022, UAT-RIT-019, UAT-ISS-010, UAT-IMP-020.
+- **The ingestion grid's keys.** `editorKey` and `stepRow`
+  (`docs/ingestionDraft.ts`, pure): in the cell editor Enter sets and
+  moves down a row, Shift+Enter sets and moves up; Escape and Cancel
+  put the cursor back on the cell; Set by the mouse leaves it on the
+  cell. A notes box keeps Enter for a new line (Ctrl or ⌘ with Enter
+  sets); a search with its list open keeps Enter for its pick; a
+  button keeps Enter for its own press. Shift+Enter moves up from a
+  text, choice or date cell and from a cell's button. UAT-DOC-122.
+
+**Seen in the harness** (`harness/typeahead.html`, new): the group
+listed on a click; held matches at once and the directory under its
+heading; a pick by ↓ and Enter with the cursor kept; a greyed member
+and a refused add; inside a dialog, Escape closing only the list,
+Enter not pressing Save, and the list drawn over the footer. And in
+`harness/initform.html`: ↓ ↓ Enter linking a priority. **Not seen
+running:** everything that needs the directory, SharePoint or the
+player — the Documents forms, the Filters pane, the ingestion grid's
+editor, the meeting wizard, the hub's person box, Settings →
+Organisation, group members. Those are Ben's test walk.
+
+**Limits.** The directory road returns fifteen people at most. A list
+inside a scaled board tile falls back to the old place under its box
+and can still be cut off by the tile. Arrow-key movement between grid
+cells was offered and not chosen.
+
 ## Tranche 1A — the 2026-11-23 issue export (inserted by Ben, 2026-11-23)
 
 Nine reports from the DMS UAT re-run, reviewed in

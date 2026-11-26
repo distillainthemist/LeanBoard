@@ -244,17 +244,30 @@ the same commit.
 ### 2.x Search pickers are type-aheads (Ben, 2026-11-16 — the standing pattern)
 
 Anything a person searches in order to PICK — a person, a ritual, an
-initiative, an organisation, a term — is built one way. Reference:
-"Search everyone…" (`buildActionForm`) and "Linked to" (`buildLinkField`)
-in `shared/ui/actionUi.ts`, styles `.ltk-who-pop` / `.ltk-link-pop` in
-`shared/ui/baseCss.ts`; `directoryLookup` in `app/src/priorities/dialogs.ts`
-for a modal picker's directory half.
+initiative, an organisation, a term — is built one way. **Build it
+with `buildTypeAhead` (`shared/ui/typeAhead.ts`, 2026-11-27)**: it
+carries every rule below, so a new search writes only what it finds
+and what a pick does. `docs/peopleField.ts` `docPeopleBox` is the
+Documents people search over it; `listKeys` gives the keys to a list a
+host draws itself (a grouped menu). Earlier hand copies of the same
+pattern: "Search everyone…" (`buildActionForm`) and "Linked to"
+(`buildLinkField`) in `shared/ui/actionUi.ts`, `docs/docSearch.ts`;
+styles `.ltk-who-pop` / `.ltk-link-pop` in `shared/ui/baseCss.ts`;
+`directoryLookup` in `app/src/priorities/dialogs.ts` for a modal
+picker's directory half.
 
 - **As you type.** Results follow each keystroke. No Search button, and
   no second step to reach a slower source.
-- **The list floats.** It opens under the box (absolute, inside a
-  relative wrapper), over whatever is below. It never pushes content
-  down and never stretches the dialog or the page.
+- **The list floats.** It opens under the box, over whatever is below.
+  It never pushes content down and never stretches the dialog or the
+  page. The builder lays it over the PAGE (fixed, placed from the box,
+  upward when there is no room below), so a short dialog or a
+  scrolling pane cannot cut it off; where a scaled card traps a fixed
+  box it falls back to absolute inside its relative wrapper, which is
+  how the hand copies place theirs.
+- **A known short list may show on a click** (`listOnFocus`): a field
+  bound to one group lists the group before anything is typed. Nothing
+  else lists unasked.
 - **The list scrolls on its own**, capped at about 300px. This is the one
   allowed scroller inside a dialog body: it is a picker, not content.
 - **A slow source searches itself.** Local matches show at once; the

@@ -976,9 +976,6 @@ body.app-update-gated > #app { filter: blur(2px); pointer-events: none; user-sel
 .app-ti-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .app-ti-chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 6px 3px 10px; border: 1px solid #e0ddd6; border-radius: 999px; background: #faf9f6; font-size: 13px; }
 .app-ti-chip-x { padding: 0 6px; min-height: 22px; line-height: 1; }
-.app-ti-hits { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
-.app-ti-hit { display: flex; align-items: center; gap: 10px; padding: 4px 8px; border: 1px solid #eceae5; border-radius: 8px; font-size: 13px; }
-.app-ti-hit .app-btn { margin-left: auto; }
 .app-ti-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
 .app-ti-progress { font-size: 13.5px; font-weight: 600; padding: 12px 0; }
 .app-ti-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
@@ -2700,7 +2697,7 @@ button.app-docs-tasksgroup-fold:hover, button.app-docs-tasksgroup-fold:focus-vis
 
 /* group members dialog (2026-10-28 report 3) */
 .app-grp-search { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
-.app-grp-hits, .app-grp-list { display: flex; flex-direction: column; gap: 2px; }
+.app-grp-list { display: flex; flex-direction: column; gap: 2px; }
 .app-grp-row { display: flex; align-items: center; gap: 10px; padding: 6px 4px; border-bottom: 1px solid #eceae5; }
 .app-grp-row:last-child { border-bottom: none; }
 .app-grp-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
@@ -2806,8 +2803,6 @@ button.app-docs-tasksgroup-fold:hover, button.app-docs-tasksgroup-fold:focus-vis
 .app-docs-notifynote { margin-bottom: 6px; }
 .app-docs-notifyadd { position: relative; margin: 6px 0; }
 .app-docs-notifyaddin { max-width: 320px; }
-.app-docs-notifyaddlist { position: absolute; z-index: 5; left: 0; top: 100%; min-width: 260px; max-width: 420px; background: #fff; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.14); padding: 4px; }
-.app-docs-notifyaddlist .app-docs-menuitem { width: 100%; text-align: left; }
 .app-field-derived { color: #5c5852; background: #efece7; }
 .app-docs-addfield-ro .app-docs-rovalue { font-size: 14px; padding: 6px 0; }
 .app-docs-datehint { margin-top: 2px; }
@@ -2841,14 +2836,6 @@ a.app-docs-mocref { color: var(--app-accent, #2563eb); }
   margin-top: 12px; padding-top: 12px;
   border-top: 1px solid var(--app-line, #e3e3e0);
 }
-.app-docs-pplhits { display: flex; flex-direction: column; }
-.app-docs-pplhit {
-  display: flex; justify-content: space-between; gap: 10px; align-items: baseline;
-  border: none; background: none; cursor: pointer; text-align: left;
-  padding: 6px 8px; border-radius: 4px; font-size: 13px;
-}
-.app-docs-pplhit:hover { background: #f2f1ee; }
-.app-docs-pplhitname { font-weight: 600; }
 
 /* document control (Phase 4B): checked-out state reads at a glance, and
    YOURS reads differently, because it is the only one you can act on */
@@ -3315,12 +3302,8 @@ button.app-doclist-hsort:hover { color: var(--app-accent, #2563eb); }
 .app-issad-torow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 10px; font-size: 12.5px; color: #6d675c; }
 .app-issad-tolabel { font-weight: 600; }
 .app-issad-tochip { border: 1px solid #d9d3c8; border-radius: 999px; padding: 1px 9px; background: #fff; color: #26241f; font-size: 12px; }
-.app-issad-mergehits { display: flex; flex-direction: column; gap: 4px; }
-.app-issad-mergehit {
-  text-align: left; border: 1px solid #e3e0d9; border-radius: 6px;
-  background: #fff; padding: 8px 10px; font-size: 12.5px; cursor: pointer;
-}
-.app-issad-mergehit-on { border-color: var(--app-accent); box-shadow: inset 0 0 0 1px var(--app-accent); }
+.app-issad-mergeinto { display: flex; align-items: baseline; gap: 8px; margin-top: 8px; min-height: 20px; }
+.app-issad-mergename { font-weight: 600; }
 .app-issad-lightbox {
   position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 11000;
   background: rgba(20, 20, 20, 0.72); cursor: zoom-out;
@@ -3623,7 +3606,7 @@ button.app-doclist-hsort:hover { color: var(--app-accent, #2563eb); }
 .app-im-primore { align-self: flex-start; font-size: 12.5px; padding: 6px 8px; }
 .app-cp-menu-h { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: #8b8478; padding: 6px 8px 2px; }
 .app-cp-menu-item { border: none; background: none; text-align: left; font: inherit; font-size: 13px; padding: 7px 8px; border-radius: 5px; cursor: pointer; color: #26241f; }
-.app-cp-menu-item:hover:not(:disabled) { background: #f4f1ea; }
+.app-cp-menu-item:hover:not(:disabled), .app-cp-menu-item-on { background: #f4f1ea; }
 .app-cp-menu-item:disabled { color: #a39c90; cursor: default; }
 /* gate snapshots (2026-11-24): earlier ones of a stage fold under the newest */
 .app-board-snapfold { font-size: 12px; color: #6f685c; padding: 4px 8px 4px 22px; }
@@ -5119,7 +5102,6 @@ input.app-vg-in.app-vg-folded { background: #fff7e0; }
 .app-ing-log { display: flex; flex-direction: column; gap: 4px; max-height: 30vh; overflow: auto; font-size: 12.5px; }
 .app-ing-logrow { padding: 2px 0; border-bottom: 1px solid #f1efec; }
 .app-ing-people { display: flex; flex-direction: column; gap: 6px; }
-.app-ing-hits { display: flex; flex-wrap: wrap; gap: 4px 10px; }
 /* one scroll: the dialog body scrolls, never a box inside it */
 .app-ing-defaults { display: flex; flex-direction: column; gap: 8px; }
 .app-ing-onefield { display: flex; flex-direction: column; gap: 8px; }
@@ -5216,7 +5198,6 @@ input.app-vg-in.app-vg-folded { background: #fff7e0; }
 .app-uat-acts, .app-uat-caseacts { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .app-uat-comps { display: flex; flex-direction: column; gap: 4px; }
 .app-uat-comp { display: flex; gap: 8px; align-items: center; font-size: 13px; }
-.app-uat-hits { display: flex; flex-direction: column; gap: 2px; }
 .app-uat-chosen { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
 .app-uat-person { border: 1px solid #e4dfd6; border-radius: 8px; padding: 6px 10px; display: flex; flex-direction: column; gap: 6px; }
 .app-uat-persontop { display: flex; align-items: center; justify-content: space-between; }

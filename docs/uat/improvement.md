@@ -220,3 +220,13 @@ steps:
 2. Remove one. Read the buttons.
 3. Open the older initiative with nine or more.
 expected: step 1 the eighth is added; both add buttons are then greyed, their tooltip reading "An initiative holds at most 8 metrics. Remove one to add another."; step 2 they are live again; step 3 every one of its metrics is still there and still shows; nothing can be added until it is under eight
+
+### UAT-IMP-020 — "Link a priority" answers to the keyboard
+persona: lead
+modules: improvement/initiativeForm.ts shared/ui/typeAhead.ts
+preconditions: an initiative at an org with two or more open priorities, and more above it
+steps:
+1. Edit details → "＋ Link a priority". Press ↓ twice, then ↑.
+2. Type a word from a priority above this org. Press ↓ and Enter.
+3. Open the menu again and press Escape.
+expected: step 1 the lit priority moves down and back up; step 2 the list narrows as you type and includes the priorities above; Enter links the lit one as a chip and closes the menu; the form stays open; step 3 Escape closes the menu only

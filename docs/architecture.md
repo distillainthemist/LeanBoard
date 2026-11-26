@@ -658,6 +658,17 @@ initiative health check (`healthQuestions`, `__health`) was removed.
   path. "＋ Add a team…" reads a leader's reporting line through the
   directory walk and adds only people already in the app
   (`actions/team.ts`, `teamModel.ts`).
+- **One search-picker builder** (`shared/ui/typeAhead.ts`,
+  2026-11-27): `buildTypeAhead` is the standing type-ahead of
+  `ui-standard.md` §2.x for the app and the controls alike — held
+  matches at once, a slow source asked by itself, the keys, a list laid
+  over the page. It injects the toolkit stylesheet itself, so it works
+  on an app screen that mounted no control. `docs/peopleField.ts` is
+  the Documents people search over it: `PeopleSource`
+  (`docs/accessGates.ts`) gives the people in memory (`held`) and the
+  directory behind them (`directory`, null when a field is bound to
+  the owners & approvers group). Organisation owners are chosen with
+  `pickOwner` and `people/directoryAdd.ts`, like every other owner.
 - **Providers the shared dialog asks the host for**
   (`shared/ui/actionLinkProvider.ts`, registered in `main.ts`, each
   loaded on first use): link targets, the viewer, endorsement,

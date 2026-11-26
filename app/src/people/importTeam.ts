@@ -6,6 +6,7 @@
 // Decisions 1–5 recorded in the proposal.
 import { openDialog } from "../../../shared/ui/dialog";
 import { clear, el } from "../../../shared/ui/dom";
+import { buildTypeAhead } from "../../../shared/ui/typeAhead";
 import { FLAG_LABEL, ImportRow, planImport, summarize } from "../../../shared/schema/teamImport";
 import type { OrgSite } from "../../../shared/schema/meeting";
 import { accessGroup, syncAllAccess } from "../store/accessGroup";
@@ -93,40 +94,31 @@ export function openTeamImport(o: TeamImportOptions): void {
     });
     body.appendChild(fieldBlock("Start from", chips, rootsNote));
     // another root: a GM whose peers' teams the owner misses
-    const search = el("input", "app-input") as HTMLInputElement;
-    search.placeholder = "Add another starting person — name or email";
-    const hits = el("div", "app-ti-hits");
-    let seq = 0;
-    search.addEventListener("input", () => {
-      const q = search.value.trim();
-      const my = ++seq;
-      clear(hits);
-      if (q.length < 2) return;
-      void searchEntra(q).then((found) => {
-        if (my !== seq) return;
-        clear(hits);
-        for (const h of found.slice(0, 8)) {
-          const row = el("div", "app-ti-hit");
-          row.append(el("span", "", h.displayName), el("span", "app-field-hint", [h.mail, h.department].filter((x) => x !== "").join(" · ")));
-          const add = el("button", "app-btn", "＋ Start here") as HTMLButtonElement;
-          add.type = "button";
-          add.disabled = roots.some((r) => r.whoId === h.objectId);
-          add.addEventListener("click", () => {
-            roots.push({ whoId: h.objectId, name: h.displayName, why: "added" });
-            paintChips();
-            search.value = "";
-            clear(hits);
-          });
-          row.appendChild(add);
-          hits.appendChild(row);
-        }
-        if (found.length === 0) hits.appendChild(el("div", "app-field-hint", "No one in the directory matches."));
-      }).catch((e) => {
-        clear(hits);
-        hits.appendChild(el("div", "app-field-hint", `Directory search failed: ${errText(e)}`));
-      });
+    // the standing type-ahead (tranche 5, F5): the directory is asked
+    // after a pause, not on every letter
+    const search = buildTypeAhead({
+      placeholder: "Add another starting person: name or email",
+      inputClass: "app-input",
+      remote: {
+        search: async (q) =>
+          (await searchEntra(q)).map((h) => {
+            const already = roots.some((r) => r.whoId === h.objectId);
+            return {
+              label: h.displayName,
+              sub: [h.mail, h.department].filter((x) => x !== "").join(" · "),
+              tag: already ? "already a start" : "",
+              disabled: already,
+              run: () => {
+                roots.push({ whoId: h.objectId, name: h.displayName, why: "added" });
+                paintChips();
+              },
+            };
+          }),
+        failed: "The directory search failed. Check the connection and type again.",
+      },
+      noneWords: "No one in the directory matches.",
     });
-    body.append(search, hits);
+    body.appendChild(search.el);
     const walk = el("button", "app-btn app-btn-primary", "Walk the directory") as HTMLButtonElement;
     walk.type = "button";
     walk.addEventListener("click", () => void stepWalk());

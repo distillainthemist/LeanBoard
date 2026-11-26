@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("../runtime", () => ({ currentViewer: () => null }));
 vi.mock("../store/people", () => ({ searchEntra: async () => [], upsertPerson: async () => undefined, viewerPerson: async () => null }));
 
-import { existingOutcome, placementFor } from "../people/directoryAdd";
+import { capDirectoryMatches, existingOutcome, placementFor } from "../people/directoryAdd";
 
 describe("who may add from the directory", () => {
   const context = { site: "Weipa", department: "Mining" };
@@ -35,5 +35,24 @@ describe("someone the app already knows", () => {
     expect(existingOutcome(null)).toBe("add");
     expect(existingOutcome({ who: "Jane", active: true })).toBe("choose");
     expect(existingOutcome({ who: "Jane", active: false })).toBe("revoked");
+  });
+});
+
+// the Users register's directory matches (tranche 5, F2, 2026-11-27)
+describe("how many directory matches a search lists", () => {
+  const found = (n: number) => Array.from({ length: n }, (_, i) => `p${i}`);
+
+  it("lists every match up to twelve, with no line under them", () => {
+    expect(capDirectoryMatches(found(12), "smith")).toEqual({ shown: found(12), note: "" });
+  });
+
+  it("lists twelve of a longer answer and asks for more of the name", () => {
+    const r = capDirectoryMatches(found(15), "smith");
+    expect(r.shown).toHaveLength(12);
+    expect(r.note).toBe("Showing the first 12. Type more of the name and search again.");
+  });
+
+  it("says so when no one matches", () => {
+    expect(capDirectoryMatches([], "zzz")).toEqual({ shown: [], note: "No one in the directory matches “zzz”." });
   });
 });

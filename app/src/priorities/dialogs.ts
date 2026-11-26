@@ -257,6 +257,9 @@ export interface OwnerPickerExtras {
     search: (q: string) => Promise<{ objectId: string; displayName: string; mail: string }[]>;
     add: (hit: { objectId: string; displayName: string; mail: string }) => Promise<PersonRef>;
   };
+  /** The line under the title, when the owner is not a priority's (an
+   *  organisation owner, tranche 5). */
+  note?: string;
 }
 
 /** How many letters before the directory is asked, and the pause in
@@ -346,7 +349,7 @@ export function pickOwner(
   extra: OwnerPickerExtras = {}
 ): Promise<PersonRef | null | "clear"> {
   return new Promise((resolve) => {
-    const m = modal(host, `Choose the ${roleLabel.toLowerCase()}`, roleLabel === "owner" ? "The person accountable for this priority." : `The person holding the ${roleLabel} role.`);
+    const m = modal(host, `Choose the ${roleLabel.toLowerCase()}`, extra.note ?? (roleLabel === "owner" ? "The person accountable for this priority." : `The person holding the ${roleLabel} role.`));
     const filter = el("input", "app-input") as HTMLInputElement;
     filter.type = "search";
     filter.placeholder = extra.directory ? "Search the app and the directory…" : extra.suggested && extra.suggested.length > 0 ? "Search the app roster…" : "Filter people…";

@@ -10,6 +10,7 @@
 // away with the last-owner guard and leaves the membership.
 
 import { clear, el } from "../../../shared/ui/dom";
+import { buildTypeAhead } from "../../../shared/ui/typeAhead";
 import { openDialog } from "../../../shared/ui/dialog";
 import { confirmRemoval } from "../prompts";
 import { addMember, addOwner, groupMembers, isGroupOwner, removeMember, removeOwnerGuarded, GroupMember } from "../store/accessGroup";
@@ -144,11 +145,28 @@ export function openGroupMembers(opts: GroupMembersOpts): void {
   dlg.body.appendChild(ownerLine);
   const status = el("div", "app-docs-addstatus");
   const searchWrap = el("div", "app-grp-search");
-  const search = el("input", "app-input") as HTMLInputElement;
-  search.type = "search";
-  search.placeholder = "Search the directory to add someone…";
-  const hits = el("div", "app-grp-hits");
-  searchWrap.append(search, hits);
+  // the standing type-ahead (tranche 5, F5): a member already in the
+  // group is shown, and cannot be picked again
+  const search = buildTypeAhead({
+    placeholder: "Search the directory to add someone…",
+    inputClass: "app-input",
+    noneWords: "No one in the directory matches.",
+    remote: {
+      failed: "The directory search failed. Check the connection and type again.",
+      search: async (q) => {
+        const found = await searchEntra(q);
+        const have = new Set(members.map((m) => m.id));
+        return found.map((hit) => ({
+          label: hit.displayName,
+          sub: [hit.mail, hit.department].filter(Boolean).join(" · "),
+          tag: have.has(hit.objectId) ? "a member" : "",
+          disabled: have.has(hit.objectId),
+          run: () => add(hit),
+        }));
+      },
+    },
+  });
+  searchWrap.appendChild(search.el);
   const list = el("div", "app-grp-list");
   dlg.body.append(searchWrap, el("div", "app-field-label", "Members"), list, status);
 
@@ -212,65 +230,21 @@ export function openGroupMembers(opts: GroupMembersOpts): void {
     await reload();
   };
 
-  const add = async (hit: { objectId: string; displayName: string; mail: string }, btn: HTMLButtonElement) => {
-    btn.disabled = true;
+  /** Add one person; a refusal is thrown, and the type-ahead says it
+   *  under their name. */
+  const add = async (hit: { objectId: string; displayName: string; mail: string }) => {
     say(`Adding ${hit.displayName}…`);
     let tails: string[];
     try {
       tails = await addToGroup(kind, groups, hit.objectId);
     } catch (e) {
-      btn.disabled = false;
       say(`Could not add ${hit.displayName}: ${errText(e)}`, true);
-      return;
+      throw new Error(`Could not add: ${errText(e)}`);
     }
     opts.onChanged?.();
     say(`${hit.displayName} added ✓${tails.length > 0 ? ` — ${tails.join("; ")}` : ""}`, tails.length > 0);
-    search.value = "";
-    clear(hits);
     await reload();
   };
-
-  let gen = 0;
-  const runSearch = () => {
-    const q = search.value.trim();
-    const g = ++gen;
-    clear(hits);
-    if (q.length < 2) return;
-    hits.appendChild(el("div", "app-field-hint", "Searching…"));
-    void searchEntra(q)
-      .then((found) => {
-        if (g !== gen) return;
-        clear(hits);
-        if (found.length === 0) {
-          hits.appendChild(el("div", "app-field-hint", "No one in the directory matches."));
-          return;
-        }
-        const have = new Set(members.map((m) => m.id));
-        for (const hit of found) {
-          const row = el("div", "app-grp-row");
-          const text = el("div", "app-grp-text");
-          text.append(el("div", "app-people-name", hit.displayName), el("div", "app-user-email", [hit.mail, hit.department].filter(Boolean).join(" · ")));
-          row.appendChild(text);
-          if (have.has(hit.objectId)) row.appendChild(el("span", "app-status-badge", "a member"));
-          else {
-            const b = el("button", "app-btn", "＋ Add") as HTMLButtonElement;
-            b.addEventListener("click", () => void add(hit, b));
-            row.appendChild(b);
-          }
-          hits.appendChild(row);
-        }
-      })
-      .catch((e) => {
-        if (g !== gen) return;
-        clear(hits);
-        hits.appendChild(el("div", "app-cp-err", `Search failed: ${errText(e)}`));
-      });
-  };
-  let timer = 0;
-  search.addEventListener("input", () => {
-    window.clearTimeout(timer);
-    timer = window.setTimeout(runSearch, 250);
-  });
 
   void (async () => {
     let owner = false;

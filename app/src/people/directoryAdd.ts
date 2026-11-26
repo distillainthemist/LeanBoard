@@ -46,6 +46,18 @@ export function existingOutcome(existing: { who: string; active: boolean } | nul
   return existing.active ? "choose" : "revoked";
 }
 
+/** How many directory matches a search lists. */
+export const DIRECTORY_SHOWN = 12;
+
+/** The matches a directory search shows and the line under them: twelve
+ *  at most, and a longer answer asks for more of the name (tranche 5,
+ *  F2). Pure. */
+export function capDirectoryMatches<T>(found: T[], q: string, cap = DIRECTORY_SHOWN): { shown: T[]; note: string } {
+  if (found.length === 0) return { shown: [], note: `No one in the directory matches “${q}”.` };
+  if (found.length <= cap) return { shown: found, note: "" };
+  return { shown: found.slice(0, cap), note: `Showing the first ${cap}. Type more of the name and search again.` };
+}
+
 /** The directory road for a viewer whose role the caller already holds
  *  (undefined = not offered). `roster` is the caller's own list: a person
  *  added or found is pushed onto it so the picker shows them at once. */

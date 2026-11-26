@@ -5,6 +5,7 @@
 // stay out of every dialog that never sends one.
 
 import { clear, el } from "../../../shared/ui/dom";
+import { buildTypeAhead } from "../../../shared/ui/typeAhead";
 import { spErrorText } from "./model";
 import { NotifyContext, NotifyRecipient, withoutSelf } from "./notifyModel";
 import { currentViewer } from "../runtime";
@@ -69,48 +70,33 @@ export function attachNotifyPanel(opts: {
   paintChips();
   // a person back in, or one more (DOC-042: "unable to add another
   // recipient after removing one")
+  // the standing type-ahead (tranche 5, F5): ↑ ↓ Enter Escape, and the
+  // cursor stays for the next person
   const addWrap = el("div", "app-docs-notifyadd");
-  const addIn = el("input", "app-input app-docs-notifyaddin") as HTMLInputElement;
-  addIn.type = "search";
-  addIn.placeholder = "Add a person…";
-  addIn.setAttribute("aria-label", "Add a person to notify");
-  const addList = el("div", "app-docs-notifyaddlist");
-  addList.hidden = true;
-  let addTimer = 0;
-  let addSeq = 0;
-  addIn.addEventListener("input", () => {
-    window.clearTimeout(addTimer);
-    const q = addIn.value.trim();
-    if (q.length < 2) {
-      addList.hidden = true;
-      return;
-    }
-    addTimer = window.setTimeout(() => {
-      const seq = ++addSeq;
-      void import("../store/people").then(({ searchEntra }) => searchEntra(q)).then((hits) => {
-        if (seq !== addSeq) return;
-        clear(addList);
+  const addBox = buildTypeAhead({
+    placeholder: "Add a person…",
+    label: "Add a person to notify",
+    inputClass: "app-input app-docs-notifyaddin",
+    noneWords: "No one found.",
+    remote: {
+      failed: "The people search failed. Check the connection and type again.",
+      search: async (q) => {
+        const { searchEntra } = await import("../store/people");
         const have = new Set([...recips.map((p) => p.email.toLowerCase()), me.trim().toLowerCase()]);
-        const fresh = hits.filter((h) => h.mail !== "" && !have.has(h.mail.toLowerCase())).slice(0, 8);
-        for (const h of fresh) {
-          const b = el("button", "app-docs-menuitem", `${h.displayName}${h.department !== "" ? ` · ${h.department}` : ""}`) as HTMLButtonElement;
-          b.type = "button";
-          b.addEventListener("click", () => {
-            recips = [...recips, { name: h.displayName, email: h.mail }];
-            paintChips();
-            addIn.value = "";
-            addList.hidden = true;
-          });
-          addList.appendChild(b);
-        }
-        if (fresh.length === 0) addList.appendChild(el("div", "app-field-hint", "No one found."));
-        addList.hidden = false;
-      }).catch(() => {
-        addList.hidden = true;
-      });
-    }, 250);
+        return (await searchEntra(q))
+          .filter((h) => h.mail !== "" && !have.has(h.mail.toLowerCase()))
+          .map((h) => ({
+            label: h.displayName,
+            sub: [h.mail, h.department].filter((x) => x !== "").join(" · "),
+            run: () => {
+              recips = [...recips, { name: h.displayName, email: h.mail }];
+              paintChips();
+            },
+          }));
+      },
+    },
   });
-  addWrap.append(addIn, addList);
+  addWrap.appendChild(addBox.el);
   const msg = el("textarea", "app-input app-docs-cicomment") as HTMLTextAreaElement;
   msg.rows = 4;
   const typed = (opts.reason ?? "").trim();

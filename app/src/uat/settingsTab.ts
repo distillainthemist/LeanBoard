@@ -5,6 +5,7 @@
 // card with the link to their UAT tab.
 
 import { clear, el } from "../../../shared/ui/dom";
+import { buildTypeAhead } from "../../../shared/ui/typeAhead";
 import { openDialog } from "../../../shared/ui/dialog";
 import { statusChip } from "../../../shared/ui/format";
 import { settingsSection } from "../settingsSection";
@@ -252,11 +253,26 @@ export async function renderUatSettings(body: HTMLElement): Promise<void> {
         { label: "Save", kind: "primary", onClick: () => void onDone(chosen).then(() => dlg.close()) },
       ],
     });
-    const search = el("input", "app-input") as HTMLInputElement;
-    search.placeholder = "Add a person from the roster…";
-    const hits = el("div", "app-uat-hits");
+    // the standing type-ahead (tranche 5, F5), over the roster the app
+    // already holds
+    const search = buildTypeAhead({
+      placeholder: "Add a person from the roster…",
+      inputClass: "app-input",
+      noneWords: "No one on the roster matches.",
+      local: (ql) =>
+        roster
+          .filter((r) => r.active && !chosen.some((a) => a.email === r.email.toLowerCase()) && (r.who.toLowerCase().includes(ql) || r.email.toLowerCase().includes(ql)))
+          .map((p) => ({
+            label: p.who,
+            sub: p.email,
+            run: () => {
+              chosen.push({ whoId: p.whoId, email: p.email.toLowerCase(), name: p.who, personas: [] });
+              paintChosen();
+            },
+          })),
+    });
     const chosenBox = el("div", "app-uat-chosen");
-    dlg.body.append(el("div", "app-field-hint", "A person with no persona ticked tests every case."), search, hits, chosenBox);
+    dlg.body.append(el("div", "app-field-hint", "A person with no persona ticked tests every case."), search.el, chosenBox);
     const paintChosen = () => {
       clear(chosenBox);
       for (const a of chosen) {
@@ -287,22 +303,6 @@ export async function renderUatSettings(body: HTMLElement): Promise<void> {
       if (chosen.length === 0) chosenBox.appendChild(el("div", "app-field-hint", "Nobody yet."));
     };
     paintChosen();
-    search.addEventListener("input", () => {
-      clear(hits);
-      const q = search.value.trim().toLowerCase();
-      if (q === "") return;
-      for (const p of roster.filter((r) => r.active && (r.who.toLowerCase().includes(q) || r.email.toLowerCase().includes(q))).slice(0, 8)) {
-        const b = btn(`${p.who} · ${p.email}`, "app-link app-uat-hit");
-        b.disabled = chosen.some((a) => a.email === p.email.toLowerCase());
-        b.addEventListener("click", () => {
-          chosen.push({ whoId: p.whoId, email: p.email.toLowerCase(), name: p.who, personas: [] });
-          search.value = "";
-          clear(hits);
-          paintChosen();
-        });
-        hits.appendChild(b);
-      }
-    });
   };
 
   const openNew = () => {

@@ -8,6 +8,7 @@
 import { applyThemeVars, defaultTheme, textOn, Theme } from "../../shared/tokens";
 import { LTK_BASE_CSS } from "../../shared/ui/baseCss";
 import { clear, el, ensureStylesheet } from "../../shared/ui/dom";
+import { buildTypeAhead } from "../../shared/ui/typeAhead";
 import { actionRow, openActionDialog } from "../../shared/ui/actionUi";
 import { hintFor, parsePrompts, Prompts, renderTitleBar } from "../../shared/ui/chrome";
 import { renderKebab } from "../../shared/ui/menu";
@@ -900,31 +901,15 @@ export class AgendaEditor {
 
     // search everyone: a match pins as a ticked chip (multi — nothing unticks)
     if (secondary.length > 0) {
-      const searchWrap = el("div", "ltk-who-search");
-      const query = textInput("", { placeholder: "Search everyone…" });
-      const results = el("div", "ltk-who-results");
-      const renderResults = () => {
-        while (results.firstChild) results.removeChild(results.firstChild);
-        const q = query.value.trim().toLowerCase();
-        if (q === "") return;
-        const pinned = new Set(checks.map((c) => c.person.whoId));
-        const matches = secondary
-          .filter((p) => !pinned.has(p.whoId) && p.who.toLowerCase().includes(q))
-          .slice(0, 8);
-        for (const person of matches) {
-          const hit = el("button", "ltk-check ltk-who-hit", person.who);
-          (hit as HTMLButtonElement).type = "button";
-          hit.addEventListener("click", () => {
-            addChip(person, true);
-            query.value = "";
-            renderResults();
-          });
-          results.appendChild(hit);
-        }
-      };
-      query.addEventListener("input", renderResults);
-      searchWrap.append(query, results);
-      wrap.appendChild(searchWrap);
+      const search = buildTypeAhead({
+        placeholder: "Search everyone…",
+        noneWords: "No one matches.",
+        local: (ql) => {
+          const pinned = new Set(checks.map((c) => c.person.whoId));
+          return secondary.filter((p) => !pinned.has(p.whoId) && p.who.toLowerCase().includes(ql)).map((person) => ({ label: person.who, run: () => addChip(person, true) }));
+        },
+      });
+      wrap.appendChild(search.el);
     }
 
     // names outside the roster ride the text input, comma-separated

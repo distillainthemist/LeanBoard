@@ -12,6 +12,7 @@
 //    child's thread says where the conversation continues.
 
 import { el, clear } from "../../../shared/ui/dom";
+import { buildTypeAhead } from "../../../shared/ui/typeAhead";
 import { settingsSection } from "../settingsSection";
 import { openDialog } from "../../../shared/ui/dialog";
 import { currentViewer } from "../runtime";
@@ -897,46 +898,45 @@ export async function renderIssuesAdmin(body: HTMLElement): Promise<void> {
           "get that issue's updates from here on. Reports already merged into this one move across too."
       )
     );
-    const search = el("input", "app-input") as HTMLInputElement;
-    search.placeholder = "Search open issues to merge into…";
-    dlg.body.append(search);
-    const hits = el("div", "app-issad-mergehits");
-    dlg.body.appendChild(hits);
+    // the standing type-ahead (tranche 5, F5): one call for what is in
+    // the box once the typing pauses, a stale answer dropped
+    const into = el("div", "app-issad-mergeinto");
+    const paintInto = () => {
+      clear(into);
+      goBtn.disabled = picked === null;
+      if (picked === null) return;
+      into.append(el("span", "app-field-hint", "Merging into"), el("span", "app-issad-mergename", `${picked.ben_name ?? ""} · ${STATUS_WORDS[picked.ben_status ?? ""] ?? ""}`));
+    };
+    const search = buildTypeAhead({
+      placeholder: "Search open issues to merge into…",
+      inputClass: "app-input",
+      noneWords: "No open issues match.",
+      remote: {
+        minChars: 2,
+        pauseMs: 300,
+        failed: "The search failed. Check the connection and type again.",
+        search: async (typed) => {
+          const q = typed.replace(/'/g, "''");
+          const res = await Ben_ltkissuesService.getAll({
+            filter: `contains(ben_name,'${q}') and ben_ltkissueid ne '${child.ben_ltkissueid}' and ` + openFilter(),
+            select: ["ben_ltkissueid", "ben_name", "ben_status", "ben_reportername"],
+            top: 8,
+          });
+          if (res.success === false) throw new Error("search failed");
+          return (res.data ?? []).map((r) => ({
+            label: r.ben_name ?? "",
+            sub: [STATUS_WORDS[r.ben_status ?? ""] ?? "", r.ben_reportername ?? ""].filter((x) => x !== "").join(" · "),
+            run: () => {
+              picked = r as Issue;
+              paintInto();
+            },
+          }));
+        },
+      },
+    });
+    dlg.body.append(search.el, into);
     const st = el("div", "app-docs-addstatus");
     dlg.body.appendChild(st);
-    let timer = 0;
-    search.addEventListener("input", () => {
-      window.clearTimeout(timer);
-      timer = window.setTimeout(() => void look(), 250);
-    });
-    const look = async () => {
-      clear(hits);
-      const q = search.value.trim().replace(/'/g, "''");
-      if (q === "") return;
-      const res = await Ben_ltkissuesService.getAll({
-        filter:
-          `contains(ben_name,'${q}') and ben_ltkissueid ne '${child.ben_ltkissueid}' and ` + openFilter(),
-        select: ["ben_ltkissueid", "ben_name", "ben_status", "ben_reportername"],
-        top: 8,
-      });
-      for (const r of res.success === false ? [] : (res.data ?? [])) {
-        const b = el(
-          "button",
-          "app-issad-mergehit",
-          `${r.ben_name ?? ""} — ${STATUS_WORDS[r.ben_status ?? ""] ?? ""}`
-        ) as HTMLButtonElement;
-        b.addEventListener("click", () => {
-          picked = r as Issue;
-          for (const x of Array.from(hits.children)) x.classList.remove("app-issad-mergehit-on");
-          b.classList.add("app-issad-mergehit-on");
-          goBtn.disabled = false;
-        });
-        hits.appendChild(b);
-      }
-      if (hits.childElementCount === 0) {
-        hits.appendChild(el("div", "app-field-hint", "No open issues match."));
-      }
-    };
     const go = async () => {
       if (running || picked === null) return;
       running = true;

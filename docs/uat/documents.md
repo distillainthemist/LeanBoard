@@ -1226,3 +1226,51 @@ steps:
 2. Make the window short and press Filters again.
 3. In a term tree press a branch's arrow. Then click a branch's NAME.
 expected: step 1 the pane reaches from under the Filters button to the bottom of the window, and is wider than before (480, or the phone's width); step 2 it fits the shorter window and its list scrolls inside it; step 3 the arrow is a larger target (32 by 32) and opens or closes the branch; a click on the NAME ticks the term as a filter, as it always did — only the arrow expands
+
+## Journey — backlog programme tranche 5 (search pickers and the ingestion grid's keys)
+
+### UAT-DOC-120 — A document's person fields search as you type
+persona: controller
+modules: docs/peopleField.ts docs/fieldEditors.ts docs/accessGates.ts shared/ui/typeAhead.ts
+preconditions: a controlled library whose form shows Owner, Approvers and Reviewers; the owners & approvers group with six or more members; a colleague in the directory who is in neither group
+steps:
+1. Edit properties on a document. Click into Owner without typing.
+2. Type two letters of a group member's name. Press ↓ then Enter.
+3. In Reviewers type three letters of the colleague's name and wait.
+4. Pick the colleague with the mouse, then type another name straight away.
+5. With a list open press Escape. Press Save.
+expected: step 1 the group is listed under the box, in a list that floats over the form and scrolls by itself; step 2 matches show at once, ↓ lights the next one, Enter picks it and does NOT press Save; step 3 group members and controllers that match show at once, "Searching…" under them, then the colleague under "In the directory"; step 4 the chip is added and the cursor is still in the box; step 5 Escape closes only the list, the form stays open; Save writes the same people as before the change
+
+### UAT-DOC-121 — Add reviewers, the hand-over and the Filters pane use the same people search
+persona: controller
+modules: docs/lifecycleCmds.ts docs/roleReassign.ts docs/docsScreen.ts docs/peopleField.ts
+preconditions: a draft document; two documents naming one person as owner; a filterable Owner column
+steps:
+1. Submit the draft for review. In "Add reviewers…" type a name, pick it, type a second name, pick it.
+2. Open the hand-over (Reassign roles). Click into "With". Untick Owner and Approvers and type three letters of someone outside the group.
+3. Press Filters. Under Owner type a name and pick it with ↓ and Enter.
+expected: step 1 both reviewers become chips without the cursor leaving the box; a person already added is not offered again; step 2 the group is listed on the click; with only Reviewers ticked the directory is searched too, under its own heading; step 3 the register filters to that owner and the pane shows the person as a pill
+
+### UAT-DOC-122 — The ingestion grid's editor answers to Enter and Escape
+persona: controller
+modules: docs/ingestionScreen.ts docs/ingestionDraft.ts
+preconditions: an ingestion task with four or more files; a term column, a person column and a notes column in the grid
+steps:
+1. Click a term cell in the first row. Choose a value and press Enter.
+2. In the editor now open on the second row, press Escape.
+3. Press Enter on the cell to open it again, choose a value and press Shift+Enter.
+4. Open a person cell, type a name, press Enter with the list open, then Enter again.
+5. Open a notes cell, type a line, press Enter, type a second line, then Ctrl+Enter (⌘ Enter on a Mac).
+6. In a text cell press Shift+Enter.
+expected: step 1 the value is set, the cell is marked changed and the cursor is on the same column one row down; step 2 nothing changes and the cursor is back on that cell; step 3 the value is set and the cursor moves one row UP; step 4 the first Enter picks the person, the second sets the cell and moves down; step 5 Enter makes a new line in notes and Ctrl+Enter sets them; step 6 the cursor moves up a row; Tab and Shift+Tab move across as before
+
+### UAT-DOC-123 — Assignees, group members and "Add a person" search as you type
+persona: controller
+modules: docs/ingestionScreen.ts docs/groupMembers.ts docs/notifyPanel.ts shared/ui/typeAhead.ts
+preconditions: an ingestion task you can edit; a document group you own; a lifecycle step that offers to notify people
+steps:
+1. Edit the task. In Assignees type two letters of someone on the app's roster, then a third.
+2. Settings → Access control → Members… on the group. Type three letters of a current member's name.
+3. Pick someone who is not a member.
+4. After a lifecycle step, in "Add a person…" type three letters, pick with ↓ and Enter.
+expected: step 1 the roster's matches show at once, the directory's follow under "In the directory" after the third letter; a pick adds the chip and keeps the cursor; step 2 the member is shown greyed with "a member" and cannot be picked; step 3 the row is busy while they are added, then the members list shows them; a refusal is said under their name; step 4 the person joins the recipients and the box is ready for the next

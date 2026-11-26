@@ -224,3 +224,34 @@ steps:
 4. On the first priority's primary initiative, star a different metric and unstar one. Read the priority's tile.
 5. Return to Settings → Priorities → Measures.
 expected: step 1 the line counts the priorities that still read their measures by the old rule; step 2 it counts as it goes, then says how many were converted and how many have more than 4; step 3 EVERY tile shows what it showed before (the priority over four shows its first four and "+n"); each Objectives tab is now the one list: own metrics first, then the primary's starred metrics or the ticked ones as references to their initiatives; step 4 the tile does NOT change — a primary's stars no longer take a priority's measures over; step 5 "Every priority has its one list of measures", the button greyed. A priority created on this build has its list from the start and is never counted. Pressed again after a failure, it takes only what was left
+
+## Journey 7 — Search pickers (backlog programme tranche 5)
+
+### UAT-SET-020 — The Users directory search lists twelve at most, and Enter runs it
+persona: superadmin
+modules: screens/settings.ts people/directoryAdd.ts
+preconditions: a common first name that matches more than twelve people in the directory
+steps:
+1. Settings → Users. Type the common name in the search box and press Enter.
+2. Type more of one person's name and press Enter again.
+expected: step 1 the roster filters as you type; Enter opens "Directory matches" exactly as the "Search directory & add" button does, with twelve people and the line "Showing the first 12. Type more of the name and search again."; step 2 a shorter list with no line under it; ＋ Add… places and adds as before
+
+### UAT-SET-021 — An organisation owner is chosen with the app's one owner picker
+persona: superadmin
+modules: screens/settings.ts priorities/dialogs.ts people/directoryAdd.ts
+preconditions: a department with no owner; someone in the directory who is not on the roster; someone on the roster whose access is revoked
+steps:
+1. Settings → Organisation. Press "＋ Owner" on the department. Type three letters of the new person's name.
+2. Pick them under "In the directory — not yet in the app". Save. Find them in Settings → Users.
+3. Press the owner chip again and search for the revoked person.
+4. Press "Clear owner".
+expected: step 1 the roster's matches show first and the directory is searched by itself; step 2 they are the department's owner and are on the roster at THAT site and department (a company's owner lands with no site); step 3 the revoked person is not offered, from the roster or from the directory, and nothing restores their access (that stays in Settings → Users); step 4 the owner is cleared; a site admin's new person lands at the site admin's own site
+
+### UAT-SET-022 — Team import's starting person and UAT testers search as you type
+persona: superadmin
+modules: people/importTeam.ts uat/settingsTab.ts shared/ui/typeAhead.ts
+preconditions: a site with an owner; an open UAT run
+steps:
+1. Settings → Users → "Import a site's team…". In "Add another starting person" type three letters and wait. Pick someone, then search for them again.
+2. Settings → UAT → a run's testers. Type two letters of a roster name; pick with ↓ and Enter; type another.
+expected: step 1 one directory search goes out after the typing pauses; the pick becomes a chip; searched again they show greyed with "already a start"; step 2 the roster matches show at once, the pick joins the testers and the cursor stays in the box; a tester already chosen is not offered

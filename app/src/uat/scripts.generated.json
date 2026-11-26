@@ -2950,6 +2950,99 @@
        "changed": "2026-11-27"
       }
      ]
+    },
+    {
+     "title": "Journey — backlog programme tranche 5 (search pickers and the ingestion grid's keys)",
+     "cases": [
+      {
+       "id": "UAT-DOC-120",
+       "title": "A document's person fields search as you type",
+       "journey": "Journey — backlog programme tranche 5 (search pickers and the ingestion grid's keys)",
+       "persona": "controller",
+       "modules": [
+        "docs/peopleField.ts",
+        "docs/fieldEditors.ts",
+        "docs/accessGates.ts",
+        "shared/ui/typeAhead.ts"
+       ],
+       "preconditions": "a controlled library whose form shows Owner, Approvers and Reviewers; the owners & approvers group with six or more members; a colleague in the directory who is in neither group",
+       "steps": [
+        "Edit properties on a document. Click into Owner without typing.",
+        "Type two letters of a group member's name. Press ↓ then Enter.",
+        "In Reviewers type three letters of the colleague's name and wait.",
+        "Pick the colleague with the mouse, then type another name straight away.",
+        "With a list open press Escape. Press Save."
+       ],
+       "expected": "step 1 the group is listed under the box, in a list that floats over the form and scrolls by itself; step 2 matches show at once, ↓ lights the next one, Enter picks it and does NOT press Save; step 3 group members and controllers that match show at once, \"Searching…\" under them, then the colleague under \"In the directory\"; step 4 the chip is added and the cursor is still in the box; step 5 Escape closes only the list, the form stays open; Save writes the same people as before the change",
+       "hash": "4aa732e1",
+       "changed": "2026-11-27"
+      },
+      {
+       "id": "UAT-DOC-121",
+       "title": "Add reviewers, the hand-over and the Filters pane use the same people search",
+       "journey": "Journey — backlog programme tranche 5 (search pickers and the ingestion grid's keys)",
+       "persona": "controller",
+       "modules": [
+        "docs/lifecycleCmds.ts",
+        "docs/roleReassign.ts",
+        "docs/docsScreen.ts",
+        "docs/peopleField.ts"
+       ],
+       "preconditions": "a draft document; two documents naming one person as owner; a filterable Owner column",
+       "steps": [
+        "Submit the draft for review. In \"Add reviewers…\" type a name, pick it, type a second name, pick it.",
+        "Open the hand-over (Reassign roles). Click into \"With\". Untick Owner and Approvers and type three letters of someone outside the group.",
+        "Press Filters. Under Owner type a name and pick it with ↓ and Enter."
+       ],
+       "expected": "step 1 both reviewers become chips without the cursor leaving the box; a person already added is not offered again; step 2 the group is listed on the click; with only Reviewers ticked the directory is searched too, under its own heading; step 3 the register filters to that owner and the pane shows the person as a pill",
+       "hash": "eb3165a3",
+       "changed": "2026-11-27"
+      },
+      {
+       "id": "UAT-DOC-122",
+       "title": "The ingestion grid's editor answers to Enter and Escape",
+       "journey": "Journey — backlog programme tranche 5 (search pickers and the ingestion grid's keys)",
+       "persona": "controller",
+       "modules": [
+        "docs/ingestionScreen.ts",
+        "docs/ingestionDraft.ts"
+       ],
+       "preconditions": "an ingestion task with four or more files; a term column, a person column and a notes column in the grid",
+       "steps": [
+        "Click a term cell in the first row. Choose a value and press Enter.",
+        "In the editor now open on the second row, press Escape.",
+        "Press Enter on the cell to open it again, choose a value and press Shift+Enter.",
+        "Open a person cell, type a name, press Enter with the list open, then Enter again.",
+        "Open a notes cell, type a line, press Enter, type a second line, then Ctrl+Enter (⌘ Enter on a Mac).",
+        "In a text cell press Shift+Enter."
+       ],
+       "expected": "step 1 the value is set, the cell is marked changed and the cursor is on the same column one row down; step 2 nothing changes and the cursor is back on that cell; step 3 the value is set and the cursor moves one row UP; step 4 the first Enter picks the person, the second sets the cell and moves down; step 5 Enter makes a new line in notes and Ctrl+Enter sets them; step 6 the cursor moves up a row; Tab and Shift+Tab move across as before",
+       "hash": "5b924d80",
+       "changed": "2026-11-27"
+      },
+      {
+       "id": "UAT-DOC-123",
+       "title": "Assignees, group members and \"Add a person\" search as you type",
+       "journey": "Journey — backlog programme tranche 5 (search pickers and the ingestion grid's keys)",
+       "persona": "controller",
+       "modules": [
+        "docs/ingestionScreen.ts",
+        "docs/groupMembers.ts",
+        "docs/notifyPanel.ts",
+        "shared/ui/typeAhead.ts"
+       ],
+       "preconditions": "an ingestion task you can edit; a document group you own; a lifecycle step that offers to notify people",
+       "steps": [
+        "Edit the task. In Assignees type two letters of someone on the app's roster, then a third.",
+        "Settings → Access control → Members… on the group. Type three letters of a current member's name.",
+        "Pick someone who is not a member.",
+        "After a lifecycle step, in \"Add a person…\" type three letters, pick with ↓ and Enter."
+       ],
+       "expected": "step 1 the roster's matches show at once, the directory's follow under \"In the directory\" after the third letter; a pick adds the chip and keeps the cursor; step 2 the member is shown greyed with \"a member\" and cannot be picked; step 3 the row is busy while they are added, then the members list shows them; a refusal is said under their name; step 4 the person joins the recipients and the box is ready for the next",
+       "hash": "4d3f50d9",
+       "changed": "2026-11-27"
+      }
+     ]
     }
    ]
   },
@@ -3613,6 +3706,51 @@
        "expected": "step 2 the stored tile shows the cause just typed — it is not one edit behind; step 3 the same for the Fishbone and the Action card; step 4 the closed meeting's pictures show every last edit. (Before this, a card left inside the half second was saved with the picture of the edit before.) A live board was never affected: it draws each tile fresh",
        "hash": "1d145479",
        "changed": "2026-11-25"
+      }
+     ]
+    },
+    {
+     "title": "Journey 3 — Search pickers (backlog programme tranche 5)",
+     "cases": [
+      {
+       "id": "UAT-RIT-018",
+       "title": "The meeting wizard's Owner and Participants search as you type",
+       "journey": "Journey 3 — Search pickers (backlog programme tranche 5)",
+       "persona": "siteadmin",
+       "modules": [
+        "controls/MeetingWizard/editor.ts",
+        "shared/ui/typeAhead.ts"
+       ],
+       "preconditions": "a roster of ten or more; someone in the directory who is not on the roster",
+       "steps": [
+        "Start a new meeting. In Owner type two letters of a roster name, then three letters of the directory person's name.",
+        "Pick the directory person. Go to Participants.",
+        "In \"Add a person\" type a roster name, press Enter on the lit match, then type the directory person's name and pick them.",
+        "Add someone by name in \"Add by name\"."
+       ],
+       "expected": "step 1 roster matches show at once under the box; the directory person follows under \"In the directory\" marked \"new to the app\"; step 2 they are the owner; step 3 there is ONE box and no Search button; each pick joins Participants and the cursor stays in the box; nobody is listed until a letter is typed; someone already a participant is not offered; step 4 unchanged",
+       "hash": "7e9a4001",
+       "changed": "2026-11-27"
+      },
+      {
+       "id": "UAT-RIT-019",
+       "title": "The hub's person box and an agenda item's \"Search everyone\" are type-aheads",
+       "journey": "Journey 3 — Search pickers (backlog programme tranche 5)",
+       "persona": "participant",
+       "modules": [
+        "controls/LeanHub/editor.ts",
+        "controls/AgendaCard/editor.ts",
+        "shared/ui/typeAhead.ts"
+       ],
+       "preconditions": "the hub's Cadence or Actions tab with the person scope; a board whose roster is wider than its own people",
+       "steps": [
+        "In the hub's person box clear the name and type two letters. Pick with ↓ and Enter.",
+        "Clear the box and press Enter. Then type a name nobody has and click away.",
+        "Edit an agenda item. In \"Search everyone…\" type a name and pick it."
+       ],
+       "expected": "step 1 the list floats under the box, the pick scopes the tab to that person; step 2 an empty box is everyone; a name nobody has snaps back to the current person; \"Me\" works as before; step 3 the person is added as a ticked chip and the list closes",
+       "hash": "51725b44",
+       "changed": "2026-11-27"
       }
      ]
     }
@@ -4504,6 +4642,25 @@
        ],
        "expected": "step 1 the eighth is added; both add buttons are then greyed, their tooltip reading \"An initiative holds at most 8 metrics. Remove one to add another.\"; step 2 they are live again; step 3 every one of its metrics is still there and still shows; nothing can be added until it is under eight",
        "hash": "af54a439",
+       "changed": "2026-11-27"
+      },
+      {
+       "id": "UAT-IMP-020",
+       "title": "\"Link a priority\" answers to the keyboard",
+       "journey": "Journey 2 — Initiatives",
+       "persona": "lead",
+       "modules": [
+        "improvement/initiativeForm.ts",
+        "shared/ui/typeAhead.ts"
+       ],
+       "preconditions": "an initiative at an org with two or more open priorities, and more above it",
+       "steps": [
+        "Edit details → \"＋ Link a priority\". Press ↓ twice, then ↑.",
+        "Type a word from a priority above this org. Press ↓ and Enter.",
+        "Open the menu again and press Escape."
+       ],
+       "expected": "step 1 the lit priority moves down and back up; step 2 the list narrows as you type and includes the priorities above; Enter links the lit one as a chip and closes the menu; the form stays open; step 3 Escape closes the menu only",
+       "hash": "0e27b665",
        "changed": "2026-11-27"
       }
      ]
@@ -5585,6 +5742,69 @@
        "changed": "2026-11-27"
       }
      ]
+    },
+    {
+     "title": "Journey 7 — Search pickers (backlog programme tranche 5)",
+     "cases": [
+      {
+       "id": "UAT-SET-020",
+       "title": "The Users directory search lists twelve at most, and Enter runs it",
+       "journey": "Journey 7 — Search pickers (backlog programme tranche 5)",
+       "persona": "superadmin",
+       "modules": [
+        "screens/settings.ts",
+        "people/directoryAdd.ts"
+       ],
+       "preconditions": "a common first name that matches more than twelve people in the directory",
+       "steps": [
+        "Settings → Users. Type the common name in the search box and press Enter.",
+        "Type more of one person's name and press Enter again."
+       ],
+       "expected": "step 1 the roster filters as you type; Enter opens \"Directory matches\" exactly as the \"Search directory & add\" button does, with twelve people and the line \"Showing the first 12. Type more of the name and search again.\"; step 2 a shorter list with no line under it; ＋ Add… places and adds as before",
+       "hash": "df8ee0e6",
+       "changed": "2026-11-27"
+      },
+      {
+       "id": "UAT-SET-021",
+       "title": "An organisation owner is chosen with the app's one owner picker",
+       "journey": "Journey 7 — Search pickers (backlog programme tranche 5)",
+       "persona": "superadmin",
+       "modules": [
+        "screens/settings.ts",
+        "priorities/dialogs.ts",
+        "people/directoryAdd.ts"
+       ],
+       "preconditions": "a department with no owner; someone in the directory who is not on the roster; someone on the roster whose access is revoked",
+       "steps": [
+        "Settings → Organisation. Press \"＋ Owner\" on the department. Type three letters of the new person's name.",
+        "Pick them under \"In the directory — not yet in the app\". Save. Find them in Settings → Users.",
+        "Press the owner chip again and search for the revoked person.",
+        "Press \"Clear owner\"."
+       ],
+       "expected": "step 1 the roster's matches show first and the directory is searched by itself; step 2 they are the department's owner and are on the roster at THAT site and department (a company's owner lands with no site); step 3 the revoked person is not offered, from the roster or from the directory, and nothing restores their access (that stays in Settings → Users); step 4 the owner is cleared; a site admin's new person lands at the site admin's own site",
+       "hash": "a7d2417e",
+       "changed": "2026-11-27"
+      },
+      {
+       "id": "UAT-SET-022",
+       "title": "Team import's starting person and UAT testers search as you type",
+       "journey": "Journey 7 — Search pickers (backlog programme tranche 5)",
+       "persona": "superadmin",
+       "modules": [
+        "people/importTeam.ts",
+        "uat/settingsTab.ts",
+        "shared/ui/typeAhead.ts"
+       ],
+       "preconditions": "a site with an owner; an open UAT run",
+       "steps": [
+        "Settings → Users → \"Import a site's team…\". In \"Add another starting person\" type three letters and wait. Pick someone, then search for them again.",
+        "Settings → UAT → a run's testers. Type two letters of a roster name; pick with ↓ and Enter; type another."
+       ],
+       "expected": "step 1 one directory search goes out after the typing pauses; the pick becomes a chip; searched again they show greyed with \"already a start\"; step 2 the roster matches show at once, the pick joins the testers and the cursor stays in the box; a tester already chosen is not offered",
+       "hash": "e901dda6",
+       "changed": "2026-11-27"
+      }
+     ]
     }
    ]
   },
@@ -5785,6 +6005,25 @@
        "expected": "step 2 one line per person — \"<name> — 3 answers … sent ✓\"; a line says your own report's answer is on its thread and that no card went (Teams refuses a chat with yourself); a card that did not go says why and has \"Send again\", which sends that one card; step 3 A has ONE card, \"Updates on your LeanBoard reports\", listing the three reports each with its outcome word and message, and an Open button — not three cards; B has one card with their own duplicate report's answer and NOT the parent's as well; C has one card with the report they follow; step 4 every row is already applied, and nobody is told a second time",
        "hash": "b80e1e6a",
        "changed": "2026-11-26"
+      },
+      {
+       "id": "UAT-ISS-010",
+       "title": "Merge searches the open issues as you type",
+       "journey": "Journey 2 — Answering reports, one at a time and in bulk",
+       "persona": "superadmin",
+       "modules": [
+        "issues/adminTab.ts",
+        "shared/ui/typeAhead.ts"
+       ],
+       "preconditions": "three open issues, two with a shared word in their titles",
+       "steps": [
+        "Settings → Issues → open one → \"Merge into…\". Type the shared word quickly, letter after letter.",
+        "Pick the other issue with ↓ and Enter.",
+        "Press Merge."
+       ],
+       "expected": "step 1 \"Searching…\" shows, then the matching open issues with their status; the issue being merged is never listed; results always belong to what is in the box now; step 2 \"Merging into <title>\" shows under the box and Merge is enabled — Enter did not press it; step 3 the report closes as merged, as before",
+       "hash": "482c8824",
+       "changed": "2026-11-27"
       }
      ]
     }

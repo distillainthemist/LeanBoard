@@ -225,10 +225,6 @@ export const LTK_BASE_CSS = `
 }
 .ltk-sup-x:hover, .ltk-sup-x:focus-visible { color: var(--ltk-accent); background: rgba(0, 0, 0, 0.06); }
 .ltk-action-support { font-size: 11.5px; color: var(--ltk-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
-.ltk-who-results {
-  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px;
-}
-.ltk-who-hit { font: inherit; background: var(--ltk-bg); color: var(--ltk-fg); text-align: left; }
 
 /* "Linked to": the chip, the search and its grouped results */
 .ltk-link { display: flex; flex-direction: column; gap: 6px; }
@@ -354,6 +350,12 @@ export const LTK_BASE_CSS = `
 .ltk-who-opt-err { color: #d13438; }
 .ltk-who-pop-h { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ltk-muted); padding: 8px 10px 2px; }
 .ltk-who-pop-note { font-size: 12.5px; color: var(--ltk-muted); padding: 8px 10px; }
+/* the one type-ahead builder (shared/ui/typeAhead.ts): any host's input
+   fills the box; a mark after a name; an option shown but not pickable */
+.ltk-ta-box > input { width: 100%; min-width: 0; box-sizing: border-box; }
+.ltk-ta-tag { margin-left: 8px; font-size: 11px; font-weight: 400; color: var(--ltk-muted); white-space: nowrap; }
+.ltk-who-opt.ltk-ta-off { cursor: default; opacity: 0.55; }
+.ltk-who-opt.ltk-ta-off:hover { background: none; }
 /* several people on one action (2026-11-17): the people who are not a
    tick box above sit as chips; one line says it is shared; the parts
    open on demand; a leader's team is added from a small panel */

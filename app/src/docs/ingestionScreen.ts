@@ -17,6 +17,8 @@
 // Ingestion nav card); in the docs chunk, like everything SharePoint.
 
 import { clear, el } from "../../../shared/ui/dom";
+import { buildTypeAhead } from "../../../shared/ui/typeAhead";
+import { landed } from "./peopleField";
 import { openDialog } from "../../../shared/ui/dialog";
 import { markDialog, trapFocus } from "../../../shared/ui/focusTrap";
 import { statusChip } from "../../../shared/ui/format";
@@ -31,7 +33,7 @@ import { DocLibrary, docsConfig } from "./docsStore";
 import { DocRow, buildRenderViewXml, formatWhen } from "./rows";
 import { renderListPage } from "./data";
 import { RegisterCellCtx, makeNameCell } from "./registerCells";
-import { Draft, applyToRows, dirtyRows, effectiveValues, savedDisplay, setCell, writesFor } from "./ingestionDraft";
+import { Draft, applyToRows, dirtyRows, editorKey, effectiveValues, savedDisplay, setCell, stepRow, writesFor } from "./ingestionDraft";
 import {
   AddFieldValue,
   DEFAULT_CADENCE_MONTHS,
@@ -799,16 +801,22 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
       repaintReady(row);
       paintDirty();
     };
+    /** Put the cursor on a cell's control: the same column, `step` rows
+     *  away (0 = the cell itself), staying put at either end. */
+    const focusCell = (row: DocRow, f: SpField, step: 1 | -1 | 0) => {
+      const id = stepRow(shown.map((r) => r.uniqueId), row.uniqueId, step);
+      gridHost.querySelector<HTMLElement>(`[data-row="${id}"] [data-col="${f.internal}"] :is(input, select, button)`)?.focus();
+    };
     /** Enter moves to the same column one row down (the values grid's
-     *  grammar); Esc puts the cell back as it reads now. */
+     *  grammar), Shift+Enter one row up (tranche 5); Esc puts the cell
+     *  back as it reads now. */
     const keyNav = (ctl: HTMLElement, row: DocRow, f: SpField, revert: () => void) => {
       ctl.addEventListener("keydown", (e) => {
         if (e.key === "Enter" && !(ctl instanceof HTMLTextAreaElement)) {
           e.preventDefault();
           (ctl as HTMLInputElement).blur();
           const i = shown.findIndex((r) => r.uniqueId === row.uniqueId);
-          const next = shown[i + 1];
-          if (next) gridHost.querySelector<HTMLElement>(`[data-row="${next.uniqueId}"] [data-col="${f.internal}"] input, [data-row="${next.uniqueId}"] [data-col="${f.internal}"] select, [data-row="${next.uniqueId}"] [data-col="${f.internal}"] button`)?.focus();
+          if (shown[i + (e.shiftKey ? -1 : 1)]) focusCell(row, f, e.shiftKey ? -1 : 1);
         } else if (e.key === "Escape") {
           e.preventDefault();
           e.stopPropagation();
@@ -933,14 +941,19 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
       const off = (e: PointerEvent) => {
         if (!pop.contains(e.target as Node)) closePop();
       };
+      const listOpen = (t: EventTarget | null) => t instanceof HTMLElement && t.getAttribute("aria-expanded") === "true";
       const onPopKey = (e: KeyboardEvent) => {
-        if (e.key === "Escape") {
+        // a search inside the editor closes its own list first
+        if (e.key === "Escape" && !listOpen(e.target)) {
           e.stopPropagation();
           closePop();
+          // the cursor goes back to the cell it came from
+          focusCell(row, f, 0);
         }
       };
-      cancel.addEventListener("click", closePop);
-      set.addEventListener("click", () => {
+      /** Set the value, then put the cursor back in the grid: on the
+       *  cell itself, or a row down or up (tranche 5, report 3). */
+      const apply = (step: 1 | -1 | 0) => {
         const v = editors[0]?.read();
         closePop();
         if (v) {
@@ -948,6 +961,24 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
           const cellEl = gridHost.querySelector<HTMLElement>(`[data-row="${row.uniqueId}"] [data-col="${f.internal}"]`);
           if (cellEl) paintCell(cellEl, row, f);
         }
+        focusCell(row, f, step);
+      };
+      cancel.addEventListener("click", () => {
+        closePop();
+        focusCell(row, f, 0);
+      });
+      set.addEventListener("click", () => apply(0));
+      // Enter sets and moves down a row, Shift+Enter up. Heard as the key
+      // leaves the editor, so a search that used Enter for its own pick
+      // has already spent it
+      pop.addEventListener("keydown", (e) => {
+        if (e.defaultPrevented) return;
+        const t = e.target as HTMLElement;
+        const move = editorKey(e, { tag: t.tagName, listOpen: listOpen(t) });
+        if (move === null) return;
+        e.preventDefault();
+        e.stopPropagation();
+        apply(move === "down" ? 1 : -1);
       });
       const r = anchor.getBoundingClientRect();
       pop.style.top = `${Math.min(r.bottom + 4, window.innerHeight - 380)}px`;
@@ -1026,6 +1057,13 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
         const b = btn(value !== "" ? value : "—", "app-ing-cellbtn" + (value === "" ? " app-ing-cellbtn-empty" : ""));
         b.title = value !== "" ? `${value} — click to change` : `Set ${labelOf(f)}`;
         b.addEventListener("click", () => void openCellPopover(b, row, f));
+        // Enter opens the editor (the button's own press); Shift+Enter
+        // moves up a row, as in every other cell
+        b.addEventListener("keydown", (e) => {
+          if (e.key !== "Enter" || !e.shiftKey) return;
+          e.preventDefault();
+          focusCell(row, f, -1);
+        });
         cellEl.appendChild(b);
       }
       if (f !== NAME) {
@@ -2202,59 +2240,38 @@ export function openIngestionTaskEditor(o: IngestionEditorOpts): void {
       }
     };
     paintPeople();
-    const search = el("input", "app-input") as HTMLInputElement;
-    search.placeholder = "Add a person — the app's people first, then the directory…";
-    const hits = el("div", "app-ing-hits");
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    // the picker says what it is doing (issue 26: a failed or slow search
-    // showed nothing, and an older search could land over a newer one)
-    let gen = 0;
-    const rosterP = listPeople().catch(() => []);
-    const offer = (people: { email: string; name: string; tag: string }[]) => {
-      let shown = 0;
-      for (const h of people) {
-        if (h.email === "" || t.assignees.some((a) => a.email === h.email)) continue;
-        const b = btn(`＋ ${h.name}`, "app-link");
-        if (h.tag !== "") b.appendChild(el("span", "app-field-hint", ` · ${h.tag}`));
-        b.addEventListener("click", () => {
-          t.assignees.push({ email: h.email, name: h.name });
-          paintPeople();
-          clear(hits);
-          search.value = "";
-        });
-        hits.appendChild(b);
-        if (++shown >= 10) break;
-      }
-      return shown;
+    // the standing type-ahead (tranche 5, F5): the app's people match at
+    // once, the directory follows under its own heading, and the cursor
+    // stays for the next assignee
+    const rosterNow = landed(listPeople().catch(() => []));
+    const isAssignee = (email: string) => t.assignees.some((a) => a.email === email);
+    const assign = (email: string, name: string) => {
+      if (email === "" || isAssignee(email)) return;
+      t.assignees.push({ email, name });
+      paintPeople();
     };
-    search.addEventListener("input", () => {
-      if (timer) clearTimeout(timer);
-      const q = search.value.trim().toLowerCase();
-      const mine = ++gen;
-      clear(hits);
-      if (q.length < 2) return;
-      hits.appendChild(el("div", "app-field-hint", "Searching…"));
-      timer = setTimeout(() => {
-        void (async () => {
-          const roster = (await rosterP).filter((p) => p.active && (p.who.toLowerCase().includes(q) || p.email.toLowerCase().includes(q))).map((p) => ({ email: p.email.toLowerCase(), name: p.who, tag: p.site }));
-          let directory: { email: string; name: string; tag: string }[] = [];
-          let failed = "";
-          try {
-            const known = new Set(roster.map((r) => r.email));
-            directory = (await searchEntra(search.value)).map((h) => ({ email: (h.mail ?? "").toLowerCase(), name: h.displayName, tag: "directory" })).filter((h) => !known.has(h.email));
-          } catch (e) {
-            failed = e instanceof Error ? e.message : String(e);
-          }
-          if (mine !== gen) return; // a newer search is on its way
-          clear(hits);
-          const shown = offer([...roster, ...directory]);
-          if (shown === 0) hits.appendChild(el("div", "app-field-hint", failed !== "" ? `The directory search failed: ${failed.slice(0, 120)}` : "No match — try another spelling, or the person's email."));
-          else if (failed !== "") hits.appendChild(el("div", "app-field-hint", `The directory search failed: ${failed.slice(0, 120)}`));
-        })();
-      }, 250);
+    const rosterMatches = (ql: string) =>
+      (rosterNow() ?? []).filter((p) => p.active && p.email !== "" && !isAssignee(p.email.toLowerCase()) && (p.who.toLowerCase().includes(ql) || p.email.toLowerCase().includes(ql)));
+    const search = buildTypeAhead({
+      placeholder: "Add a person…",
+      label: "Add an assignee: search people",
+      inputClass: "app-input",
+      noneWords: "No match. Try another spelling, or the person's email.",
+      local: (ql) => rosterMatches(ql).map((p) => ({ label: p.who, sub: [p.email, p.site].filter((x) => x !== "").join(" · "), run: () => assign(p.email.toLowerCase(), p.who) })),
+      remote: {
+        heading: "In the directory",
+        failed: "The directory search failed. Check the connection and type again.",
+        search: async (q) => {
+          const known = new Set(rosterMatches(q.toLowerCase()).map((p) => p.email.toLowerCase()));
+          return (await searchEntra(q))
+            .map((h) => ({ email: (h.mail ?? "").toLowerCase(), name: h.displayName }))
+            .filter((h) => h.email !== "" && !known.has(h.email) && !isAssignee(h.email))
+            .map((h) => ({ label: h.name, sub: h.email, run: () => assign(h.email, h.name) }));
+        },
+      },
     });
     const assigneesWrap = el("div", "app-ing-people");
-    assigneesWrap.append(peopleBox, search, hits);
+    assigneesWrap.append(peopleBox, search.el);
     field("Assignees", assigneesWrap, "They see the task in Document tasks and get a Teams message. The folder is open to everyone; assignment is who is asked.");
 
     // task defaults: the destination's columns as editors

@@ -11,6 +11,7 @@ import { clear, el } from "../../../shared/ui/dom";
 import { requiredMark, stillNeeded } from "./fieldEditors";
 import { openDialog } from "../../../shared/ui/dialog";
 import { reviewerPeopleSource } from "./accessGates";
+import { docPeopleBox } from "./peopleField";
 import {
   DEFAULT_CADENCE_MONTHS,
   DocLink,
@@ -211,11 +212,20 @@ export function openLifecycleCommand(opts: LifecycleRunOpts): void {
       );
     }
     const chips = el("div", "app-docs-pplchips");
-    const search = el("input", "app-input") as HTMLInputElement;
-    search.placeholder = "Add reviewers…";
-    const hitsBox = el("div", "app-docs-pplhits");
+    // the standing type-ahead (peopleField.ts, tranche 5): the group and
+    // the controllers match at once, the directory under its own
+    // heading; the cursor stays for the next reviewer
+    const search = docPeopleBox({
+      placeholder: "Add reviewers…",
+      source,
+      taken: () => [...existing, ...added].map((p) => p.email.toLowerCase()),
+      onPick: (h) => {
+        added.push({ email: h.mail, name: h.displayName });
+        paintChips();
+      },
+    });
     void source.then((s) => {
-      if (s.restricted) search.placeholder = "Add reviewers from the owners & approvers group…";
+      if (s.restricted) search.input.placeholder = "Add reviewers from the owners & approvers group…";
       else if (s.hint !== "") dlg.body.appendChild(el("div", "app-field-hint", s.hint));
     });
     const paintChips = () => {
@@ -224,6 +234,7 @@ export function openLifecycleCommand(opts: LifecycleRunOpts): void {
         const chip = el("span", "app-docs-pplchip");
         chip.appendChild(el("span", "", p.name));
         const off = el("button", "app-docs-pplchipx", "✕") as HTMLButtonElement;
+        off.setAttribute("aria-label", `Remove ${p.name}`);
         off.addEventListener("click", () => {
           added.splice(added.indexOf(p), 1);
           paintChips();
@@ -234,46 +245,7 @@ export function openLifecycleCommand(opts: LifecycleRunOpts): void {
       chips.style.display = added.length > 0 ? "" : "none";
     };
     paintChips();
-    let seq = 0;
-    let timer = 0;
-    search.addEventListener("input", () => {
-      window.clearTimeout(timer);
-      const q = search.value.trim();
-      if (q === "") {
-        clear(hitsBox);
-        return;
-      }
-      timer = window.setTimeout(() => {
-        const mine = ++seq;
-        void source.then((s) => s.search(q)).then(
-          (hits) => {
-            if (mine !== seq) return;
-            clear(hitsBox);
-            const taken = new Set(
-              [...existing, ...added].map((p) => p.email.toLowerCase())
-            );
-            for (const h of hits.filter((x) => x.mail !== "").slice(0, 6)) {
-              if (taken.has(h.mail.toLowerCase())) continue;
-              const rowBtn = el("button", "app-docs-pplhit") as HTMLButtonElement;
-              rowBtn.type = "button";
-              rowBtn.append(
-                el("span", "app-docs-pplhitname", h.displayName),
-                el("span", "app-field-hint", h.mail)
-              );
-              rowBtn.addEventListener("click", () => {
-                added.push({ email: h.mail, name: h.displayName });
-                search.value = "";
-                clear(hitsBox);
-                paintChips();
-              });
-              hitsBox.appendChild(rowBtn);
-            }
-          },
-          () => {}
-        );
-      }, 350);
-    });
-    dlg.body.append(chips, search, hitsBox);
+    dlg.body.append(chips, search.el);
   }
 
   const reason = el("textarea", "app-input app-docs-cicomment") as HTMLTextAreaElement;

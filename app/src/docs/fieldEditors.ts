@@ -9,7 +9,6 @@
 
 import { mountTermCascade } from "../../../shared/ui/termCascade";
 import { clear, el } from "../../../shared/ui/dom";
-import { searchEntra } from "../store/people";
 import {
   AddFieldValue,
   SYSTEM_DATE_ROLES,
@@ -18,7 +17,8 @@ import {
   sortByDictionary,
   tagLabelProblems,
 } from "./model";
-import { POOL_ROLES, PeopleSource, controllerLookupFailed, poolPeopleSource, reviewerPeopleSource, viewerIsController } from "./accessGates";
+import { POOL_ROLES, PeopleSource, controllerLookupFailed, directoryPeopleSource, poolPeopleSource, reviewerPeopleSource, viewerIsController } from "./accessGates";
+import { docPeopleBox } from "./peopleField";
 import { currentViewer } from "../runtime";
 import { fetchTermPaths } from "./sp";
 import { buildMocEditor } from "./mocEditor";
@@ -500,25 +500,33 @@ export function buildFieldEditors(opts: FieldEditorOpts): BuiltEditor[] {
         ? roleKey === "reviewers"
           ? reviewerPeopleSource()
           : poolPeopleSource()
-        : Promise.resolve({
-            restricted: false,
-            hint: "",
-            search: async (q: string) =>
-              (await searchEntra(q)).map((h) => ({
-                mail: h.mail,
-                displayName: h.displayName,
-              })),
-          });
+        : Promise.resolve(directoryPeopleSource());
       const picked: { email: string; name: string }[] = [...(init?.people ?? [])];
       const pbox = el("div", "app-docs-ppl");
       const chips = el("div", "app-docs-pplchips");
-      const search = el("input", "app-input") as HTMLInputElement;
-      search.placeholder = multi ? "Search people to add…" : "Search for a person…";
-      const hitsBox = el("div", "app-docs-pplhits");
-      pbox.append(chips, search, hitsBox);
+      // the standing type-ahead (peopleField.ts, tranche 5): held people
+      // at once, the directory under its own heading. An owner or
+      // approver field lists the group when clicked into; a field for
+      // several people keeps the cursor after a pick
+      const search = docPeopleBox({
+        placeholder: multi ? "Search people to add…" : "Search for a person…",
+        label: `${labelOf(f)}: search people`,
+        source,
+        listOnFocus: poolBound && roleKey !== "reviewers",
+        taken: () => picked.map((p) => p.email.toLowerCase()),
+        onPick: (h) => {
+          if (!multi) picked.length = 0;
+          if (!picked.some((p) => p.email.toLowerCase() === h.mail.toLowerCase())) {
+            picked.push({ email: h.mail, name: h.displayName });
+          }
+          paintChips();
+          sync();
+        },
+      });
+      pbox.append(chips, search.el);
       if (poolBound) {
         void source.then((s) => {
-          if (s.restricted) search.placeholder = "Search the owners & approvers group…";
+          if (s.restricted) search.input.placeholder = "Search the owners & approvers group…";
           else if (s.hint !== "") pbox.appendChild(el("div", "app-field-hint", s.hint));
         });
       }
@@ -540,51 +548,6 @@ export function buildFieldEditors(opts: FieldEditorOpts): BuiltEditor[] {
         chips.style.display = picked.length > 0 ? "" : "none";
       };
       paintChips();
-      const renderHits = (hits: { mail: string; displayName: string }[]) => {
-        clear(hitsBox);
-        for (const h of hits.filter((x) => x.mail !== "").slice(0, 8)) {
-          const row = el("button", "app-docs-pplhit") as HTMLButtonElement;
-          row.type = "button";
-          row.append(
-            el("span", "app-docs-pplhitname", h.displayName),
-            el("span", "app-field-hint", h.mail)
-          );
-          row.addEventListener("click", () => {
-            if (!multi) picked.length = 0;
-            if (!picked.some((p) => p.email.toLowerCase() === h.mail.toLowerCase())) {
-              picked.push({ email: h.mail, name: h.displayName });
-            }
-            search.value = "";
-            clear(hitsBox);
-            paintChips();
-            sync();
-          });
-          hitsBox.appendChild(row);
-        }
-      };
-      let searchSeq = 0;
-      let timer = 0;
-      search.addEventListener("input", () => {
-        window.clearTimeout(timer);
-        const q = search.value.trim();
-        if (q === "") {
-          clear(hitsBox);
-          return;
-        }
-        timer = window.setTimeout(() => {
-          const seq = ++searchSeq;
-          void source.then((s) => s.search(q)).then(
-            (hits) => {
-              if (seq === searchSeq) renderHits(hits);
-            },
-            () => {
-              if (seq !== searchSeq) return;
-              clear(hitsBox);
-              hitsBox.appendChild(el("div", "app-field-hint", "People search failed."));
-            }
-          );
-        }, 350);
-      });
       box.appendChild(fieldRow(labelOf(f), pbox, f));
       editors.push({
         field: f,

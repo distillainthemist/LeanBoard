@@ -80,6 +80,7 @@ import {
   saveSitePrioritySettingsJson,
 } from "../store/config";
 import { CustomiseLevel, parseSiteCascadeSettings, serializeSiteCascadeSettings } from "../priorities/model";
+import { capDirectoryMatches } from "../people/directoryAdd";
 import { parseMeetingInfo, parseOrgTree } from "../../../shared/schema/meeting";
 import { ritualStanding, sharedRitualNote } from "./ritualScope";
 import { effectiveTabs, HUB_TABS } from "../../../shared/schema/hubTabs";
@@ -1220,8 +1221,11 @@ function directoryAddCard(o: DirectoryAddOpts): { card: HTMLElement; run: (q: st
     }
     note.textContent = `Searching the directory for “${q}”…`;
     void searchEntra(q)
-      .then((found) => {
-        note.textContent = found.length === 0 ? `No one in the directory matches “${q}”.` : "";
+      .then((all) => {
+        // twelve at most (tranche 5, F2): a longer list is a sign the
+        // name is too short to pick from
+        const { shown: found, note: capNote } = capDirectoryMatches(all, q);
+        note.textContent = capNote;
         const known = new Set(o.getPeople().map((p) => p.whoId));
         for (const hit of found) {
           const r = el("div", "app-group-row app-dir-hit");
@@ -1607,6 +1611,12 @@ async function renderUsers(body: HTMLElement, me: RosterPerson): Promise<void> {
       if (q.length < 2) search.focus();
     };
     addBtn.addEventListener("click", openDirectory);
+    // Enter in the box presses the button (tranche 5, F2)
+    search.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+      openDirectory();
+    });
     // a phone opens the tab to ADD someone (Ben, 2026-10-07): the search
     // box is the first thing, the button beside it
     if (isPhoneWindow()) search.focus();
@@ -2153,165 +2163,6 @@ interface OrgSiteNode {
   departments: { department: string; areas: string[] }[];
 }
 
-/** Owner-picker result: set a person, clear the owner, or cancel. */
-type PickPersonResult =
-  | { action: "set"; person: PersonRef }
-  | { action: "clear" }
-  | null;
-
-/**
- * Choose a person for an org-level owner: the app's user list first,
- * with a directory search for anyone not on the roster yet (picking a
- * directory hit registers them as an app user, like the wizard does).
- */
-function pickPerson(host: HTMLElement, allowClear: boolean): Promise<PickPersonResult> {
-  return new Promise((resolve) => {
-    const overlay = el("div", "app-modal-overlay");
-    const box = el("div", "app-modal");
-    box.appendChild(el("div", "app-modal-title", "Choose an owner"));
-    box.appendChild(
-      el(
-        "div",
-        "app-modal-note",
-        "Pick from the app's users, or search the whole directory below."
-      )
-    );
-    const filter = el("input", "app-input") as HTMLInputElement;
-    filter.type = "search";
-    filter.placeholder = "Filter users\u2026";
-    const list = el("div", "app-group-list");
-    list.appendChild(el("div", "app-settings-note", "Loading users\u2026"));
-    box.append(filter, list);
-
-    const dirRow = el("div", "app-settings-row");
-    const dirQuery = el("input", "app-input") as HTMLInputElement;
-    dirQuery.type = "search";
-    dirQuery.placeholder = "Search the directory (name or email)\u2026";
-    dirQuery.style.flex = "1";
-    const dirGo = el("button", "app-btn", "Search") as HTMLButtonElement;
-    dirRow.append(dirQuery, dirGo);
-    const dirList = el("div", "app-group-list");
-    const note = el("div", "app-field-hint", "");
-    box.append(dirRow, dirList, note);
-
-    const footer = el("div", "app-modal-footer");
-    const cancel = el("button", "app-link", "Cancel") as HTMLButtonElement;
-    footer.appendChild(cancel);
-    if (allowClear) {
-      const clearBtn = el("button", "app-btn", "Clear owner") as HTMLButtonElement;
-      clearBtn.addEventListener("click", () => done({ action: "clear" }));
-      footer.appendChild(clearBtn);
-    }
-    box.appendChild(footer);
-
-    const done = (r: PickPersonResult) => {
-      overlay.remove();
-      document.removeEventListener("keydown", onKey, true);
-      resolve(r);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.stopPropagation();
-        done(null);
-      }
-    };
-    cancel.addEventListener("click", () => done(null));
-    overlay.addEventListener("click", (e) => {
-      if (e.target === overlay) done(null);
-    });
-    document.addEventListener("keydown", onKey, true);
-    overlay.appendChild(box);
-    host.appendChild(overlay);
-
-    let roster: RosterPerson[] = [];
-    const paintRoster = () => {
-      clear(list);
-      const q = filter.value.trim().toLowerCase();
-      const shown = roster.filter(
-        (p) => q === "" || `${p.who} ${p.email}`.toLowerCase().includes(q)
-      );
-      for (const p of shown.slice(0, 20)) {
-        const row = el("button", "app-group-row") as HTMLButtonElement;
-        row.type = "button";
-        row.appendChild(el("span", "app-people-name", p.who));
-        row.appendChild(
-          el("span", "app-user-email", [p.email, p.site].filter(Boolean).join(" \u00b7 "))
-        );
-        row.addEventListener("click", () =>
-          done({ action: "set", person: { whoId: p.whoId, who: p.who } })
-        );
-        list.appendChild(row);
-      }
-      if (shown.length === 0) {
-        list.appendChild(el("div", "app-settings-note", "No users match \u2014 try the directory below."));
-      } else if (shown.length > 20) {
-        list.appendChild(el("div", "app-settings-note", `Showing 20 of ${shown.length} \u2014 keep typing.`));
-      }
-    };
-    filter.addEventListener("input", paintRoster);
-    void listPeople()
-      .then((p) => {
-        roster = p;
-        paintRoster();
-      })
-      .catch(() => {
-        clear(list);
-        list.appendChild(el("div", "app-settings-note", "Couldn't load the user list."));
-      });
-
-    const runDirSearch = () => {
-      const q = dirQuery.value.trim();
-      if (q.length < 2) {
-        note.textContent = "Type at least two characters.";
-        return;
-      }
-      note.textContent = "Searching\u2026";
-      clear(dirList);
-      void searchEntra(q)
-        .then((hits) => {
-          note.textContent = hits.length === 0 ? "No directory matches." : "";
-          for (const hit of hits) {
-            const row = el("button", "app-group-row") as HTMLButtonElement;
-            row.type = "button";
-            row.appendChild(el("span", "app-people-name", hit.displayName));
-            row.appendChild(el("span", "app-user-email", hit.mail));
-            const known = roster.some((p) => p.whoId === hit.objectId);
-            if (!known) row.appendChild(el("span", "app-status-badge", "new to the app"));
-            row.addEventListener("click", () => {
-              void (async () => {
-                if (!known) {
-                  // owners need real app identities \u2014 register them
-                  await upsertPerson({
-                    whoId: hit.objectId,
-                    who: hit.displayName,
-                    email: hit.mail,
-                    site: "",
-                    department: "",
-                    area: "",
-                    role: "user",
-                    active: true,
-                  });
-                }
-                done({ action: "set", person: { whoId: hit.objectId, who: hit.displayName } });
-              })();
-            });
-            dirList.appendChild(row);
-          }
-        })
-        .catch((err) => {
-          note.textContent = `Search failed: ${err instanceof Error ? err.message : String(err)}`;
-        });
-    };
-    dirGo.addEventListener("click", runDirSearch);
-    dirQuery.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        runDirSearch();
-      }
-    });
-  });
-}
-
 /**
  * Organisation \u2014 one hierarchical list, company \u2192 site \u2192 department \u2192
  * area, each level carrying an optional owner. Structure edits (add /
@@ -2405,9 +2256,14 @@ async function renderOrg(
 
   let draggingSite: string | null = null;
 
+  // the roster, read once for the owner pickers on this page
+  let ownerRoster: Promise<RosterPerson[]> | null = null;
+  /** `at` is the org the owner is for: someone found in the directory
+   *  and new to the app lands there (a company's owner: no site). */
   const ownerChip = (
     current: PersonRef | undefined,
     canEdit: boolean,
+    at: { site: string; department: string },
     apply: (p: PersonRef | null) => void
   ): HTMLElement => {
     const chip = el(
@@ -2426,9 +2282,20 @@ async function renderOrg(
         : "";
     chip.addEventListener("click", () => {
       void (async () => {
-        const res = await pickPerson(body, current !== undefined);
+        // the app's one owner picker and its one directory road
+        // (tranche 5, F4): the private copy here restored a revoked
+        // person and placed a new one nowhere
+        const [{ pickOwner }, { directoryRoad }, roster] = await Promise.all([
+          import("../priorities/dialogs"),
+          import("../people/directoryAdd"),
+          (ownerRoster ??= listPeople().then((r) => [...r])),
+        ]);
+        const res = await pickOwner(body, roster, current ?? null, "owner", {
+          directory: directoryRoad(me, at, roster),
+          note: "The person accountable for this part of the organisation.",
+        });
         if (res === null) return;
-        apply(res.action === "set" ? res.person : null);
+        apply(res === "clear" ? null : res);
         ctx.markDirty();
         draw();
       })();
@@ -2673,7 +2540,7 @@ async function renderOrg(
     }
     if (isSuper) head.appendChild(editBtn("Rename site", () => renameSite(site)));
     head.appendChild(
-      ownerChip(owners.site, canEdit, (p) => {
+      ownerChip(owners.site, canEdit, { site, department: "" }, (p) => {
         owners.site = p ?? undefined;
         touched.add(site);
       })
@@ -2784,7 +2651,7 @@ async function renderOrg(
       if (!deptOpen) dh.appendChild(el("span", "app-org-summary", `${d.areas.length} area${d.areas.length === 1 ? "" : "s"}`));
       if (canEdit) dh.appendChild(editBtn("Rename department", () => renameDept(site, node, d, redraw)));
       dh.appendChild(
-        ownerChip(owners.departments[d.department], canEdit, (p) => {
+        ownerChip(owners.departments[d.department], canEdit, { site, department: d.department }, (p) => {
           if (p) owners.departments[d.department] = p;
           else delete owners.departments[d.department];
           touched.add(site);
@@ -2821,7 +2688,7 @@ async function renderOrg(
         ar.appendChild(el("span", "app-area-name", a));
         if (canEdit) ar.appendChild(editBtn("Rename area", () => renameArea(site, d, ai, redraw)));
         ar.appendChild(
-          ownerChip(owners.areas[`${d.department}/${a}`], canEdit, (p) => {
+          ownerChip(owners.areas[`${d.department}/${a}`], canEdit, { site, department: d.department }, (p) => {
             const key = `${d.department}/${a}`;
             if (p) owners.areas[key] = p;
             else delete owners.areas[key];
@@ -2891,7 +2758,7 @@ async function renderOrg(
       if (g.company !== "") {
         if (isSuper) coHead.appendChild(editBtn("Rename company", () => renameCompanyFlow(g.company)));
         coHead.appendChild(
-          ownerChip(coOwners[g.company], isSuper, (p) => {
+          ownerChip(coOwners[g.company], isSuper, { site: "", department: "" }, (p) => {
             if (p) coOwners[g.company] = p;
             else delete coOwners[g.company];
             coOwnersTouched = true;

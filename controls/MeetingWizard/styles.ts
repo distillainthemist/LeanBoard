@@ -190,9 +190,6 @@ export const WIZARD_CSS = `
 }
 
 /* directory search (participants step) */
-.ltk-mw-dirrow { display: flex; gap: 6px; }
-.ltk-mw-dirrow .ltk-mw-input { flex: 1; min-width: 0; }
-.ltk-mw-dirrow .ltk-mw-btn { flex: 0 0 auto; }
 
 /* weekday toggles */
 .ltk-mw-days { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -237,25 +234,6 @@ export const WIZARD_CSS = `
   border-radius: 999px;
 }
 .ltk-mw-person-x:hover { color: var(--ltk-accent); }
-.ltk-mw-result {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  padding: 6px 10px;
-  cursor: pointer;
-  font-size: 13px;
-}
-.ltk-mw-result:hover { border-color: var(--ltk-accent); color: var(--ltk-accent); }
-.ltk-mw-result-add { flex: none; font-weight: 700; color: var(--ltk-muted); }
-.ltk-mw-result:hover .ltk-mw-result-add { color: var(--ltk-accent); }
-.ltk-mw-result-crew { flex: none; font-size: 11.5px; color: var(--ltk-muted); }
-.ltk-mw-people-count {
-  font-size: 12px;
-  color: var(--ltk-muted);
-  padding: 2px 10px;
-}
 
 /* topic rotation rows (cadence step) */
 .ltk-mw-rotrow { display: flex; align-items: center; gap: 8px; }

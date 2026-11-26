@@ -187,3 +187,26 @@ steps:
 3. Do the same on the Fishbone (add a cause, leave at once) and the Action card (add an action, leave at once). Read both tiles in the stored view.
 4. Close the meeting. Open it again from the schedule and read the three tiles.
 expected: step 2 the stored tile shows the cause just typed — it is not one edit behind; step 3 the same for the Fishbone and the Action card; step 4 the closed meeting's pictures show every last edit. (Before this, a card left inside the half second was saved with the picture of the edit before.) A live board was never affected: it draws each tile fresh
+
+## Journey 3 — Search pickers (backlog programme tranche 5)
+
+### UAT-RIT-018 — The meeting wizard's Owner and Participants search as you type
+persona: siteadmin
+modules: controls/MeetingWizard/editor.ts shared/ui/typeAhead.ts
+preconditions: a roster of ten or more; someone in the directory who is not on the roster
+steps:
+1. Start a new meeting. In Owner type two letters of a roster name, then three letters of the directory person's name.
+2. Pick the directory person. Go to Participants.
+3. In "Add a person" type a roster name, press Enter on the lit match, then type the directory person's name and pick them.
+4. Add someone by name in "Add by name".
+expected: step 1 roster matches show at once under the box; the directory person follows under "In the directory" marked "new to the app"; step 2 they are the owner; step 3 there is ONE box and no Search button; each pick joins Participants and the cursor stays in the box; nobody is listed until a letter is typed; someone already a participant is not offered; step 4 unchanged
+
+### UAT-RIT-019 — The hub's person box and an agenda item's "Search everyone" are type-aheads
+persona: participant
+modules: controls/LeanHub/editor.ts controls/AgendaCard/editor.ts shared/ui/typeAhead.ts
+preconditions: the hub's Cadence or Actions tab with the person scope; a board whose roster is wider than its own people
+steps:
+1. In the hub's person box clear the name and type two letters. Pick with ↓ and Enter.
+2. Clear the box and press Enter. Then type a name nobody has and click away.
+3. Edit an agenda item. In "Search everyone…" type a name and pick it.
+expected: step 1 the list floats under the box, the pick scopes the tab to that person; step 2 an empty box is everyone; a name nobody has snaps back to the current person; "Me" works as before; step 3 the person is added as a ticked chip and the list closes

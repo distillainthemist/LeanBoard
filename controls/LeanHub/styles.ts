@@ -100,6 +100,7 @@ export const LEANHUB_CSS = `
 .ltk-lh-bar select.ltk-lh-input { width: auto; max-width: 230px; }
 .ltk-lh-person-pick { display: inline-flex; align-items: center; gap: 6px; }
 .ltk-lh-person-input { width: 210px; }
+.ltk-lh-person-pick .ltk-who-box { display: inline-flex; width: 210px; }
 .ltk-lh-field select.ltk-lh-input { width: auto; max-width: 260px; }
 .ltk-lh-btn {
   font: inherit;
@@ -446,6 +447,7 @@ export const LEANHUB_CSS = `
   .ltk-lh-bar { padding: 8px 10px; gap: 8px; }
   .ltk-lh-bar .ltk-lh-person-pick { flex: 1 1 160px; display: flex; }
   .ltk-lh-bar .ltk-lh-person-input { flex: 1; width: auto; min-width: 0; }
+  .ltk-lh-bar .ltk-lh-person-pick .ltk-who-box { flex: 1; width: auto; min-width: 0; }
   .ltk-lh-compose { flex-wrap: wrap; }
   .ltk-lh-compose-issue { flex: 1 1 100%; }
   .ltk-lh-compose-due { flex: 1 1 auto; width: auto; min-width: 0; }

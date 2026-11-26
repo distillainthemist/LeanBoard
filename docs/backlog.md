@@ -192,6 +192,21 @@ code-app `frame-src`, "Lock every older build". Owed from it:
   The second release (R4, R5, R6) is ready to cut on Ben's word; the
   round's full resolution CSV follows it. Tranche 5 of the programme
   follows the round.
+- **Tranche 5 of the programme was walked and built on 2026-11-27, on
+  dev, unreleased, no schema**: one search-picker builder
+  (`shared/ui/typeAhead.ts`) and the searches moved onto it — F1 the
+  four Documents people searches (`docs/peopleField.ts`; owner and
+  approver fields list the group on a click), F2 the Users directory
+  matches capped at twelve with Enter on the box, F3 the meeting
+  wizard's Owner and one Participants box, F4 organisation owners
+  through `pickOwner` and the shared directory road (the private copy
+  that restored revoked people is deleted), F5 nine smaller searches —
+  and report 3 of the 2026-11-25 round: the ingestion grid's cell
+  editor sets on Enter and moves down, Shift+Enter up, Escape back to
+  the cell. As built: the programme's "Tranche 5" section. Unseen
+  running wherever the directory or SharePoint is needed, until Ben's
+  test walk. It rides the second release with R4, R5 and R6. Next in
+  the programme: tranche 6's walk.
 
 **v0.99.0 (2026-11-23, app-only):** tranche 1 of the programme
 (`backlog-programme-2026-11-22.md`) and tranche 1A, the 2026-11-23

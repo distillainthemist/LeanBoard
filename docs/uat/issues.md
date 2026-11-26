@@ -105,3 +105,13 @@ steps:
 3. Ask A, B and C what arrived in Teams.
 4. Import the same file again and press nothing.
 expected: step 2 one line per person — "<name> — 3 answers … sent ✓"; a line says your own report's answer is on its thread and that no card went (Teams refuses a chat with yourself); a card that did not go says why and has "Send again", which sends that one card; step 3 A has ONE card, "Updates on your LeanBoard reports", listing the three reports each with its outcome word and message, and an Open button — not three cards; B has one card with their own duplicate report's answer and NOT the parent's as well; C has one card with the report they follow; step 4 every row is already applied, and nobody is told a second time
+
+### UAT-ISS-010 — Merge searches the open issues as you type
+persona: superadmin
+modules: issues/adminTab.ts shared/ui/typeAhead.ts
+preconditions: three open issues, two with a shared word in their titles
+steps:
+1. Settings → Issues → open one → "Merge into…". Type the shared word quickly, letter after letter.
+2. Pick the other issue with ↓ and Enter.
+3. Press Merge.
+expected: step 1 "Searching…" shows, then the matching open issues with their status; the issue being merged is never listed; results always belong to what is in the box now; step 2 "Merging into <title>" shows under the box and Merge is enabled — Enter did not press it; step 3 the report closes as merged, as before

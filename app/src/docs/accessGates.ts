@@ -83,7 +83,28 @@ export interface PeopleSource {
   restricted: boolean;
   /** Painted under the search box when non-empty. */
   hint: string;
-  search: (q: string) => Promise<{ mail: string; displayName: string }[]>;
+  /** The people already in memory (the pool's members, the document
+   *  controllers): a type-ahead shows their matches at once
+   *  (`docs/peopleField.ts`, tranche 5, 2026-11-27). */
+  held: DocPerson[];
+  /** The directory behind them, asked after a pause; null when the
+   *  picker is bound to the pool. */
+  directory: ((q: string) => Promise<DocPerson[]>) | null;
+}
+
+export interface DocPerson {
+  mail: string;
+  displayName: string;
+}
+
+/** A person column bound to no role: the directory alone. */
+export function directoryPeopleSource(): PeopleSource {
+  return {
+    restricted: false,
+    hint: "",
+    held: [],
+    directory: async (q) => (await searchEntra(q)).map((h) => ({ mail: h.mail, displayName: h.displayName })),
+  };
 }
 
 export async function poolPeopleSource(): Promise<PeopleSource> {
@@ -92,30 +113,13 @@ export async function poolPeopleSource(): Promise<PeopleSource> {
     const all = pool.members
       .filter((m) => m.email !== "")
       .map((m) => ({ mail: m.email, displayName: m.name }));
-    return {
-      restricted: true,
-      hint: "",
-      search: (q) => {
-        const l = q.trim().toLowerCase();
-        return Promise.resolve(
-          all.filter(
-            (p) =>
-              l === "" ||
-              p.displayName.toLowerCase().includes(l) ||
-              p.mail.toLowerCase().includes(l)
-          )
-        );
-      },
-    };
+    return { restricted: true, hint: "", held: all, directory: null };
   }
-  const { searchEntra } = await import("../store/people");
   return {
-    restricted: false,
+    ...directoryPeopleSource(),
     hint: pool.configured
       ? "The owners & approvers group could not be read just now — searching everyone instead."
       : "",
-    search: async (q) =>
-      (await searchEntra(q)).map((h) => ({ mail: h.mail, displayName: h.displayName })),
   };
 }
 
@@ -133,24 +137,11 @@ export async function reviewerPeopleSource(): Promise<PeopleSource> {
   const members = [...(pool.members ?? []), ...controllers]
     .filter((m) => m.email !== "" && !seenFirst.has(m.email.toLowerCase()) && seenFirst.add(m.email.toLowerCase()))
     .map((m) => ({ mail: m.email, displayName: m.name }));
-  const matches = (p: { mail: string; displayName: string }, l: string) =>
-    l === "" || p.displayName.toLowerCase().includes(l) || p.mail.toLowerCase().includes(l);
   return {
     restricted: false,
     hint: members.length > 0 ? "Reviewers may be anyone — the owners & approvers group and the document controllers list first." : "",
-    search: async (q) => {
-      const l = q.trim().toLowerCase();
-      const first = members.filter((p) => matches(p, l));
-      if (l.length < 2) return first;
-      let rest: { mail: string; displayName: string }[] = [];
-      try {
-        rest = (await searchEntra(q)).map((h) => ({ mail: h.mail, displayName: h.displayName }));
-      } catch {
-        rest = [];
-      }
-      const seen = new Set(first.map((p) => p.mail.toLowerCase()));
-      return [...first, ...rest.filter((p) => p.mail !== "" && !seen.has(p.mail.toLowerCase()))];
-    },
+    held: members,
+    directory: directoryPeopleSource().directory,
   };
 }
 

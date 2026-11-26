@@ -1,6 +1,6 @@
 // The ingestion grid's draft model (ingestionDraft.ts, 2026-10-09).
 import { describe, expect, it } from "vitest";
-import { applyToRows, dirtyRows, draftDisplay, effectiveValues, savedDisplay, setCell, writesFor, Draft } from "../docs/ingestionDraft";
+import { applyToRows, dirtyRows, draftDisplay, editorKey, effectiveValues, savedDisplay, setCell, stepRow, writesFor, Draft } from "../docs/ingestionDraft";
 
 const org = { internal: "DMSOrganisation", kind: "taxonomy" as const, label: "Pechey", termId: "t1" };
 const owner = { internal: "DMSOwner", kind: "person" as const, people: [{ email: "ann@x.test", name: "Ann Ray" }] };
@@ -74,5 +74,44 @@ describe("clear (features-plan-2026-10-29)", () => {
     // a plain blank (the forms' rule) still drops the cell
     setCell(d, "u1", saved, { internal: "DMSOrganisation", kind: "taxonomy", label: "", termId: "" });
     expect(dirtyRows(d)).toEqual([]);
+  });
+});
+
+// the cell editor's keys (backlog programme tranche 5, 2026-11-27)
+describe("editorKey / stepRow", () => {
+  const key = (over: Partial<{ key: string; shiftKey: boolean; ctrlKey: boolean; metaKey: boolean }> = {}) => ({ key: "Enter", shiftKey: false, ctrlKey: false, metaKey: false, ...over });
+  const input = { tag: "INPUT", listOpen: false };
+
+  it("sets and moves down on Enter, up on Shift+Enter", () => {
+    expect(editorKey(key(), input)).toBe("down");
+    expect(editorKey(key({ shiftKey: true }), input)).toBe("up");
+    expect(editorKey(key(), { tag: "SELECT", listOpen: false })).toBe("down");
+  });
+
+  it("leaves every other key to the editor", () => {
+    expect(editorKey(key({ key: "a" }), input)).toBeNull();
+    expect(editorKey(key({ key: "Tab" }), input)).toBeNull();
+  });
+
+  it("leaves Enter to a search whose list is open, and to a button", () => {
+    expect(editorKey(key(), { tag: "INPUT", listOpen: true })).toBeNull();
+    expect(editorKey(key(), { tag: "BUTTON", listOpen: false })).toBeNull();
+  });
+
+  it("keeps Enter for a new line in notes; Ctrl or ⌘ with Enter sets", () => {
+    const notes = { tag: "TEXTAREA", listOpen: false };
+    expect(editorKey(key(), notes)).toBeNull();
+    expect(editorKey(key({ ctrlKey: true }), notes)).toBe("down");
+    expect(editorKey(key({ metaKey: true, shiftKey: true }), notes)).toBe("up");
+  });
+
+  it("steps along the shown rows and stays put at either end", () => {
+    const ids = ["a", "b", "c"];
+    expect(stepRow(ids, "a", 1)).toBe("b");
+    expect(stepRow(ids, "b", -1)).toBe("a");
+    expect(stepRow(ids, "c", 1)).toBe("c");
+    expect(stepRow(ids, "a", -1)).toBe("a");
+    expect(stepRow(ids, "b", 0)).toBe("b");
+    expect(stepRow(ids, "gone", 1)).toBe("gone");
   });
 });
