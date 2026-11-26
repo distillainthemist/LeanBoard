@@ -972,6 +972,7 @@ setting is in `deploy-to-new-org.md`; production needs it at release
 | 3, the submit again | Submit for review on `v0.99.0-99-g4f38025` | The card went: "Sent by Teams card to 1 person", his own name not among the recipients, "Send again on Teams" offered. Ben: "Why is top bit add comment / reviewers still left open?" — once a step has landed the dialog kept its reviewers, Add reviewers box and Comment box, looking as if they still took input (so before R1 too). Changed: when the step lands the dialog shows only the result line and the message panel |
 | 3 | Report 13 and N2 — a completed review is known; draft comments under their rows (`v0.99.0-100-gf055133`) | Pass |
 | 4 | Report 14 — a step refused while the document is open in Word | Pass. (The release of a check-out the step took could not be forced on purpose; it is unit-tested and waits for UAT.) |
+| 5 | Reports 15 and 18 — every hand-over tells the next person | Pass (which roles the document carried was not stated, so which steps truly sent a card and which read "Nobody else to tell." is not recorded) |
 
 ---
 
