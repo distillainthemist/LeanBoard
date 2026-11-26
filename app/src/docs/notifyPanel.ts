@@ -6,7 +6,8 @@
 
 import { clear, el } from "../../../shared/ui/dom";
 import { spErrorText } from "./model";
-import { NotifyContext, NotifyRecipient } from "./notifyModel";
+import { NotifyContext, NotifyRecipient, withoutSelf } from "./notifyModel";
+import { currentViewer } from "../runtime";
 
 /**
  * Appends the panel to `body`. Returns false (and appends nothing)
@@ -35,12 +36,11 @@ export function attachNotifyPanel(opts: {
   exclude?: string[];
 }): boolean {
   const n = opts.context;
-  const seen = new Set(n.recipients.map((p) => p.email.toLowerCase()));
   const out = new Set((opts.exclude ?? []).map((e) => e.trim().toLowerCase()));
-  let recips: NotifyRecipient[] = [
-    ...n.recipients,
-    ...(opts.extra ?? []).filter((p) => !seen.has(p.email.toLowerCase())),
-  ].filter((p) => !out.has(p.email.trim().toLowerCase()));
+  // never the person sending, nobody twice — people added in the dialog
+  // included (Ben added himself as a reviewer, 2026-11-26)
+  const me = currentViewer()?.email ?? "";
+  let recips: NotifyRecipient[] = withoutSelf([...n.recipients, ...(opts.extra ?? [])], me).filter((p) => !out.has(p.email.trim().toLowerCase()));
   if (recips.length === 0) return false;
 
   const box = el("div", "app-docs-notifybox");
@@ -90,7 +90,7 @@ export function attachNotifyPanel(opts: {
       void import("../store/people").then(({ searchEntra }) => searchEntra(q)).then((hits) => {
         if (seq !== addSeq) return;
         clear(addList);
-        const have = new Set(recips.map((p) => p.email.toLowerCase()));
+        const have = new Set([...recips.map((p) => p.email.toLowerCase()), me.trim().toLowerCase()]);
         const fresh = hits.filter((h) => h.mail !== "" && !have.has(h.mail.toLowerCase())).slice(0, 8);
         for (const h of fresh) {
           const b = el("button", "app-docs-menuitem", `${h.displayName}${h.department !== "" ? ` · ${h.department}` : ""}`) as HTMLButtonElement;

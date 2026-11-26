@@ -47,6 +47,16 @@ const people = (myEmail: string, ...groups: NotifyRecipient[][]): NotifyRecipien
   return out;
 };
 
+/** Who a message may go to: never the person sending it (Teams seats
+ *  the caller in the chat itself — naming them again is refused as
+ *  "Duplicate chat members"), nobody twice, nobody without an address.
+ *  The plans filter the actor already; people ADDED in a dialog did not
+ *  pass through them (Ben, 2026-11-26: he added himself as a reviewer
+ *  and the reviewers' card was refused). */
+export function withoutSelf(recipients: NotifyRecipient[], myEmail: string): NotifyRecipient[] {
+  return people(myEmail, recipients);
+}
+
 /** A HAND-OVER: the step passes the document to someone who now has
  *  work to do, so its card is sent as the step lands (issue review
  *  2026-11-25, reports 15 and 18 — a review nobody heard of, a reviewer

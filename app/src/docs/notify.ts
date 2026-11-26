@@ -12,7 +12,9 @@
 
 import { Office365OutlookService } from "../generated/services/Office365OutlookService";
 import { MicrosoftTeamsService } from "../generated/services/MicrosoftTeamsService";
-import { NotifyQuote, NotifyRecipient, chatTopic, notifyCard, notifyChatHtml, notifyEmailHtml } from "./notifyModel";
+import { NotifyQuote, NotifyRecipient, chatTopic, notifyCard, notifyChatHtml, notifyEmailHtml, withoutSelf } from "./notifyModel";
+import { spErrorText } from "./model";
+import { currentViewer } from "../runtime";
 
 interface OpResult {
   success?: boolean;
@@ -72,14 +74,17 @@ export async function sendNotifyTeams(
   quote?: NotifyQuote
 ): Promise<NotifySendOutcome> {
   let chatId = "";
+  // the caller is seated by the connector — recipients only, each once
+  // (the one rule for every sender: withoutSelf)
+  const to = withoutSelf(recipients, currentViewer()?.email ?? "");
+  if (to.length === 0) return { error: "There is nobody but you to tell, and Teams does not open a chat with yourself.", how: "" };
   try {
     const r = (await MicrosoftTeamsService.CreateChat({
-      // the caller is seated by the connector — recipients only
-      members: recipients.map((p) => p.email).join(";"),
-      ...(recipients.length > 1 ? { topic: chatTopic(subject) } : {}),
+      members: to.map((p) => p.email).join(";"),
+      ...(to.length > 1 ? { topic: chatTopic(subject) } : {}),
     })) as OpResult;
     const why = failText(r);
-    if (why !== "") return { error: `Could not open the chat: ${why}`, how: "" };
+    if (why !== "") return { error: `Could not open the chat: ${spErrorText(why).slice(0, 240)}`, how: "" };
     chatId = String(((r.data ?? {}) as { id?: unknown }).id ?? "");
     if (chatId === "") {
       return { error: "The chat was created but no chat id came back.", how: "" };

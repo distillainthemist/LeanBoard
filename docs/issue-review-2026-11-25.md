@@ -968,6 +968,7 @@ environment setting would need. Built the same day (`docs/viewer.ts`
 **N4 closed as: build + a setting.** No PDF library is added. The
 setting is in `deploy-to-new-org.md`; production needs it at release
 (Ben), or its PDFs stay at the first-page picture with its line.
+| 3, at its first step | Submit for review, naming himself and one other | TWO FINDINGS. (a) "DMSReviewers: You can only enter one name" — the dev library's Reviewers column held one person; a set-up matter (Ben changed it), and the new line "It was already checked out, and still is." read correctly, since he was revising. (b) After the submit landed: "Not sent: Could not open the chat: … Duplicate chat members is specified in the request body". Cause: the plans drop the person acting, but people ADDED in the dialog did not pass through them — he had added himself, and Teams seats the caller itself. Latent before R1 (a document with no reviewers sent nothing at all); R1 made the send happen. Fixed in ONE place every send passes: `sendNotifyTeams` and the panel use `withoutSelf` (`docs/notifyModel.ts`); the refusal's own sentence is shown, not its JSON; "You are the only reviewer named, so there is nobody else to tell." where that is so |
 
 ---
 

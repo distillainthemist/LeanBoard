@@ -10,6 +10,7 @@ import {
   notifyCard,
   notifyEmailHtml,
   notifyPlanFor,
+  withoutSelf,
 } from "../docs/notifyModel";
 
 const P = (name: string, email: string) => ({ name, email });
@@ -96,6 +97,13 @@ describe("notifyPlanFor", () => {
     expect(final).toBeNull();
     const retired = notifyPlanFor({ ...base, myEmail: "olive@x.com", commandKey: "markObsolete", to: "obsolete" });
     expect(retired).toBeNull();
+  });
+
+  it("a message never goes to the person sending it, or to anyone twice", () => {
+    // Teams seats the caller itself: naming them is "Duplicate chat members"
+    const picked = [P("Ben Pechey", "Ben@x.com"), P("Pechey Distilling", "partnership@x.com"), P("Again", "PARTNERSHIP@x.com"), P("No mail", "")];
+    expect(withoutSelf(picked, "ben@x.com")).toEqual([P("Pechey Distilling", "partnership@x.com")]);
+    expect(withoutSelf([P("Ben Pechey", "ben@x.com")], "ben@x.com")).toEqual([]);
   });
 
   it("knows which steps hand the document on", () => {

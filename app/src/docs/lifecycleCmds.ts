@@ -737,7 +737,9 @@ export function openLifecycleCommand(opts: LifecycleRunOpts): void {
         status.textContent =
           seatWords(seats) !== ""
             ? `✓ Sent for review — the status has moved. ${seatWords(seats)}`
-            : "✓ Sent for review — the status has moved. No reviewer is named on this document, so nobody was messaged: add reviewers, or tell them yourself.";
+            : [...(opts.reviewersPicker?.existing ?? []), ...added].length > 0
+              ? "✓ Sent for review — the status has moved. You are the only reviewer named, so there is nobody else to tell."
+              : "✓ Sent for review — the status has moved. No reviewer is named on this document, so nobody was messaged: add reviewers, or tell them yourself.";
         return;
       }
       dlg.close();
