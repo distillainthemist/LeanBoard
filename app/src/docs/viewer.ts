@@ -1331,8 +1331,11 @@ export function openDocViewer(opts: ViewerOpts): () => void {
             );
             const a = openLink(d);
             if (a !== null) line.appendChild(a);
-            line.title = d.comment !== "" ? d.comment : "No comment";
             trail.appendChild(line);
+            // the comment is the record of the step ("Submitted for
+            // review", "Review complete by …") — read, not hovered for
+            // (Ben, 2026-11-26); a draft with none shows nothing more
+            if (d.comment.trim() !== "") trail.appendChild(el("div", "app-docs-verdraftnote", `“${d.comment.trim()}”`));
           }
           if (!showAll && g.drafts.length > 2) {
             const more = el(
