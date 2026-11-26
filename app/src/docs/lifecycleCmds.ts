@@ -371,7 +371,7 @@ export function openLifecycleCommand(opts: LifecycleRunOpts): void {
       exclude: waitingEmails(seats),
       autoSend: auto ? "teams" : undefined,
       onSent: (line, ok) => {
-        const sentWords = command.key === "submitReview" ? `Reviewers notified ${line.replace(/^✓ /, "")}` : line.replace(/^✓ /, "");
+        const sentWords = line.replace(/^✓ /, "");
         status.textContent = doneLine(ok ? sentWords : line);
         status.classList.toggle("app-docs-addstatus-warn", !ok);
       },
@@ -618,6 +618,11 @@ export function openLifecycleCommand(opts: LifecycleRunOpts): void {
     }
 
     bracket.took = false; // checked in: nothing left to give back
+    // the step has LANDED: what was asked for it — reviewers, comment,
+    // the picker — is done with, and must not sit there looking as if
+    // it still took input (Ben, 2026-11-26). The result line stays, and
+    // the message panel is added beneath it.
+    for (const c of Array.from(dlg.body.children) as HTMLElement[]) if (c !== status) c.style.display = "none";
     // a reviewer from outside the Owners & Approvers group cannot open
     // a draft: seat them for the cycle, or ask the owner to (R1 walk)
     if (command.key === "submitReview" && opts.seatCtx !== undefined && opts.reviewersPicker !== undefined) {
