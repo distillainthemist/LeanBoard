@@ -1749,6 +1749,15 @@ Metrics card alone, leaving meeting-board KPI cards on the floor.
 - **Templates:** they carry a metric RULE, not metrics (since
   2026-09-03), so none starts an initiative over eight.
 
+### R5 test walk (began 2026-11-27, dev `v0.100.0-15-g183d6bd`)
+
+| # | Test | Result |
+|---|---|---|
+| 1 | Report 21 — old cards, the column names, the dialog moving a card | Pass |
+| 2 | Report 21 — drags, a new action at Plan, a reopened one into Do | Pass |
+| 3 | Report 21 — the "By PDCA state" view, its drags, the Gantt, the settings | Pass |
+| 4 | Report 22 — a department's part of a shared priority, popup and executive summary | Pass. **Asked in it (Ben):** the grouping had to be chosen on the kanban before switching to the Gantt — "the grouping selector should also be available on the gantt tab". Built the same day: the select shows on the Gantt view too, reading "Not grouped" where the kanban reads "By status" (by status the Gantt is one flat list); one choice for both views. Seen in the harness |
+
 **Limits:**
 
 - **21 — an OLDER build still writes status and state apart.** A Do

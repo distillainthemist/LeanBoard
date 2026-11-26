@@ -695,16 +695,20 @@ export class ActionBoardEditor {
     if (!this.narrow) tools.appendChild(views);
     // what the kanban's columns stand for — the person's own switch
     // (Ben, 2026-10-22: "By person"); the Gantt groups the same way
-    if (!this.narrow && view === "kanban") {
+    // …and it is on the Gantt too (Ben, 2026-11-27: the grouping had to
+    // be chosen on the kanban before switching). By status the Gantt is
+    // one flat list, so there the choice reads "Not grouped".
+    const onGantt = view === "gantt" && this.ganttRenderer !== null && this.ganttRenderer !== undefined;
+    if (!this.narrow && (view === "kanban" || onGantt)) {
       const group = selectInput(this.grouping(), [
-        { value: "status", label: "By status" },
+        { value: "status", label: onGantt ? "Not grouped" : "By status" },
         { value: "pdca", label: "By PDCA state" },
         { value: "issue", label: "By issue" },
         { value: "person", label: "By person" },
       ]);
       group.classList.add("ltk-ab-groupsel");
-      group.setAttribute("aria-label", "Group the columns");
-      group.title = "What each column stands for. The Gantt groups its rows the same way.";
+      group.setAttribute("aria-label", onGantt ? "Group the rows" : "Group the columns");
+      group.title = onGantt ? "How the Gantt's rows are grouped. The kanban's columns follow the same choice." : "What each column stands for. The Gantt groups its rows the same way.";
       group.addEventListener("change", () => {
         const g = group.value as KanbanGroupBy;
         this.userGroup = g;
