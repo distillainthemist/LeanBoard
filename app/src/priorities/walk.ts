@@ -25,6 +25,7 @@ import { actionCounts } from "../improvement/status";
 import { actionCircles, priorityCounts } from "../improvement/statusUi";
 import { todayIso } from "../../../shared/schema/id";
 import type { LifecycleCtx } from "./lifecycle";
+import { partLine, partNone, partView } from "./orgPart";
 import { OrgRef, orgName, parentClosed, Pillar, Priority, ragPaletteKey } from "./model";
 
 /** How many metric tiles a card or a row shows before "+n". */
@@ -336,7 +337,25 @@ export function mountWalk(o: WalkOpts): () => void {
     if (open) {
       const list = el("div", "app-xs-inits");
       const rows = o.ctx.initiativesFor(p);
-      const shown = rows.filter((r) => !r.confidentialHidden);
+      const visible = rows.filter((r) => !r.confidentialHidden);
+      // a department's part (report 22): the same rule, line and switch
+      // as the priority's popup
+      const partOrg = o.ctx.partOrgFor(p);
+      const mine = visible.filter((r) => r.here);
+      const shown = partOrg !== "" && !partView.all ? mine : visible;
+      if (partOrg !== "" && visible.length > 0) {
+        const bar = el("label", "app-cp-ov-part app-xs-part");
+        const all = el("input") as HTMLInputElement;
+        all.type = "checkbox";
+        all.checked = partView.all;
+        all.addEventListener("change", () => {
+          partView.all = all.checked;
+          paint();
+        });
+        bar.append(el("span", "app-cp-ov-partline", partLine(mine.length, visible.length, partOrg)), all, el("span", undefined, "Show all"));
+        list.appendChild(bar);
+        if (shown.length === 0) list.appendChild(el("div", "app-cp-muted app-xs-none", partNone(visible.length, partOrg)));
+      }
       const primaryId = o.ctx.primaryOf(p)?.id ?? "";
       // the primary leads; then attention first — support needed, off
       // track, on track (the popup's order too)
@@ -345,7 +364,7 @@ export function mountWalk(o: WalkOpts): () => void {
       if (ordered.length > 0) list.appendChild(initiativeRowHead("summary"));
       for (const { r } of ordered) list.appendChild(initiativeRowFor(r, r.id === primaryId));
       if (rows.length === 0) list.appendChild(el("div", "app-cp-muted app-xs-none", "No initiatives are linked to this priority yet."));
-      const hidden = rows.length - shown.length;
+      const hidden = rows.length - visible.length;
       if (hidden > 0) list.appendChild(el("div", "app-cp-muted app-xs-none", `${hidden} confidential initiative${hidden === 1 ? "" : "s"} not shown`));
       card.appendChild(list);
     }

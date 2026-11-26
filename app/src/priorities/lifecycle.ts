@@ -30,6 +30,7 @@ import { offerStepMessage } from "./stepMessage";
 import { openOwn } from "./actionsTabModel";
 import { relinkPillarPlan, relinkPillarWords } from "./relinkPillar";
 import { staleTag } from "../improvement/staleMark";
+import { partLine, partNone, partView } from "./orgPart";
 import {
   CLOSE_REASONS,
   CloseReason,
@@ -136,7 +137,13 @@ export interface LifecycleCtx {
     boardId: string;
     inheritedFrom: string;
     confidentialHidden: boolean;
+    /** Part of what the org in view sees of this priority (report 22):
+     *  always true on the priority's own page. */
+    here: boolean;
   }[];
+  /** The org whose PART of a priority the page shows: its name when the
+   *  page is not the priority's owner's, "" on the owner's own page. */
+  partOrgFor: (p: Priority) => string;
   /** The raw initiatives + actions behind a priority — the Actions tab's
    *  Gantt (P8). Confidential initiatives are excluded outright. */
   ganttFor: (p: Priority) => {
@@ -1413,7 +1420,26 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
       // the list: one header, then the cards — the primary first, then
       // support needed, off track, on track
       const primaryId = primary?.id ?? "";
-      const ordered = shown.map((r, i) => ({ r, i })).sort((a, b) => rowRank(a.r.status.state, a.r.id === primaryId) - rowRank(b.r.status.state, b.r.id === primaryId) || a.i - b.i);
+      // a department's part (report 22): on a page that is not the
+      // priority's owner's, the list is that org's initiatives, with a
+      // count and a switch to see them all
+      const partOrg = ctx.partOrgFor(live);
+      const mine = shown.filter((r) => r.here);
+      const listed = partOrg !== "" && !partView.all ? mine : shown;
+      if (partOrg !== "" && shown.length > 0) {
+        const bar = el("label", "app-cp-ov-part");
+        const all = el("input") as HTMLInputElement;
+        all.type = "checkbox";
+        all.checked = partView.all;
+        all.addEventListener("change", () => {
+          partView.all = all.checked;
+          paint();
+        });
+        bar.append(el("span", "app-cp-ov-partline", partLine(mine.length, shown.length, partOrg)), all, el("span", undefined, "Show all"));
+        body.appendChild(bar);
+        if (listed.length === 0) body.appendChild(el("div", "app-cp-muted", partNone(shown.length, partOrg)));
+      }
+      const ordered = listed.map((r, i) => ({ r, i })).sort((a, b) => rowRank(a.r.status.state, a.r.id === primaryId) - rowRank(b.r.status.state, b.r.id === primaryId) || a.i - b.i);
       if (ordered.length > 0) {
         const list = el("div", "app-ir-list");
         list.appendChild(initiativeRowHead("popup", [], 2));

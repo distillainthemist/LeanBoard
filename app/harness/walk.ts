@@ -89,6 +89,7 @@ const statusOfInit = (i: Init) => {
 const palette: Record<string, string> = { good: "#107c10", atrisk: "#c19c00", issue: "#d13438", neutral: "#808080", flagged: "#7b3fa0" };
 const objectives: Record<string, MetricValue[]> = { P1: [W, X, Y], P2: [W, X, Y, Z], P3: [W, Y], P4: [], P5: [] };
 
+const partOrg = new URLSearchParams(location.search).get("part") ?? "";
 const ctx = {
   data: () => ({ pillars, priorities, assignments: [] }),
   settings: { status: DEFAULT_STATUS_SETTINGS },
@@ -97,7 +98,7 @@ const ctx = {
   statusesFor: (p: Priority) => (inits[p.id] ?? []).map(statusOfInit),
   primaryOf: (p: Priority) => (p.primaryInitiativeId !== "" ? { id: p.primaryInitiativeId, title: "", completed: false } : null),
   initiativesFor: (p: Priority) =>
-    (inits[p.id] ?? []).map((i) => ({
+    (inits[p.id] ?? []).map((i, n) => ({
       id: i.id,
       title: i.title,
       stageName: i.stage,
@@ -116,7 +117,11 @@ const ctx = {
       boardId: `init-${i.id}`,
       inheritedFrom: i.from ?? "",
       confidentialHidden: i.conf === true,
+      // ?part=<org>: the page is that org's, not the priority's owner's —
+      // every second initiative is its part (report 22)
+      here: partOrg === "" || n % 2 === 0,
     })),
+  partOrgFor: () => partOrg,
 } as unknown as LifecycleCtx;
 const columns = pillars.filter((p) => p.level === 2);
 const byColumn = new Map(columns.map((c) => [c.id, priorities.filter((p) => p.pillarId === c.id)]));

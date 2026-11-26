@@ -72,7 +72,8 @@ import { rememberSummary, summaryView } from "../sessionView";
 import { prioritiesViewUrl, takePendingPrioritiesView } from "../links";
 import { decodePrioritiesView, encodePrioritiesView } from "./viewLink";
 import { cascadeDialog, closeDialog, closePriority, LifecycleCtx, moveBackToProposed, openPriorityOverlay, pullFromAbove, reopenPriority, sendCascade } from "./lifecycle";
-import { Initiative, adminScopeFor, initiativesByPriority, ownersLabel, ownersTitle, statusOf } from "../improvement/initiativeModel";
+import { Initiative, adminScopeFor, initiativesByPriority, orgsOf, ownersLabel, ownersTitle, statusOf } from "../improvement/initiativeModel";
+import { inPart } from "./orgPart";
 import { actionCounts, actionCountsFor, PriorityOwn, PriorityOwnAt, PriorityState, priorityStatus, PriorityStatus, statusColour, StatusResult } from "../improvement/status";
 import { ownBelow } from "./ownBelow";
 import { priorityKey } from "../../../shared/schema/actionLinks";
@@ -667,7 +668,9 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
               // read the first of several)
               ownerName: ownersLabel(i),
               ownerTitle: ownersTitle(i),
-              orgName: pr.id === p.id ? "This org" : [i.org.department, i.org.area].filter((x) => x !== "").join(" · ") || i.org.site,
+              // on a page that is not the owner's each row names the org
+              // its initiative is filed under (report 22)
+              orgName: pr.id === p.id && sameOrg(p.org, state.org) ? "This org" : [i.org.department, i.org.area].filter((x) => x !== "").join(" · ") || i.org.site,
               open: counts.future + counts.late,
               overdue: counts.late,
               counts,
@@ -677,11 +680,13 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
               boardId: i.boardId,
               inheritedFrom: pr.id === p.id ? "" : orgName(pr.org),
               confidentialHidden: !visible,
+              here: inPart(orgsOf(i), state.org, p.org),
             });
           }
         }
         return out;
       },
+      partOrgFor: (p) => (sameOrg(p.org, state.org) ? "" : orgName(state.org)),
       changed: reload,
       initiativeById: (id) => initiativeList.find((i) => i.id === id) ?? null,
       viewerAdminScope: adminScopeFor(viewer.role, viewer.site),

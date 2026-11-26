@@ -3199,6 +3199,10 @@ button.app-doclist-hsort:hover { color: var(--app-accent, #2563eb); }
   .app-bulk-row { grid-template-columns: 22px 1fr; }
   .app-bulk-row > :nth-child(n+3) { grid-column: 2; }
 }
+/* a department's part of a shared priority (2026-11-27, R5 — report 22) */
+.app-cp-ov-part { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: #57534a; margin: 2px 0 8px; cursor: pointer; }
+.app-cp-ov-partline { font-weight: 600; color: #26241f; margin-right: 6px; }
+.app-xs-part { margin: 0 0 6px; }
 /* Approving on behalf, with evidence (2026-11-27, R4 — report 12) */
 .app-docs-behalf { display: flex; flex-direction: column; gap: 4px; margin: 2px 0 8px; }
 .app-docs-behalfrow { display: flex; align-items: center; gap: 6px; font-size: 13px; }
