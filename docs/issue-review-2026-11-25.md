@@ -984,6 +984,60 @@ step landed. Changed outside the app: `blob:` in dev's code-app
 `frame-src`; the dev library's Reviewers column set to take several
 people. R1 stands tested on dev, apart from reviewer seats.
 
+### R2 walk (2026-11-26)
+
+**Item 1 — report 2, the cursor.** The fault reaches further than the
+report: both "＋ Add sub-pillar" and "＋ Add pillar" take the LAST box
+of their kind in the whole list, which includes the "Other years"
+section when it is open — a new name could be typed over a row from a
+past year. Fixed by identity: the row just created gets the cursor.
+
+**Item 2 — report 23, Extend.** "Complete…" is already in the tile's ⋮
+menu (with Archive…), so the menu gains ONE item. **Offered only on a
+flagged tile (Ben's choice 1)** — past its planned end in the year in
+view — and it extends TO THE YEAR IN VIEW ("Extend to 2027"). The
+sub-pillar: carries (nothing asked); ended with nothing following (one
+question — which of that year's sub-pillars from then on; earlier years
+keep their home); no sub-pillars for that year at all (extends, and
+says it is Unplaced until they are set). Offered to whoever may edit
+the priority, on the owning org; written to the priority's History.
+The two form fixes stand.
+
+**Item 3 — report 1, the year-change panel.**
+
+- Shape shown to Ben as a mock-up: each pillar and sub-pillar of the
+  earlier year on a row, with its priority count across every org of
+  the company, and ONE answer — Continues (the default: opening and
+  saving changes nothing), Becomes <a target in the later year>, Ends.
+  Two rows naming one target is a merge. A sub-pillar stays under
+  whatever its pillar becomes unless moved. New pillars and sub-pillars
+  are added in the panel and become targets. The footer lists what
+  would be lost.
+- **Corrected from the plan:** "all or nothing" cannot be promised —
+  rows are written one at a time. The writes are ORDERED so a failure
+  leaves the earlier year as it was (new rows, then links, then the
+  ending of old rows), a second Save finishes, and the panel says so
+  if a save stops part-way. "Filters affected" cannot be listed (a
+  pillar filter is personal and lasts a session).
+- **Follows leaves the list (choice 1):** the panel is the one way to
+  change the structure between two years. The list keeps in-year
+  edits; a rename there applies to the row for every year it covers
+  ("from 2027 only" is "Becomes" in the panel).
+- **Years (choice 1):** the year in view, into the next — so an
+  earlier change can be opened and put right. The panel reads what is
+  stored; a priority placed by hand for that year keeps its place.
+  Opened for an earlier year it warns that later years' mappings stay
+  as they are.
+- **Board cards (Ben's choice 1, against my recommendation of a plain
+  warning):** when a row is set to Ends, the footer NAMES each board
+  whose Priorities card rotates on it (`prTopicMap`); the panel reads
+  every board's card settings to do so. About half a day.
+- The link is stored as a list on the new row, in a new column beside
+  the old single one (which is still read and still written with the
+  first, for older builds).
+
+**R2 as walked:** about 10 days. One column on `ben_ltkpillar`.
+
 ---
 
 ## Appendix — the review record (phases 1 and 2, as it was made)
