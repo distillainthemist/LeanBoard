@@ -1577,8 +1577,16 @@ no ad-hoc credential handling.
   Reported to Microsoft.
 - The player's CSP blocks `blob:` images, on the phone and in the
   browser (seen again 2026-11-26 in the attachment viewer) — every
-  picture renders from a `data:` URL. A `blob:` URL is for downloads
-  only.
+  picture renders from a `data:` URL. A `blob:` URL is for downloads,
+  and for the PDF preview frame WHERE the environment's code-app
+  `frame-src` lists `blob:` (a setup step since 2026-11-26).
+- The player refuses a direct `fetch` of a file's bytes from
+  SharePoint (measured 2026-11-26, dev and production: "Failed to
+  fetch" before any answer). A native PDF's bytes therefore come
+  through the SharePoint connector (`connectorGetFileContent`), which
+  answers a non-octet-stream file as a STRING of one character per
+  byte (`docs/connectorBytes.ts`). Until then, in the hosted app, every
+  PDF file's preview had been a first-page picture.
 - Entra group membership propagates slowly to SP tokens — which is why
   temporary edit grants seat a SharePoint **site group** (instant)
   instead.

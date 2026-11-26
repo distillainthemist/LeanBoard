@@ -163,6 +163,14 @@ whole chain end to end.
    | Public Office files (view.officeapps) | `https://view.officeapps.live.com` |
    | Another Power App | `https://apps.powerapps.com` |
 
+   **Always, for Documents (2026-11-26):** add `blob:` to the same
+   `frame-src` list. A file that is already a PDF is read through the
+   SharePoint connector and shown from memory; without `blob:` the
+   player refuses to frame it and the preview is a picture of the first
+   page only, with a line saying so (a super admin reads the rule that
+   refused it under the picture). It lets this app frame a document the
+   app itself has loaded — no outside site. Proven on Dev by Ben.
+
    For an embedded **Power App**, the inner app must also allow being
    framed by this one — a code app's `frame-ancestors` already includes
    `https://*.powerapps.com`, so no change is usually needed; same-tenant
