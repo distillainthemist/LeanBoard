@@ -1324,6 +1324,164 @@ card; "Send again". These were seen in the harness only, where Teams
 does not exist. Not run anywhere: Stop part-way through an apply, and
 a row whose step is refused.
 
+### R4 walk (began 2026-11-27)
+
+**Item 1 — N3, choosing the documents.** Found: the register has no
+row ticks and loads as it scrolls; "Export register (CSV)" already
+gathers every document the filters match. **Ben's choice 1: the
+filters choose and the preview trims** — "Change properties…" in the
+Documents ⋮ menu takes everything the current filters match, and the
+preview lists each document with a tick. No tick column in the
+register (the plan's "or ticks rows" is dropped; about a day and a
+half not spent). Controllers and super admins; Controlled standards
+and Working documents; a site's controller on their own site's
+documents, another site's listed as skipped (`docs/siteScope.ts`).
+
+**Item 2 — N3, which properties and how.** The properties Edit
+properties offers (terms, people, choices, text), minus the document
+id and the name; never status, the system dates, linked documents or
+management of change; a value is never cleared, as in the form; owner
+and approvers from the pool; several properties in one run. **Found:**
+the plan's "one new value" on a property that holds SEVERAL (tags,
+approvers, reviewers, a multi-value term column) would wipe the
+others, and the BSL repair is a swap, not a set. **Ben's choice 1:
+four operations on a several-valued property** — Set to (replaces
+everything), Add, Remove, Replace one with another (touches only
+documents that have it); a single-valued property offers Set to. About
+a day more than the plan.
+
+**Item 3 — N3 and Importance.** Found: in Edit properties a changed
+Importance rewrites the cadence from the mapping and counts the review
+date again from the stored effective date (the August date model),
+which collides with Ben's "would not affect a review date". **Ben's
+choice 2, with a condition:** Importance IS offered in bulk; cadence
+and review date follow, as in Edit properties; the preview shows each
+document's old and new review date. **His condition: the last
+reviewed date does not change** — that is the Effective date column
+(stamped at Approve and at Mark reviewed), and the rule never writes
+it: the new review date is that date plus the new cadence. This is the
+ONE exception to "a bulk change never moves a review date"; no other
+property touches a date. A document whose new review date is already
+past becomes due for review at once; the preview marks those.
+
+**Item 4 — N3, what happens to each document.** Each goes through
+Edit properties' own four steps (check out, write, minor check-in with
+the comment, publish when the document is approved, superseded or
+obsolete — so an approved document goes 3.0 → 3.1 → 4.0, as it does
+today for one). The version comment says what changed and why. A
+refused step gives back the check-out it took (R1's rule). Skipped,
+and listed in the preview with the reason: checked out to anyone,
+the person running it included; in review, awaiting approval or
+awaiting owner approval; another site's documents; documents that
+already have the new value. **Found:** a Draft is either never
+approved or an approved document under revision, and a change to it
+is part of the draft — lost if the revision is cancelled. **Ben's
+choice 1: drafts are changed and it is said** — the preview marks each
+"being revised: this change is lost if the revision is cancelled" and
+the report lists them again.
+
+**Item 5 — N3, the run.** The preview: one line per document (name,
+library, stage, present value → new value, a tick; old and new review
+date for an Importance change), the skipped below with reasons, a
+reason required, "Change 37 documents". The run: one document after
+another, each Changed or Failed with its reason, a failure not
+stopping the rest; Stop finishes the current document; throttling
+waited out (`retryThrottled`); the tab stays open; no cap, an estimate
+shown. **Corrected from the plan:** "about 70 edits a minute" has no
+basis — each document is five or six calls in a row; expected 15 to 25
+documents a minute, to be MEASURED on dev and the figure put in the
+preview. Interrupted: what was done stays done; the same filter and
+change run again picks up the rest (documents that already have the
+value are skipped); one document may be left checked out to the
+person, and the next preview says so. No undo command — the opposite
+change cannot tell which documents had the old value. **Ben's choice
+1: a downloaded report and no stored record** — a CSV of each
+document, old value, new value, result and reason; no schema; the app
+keeps no list of past bulk changes. **Asked by Ben, confirmed:**
+several properties in one run — each with its own operation and
+value, ONE version per document carrying all of them, one reason for
+the run; a document is skipped only when none of the changes applies
+to it.
+
+**Item 6 — report 28, Rename.** Controllers, one document, from its
+menu: the new name and a reason; the file type fixed. Refused before
+any write: a name already in the folder, the same name, characters
+SharePoint refuses, a checked-out document, one in review or awaiting
+approval. Recorded as a version ("Renamed from A to B by <name>.
+Reason: …"); an approved document is published again. Where the Title
+column holds the old name it is updated, because the register's
+search reads Title too (`docs/rows.ts`). Found: the app's links, Linked
+documents and "Superseded by" go by id — a rename breaks none; the
+ingestion grid already renames by a move in the same folder
+(`moveFileByPath`), but that library has no check-out rule and no
+content approval. **Not promised:** a rename inside a controlled
+library has never been run — probed on dev before the dialog is built;
+the fallback is rename first, then a version that carries the comment.
+A link copied from SharePoint's address bar stops working. **Found: a
+"Prior names" column role that nothing reads or writes. Ben's choice
+1:** Rename adds the old name to it, in a library that maps the
+column, and the viewer's details show it. Search by a prior name is
+not included.
+
+**Item 7 — report 28, the date.** Found: ONE column holds this date
+(role "Effective date"), stamped with today at the owner's Approve AND
+at Mark reviewed; there is no separate approval date and last-reviewed
+date. Correcting a document approved in 2022 and marked reviewed in
+2025 back to 2022 undoes the review, and it comes up due. Built as:
+the present date, the correct one, a reason, and the resulting review
+date shown before the save, with "due for review at once" when it is
+already past; refused for a future date, a checked-out document and
+one in circulation; offered on approved, superseded and obsolete
+documents, not on a draft; any past date allowed (an ingested document
+was approved before it arrived); a version whose comment gives both
+dates, the new review date, who and why; published again; the cadence
+still from Importance, never typed. Reverses the 2026-08-10 "never
+typed" decision for controllers and this one date (flagged at the
+plan). **Ben's choice 1: the command takes the column's own title** —
+"Correct effective date…" where the library calls it that — not
+"Correct approval date" always.
+
+**Item 8 — report 12, approving on behalf.** Found in the code:
+approval is two steps (approvers endorse, the owner's Approve is the
+major); at the approvers' step ONE endorsement moves the document on;
+a controller may press Approve at either step (`lifecycleCommandsFor`,
+the deadlock-breaker) and the comment names only the controller. Built
+as: a controller NOT named on the document gets "On behalf of" in the
+Approve dialog — the named approvers at the approvers' step (several
+may be ticked), the owner at the owner's step — and choosing is
+REQUIRED (not objected to); the comment reads "Approved by A on behalf
+of B"; "Attach evidence", one or more files up to 30 MB, offered not
+required, kept in the attachment table against the document and
+version (parent kind and id are text — no schema); the version's row
+in the history shows "📎 Evidence", open to whoever can open the
+history; a controller who IS named sees none of it. Limits: app-level
+visibility (evidence is often someone's email); files are saved AFTER
+the approval lands (the version does not exist before), so a failed
+save leaves the approval standing and the dialog offers to attach
+again. **Found: the person approved for is never told. Ben's choice
+1:** B gets a Teams card, "A approved <document> on your behalf", with
+the comment and a link, sent with the hand-over message.
+
+**Item 9 — report 10, Document tasks.** Found: the button opens a
+drop-down 380 wide and at most 480 high; access requests are cards
+with buttons, every other row only opens the document; the commands'
+dialogs can already be opened from a row (`runLifecycle`). Built as:
+Awaiting your approval → Approve, Request revision, Open; Awaiting
+your review → Review complete, Open; Checked out to you → Check in,
+Discard, Open; Review due → Mark reviewed, Open; Flagged for review →
+Open only; the two request groups as now. Each button opens THE SAME
+dialog over the list; the list reads again when it closes; one
+document at a time. The guard from the plan: an Approve or Review
+complete dialog opened from the list says "You have not opened this
+document here." with "Open document", and for a Word file the
+tracked-changes line and "Open in Word". **Not possible from the
+list:** hiding Review complete from someone who has finished (the
+history is not read there) — R1's rule refuses the second press.
+**Ben's choice 1: one large panel replaces the drop-down** (about 900
+wide, most of the screen high, full screen on a phone).
+
+**R4 as walked:** about 11.5 days (plan 10.5). No schema.
+
 ---
 
 ## Appendix — the review record (phases 1 and 2, as it was made)
