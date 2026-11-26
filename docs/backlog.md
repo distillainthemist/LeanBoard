@@ -207,6 +207,12 @@ code-app `frame-src`, "Lock every older build". Owed from it:
   running wherever the directory or SharePoint is needed, until Ben's
   test walk. It rides the second release with R4, R5 and R6. Next in
   the programme: tranche 6's walk.
+- **Tranche 5's test walk (2026-11-27, dev `v0.100.0-22-g6435737`):
+  six pass, the Users directory search TO UAT** (UAT-SET-020). Tests
+  1, 2 and 4 were passed before Ben found his window was on the
+  earlier build; no rerun asked for. Owed in UAT now: reviewer seats
+  (R1), one Teams card per person (R3), approving on behalf (R4), the
+  Filters pane (R6), the Users directory search (tranche 5).
 
 **v0.99.0 (2026-11-23, app-only):** tranche 1 of the programme
 (`backlog-programme-2026-11-22.md`) and tranche 1A, the 2026-11-23

@@ -730,7 +730,7 @@ case in the same commit; the case ids are assigned at build.
 
 | ID | Reason | Revisit trigger |
 |---|---|---|
-| 3 | Deferred: keyboard entry in the ingestion grid belongs with tranche 5's type-ahead pickers | Tranche 5's walk — WALKED AND BUILT 2026-11-27 on dev (the programme's "Tranche 5" as built; UAT-DOC-122), unreleased |
+| 3 | Deferred: keyboard entry in the ingestion grid belongs with tranche 5's type-ahead pickers | Tranche 5's walk — WALKED AND BUILT 2026-11-27 on dev (the programme's "Tranche 5" as built; UAT-DOC-122), unreleased; TESTED by Ben on dev 2026-11-27, pass |
 | 27 | Declined: status moves through the existing commands, never a form (Ben) | None |
 
 **Considered within built items and not taken** (each is in its brief's

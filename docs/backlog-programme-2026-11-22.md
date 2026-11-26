@@ -910,6 +910,28 @@ inside a scaled board tile falls back to the old place under its box
 and can still be cut off by the tile. Arrow-key movement between grid
 cells was offered and not chosen.
 
+#### Ben's test walk of tranche 5 on dev (2026-11-27, `v0.100.0-22-g6435737`)
+
+| # | Check | Result |
+|---|---|---|
+| 1 | F1 — a document's person fields (UAT-DOC-120) | Pass. Ben asked whether the list filters by site: it does not — an owner or approver field lists the one owners & approvers group, every site, and the person he missed was not in the group. Three ways to put the document's site first were offered; none wanted |
+| 2 | F1 — Add reviewers, the hand-over, the Filters pane (UAT-DOC-121) | Pass |
+| 3 | F2 — the Users directory search (UAT-SET-020) | TO UAT, unseen |
+| 4 | F3 — the meeting wizard (UAT-RIT-018) | Pass |
+| 5 | F4 — an organisation owner (UAT-SET-021) | Pass, once the player was reopened: the window first showed the old "Choose an owner" dialog because it was still on the earlier build |
+| 6 | F5 — the nine smaller searches | Pass |
+| 7 | The ingestion grid's keys (UAT-DOC-122) — report 3 of the 2026-11-25 round | Pass |
+
+**A caution on tests 1, 2 and 4.** At test 5 Ben found his window had
+not taken the new build. Tests 1, 2 and 4 were passed before that. I
+said so and named how to tell (on the old build an Owner field lists
+nothing on a click, and the wizard's Participants has a Search
+button); Ben did not ask for a rerun. Their UAT cases stand either
+way.
+
+Tranche 5 stands tested on dev, with F2 owed in UAT. Next: tranche 6's
+walk.
+
 ## Tranche 1A — the 2026-11-23 issue export (inserted by Ben, 2026-11-23)
 
 Nine reports from the DMS UAT re-run, reviewed in
