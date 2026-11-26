@@ -1289,6 +1289,27 @@ Key concepts (details: [leanboard-standard-documents-plan.md](leanboard-standard
   report (`issues/audience.ts`); Decline does the same; a merge copies
   the child's followers and re-points reports already merged into the
   child. Settings → Issues filters by UAT run (§6).
+- **Controller tools** (2026-11-27, R4 of the 2026-11-25 round).
+  **Bulk change** — `docs/bulkChangeModel.ts` is the rules (four
+  operations on a several-valued property, the skips, the Importance
+  date rule, the comment, the report) and `docs/bulkChange.ts` the
+  dialog and the writes; the set is whatever the register's filters
+  match (`docsScreen.ts` `gatherFiltered`, the export's own question);
+  each document rides Edit properties' road and `bracket.ts`; nothing
+  is stored about a run. **Rename** is a move onto the new name in the
+  same folder followed by a bracket that records the version;
+  **the effective-date correction** writes the date and the review
+  date the way Approve stamps them (`docs/controllerCmds.ts`, rules in
+  `controllerCmdsModel.ts`). **Approving on behalf**
+  (`docs/onBehalfModel.ts`): a controller not named at an approval
+  step says for whom; evidence is an attachment of parent kind
+  `docapproval` whose parent id is `<file id>/<version>`, read for a
+  whole history in one query (`store/attachments.ts`
+  `listAttachmentsUnder`) and shown on its version by `viewer.ts`.
+  **Document tasks** is one large panel; a task row's buttons open the
+  command's own dialog (`runLifecycle(row, cmd, fromTasks)`), which
+  then says the document has not been opened; a command that lands
+  while the panel is open re-reads its list (`tasksPanelReload`).
 - **Issue statuses and the answers CSV** (2026-11-26, R3 of the
   2026-11-25 round): `issues/status.ts` is the ONE list of statuses,
   their words, which are open, the desk's filters and the CSV's words

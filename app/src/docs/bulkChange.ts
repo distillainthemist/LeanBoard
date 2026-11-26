@@ -21,6 +21,7 @@ import { loadLibraryFields } from "./libraryFields";
 import { savedTerms } from "./ingestionModel";
 import { retryThrottled } from "./ingestionRun";
 import { newBracket, refused } from "./bracket";
+import { dayWords } from "./controllerCmdsModel";
 import { cachedTermPaths, checkInFile, checkOutFile, connectorPatchItem, fetchListModeration, validateUpdateListItem } from "./sp";
 import {
   BulkChange,
@@ -451,7 +452,7 @@ export function openBulkChange(opts: BulkChangeOpts): void {
       }
       if (p.review !== null) {
         const line = el("div", "app-bulk-line");
-        line.append(el("span", "app-bulk-prop", "Review date: "), el("span", "app-bulk-before", p.review.from || "none"), el("span", "app-bulk-arrow", " → "), el("span", "app-bulk-after", p.review.to));
+        line.append(el("span", "app-bulk-prop", "Review date: "), el("span", "app-bulk-before", p.review.from !== "" ? dayWords(p.review.from) : "none"), el("span", "app-bulk-arrow", " → "), el("span", "app-bulk-after", dayWords(p.review.to)));
         diff.appendChild(line);
       }
       for (const n of p.notes) diff.appendChild(el("div", "app-bulk-note", n));

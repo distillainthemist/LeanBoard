@@ -186,9 +186,13 @@ const client = {
     const keep = matcher(options?.filter);
     return ok(rowsOf(name).filter(keep).map((r) => ({ ...r })));
   },
-  // connectors and metadata: not in the harness
-  async executeAsync() {
+  // connectors and metadata: not in the harness — unless a page fakes
+  // them (`window.__harnessExecute`, 2026-11-27: doccontrol.html answers
+  // the few SharePoint calls its dialogs make)
+  async executeAsync(request: unknown) {
     await wait();
+    const fake = (window as unknown as { __harnessExecute?: (r: unknown) => unknown }).__harnessExecute;
+    if (typeof fake === "function") return fake(request);
     return { success: false as const, error: { message: "Not available in the harness" } };
   },
 };

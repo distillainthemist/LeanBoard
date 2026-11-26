@@ -19,6 +19,7 @@
 //    out, or another site's are skipped.
 
 import { LifecycleStage, addMonthsYmd } from "./model";
+import { dayWords } from "./controllerCmdsModel";
 
 export type BulkOp = "set" | "add" | "remove" | "replace";
 export type BulkKind = "taxonomy" | "person" | "choice" | "text";
@@ -264,7 +265,7 @@ export const COMMENT_MAX = 1000;
  *  IT, who ran them and why. */
 export function commentFor(plan: DocPlan, reason: string, actor: string): string {
   const what = plan.writes.map((w) => changeWords(w.change)).join("; ");
-  const moved = plan.review !== null ? ` Review date now ${plan.review.to}.` : "";
+  const moved = plan.review !== null ? ` Review date now ${dayWords(plan.review.to)}.` : "";
   const text = `Bulk change${actor.trim() !== "" ? ` by ${actor.trim()}` : ""}: ${what}.${moved} Reason: ${reason.trim()}`;
   return text.length <= COMMENT_MAX ? text : `${text.slice(0, COMMENT_MAX - 1)}…`;
 }

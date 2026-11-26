@@ -1482,6 +1482,73 @@ wide, most of the screen high, full screen on a phone).
 
 **R4 as walked:** about 11.5 days (plan 10.5). No schema.
 
+### R4 as built (2026-11-27, on dev, NOT released)
+
+**No schema.** A third attachment parent kind, `docapproval`, is text
+in a column that already exists.
+
+| Item | What was built | Where |
+|---|---|---|
+| N3 | "Change properties…" in the Documents ⋮ menu, for controllers and super admins: define the changes, preview, run, download the report | `docs/bulkChangeModel.ts` (pure), `docs/bulkChange.ts`, `docsScreen.ts` (`gatherFiltered`, `openBulkChangeMenu`) |
+| 28 | "Rename…" and "Correct <the column's title>…" in a document's menu, controllers only | `docs/controllerCmdsModel.ts` (pure), `docs/controllerCmds.ts`, `docsScreen.ts` |
+| 12 | "On behalf of" and "Attach evidence…" in the Approve dialog; "📎 Evidence" on the version in the history; a card to the person approved for | `docs/onBehalfModel.ts` (pure), `docs/lifecycleCmds.ts`, `docs/viewer.ts`, `store/attachments.ts`, `attachments/model.ts` |
+| 10 | Document tasks as one large panel with quick actions; a dialog opened from it says the document has not been opened | `docsScreen.ts`, `docs/taskRows.ts`, `docs/lifecycleCmds.ts` |
+
+UAT: UAT-DOC-044 and 046 corrected; UAT-DOC-109 to 115 added (239
+cases). Harness page `doccontrol.html` runs the bulk change, Rename
+and the date correction against a FAKED SharePoint
+(`__harnessExecute` in `harness/dataverseStub.ts`).
+
+**Deviations from the walk, said plainly:**
+
+- **Rename was not probed first, as I said it would be.** I cannot
+  run SharePoint calls myself. It is built on the road the cookbook
+  MEASURED against the controlled library on 2026-10-08 (a move keeps
+  the item, its versions and its approval): move onto the new name,
+  THEN the bracket that records the version. So the order is the
+  walk's "fallback", made the only road. If the bracket is refused the
+  rename has still happened and the dialog says so. A same-folder
+  rename in a controlled library is Ben's first test.
+- **A name already in the folder is refused by SharePoint at the
+  move**, not by a listing beforehand — "Nothing was changed. “<name>”
+  is already in this folder."
+- **Prior names shows in the properties pane** where the library
+  lists that column; nothing new was added to the viewer for it.
+- **A change that would empty a required property skips the whole
+  document**, the other changes of that run with it.
+
+**Limits:**
+
+- **N3 reads at most 2,000 documents into a preview** and says so
+  when it stops there.
+- **N3's rate is not known.** The estimate starts from 15 documents a
+  minute and the run replaces it with its own measured rate after
+  three documents; the summary states the rate it achieved. The plan's
+  "70 a minute" stays unsupported.
+- **N3's refusal words are the single-document dialog's** ("…then
+  press again"): in a batch that means run the change again.
+- **N3 with a multi-value term editor offers "＋ Add a tag…"** (the
+  form's tag proposal) inside the value picker; it is the form's own
+  editor, reused.
+- **12: evidence is saved after the approval lands.** A failed save
+  leaves the approval standing; "Attach again" lasts while the dialog
+  is open. After that, evidence can only be attached by a second
+  approval.
+- **12: the person approved for is told by a card of their own**, sent
+  as the step lands, not through the hand-over panel.
+- **10: the list cannot know a reviewer has finished** (from the
+  walk). It also re-reads the whole list after each step — one
+  SharePoint read per group.
+- **Seen in the harness only, on a faked SharePoint:** the bulk
+  change's property list, the four operations, the preview and each
+  skip reason, the Importance review dates, a run with a document that
+  fails and gives back its check-out, the order of the writes; Rename
+  and the date correction's forms, refusals and writes. **Seen
+  nowhere:** approving on behalf, the evidence chips, the card to the
+  approver, and the Document tasks panel — they need the Documents
+  screen, which the harness cannot mount. All of R4 against real
+  SharePoint is Ben's test walk.
+
 ---
 
 ## Appendix — the review record (phases 1 and 2, as it was made)

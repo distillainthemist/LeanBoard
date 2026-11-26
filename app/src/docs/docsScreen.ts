@@ -98,7 +98,7 @@ import {
   takePendingWorkDoc,
 } from "../links";
 import { rememberTaskCount } from "../taskBadge";
-import { taskGroupHeader, taskRowEl } from "./taskRows";
+import { TaskAction, taskGroupHeader, taskRowEl } from "./taskRows";
 import { CLOSED_SHOWN, closedTasksForPanel, savedTerm, tasksForPanel, IngestionTask } from "./ingestionModel";
 import { isUatHidden } from "./uatLibraries";
 import { SiteBranch, SiteVerdict, docSiteVerdict, scopedSite, siteBranchOf, taskInSite } from "./siteScope";
@@ -2072,7 +2072,17 @@ export function mountDocs(
     };
     /** Recounted in the background — at mount, and after every command
      *  that can change the answer (check-out/in/discard, add, lifecycle). */
+    /** The open task panel's own re-read — a command that lands while
+     *  it is open re-reads the list, which repaints the badge too. */
+    let tasksPanelReload: (() => void) | null = null;
     const refreshTasksBadge = () => {
+      if (tasksPanelReload !== null) tasksPanelReload();
+      else recountTasksBadge();
+    };
+    /** The count alone — never the open panel's list (the list's own
+     *  paint calls this once it has marked grants seen: a re-read from
+     *  there could chase its own tail). */
+    const recountTasksBadge = () => {
       const gen = ++tasksBadgeGen;
       void fetchMyTasks().then((t) => {
         if (dead || gen !== tasksBadgeGen) return;
@@ -2088,9 +2098,12 @@ export function mountDocs(
       const panel = el("div", "app-docs-taskspanel");
       const closePanel = () => {
         scrim.remove();
+        tasksPanelReload = null;
         document.removeEventListener("keydown", onTasksKey, true);
       };
       const onTasksKey = (e: KeyboardEvent) => {
+        // a command's dialog is open over the list: the key is its own
+        if (document.querySelector(".ltk-dialog-overlay") !== null) return;
         if (e.key === "Escape") {
           e.stopPropagation();
           closePanel();
@@ -2100,9 +2113,8 @@ export function mountDocs(
       scrim.addEventListener("pointerdown", (e) => {
         if (e.target === scrim) closePanel();
       });
-      const r = actionNeeded.getBoundingClientRect();
-      panel.style.top = `${r.bottom + 6}px`;
-      panel.style.right = `${Math.max(8, window.innerWidth - r.right)}px`;
+      // one large panel over Documents (report 10, Ben's choice on R4's
+      // walk) — it was a 380 px drop-down under the button
       const bodyEl = el("div", "app-docs-tasksbody");
       const head = el("div", "app-docs-taskshead", "Document tasks");
       // a decision made elsewhere (another person, another tab) shows
@@ -2110,16 +2122,23 @@ export function mountDocs(
       const refreshBtn = el("button", "app-docs-tasksrefresh", "Refresh") as HTMLButtonElement;
       refreshBtn.setAttribute("aria-label", "Refresh tasks");
       refreshBtn.addEventListener("click", () => reload());
-      head.appendChild(refreshBtn);
+      const closeBtn = el("button", "app-docs-tasksrefresh", "Close") as HTMLButtonElement;
+      closeBtn.addEventListener("click", () => closePanel());
+      const headBtns = el("span", "app-docs-tasksheadbtns");
+      headBtns.append(refreshBtn, closeBtn);
+      head.appendChild(headBtns);
       panel.append(head, bodyEl);
       scrim.appendChild(panel);
       document.body.appendChild(scrim);
 
       const reload = () => {
-        clear(bodyEl);
-        bodyEl.appendChild(el("div", "app-loading-line", "Asking SharePoint…"));
+        // the rows stay up while the fresh ones are read: an emptied
+        // list would jump under a dialog that has just closed
+        if (bodyEl.childElementCount === 0) bodyEl.appendChild(el("div", "app-loading-line", "Asking SharePoint…"));
+        else head.classList.add("app-docs-taskshead-busy");
         void fetchMyTasks().then((t) => {
           if (!scrim.isConnected) return;
+          head.classList.remove("app-docs-taskshead-busy");
           clear(bodyEl);
           paintTasksBadge(taskCount(t));
           if (!taskVisible(t)) {
@@ -2131,7 +2150,8 @@ export function mountDocs(
           const group = (
             title: string,
             rows: TaskRow[],
-            pill: (tr: TaskRow) => HTMLElement
+            pill: (tr: TaskRow) => HTMLElement,
+            actions: (tr: TaskRow) => TaskAction[] = () => []
           ) => {
             if (rows.length === 0) return;
             bodyEl.appendChild(taskGroupHeader(title, rows.length));
@@ -2140,14 +2160,26 @@ export function mountDocs(
                 taskRowEl({
                   pill: pill(tr),
                   name: tr.row.name,
-                  meta: tr.why !== "" ? `Due ${tr.why}` : tr.libName,
+                  meta: [tr.why !== "" ? `Due ${tr.why}` : "", tr.libName].filter((x) => x !== "").join(" · "),
                   onOpen: () => {
                     closePanel();
                     onRowOpen(tr.row, { details: true }); // a task open arrives with work to do
                   },
+                  actions: actions(tr),
                 })
               );
             }
+          };
+          // quick actions (report 10): each opens THE SAME dialog the
+          // command has on the document, over this list; the list reads
+          // again when the step lands. One document at a time.
+          const fromList = { unseen: true, onDone: () => reload() };
+          const stepActions = (tr: TaskRow, keys: { key: string; primary?: boolean }[]): TaskAction[] => {
+            const cmds = lifecycleActionsFor(tr.row, byListId.get(tr.row.listId));
+            return keys.flatMap(({ key, primary }) => {
+              const cmd = cmds.find((c) => c.key === key);
+              return cmd === undefined ? [] : [{ label: cmd.label, primary, onClick: () => runLifecycle(tr.row, cmd, fromList) }];
+            });
           };
           // edit-access requests (5G2): decisions about PEOPLE lead —
           // someone is blocked until the owner answers
@@ -2313,11 +2345,17 @@ export function mountDocs(
           }
           // most actionable first: sign-off, then review work, then
           // your own held documents, then the review cadence
-          group("Awaiting your approval", t.toApprove, () => tonePill("◐ Approve", "amber"));
-          group("Awaiting your review", t.toReview, () => tonePill("◐ Review", "amber"));
-          group("Checked out to you", t.held, () => tonePill("🔒 Checked out", "neutral"));
-          group("Review due", t.review, (tr) =>
-            tr.overdue ? tonePill("⚑ Overdue", "red") : tonePill("● Due soon", "amber")
+          group("Awaiting your approval", t.toApprove, () => tonePill("◐ Approve", "amber"), (tr) => stepActions(tr, [{ key: "approve", primary: true }, { key: "requestRevision" }]));
+          group("Awaiting your review", t.toReview, () => tonePill("◐ Review", "amber"), (tr) => stepActions(tr, [{ key: "reviewComplete", primary: true }]));
+          group("Checked out to you", t.held, () => tonePill("🔒 Checked out", "neutral"), (tr) => [
+            { label: "Check in…", primary: true, onClick: () => openCheckIn(tr.row) },
+            { label: "Discard", onClick: () => openDiscard(tr.row) },
+          ]);
+          group(
+            "Review due",
+            t.review,
+            (tr) => (tr.overdue ? tonePill("⚑ Overdue", "red") : tonePill("● Due soon", "amber")),
+            (tr) => (canMarkReviewedRow(tr.row, byListId.get(tr.row.listId)) ? [{ label: "Mark reviewed…", primary: true, onClick: () => openMarkReviewedRow(tr.row) }] : [])
           );
           // flagged for review (issue 23): someone asked; the owner (or
           // a controller) answers from the overlay's flag chip
@@ -2415,7 +2453,7 @@ export function mountDocs(
             if (unseen.length > 0) {
               void import("./accessRequests").then(({ markSeen }) =>
                 markSeen(unseen).then(
-                  () => refreshTasksBadge(),
+                  () => recountTasksBadge(),
                   () => {}
                 )
               );
@@ -2508,6 +2546,7 @@ export function mountDocs(
           }
         });
       };
+      tasksPanelReload = reload;
       reload();
     });
     // toggles that used to be toolbar checkboxes ride the register

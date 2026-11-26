@@ -14,24 +14,57 @@ export function taskGroupHeader(title: string, count: number): HTMLElement {
 
 /** One R5 task row. The caller supplies the pill (tonePill or a
  *  register status chip) and what opening means. */
+/** A task's quick action (report 10, 2026-11-27): it opens the same
+ *  dialog the command has on the document. */
+export interface TaskAction {
+  label: string;
+  primary?: boolean;
+  onClick: () => void;
+}
+
 export function taskRowEl(opts: {
   pill: HTMLElement;
   name: string;
   meta: string;
   onOpen: () => void;
+  /** Buttons on the row; a row with any also gets its own "Open". */
+  actions?: TaskAction[];
 }): HTMLElement {
   const rowEl = el("div", "app-docs-taskrow");
   rowEl.setAttribute("role", "button");
   rowEl.tabIndex = 0;
   rowEl.addEventListener("click", opts.onOpen);
   rowEl.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") opts.onOpen();
+    if (e.key === "Enter" && e.target === rowEl) opts.onOpen();
   });
   const text = el("div", "app-docs-tasktext");
   text.append(
     el("div", "app-docs-taskname", opts.name),
     el("div", "app-field-hint", opts.meta)
   );
-  rowEl.append(opts.pill, text, el("span", "app-docs-taskchev", "›"));
+  rowEl.append(opts.pill, text);
+  const actions = opts.actions ?? [];
+  if (actions.length > 0) {
+    const acts = el("div", "app-docs-taskacts");
+    for (const a of actions) {
+      const b = el("button", a.primary === true ? "app-btn app-btn-primary" : "app-btn", a.label) as HTMLButtonElement;
+      b.type = "button";
+      b.addEventListener("click", (e) => {
+        e.stopPropagation();
+        a.onClick();
+      });
+      acts.appendChild(b);
+    }
+    const open = el("button", "app-link", "Open") as HTMLButtonElement;
+    open.type = "button";
+    open.addEventListener("click", (e) => {
+      e.stopPropagation();
+      opts.onOpen();
+    });
+    acts.appendChild(open);
+    rowEl.appendChild(acts);
+  } else {
+    rowEl.appendChild(el("span", "app-docs-taskchev", "›"));
+  }
   return rowEl;
 }

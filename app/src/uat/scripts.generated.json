@@ -1,6 +1,10 @@
 {
- "generatedAt": "2026-11-26",
+ "generatedAt": "2026-11-27",
  "releases": [
+  {
+   "tag": "v0.100.0",
+   "date": "2026-11-26"
+  },
   {
    "tag": "v0.99.0",
    "date": "2026-11-23"
@@ -1380,9 +1384,9 @@
         "Approve.",
         "On a second request: Decline with a reason."
        ],
-       "expected": "each request is a card — the document name in full, who asked and when, the library, and the whole reason — with Open document, Approve… and Decline… beneath; the panel is wider while requests are listed; nothing is read for the first time inside the Approve dialog; Approve adds the person to the revision editors and the requester's card says so; Decline carries the reason; both leave the queue; the requester's \"Your access requests\" shows the outcome",
-       "hash": "960cc727",
-       "changed": "2026-10-27"
+       "expected": "each request is a card — the document name in full, who asked and when, the library, and the whole reason — with Open document, Approve… and Decline… beneath; nothing is read for the first time inside the Approve dialog; Approve adds the person to the revision editors and the requester's card says so; Decline carries the reason; both leave the queue; the requester's \"Your access requests\" shows the outcome",
+       "hash": "1dd8e4f8",
+       "changed": "2026-11-27"
       },
       {
        "id": "UAT-DOC-045",
@@ -1421,9 +1425,9 @@
         "Read the Documents tab label and the \"Document tasks · n\" button.",
         "Open the panel; count the rows across the groups."
        ],
-       "expected": "the hub tab, the button and the panel agree on one number; the groups appear in order: requests, awaiting approval, awaiting review, checked out, review due, flagged, your requests, grants you made",
-       "hash": "65ec7aa1",
-       "changed": "2026-10-19"
+       "expected": "the hub tab, the button and the panel agree on one number; the panel is ONE LARGE panel over Documents, about 900 wide and most of the screen high, with Refresh and Close in its head (it was a small drop-down under the button until 2026-11-27); the groups appear in order: requests, awaiting approval, awaiting review, checked out, review due, flagged, your requests, grants you made",
+       "hash": "c6926e37",
+       "changed": "2026-11-27"
       },
       {
        "id": "UAT-DOC-047",
@@ -2689,6 +2693,172 @@
        "expected": "step 1 above the decision buttons one line reads \"Tracked changes do not show in this preview.\" with \"Open in Word ↗\" beside it; the button opens the document in Word, where the tracked changes show (2026-11-25 report 17); step 2 no such line — it is for Word files only; an owner looking at their own document with nothing to decide sees no line either; step 3 the preview opens at the top of page 1 (report 11 — a try: the cause was never found); step 4 where the app can show the whole PDF it does; where it falls back to a picture of the first page a line under it reads \"This shows the first page only. Use Open in new tab for the whole document.\" (N4), and a super admin also reads \"Why:\" with the step that failed, the host it asked and what came back — never a signed address",
        "hash": "ad4b0c5b",
        "changed": "2026-11-26"
+      }
+     ]
+    },
+    {
+     "title": "Journey — the 2026-11-25 round, tranche R4 (controller tools)",
+     "cases": [
+      {
+       "id": "UAT-DOC-109",
+       "title": "Change properties: the preview names what changes and what is skipped",
+       "journey": "Journey — the 2026-11-25 round, tranche R4 (controller tools)",
+       "persona": "controller",
+       "modules": [
+        "docs/bulkChange.ts",
+        "docs/bulkChangeModel.ts",
+        "docs/docsScreen.ts"
+       ],
+       "preconditions": "a document controller; a process area (or another several-valued term property) carried by at least six documents in Controlled standards: some approved, one in review, one checked out to someone else, one DRAFT (being revised or never approved); one document that does not have the term",
+       "steps": [
+        "As a reader, then as a controller, open the Documents ⋮ menu.",
+        "Filter the register to the process area. Choose \"Change properties…\". Read the dialog and the Preview button.",
+        "Choose the property. Read the operations offered. Choose \"Replace one with another\", pick the area you filtered by and a different one to replace it. Read the Preview button.",
+        "Give a reason and press Preview.",
+        "Open \"Skipped\". Untick one document. Press Back, then Preview again.",
+        "Press Close."
+       ],
+       "expected": "step 1 \"Change properties…\" is in the menu for a controller (and a super admin) only; step 2 the dialog says it works on every document the current filters match, naming the libraries; Preview is greyed with \"Choose a property.\"; the list of properties has no status, no document id, no name and no date; step 3 a several-valued property offers Set to, Add, Remove and Replace one with another — a single-valued one offers no choice of operation; Preview stays greyed and its tooltip says what is still needed, the reason last; step 4 the count line reads \"N of N documents will change, M are skipped.\" with an estimate and \"the tab has to stay open\"; each document is a row with a tick, its library and stage, and the present value struck through beside the new one — only the replaced value moves, its other values stay; the DRAFT is listed to change and marked \"Being revised or not yet approved: this change is part of the draft, and is lost if the revision is cancelled.\"; step 5 the skipped list gives each document's reason — \"It is in review.\", \"Checked out to <name>.\", \"… does not have “<value>”.\"; the button counts the ticked documents; Back keeps the property, the values and the reason; step 6 NOTHING was written — every document is as it was",
+       "hash": "418f2225",
+       "changed": "2026-11-27"
+      },
+      {
+       "id": "UAT-DOC-110",
+       "title": "Change properties: the run, a document that fails, and the report",
+       "journey": "Journey — the 2026-11-25 round, tranche R4 (controller tools)",
+       "persona": "controller",
+       "modules": [
+        "docs/bulkChange.ts",
+        "docs/bulkChangeModel.ts",
+        "docs/bracket.ts",
+        "docs/publish.ts"
+       ],
+       "preconditions": "the set of UAT-DOC-109; one of its approved documents OPEN IN WORD on another device (or by another person) so its check-in is refused",
+       "steps": [
+        "Preview the change of UAT-DOC-109 with a reason. Press \"Change N documents\". Watch the line under the list.",
+        "Read each row's result and the summary.",
+        "Press \"Download report\" and open the file.",
+        "Close. Open one changed approved document: its properties, its version history. Open the draft.",
+        "Close the document in Word. Filter the same way and run the SAME change again."
+       ],
+       "expected": "step 1 the line counts \"Changing 2 of N · about … left\"; the Close button reads Stop while it runs (Stop finishes the document in hand); step 2 each row ends \"Changed ✓\" or with its reason; the document open in Word reads that it is open in Word and that NOTHING WAS CHANGED — it is not left checked out to you; the summary gives the counts and how many documents a minute the run managed; step 3 a CSV whose first line says who ran what, when and why, then one line per document and property: the old value, the new value, the result and the reason — the skipped and unticked documents included; step 4 the property carries the new value and the others it had; the history has a new version whose comment reads \"Bulk change by <you>: <property>: “A” replaced with “B”. Reason: <reason>\", published — readers see it without a separate approval; its effective date and review date are as they were; the draft carries the change as a draft; step 5 the preview lists only the document that failed — every document that already has the new value is skipped with that reason — and the run changes it",
+       "hash": "a041d168",
+       "changed": "2026-11-27"
+      },
+      {
+       "id": "UAT-DOC-111",
+       "title": "Change properties: several at once, and Importance",
+       "journey": "Journey — the 2026-11-25 round, tranche R4 (controller tools)",
+       "persona": "controller",
+       "modules": [
+        "docs/bulkChange.ts",
+        "docs/bulkChangeModel.ts",
+        "docs/model.ts"
+       ],
+       "preconditions": "four approved documents of Low importance with an effective date and a review date; Importance mapped to cadences in Settings → Documents (High shorter than Low); a tags property",
+       "steps": [
+        "Filter to the four. \"Change properties…\": Importance, Set to High. Press \"＋ Another property\": Tags, Add, a tag. Give a reason. Preview.",
+        "Read each row.",
+        "Run it. Open one document's properties and its history.",
+        "Preview \"Tags, Remove\" of a tag on a library where Tags is REQUIRED and a document has only that tag."
+       ],
+       "expected": "step 2 each row shows both changes, and a line \"Review date: <old> → <new>\" counted from the document's EFFECTIVE date by the new cadence; a document whose new review date is already past says it becomes due for review at once; step 3 ONE new version per document carrying both changes and \"Review date now <date>\" in its comment; Importance, the cadence and the review date agree; the EFFECTIVE DATE IS UNCHANGED (the last approved or reviewed date is never written by a bulk change); a document made due appears under Review due in Document tasks; step 4 that document is skipped: \"Tags is required here and would be left empty.\" A bulk change of any property other than Importance moves no date",
+       "hash": "6efa44dc",
+       "changed": "2026-11-27"
+      },
+      {
+       "id": "UAT-DOC-112",
+       "title": "Rename a document",
+       "journey": "Journey — the 2026-11-25 round, tranche R4 (controller tools)",
+       "persona": "controller",
+       "modules": [
+        "docs/controllerCmds.ts",
+        "docs/controllerCmdsModel.ts",
+        "docs/docsScreen.ts"
+       ],
+       "preconditions": "a document controller; an approved document in Controlled standards; a second document in the same folder; a link to the first copied from the app (\"Copy link\") and one made in another document's Linked documents; a library that maps a \"Prior names\" column, if the site has one",
+       "steps": [
+        "As the document's owner (not a controller) open its menu. Then as a controller.",
+        "Choose \"Rename…\". Read the dialog. Type the SAME name; a name with a colon; the second document's name.",
+        "Type a new name and a reason. Press Rename.",
+        "Read the register, the document's history and its properties.",
+        "Open the two links made before the rename.",
+        "Try \"Rename…\" on a document in review, and on one checked out."
+       ],
+       "expected": "step 1 \"Rename…\" is offered to a controller only; step 2 the name is in a box with the file type beside it, fixed; the button is greyed with its reason — \"That is the name it has.\", \"A name cannot hold :\"; a name already in the folder is refused when pressed: \"Nothing was changed. “<name>” is already in this folder.\"; step 3 the dialog closes and the status line reads \"Renamed to “<new name>”.\"; step 4 the register shows the new name; the history has a new version, published, whose comment reads \"Renamed from “A” to “B” by <you>. Reason: <reason>\"; where the library has Prior names the old name is in it, and the Title follows where it held the old name; step 5 both links still open the document; step 6 neither is offered Rename. Known: a link copied from SharePoint's own address bar before the rename stops working",
+       "hash": "b488574b",
+       "changed": "2026-11-27"
+      },
+      {
+       "id": "UAT-DOC-113",
+       "title": "Correct the effective date",
+       "journey": "Journey — the 2026-11-25 round, tranche R4 (controller tools)",
+       "persona": "controller",
+       "modules": [
+        "docs/controllerCmds.ts",
+        "docs/controllerCmdsModel.ts",
+        "docs/docsScreen.ts"
+       ],
+       "preconditions": "a document controller; an approved document with an effective date and a review date (an ingested one whose date is wrong is the real case); its Importance mapped to a cadence",
+       "steps": [
+        "Open the document's menu and read the command's name. Compare it with the column's title in the properties pane.",
+        "Choose it. Read the dialog. Pick tomorrow; pick the date it already has.",
+        "Pick a date some years back and read the line under it. Give a reason. Press \"Correct the date\".",
+        "Read the properties, the history and Document tasks.",
+        "Look for the command on a draft, on a document in review, and as the document's owner."
+       ],
+       "expected": "step 1 the command takes the COLUMN'S OWN TITLE — \"Correct effective date…\" where the library calls it Effective date; step 2 the dialog shows the date it has now; a future date cannot be picked; the same date reads \"That is the date it has.\"; step 3 \"Review date will be <date>.\" — the corrected date plus the document's cadence — and, when that is already past, \"That is already past: the document will be due for review at once.\"; step 4 both dates are the new ones; the history has a new version, published, whose comment reads \"<Column> corrected from <old> to <new> by <you>. Review date now <date>. Reason: <reason>\"; a document made due is under Review due; the cadence is unchanged; step 5 the command is offered on approved, superseded and obsolete documents, to controllers only. Known: Mark reviewed stamps the SAME column — correcting it back to an approval date undoes a later review",
+       "hash": "a23be35e",
+       "changed": "2026-11-27"
+      },
+      {
+       "id": "UAT-DOC-114",
+       "title": "Approve on behalf of someone, with evidence",
+       "journey": "Journey — the 2026-11-25 round, tranche R4 (controller tools)",
+       "persona": "team",
+       "modules": [
+        "docs/lifecycleCmds.ts",
+        "docs/onBehalfModel.ts",
+        "docs/viewer.ts",
+        "store/attachments.ts",
+        "attachments/model.ts",
+        "docs/docsScreen.ts"
+       ],
+       "preconditions": "a document awaiting approval that names two approvers and an owner; a document controller who is NEITHER; an email or PDF to attach; Teams reaches the approvers and the owner",
+       "steps": [
+        "(controller) Open the document and press Approve. Read the dialog and the Approve button.",
+        "(controller) Tick one approver. Press \"Attach evidence…\" and choose the file. Add a comment. Press Approve.",
+        "(controller) Read the dialog after it lands.",
+        "(that approver) Read Teams.",
+        "(anyone who can open the document) Open its version history.",
+        "(controller) At the owner's step press Approve again.",
+        "(a named approver who is also a controller) Press Approve on a document awaiting THEIR approval."
+       ],
+       "expected": "step 1 the dialog has \"On behalf of\" with a red asterisk listing the document's named approvers, none ticked; Approve is greyed with \"Still needed: On behalf of\"; step 2 the file is a chip that can be removed; step 3 the status has moved; the dialog stays open to say \"<approver> has been told it was approved on their behalf.\"; step 4 ONE card, \"Approved on your behalf — <document>\", saying who endorsed it in their name, that evidence was attached, the comment, and to speak up if it was not agreed; step 5 that version's comment reads \"Approved by <controller> on behalf of <approver> — <comment>\" and its row shows \"📎 Evidence\" with the file, which opens; step 6 \"On behalf of\" now offers the OWNER, already ticked (one person: nothing to choose); the comment names both; step 7 no \"On behalf of\" at all — they approve in their own right. If a file cannot be saved the approval still stands, the dialog says so and \"Attach again\" retries it",
+       "hash": "5c735162",
+       "changed": "2026-11-27"
+      },
+      {
+       "id": "UAT-DOC-115",
+       "title": "Document tasks: act from the list",
+       "journey": "Journey — the 2026-11-25 round, tranche R4 (controller tools)",
+       "persona": "owner",
+       "modules": [
+        "docs/docsScreen.ts",
+        "docs/taskRows.ts",
+        "docs/lifecycleCmds.ts"
+       ],
+       "preconditions": "documents awaiting your approval (one a Word file), one awaiting your review, one checked out to you, one with its review due",
+       "steps": [
+        "Press \"Document tasks\". Read the rows of each group.",
+        "On a document awaiting your approval press Approve. Read the dialog. Press \"Open document\".",
+        "Open Document tasks again. Press Approve on the Word file. Read the dialog, then approve.",
+        "Press \"Review complete\" on the review row; \"Check in…\" on the checked-out row; \"Mark reviewed…\" on the review-due row.",
+        "Press Escape with a dialog open over the list, then with the list alone."
+       ],
+       "expected": "step 1 Awaiting your approval → Approve, Request revision, Open; Awaiting your review → Review complete, Open; Checked out to you → Check in…, Discard, Open; Review due → Mark reviewed…, Open; Flagged for review → opens the document, no button; step 2 THE SAME Approve dialog as on the document, over the list, with a line \"You have not opened this document here.\" and \"Open document\", which opens it; step 3 for the Word file the line also reads \"Tracked changes do not show in the preview.\" with \"Open in Word ↗\"; when the step lands the list reads again and the row has left it; the badge follows; step 4 each opens its own dialog as on the document, and the row leaves when it lands; a reviewer who had already finished is refused by the dialog's own message (the list cannot know); step 5 Escape with a dialog open leaves the list where it was; with the list alone it closes the list. One document at a time: there is no \"approve all\"",
+       "hash": "2f43a99f",
+       "changed": "2026-11-27"
       }
      ]
     }

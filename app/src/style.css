@@ -2631,11 +2631,26 @@ button.app-docs-navterm.app-docs-navterm-on {
   font-weight: 600;
 }
 .app-docs-tasksscrim { position: fixed; inset: 0; z-index: 9000; }
+/* one large panel over Documents (2026-11-27, report 10) — it was a
+   380 px drop-down under its button */
+.app-docs-tasksscrim { background: rgba(38, 36, 31, 0.28); }
 .app-docs-taskspanel {
-  position: fixed; width: min(380px, calc(100vw - 24px));
-  max-height: min(60vh, 480px); overflow-y: auto;
+  position: fixed; top: 5vh; left: 50%; transform: translateX(-50%);
+  width: min(900px, calc(100vw - 24px));
+  max-height: 88vh; overflow-y: auto;
   background: #fff; border: 1px solid #ddd9d1; border-radius: 8px;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18); padding: 10px 12px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18); padding: 12px 16px 16px;
+}
+.app-docs-taskshead { position: sticky; top: -12px; background: #fff; padding: 6px 0; margin-top: -6px; z-index: 1; }
+.app-docs-taskshead-busy::after { content: "Refreshing…"; font-weight: 400; font-size: 12px; color: #6d675c; margin-left: 10px; }
+.app-docs-tasksheadbtns { display: inline-flex; gap: 4px; margin-left: auto; }
+.app-docs-taskacts { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; margin-left: auto; }
+.app-docs-taskacts .app-btn { min-height: 30px; padding: 3px 10px; font-size: 12.5px; }
+.app-docs-taskacts .app-link { font-size: 12.5px; }
+@media (max-width: 640px) {
+  .app-docs-taskspanel { top: 0; left: 0; transform: none; width: 100vw; max-height: 100vh; height: 100vh; border-radius: 0; border: none; box-sizing: border-box; }
+  .app-docs-taskrow { flex-wrap: wrap; }
+  .app-docs-taskacts { width: 100%; justify-content: flex-start; }
 }
 .app-docs-taskshead { font-weight: 700; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .app-docs-tasksrefresh {
@@ -2672,7 +2687,7 @@ button.app-docs-tasksgroup-fold:hover, button.app-docs-tasksgroup-fold:focus-vis
 .app-docs-taskact { align-self: flex-start; margin-top: 4px; font-size: 12px; padding: 3px 10px; }
 /* an edit-access request is a CARD (2026-10-28 report 1): the whole
    request readable before any decision; the panel widens to hold it */
-.app-docs-taskspanel-wide { width: min(520px, calc(100vw - 24px)); }
+/* (the panel is always wide since 2026-11-27) */
 .app-docs-reqcard {
   display: flex; flex-direction: column; gap: 3px;
   padding: 8px; border-radius: 5px; border: 1px solid #eceae5; margin-bottom: 6px;

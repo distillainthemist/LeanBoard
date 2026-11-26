@@ -144,10 +144,19 @@ code-app `frame-src`, "Lock every older build". Owed from it:
 - **Ben's own:** set the 2027 structure with the panel before January;
   tell sites "Done" now reads "Resolved"; the BSL process-tree repair
   waits for R4's bulk change.
-- **Next:** walk R4 (bulk change of properties, rename and correct
-  approval date, approving on behalf, document tasks), then R5 and R6,
-  the second release, and the round's resolution CSV. Tranche 5 of the
-  programme follows the round.
+- **R4 walked (nine items) and BUILT 2026-11-27, on dev, NOT
+  released, no schema** — controller tools: "Change properties…" (bulk
+  change with four operations, a preview, a run that gives back a
+  failed document's check-out, a downloaded report; Importance moves
+  the review date, never the effective date); "Rename…" and "Correct
+  <column>…" for controllers; approving on behalf with evidence and a
+  card to the person approved for; Document tasks as one large panel
+  with quick actions. As built and its limits: the plan's "R4 as
+  built". An answers file for the sixteen issues v0.100.0 settles or
+  answers is in `issue-resolutions-2026-11-25-v0.100.0.csv`.
+- **Next:** R4's test walk, then walk R5 and R6, the second release,
+  and the round's full resolution CSV. Tranche 5 of the programme
+  follows the round.
 
 **v0.99.0 (2026-11-23, app-only):** tranche 1 of the programme
 (`backlog-programme-2026-11-22.md`) and tranche 1A, the 2026-11-23
