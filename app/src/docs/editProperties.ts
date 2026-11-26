@@ -13,6 +13,7 @@
 // dates through the connector's typed item surface. An empty editor
 // writes nothing — v1 changes values, it does not clear them.
 
+import { newBracket, refused } from "./bracket";
 import { clear, el } from "../../../shared/ui/dom";
 import { openDialog } from "../../../shared/ui/dialog";
 import { DocLibrary } from "./docsStore";
@@ -164,6 +165,16 @@ export function openEditProperties(opts: EditPropertiesOpts): void {
 
   const fail = (what: string, why: string) => {
     status.textContent = `${what}: ${spErrorText(why).slice(0, 300)}`;
+    status.classList.add("app-docs-addstatus-warn");
+    running = false;
+    sync();
+  };
+  // a refusal inside the check-out THIS save took gives it back; the
+  // form keeps what was typed (bracket.ts)
+  const bracket = newBracket(site, row.serverUrl);
+  const failIn = async (what: string, why: string, inBracket = true) => {
+    status.textContent = "Putting it back as it was…";
+    status.textContent = await refused(bracket, what, why, inBracket);
     status.classList.add("app-docs-addstatus-warn");
     running = false;
     sync();
@@ -337,8 +348,9 @@ export function openEditProperties(opts: EditPropertiesOpts): void {
       status.textContent = "Taking the check-out…";
       const out = await timed(checkOutFile(site, row.serverUrl), "Check-out");
       if (!out.ok && !/checked out/i.test(spErrorText(out.status))) {
-        return fail("Could not check out", out.status);
+        return failIn("Could not check out", out.status, false);
       }
+      bracket.took = out.ok;
     }
 
     const { formValues, patch } = splitAddWrites(editors.map((e) => e.read()));
@@ -350,7 +362,7 @@ export function openEditProperties(opts: EditPropertiesOpts): void {
       // DOC-030, 2026-10-26), so the form says so first
       const linksField = libFields.find((f) => f.internal === opts.links?.internal);
       if (linksField?.type === "Text" && linksValue.length > 255) {
-        return fail(
+        return failIn(
           "Not saved",
           `This library's Linked documents column (${linksField.title}) is a single line of text, which holds 255 characters — one link at most. A document controller changes it to multiple lines of text in the library's settings; every link fits then.`
         );
@@ -387,10 +399,10 @@ export function openEditProperties(opts: EditPropertiesOpts): void {
       );
       const errs = validateItemErrors(res.data);
       if (!res.ok || errs.length > 0) {
-        return fail(
+        return failIn(
           heldByMe
             ? "Some properties were refused"
-            : "Some properties were refused (the document stays checked out)",
+            : "Some properties were refused",
           errs.map((x) => `${x.field}: ${x.message}`).join("; ") || res.status
         );
       }
@@ -402,10 +414,10 @@ export function openEditProperties(opts: EditPropertiesOpts): void {
         "The term write"
       );
       if (!res.ok) {
-        return fail(
+        return failIn(
           heldByMe
             ? "The term write was refused"
-            : "The term write was refused (the document stays checked out)",
+            : "The term write was refused",
           res.status
         );
       }
@@ -423,8 +435,9 @@ export function openEditProperties(opts: EditPropertiesOpts): void {
         cin = await timed(checkInFile(site, row.serverUrl, comment.value.trim(), true), "Check-in (major)");
       }
       if (!cin.ok && !/not checked out/i.test(spErrorText(cin.status))) {
-        return fail("Check-in was refused (the document stays checked out)", cin.status);
+        return failIn("Check-in was refused", cin.status);
       }
+      bracket.took = false;
       // CA1 (Ben, 2026-08-09): on a moderated library the bracket's
       // minor check-in lands PENDING, hiding the metadata fix from
       // readers behind an approval process nobody meant to start. A

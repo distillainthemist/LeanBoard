@@ -4883,13 +4883,14 @@ export function mountDocs(
         buttons: [{ label: "Close", kind: "secondary", onClick: () => dlg.close() }],
       });
       // SharePoint's own sentence, not the JSON-inside-JSON it travels in
-      dlg.body.appendChild(
-        el(
-          "div",
-          "app-field-hint",
-          why !== "" ? spErrorText(why) : "SharePoint refused it without saying why."
-        )
-      );
+      // — and Word's lock in plain words (report 14, 2026-11-25)
+      const line = el("div", "app-field-hint", why !== "" ? spErrorText(why) : "SharePoint refused it without saying why.");
+      dlg.body.appendChild(line);
+      if (why !== "") {
+        void import("./bracket").then(({ plainRefusal }) => plainRefusal(why)).then((words) => {
+          if (line.isConnected) line.textContent = words;
+        }).catch(() => undefined);
+      }
     };
 
     /**

@@ -13,6 +13,7 @@
 // still race, but entries are tiny, per-document-per-person, and a lost
 // write is a re-request, not corruption.
 
+import { newBracket, refused } from "./bracket";
 import { el } from "../../../shared/ui/dom";
 import { openDialog } from "../../../shared/ui/dialog";
 import { Ben_ltkdoclibrariesService } from "../generated/services/Ben_ltkdoclibrariesService";
@@ -374,6 +375,14 @@ export function openApproveRequest(opts: ApproveRequestOpts): void {
     running = false;
     goBtn.disabled = false;
   };
+  const bracket = newBracket(site, row.serverUrl);
+  const failIn = async (what: string, why: string, inBracket = true) => {
+    status.textContent = "Putting it back as it was…";
+    status.textContent = await refused(bracket, what, why, inBracket);
+    status.classList.add("app-docs-addstatus-warn");
+    running = false;
+    goBtn.disabled = false;
+  };
 
   const go = async () => {
     if (running) return;
@@ -410,8 +419,9 @@ export function openApproveRequest(opts: ApproveRequestOpts): void {
     status.textContent = "Taking the check-out…";
     const out = await timedSp(checkOutFile(site, row.serverUrl), "Check-out");
     if (!out.ok && !/checked out/i.test(spErrorText(out.status))) {
-      return fail("Could not check out", out.status);
+      return failIn("Could not check out", out.status, false);
     }
+    bracket.took = out.ok;
 
     status.textContent = "Writing the grant…";
     const everyone = [
@@ -432,8 +442,8 @@ export function openApproveRequest(opts: ApproveRequestOpts): void {
     );
     const errs = validateItemErrors(wrote.data);
     if (!wrote.ok || errs.length > 0) {
-      return fail(
-        "The grant write was refused (the document stays checked out)",
+      return failIn(
+        "The grant write was refused",
         errs.map((e) => `${e.field}: ${e.message}`).join("; ") || wrote.status
       );
     }
@@ -449,8 +459,9 @@ export function openApproveRequest(opts: ApproveRequestOpts): void {
       "Check-in"
     );
     if (!cin.ok && !/not checked out/i.test(spErrorText(cin.status))) {
-      return fail("Check-in was refused (the document stays checked out)", cin.status);
+      return failIn("Check-in was refused", cin.status);
     }
+    bracket.took = false;
 
     // the authorization is on the record — the seat and the ledger are
     // cleanup from here, warned but never a rollback. The SITE group is
@@ -631,8 +642,10 @@ export function openRevokeAccess(opts: RevokeAccessOpts): void {
   );
   const status = el("div", "app-docs-addstatus");
   dlg.body.appendChild(status);
-  const fail = (what: string, why: string) => {
-    status.textContent = `${what}: ${spErrorText(why).slice(0, 300)}`;
+  const bracket = newBracket(site, row.serverUrl);
+  const failIn = async (what: string, why: string, inBracket = true) => {
+    status.textContent = "Putting it back as it was…";
+    status.textContent = await refused(bracket, what, why, inBracket);
     status.classList.add("app-docs-addstatus-warn");
     running = false;
   };
@@ -645,8 +658,9 @@ export function openRevokeAccess(opts: RevokeAccessOpts): void {
     status.textContent = "Taking the check-out…";
     const out = await timedSp(checkOutFile(site, row.serverUrl), "Check-out");
     if (!out.ok && !/checked out/i.test(spErrorText(out.status))) {
-      return fail("Could not check out", out.status);
+      return failIn("Could not check out", out.status, false);
     }
+    bracket.took = out.ok;
     status.textContent = "Clearing the grant…";
     const wrote = await timedSp(
       validateUpdateListItem(
@@ -665,8 +679,8 @@ export function openRevokeAccess(opts: RevokeAccessOpts): void {
     );
     const errs = validateItemErrors(wrote.data);
     if (!wrote.ok || errs.length > 0) {
-      return fail(
-        "The clear was refused (the document stays checked out)",
+      return failIn(
+        "The clear was refused",
         errs.map((e) => `${e.field}: ${e.message}`).join("; ") || wrote.status
       );
     }
@@ -676,8 +690,9 @@ export function openRevokeAccess(opts: RevokeAccessOpts): void {
       "Check-in"
     );
     if (!cin.ok && !/not checked out/i.test(spErrorText(cin.status))) {
-      return fail("Check-in was refused (the document stays checked out)", cin.status);
+      return failIn("Check-in was refused", cin.status);
     }
+    bracket.took = false;
     status.textContent = "Releasing editor access…";
     const warn = await releaseGrants(
       row.uniqueId,

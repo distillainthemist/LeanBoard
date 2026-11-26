@@ -31,6 +31,7 @@ import { NotifyContext } from "./notifyModel";
 import { attachNotifyPanel } from "./notifyPanel";
 import { DocRow, formatDayMonthYear } from "./rows";
 import { publishReaderFacing } from "./publish";
+import { newBracket, refused } from "./bracket";
 import {
   checkInFile,
   checkOutFile,
@@ -378,6 +379,16 @@ export function openLifecycleCommand(opts: LifecycleRunOpts): void {
     running = false;
     sync();
   };
+  // a refusal INSIDE the check-out: a check-out this step took is given
+  // back, so the step is all or nothing (bracket.ts)
+  const bracket = newBracket(site, row.serverUrl);
+  const failIn = async (what: string, why: string, inBracket = true) => {
+    status.textContent = "Putting it back as it was…";
+    status.textContent = await refused(bracket, what, why, inBracket);
+    status.classList.add("app-docs-addstatus-warn");
+    running = false;
+    sync();
+  };
 
   const run = async () => {
     if (running || (command.needsReason && reason.value.trim() === "")) return;
@@ -419,8 +430,10 @@ export function openLifecycleCommand(opts: LifecycleRunOpts): void {
               "if it persists, an admin should confirm the editors group has edit " +
               "rights on this library)"
             : "Could not check out";
-        return fail(what, out.status);
+        return failIn(what, out.status, false);
       }
+    } else {
+      bracket.took = true;
     }
 
     // additions to the reviewers column go in FIRST, under the same
@@ -448,8 +461,8 @@ export function openLifecycleCommand(opts: LifecycleRunOpts): void {
       );
       const errs = validateItemErrors(res.data);
       if (!res.ok || errs.length > 0) {
-        return fail(
-          "Adding reviewers was refused (the document stays checked out)",
+        return failIn(
+          "Adding reviewers was refused",
           errs.map((e) => `${e.field}: ${e.message}`).join("; ") || res.status
         );
       }
@@ -467,7 +480,7 @@ export function openLifecycleCommand(opts: LifecycleRunOpts): void {
       "The status write"
     );
     if (!patch.ok) {
-      return fail("The status write was refused (the document stays checked out)", patch.status);
+      return failIn("The status write was refused", patch.status);
     }
 
     // the successor link, in the same check-out as the status (DOC-041)
@@ -484,7 +497,7 @@ export function openLifecycleCommand(opts: LifecycleRunOpts): void {
       );
       const lerrs = validateItemErrors(lw.data);
       if (!lw.ok || lerrs.length > 0) {
-        return fail("The successor link was refused (the document stays checked out)", lerrs.map((e) => `${e.field}: ${e.message}`).join("; ") || lw.status);
+        return failIn("The successor link was refused", lerrs.map((e) => `${e.field}: ${e.message}`).join("; ") || lw.status);
       }
     }
 
@@ -509,8 +522,8 @@ export function openLifecycleCommand(opts: LifecycleRunOpts): void {
       );
       const errs = validateItemErrors(cleared.data);
       if (!cleared.ok || errs.length > 0) {
-        return fail(
-          "Ending edit access was refused (the document stays checked out)",
+        return failIn(
+          "Ending edit access was refused",
           errs.map((e) => `${e.field}: ${e.message}`).join("; ") || cleared.status
         );
       }
@@ -554,8 +567,8 @@ export function openLifecycleCommand(opts: LifecycleRunOpts): void {
         );
         const stErrs = validateItemErrors(st.data);
         if (!st.ok || stErrs.length > 0) {
-          return fail(
-            "The date stamp was refused (the document stays checked out)",
+          return failIn(
+            "The date stamp was refused",
             stErrs.map((e) => `${e.field}: ${e.message}`).join("; ") || st.status
           );
         }
@@ -566,6 +579,7 @@ export function openLifecycleCommand(opts: LifecycleRunOpts): void {
     // it live inside the check-out — nothing is published until a
     // submit checks in
     if (command.staysCheckedOut === true) {
+      bracket.took = false; // kept on purpose
       dlg.close();
       opts.onDone();
       return;
@@ -577,9 +591,10 @@ export function openLifecycleCommand(opts: LifecycleRunOpts): void {
       "Check-in"
     );
     if (!cin.ok && !/not checked out/i.test(spErrorText(cin.status))) {
-      return fail("Check-in was refused (the document stays checked out)", cin.status);
+      return failIn("Check-in was refused", cin.status);
     }
 
+    bracket.took = false; // checked in: nothing left to give back
     // the command LANDED — everything below is follow-through, warned
     // but never fatal. When a warning holds the dialog open, its
     // buttons must say so: "Cancel" becomes "Close" and the primary
@@ -887,8 +902,10 @@ export function openMarkReviewed(opts: MarkReviewedOpts): void {
   };
   sync();
 
-  const fail = (what: string, why: string) => {
-    status.textContent = `${what}: ${spErrorText(why).slice(0, 300)}`;
+  const bracket = newBracket(site, row.serverUrl);
+  const failIn = async (what: string, why: string, inBracket = true) => {
+    status.textContent = "Putting it back as it was…";
+    status.textContent = await refused(bracket, what, why, inBracket);
     status.classList.add("app-docs-addstatus-warn");
     running = false;
     sync();
@@ -907,8 +924,9 @@ export function openMarkReviewed(opts: MarkReviewedOpts): void {
     status.textContent = "Taking the check-out…";
     const out = await timed(checkOutFile(site, row.serverUrl), "Check-out");
     if (!out.ok && !/checked out/i.test(spErrorText(out.status))) {
-      return fail("Could not check out", out.status);
+      return failIn("Could not check out", out.status, false);
     }
+    bracket.took = out.ok;
 
     status.textContent = "Setting the review dates…";
     const stamps: { FieldName: string; FieldValue: string }[] = [
@@ -929,8 +947,8 @@ export function openMarkReviewed(opts: MarkReviewedOpts): void {
     );
     const errs = validateItemErrors(res.data);
     if (!res.ok || errs.length > 0) {
-      return fail(
-        "The date write was refused (the document stays checked out)",
+      return failIn(
+        "The date write was refused",
         errs.map((e) => `${e.field}: ${e.message}`).join("; ") || res.status
       );
     }
@@ -940,8 +958,9 @@ export function openMarkReviewed(opts: MarkReviewedOpts): void {
     const comment = extra !== "" ? `Periodic review — no changes — ${extra}` : "Periodic review — no changes";
     const cin = await timed(checkInFile(site, row.serverUrl, comment, false), "Check-in");
     if (!cin.ok && !/not checked out/i.test(spErrorText(cin.status))) {
-      return fail("Check-in was refused (the document stays checked out)", cin.status);
+      return failIn("Check-in was refused", cin.status);
     }
+    bracket.took = false;
 
     // CA1: Mark reviewed only exists on an APPROVED document, so its
     // minor check-in must publish on a moderated library — otherwise
