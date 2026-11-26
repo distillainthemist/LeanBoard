@@ -22,17 +22,8 @@ import { Ben_ltkissuewatchsService } from "../generated/services/Ben_ltkissuewat
 import type { Ben_ltkissues } from "../generated/models/Ben_ltkissuesModel";
 import { AudienceMember, audienceLine, issueAudience, sendLabel } from "./audience";
 import { queueOrder } from "./queueOrder";
+import { ANSWER_STATUSES, PICKABLE_STATUSES, STATUS_FILTERS, STATUS_WORDS, isOpenStatus, openFilter } from "./status";
 
-const OPEN_STATUSES = ["new", "triaged", "inprogress"] as const;
-const STATUS_WORDS: Record<string, string> = {
-  new: "New",
-  triaged: "Triaged",
-  inprogress: "In progress",
-  done: "Done",
-  declined: "Declined",
-  merged: "Merged",
-  withdrawn: "Withdrawn",
-};
 const AREA_WORDS: Record<string, string> = {
   boards: "Boards",
   cards: "Cards",
@@ -89,24 +80,14 @@ export async function renderIssuesAdmin(body: HTMLElement): Promise<void> {
   body.appendChild(
     note(
       "Reports and ideas from the ⚐ Report button. Status changes write themselves into " +
-        "the reporter's thread; declining asks you for a message first."
+        "the reporter's thread; declining, deferring and closing as not a software issue ask you for a message first."
     )
   );
 
   // ---- filters ----------------------------------------------------------
   const filters = el("div", "app-issad-filters");
   const statusSel = el("select", "app-input") as HTMLSelectElement;
-  for (const [v, l] of [
-    ["open", "Open (new · triaged · in progress)"],
-    ["new", "New"],
-    ["triaged", "Triaged"],
-    ["inprogress", "In progress"],
-    ["done", "Done"],
-    ["declined", "Declined"],
-    ["merged", "Merged"],
-    ["withdrawn", "Withdrawn"],
-    ["all", "Everything"],
-  ]) {
+  for (const [v, l] of STATUS_FILTERS) {
     const o = el("option", "", l) as HTMLOptionElement;
     o.value = v;
     statusSel.appendChild(o);
@@ -165,7 +146,7 @@ export async function renderIssuesAdmin(body: HTMLElement): Promise<void> {
   const openIds = new Set<string>();
   /** Does a status still belong in the list under its filter? */
   const inFilter = (status: string): boolean =>
-    statusSel.value === "all" || (statusSel.value === "open" ? (OPEN_STATUSES as readonly string[]).includes(status) : statusSel.value === status);
+    statusSel.value === "all" || (statusSel.value === "open" ? isOpenStatus(status) : statusSel.value === status);
   /** The scroll positions above the list, restored after a rebuild. */
   const scrollMarks = (): (() => void) => {
     const marks: { node: Element; top: number }[] = [];
@@ -188,13 +169,22 @@ export async function renderIssuesAdmin(body: HTMLElement): Promise<void> {
   exportBtn.type = "button";
   exportBtn.title = "One PDF: a section per ticked issue with its details, thread and screenshots";
   const exportStatus = el("span", "app-docs-addstatus app-issad-selstatus", "");
-  selBar.append(selCount, selAll, selClear, el("span", "app-bar-gap"), exportStatus, exportBtn);
+  // the answers round trip (2026-11-26, R3): the ticked issues out as a
+  // CSV in the import's layout, and a filled-in file back in
+  const csvBtn = el("button", "app-btn", "Export to CSV") as HTMLButtonElement;
+  csvBtn.type = "button";
+  csvBtn.title = "The ticked issues as a CSV with blank answer columns — fill it in, then Import answers";
+  const importBtn = el("button", "app-btn", "Import answers…") as HTMLButtonElement;
+  importBtn.type = "button";
+  importBtn.title = "Read a CSV of answers into a preview: statuses, messages to reporters and duplicates, applied together";
+  selBar.append(selCount, selAll, selClear, el("span", "app-bar-gap"), exportStatus, importBtn, csvBtn, exportBtn);
   body.appendChild(selBar);
   const paintSel = () => {
     const n = selected.size;
     selCount.textContent = n === 0 ? "Tick issues to export them together" : `${n} selected`;
     selClear.style.display = n === 0 ? "none" : "";
     exportBtn.disabled = n === 0;
+    csvBtn.disabled = n === 0;
     listHost.querySelectorAll<HTMLInputElement>(".app-issad-check").forEach((cb) => {
       cb.checked = selected.has(cb.dataset.id ?? "");
     });
@@ -207,13 +197,63 @@ export async function renderIssuesAdmin(body: HTMLElement): Promise<void> {
     selected.clear();
     paintSel();
   });
+  /** The ticked issues in the queue's order where shown, the rest after. */
+  const tickedInOrder = (): Issue[] => {
+    const order = new Map(shown.map((i, n) => [i.ben_ltkissueid, n]));
+    return [...selected.values()].sort((a, b) => (order.get(a.ben_ltkissueid) ?? 1e9) - (order.get(b.ben_ltkissueid) ?? 1e9));
+  };
+  csvBtn.addEventListener("click", () => {
+    if (selected.size === 0) return;
+    exportStatus.classList.remove("app-docs-addstatus-warn");
+    void import("./answersCsv")
+      .then(({ exportCsv }) => {
+        const list = tickedInOrder();
+        const text = exportCsv(
+          list.map((i) => ({
+            id: i.ben_ltkissueid,
+            title: i.ben_name ?? "",
+            kind: i.ben_kind === "idea" ? "Idea" : "Bug",
+            area: AREA_WORDS[i.ben_area ?? ""] ?? i.ben_area ?? "",
+            reporter: i.ben_reportername ?? "",
+            raised: i.createdon ?? "",
+            status: i.ben_status ?? "new",
+          }))
+        );
+        // the byte-order mark is what makes a spreadsheet read UTF-8
+        const blob = new Blob(["\uFEFF", text], { type: "text/csv;charset=utf-8" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `leanboard-issues-${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+        exportStatus.textContent = `Exported ${list.length} issue${list.length === 1 ? "" : "s"} to CSV.`;
+      })
+      .catch((e) => {
+        exportStatus.textContent = `Export failed: ${say(e)}`;
+        exportStatus.classList.add("app-docs-addstatus-warn");
+      });
+  });
+  importBtn.addEventListener("click", () => {
+    void import("./importAnswers").then(({ openImportAnswers }) =>
+      openImportAnswers({
+        host: body,
+        writeMessage,
+        mergeInto,
+        audience: async (issue) => audienceOf(issue, await mergedInto(issue.ben_ltkissueid), await watchersOf(issue.ben_ltkissueid)).map((m) => ({ email: m.email, name: m.name })),
+        sendCard: async (card) => {
+          const { sendNotifyTeams } = await import("../docs/notify");
+          const { appLinkUrl } = await import("../links");
+          return (await sendNotifyTeams([{ email: card.email, name: card.name }], card.subject, card.text, appLinkUrl())).error;
+        },
+        refresh: () => void paint(),
+      })
+    );
+  });
   exportBtn.addEventListener("click", () => {
     if (selected.size === 0) return;
     exportBtn.disabled = true;
     exportStatus.classList.remove("app-docs-addstatus-warn");
-    // the ticked issues in the queue's order where shown, the rest after
-    const order = new Map(shown.map((i, n) => [i.ben_ltkissueid, n]));
-    const list = [...selected.values()].sort((a, b) => (order.get(a.ben_ltkissueid) ?? 1e9) - (order.get(b.ben_ltkissueid) ?? 1e9));
+    const list = tickedInOrder();
     void import("./exportPdf")
       .then(({ exportIssuesPdf }) => exportIssuesPdf(list, (t) => (exportStatus.textContent = t)))
       .catch((e) => {
@@ -324,7 +364,7 @@ export async function renderIssuesAdmin(body: HTMLElement): Promise<void> {
     else listHost.prepend(el("div", "app-loading-line app-issad-reloading", "Refreshing…"));
     const parts: string[] = [];
     if (statusSel.value === "open") {
-      parts.push(`(${OPEN_STATUSES.map((s) => `ben_status eq '${s}'`).join(" or ")})`);
+      parts.push(openFilter());
     } else if (statusSel.value !== "all") {
       parts.push(`ben_status eq '${statusSel.value}'`);
     }
@@ -575,22 +615,24 @@ export async function renderIssuesAdmin(body: HTMLElement): Promise<void> {
     };
     const wrapOf = (): HTMLElement => host.closest<HTMLElement>(".app-issad-item") ?? host;
 
-    // status — declining routes through the message prompt
+    // status — an ANSWER the reporter did not ask for (declined,
+    // deferred, not a software issue) routes through the message prompt
     const statusPick = el("select", "app-input app-issad-ctl") as HTMLSelectElement;
-    for (const s of ["new", "triaged", "inprogress", "done", "declined"]) {
-      const o = el("option", "", STATUS_WORDS[s]) as HTMLOptionElement;
+    const now = issue.ben_status ?? "new";
+    // merged and withdrawn are not picked here, but an issue that IS
+    // one shows its own word rather than a wrong one
+    for (const s of PICKABLE_STATUSES.includes(now) ? PICKABLE_STATUSES : [...PICKABLE_STATUSES, now]) {
+      const o = el("option", "", STATUS_WORDS[s] ?? s) as HTMLOptionElement;
       o.value = s;
       statusPick.appendChild(o);
     }
-    statusPick.value = OPEN_STATUSES.includes(issue.ben_status as never)
-      ? (issue.ben_status ?? "new")
-      : (issue.ben_status ?? "new");
+    statusPick.value = now;
     statusPick.addEventListener("change", () => {
       const to = statusPick.value;
       if (to === issue.ben_status) return;
-      if (to === "declined") {
-        openDecline(id, issue, audience, () => {
-          statusLanded(wrapOf(), issue, "declined");
+      if (ANSWER_STATUSES[to] !== undefined) {
+        openAnswer(to, id, issue, audience, () => {
+          statusLanded(wrapOf(), issue, to);
           void refresh();
         });
         statusPick.value = issue.ben_status ?? "new"; // the dialog decides
@@ -723,50 +765,53 @@ export async function renderIssuesAdmin(body: HTMLElement): Promise<void> {
     host.appendChild(status);
   };
 
-  // ---- decline: the message IS the act ------------------------------------
-  const openDecline = (id: string, issue: Issue, audience: AudienceMember[], onDone: () => void) => {
+  // ---- decline, defer, not a software issue: the message IS the act --------
+  // One dialog for the three statuses that are an answer the reporter
+  // did not ask for (status.ts ANSWER_STATUSES): each has its own
+  // prefilled message, edited before it goes; never silent.
+  const openAnswer = (to: string, id: string, issue: Issue, audience: AudienceMember[], onDone: () => void) => {
+    const words = ANSWER_STATUSES[to];
     const dlgHost = el("div", "app-dlghost");
     body.appendChild(dlgHost);
     let running = false;
     const dlg = openDialog({
       host: dlgHost,
-      title: `Decline — ${issue.ben_name ?? ""}`,
+      title: `${words.title} — ${issue.ben_name ?? ""}`,
       maxWidth: 480,
       onClose: () => dlgHost.remove(),
       buttons: [
         { label: "Cancel", kind: "secondary", onClick: () => { if (!running) dlg.close(); } },
-        { label: "Decline & send", kind: "primary", onClick: () => void go() },
+        { label: words.button, kind: "primary", onClick: () => void go() },
       ],
     });
-    dlg.body.appendChild(
-      el(
-        "div",
-        "app-field-hint",
-        "Declining always tells the reporter why — edit the message before it goes."
-      )
-    );
+    dlg.body.appendChild(el("div", "app-field-hint", words.hint));
     const msg = el("textarea", "app-input") as HTMLTextAreaElement;
     msg.rows = 4;
-    msg.value =
-      `Thanks for reporting this — we've decided not to take it further right now. ` +
-      `It stays on record, and we may revisit it as the app evolves.`;
+    msg.value = words.prefill;
     dlg.body.append(el("div", "app-field-label", audience.length > 1 ? `Message to the reporters (${audience.length})` : "Message to the reporter"), msg);
     if (audience.length > 0) dlg.body.appendChild(el("div", "app-field-hint", audienceLine(audience, 6)));
     const st = el("div", "app-docs-addstatus");
     dlg.body.appendChild(st);
     const go = async () => {
       if (running || msg.value.trim() === "") return;
+      if (words.mustAdd !== undefined && msg.value.trim() === words.prefill.trim()) {
+        st.textContent = words.mustAdd;
+        st.classList.add("app-docs-addstatus-warn");
+        msg.focus();
+        return;
+      }
+      st.classList.remove("app-docs-addstatus-warn");
       running = true;
-      st.textContent = "Declining…";
+      st.textContent = words.doing;
       try {
-        const r = await Ben_ltkissuesService.update(id, { ben_status: "declined" });
+        const r = await Ben_ltkissuesService.update(id, { ben_status: to });
         if (r.success === false) throw new Error(r.error?.message ?? "refused");
-        await writeMessage(id, `Status → Declined`, "reporter");
+        await writeMessage(id, `Status → ${STATUS_WORDS[to] ?? to}`, "reporter");
         await writeMessage(id, msg.value.trim(), "reporter");
         st.textContent = audience.length > 1 ? `Sending ${audience.length} Teams cards…` : "Sending the Teams message…";
         const warn = await deliverTeams(issue, audience, msg.value.trim());
         if (warn !== "") {
-          st.textContent = `Declined and saved to the thread — Teams delivery did not go: ${warn}`;
+          st.textContent = `${words.landed} and saved to the thread — Teams delivery did not go: ${warn}`;
           st.classList.add("app-docs-addstatus-warn");
           const cancel = dlg.root.querySelector(".ltk-btn-secondary") as HTMLButtonElement | null;
           if (cancel !== null) cancel.textContent = "Close";
@@ -778,7 +823,7 @@ export async function renderIssuesAdmin(body: HTMLElement): Promise<void> {
         dlg.close();
         onDone();
       } catch (e) {
-        st.textContent = `Could not decline: ${say(e)}`;
+        st.textContent = `${words.failed}: ${say(e)}`;
         st.classList.add("app-docs-addstatus-warn");
         running = false;
       }
@@ -786,6 +831,47 @@ export async function renderIssuesAdmin(body: HTMLElement): Promise<void> {
   };
 
   // ---- merge: the child closes, its people follow the parent --------------
+  /** The merge itself — the dialog's act and the answers import's
+   *  (a "Duplicate" row): the child closes as merged pointing at its
+   *  parent, its reporter and followers follow the parent, reports
+   *  already merged into the child move across, and both threads say
+   *  so. The parent may be of any status. */
+  const mergeInto = async (child: Issue, parent: Issue): Promise<void> => {
+    const r = await Ben_ltkissuesService.update(child.ben_ltkissueid, {
+      ben_status: "merged",
+      "ben_DuplicateOf@odata.bind": `/ben_ltkissues(${parent.ben_ltkissueid})`,
+    } as Parameters<typeof Ben_ltkissuesService.update>[1]);
+    if (r.success === false) throw new Error(r.error?.message ?? "refused");
+    await ensureWatch(
+      parent.ben_ltkissueid,
+      (child.ben_reporteremail ?? "").toLowerCase(),
+      child.ben_reportername ?? ""
+    );
+    // the child's followers come along (issue 38) …
+    for (const w of await watchersOf(child.ben_ltkissueid)) {
+      await ensureWatch(parent.ben_ltkissueid, (w.ben_email ?? "").toLowerCase(), w.ben_watchername ?? "");
+    }
+    // … and reports already merged into the child now point at the
+    // parent, so their reporters hear about it from there
+    for (const g of await mergedInto(child.ben_ltkissueid)) {
+      const rr = await Ben_ltkissuesService.update(g.ben_ltkissueid, {
+        "ben_DuplicateOf@odata.bind": `/ben_ltkissues(${parent.ben_ltkissueid})`,
+      } as Parameters<typeof Ben_ltkissuesService.update>[1]);
+      if (rr.success === false) throw new Error(rr.error?.message ?? "refused");
+      await ensureWatch(parent.ben_ltkissueid, (g.ben_reporteremail ?? "").toLowerCase(), g.ben_reportername ?? "");
+    }
+    await writeMessage(
+      child.ben_ltkissueid,
+      `Merged into "${parent.ben_name ?? ""}" — updates continue there.`,
+      "reporter"
+    );
+    await writeMessage(
+      parent.ben_ltkissueid,
+      `Merged in: "${child.ben_name ?? ""}" (${child.ben_reportername || child.ben_reporteremail || "unknown"})`,
+      "internal"
+    );
+  };
+
   const openMerge = (child: Issue, onDone: () => void) => {
     const dlgHost = el("div", "app-dlghost");
     body.appendChild(dlgHost);
@@ -829,8 +915,7 @@ export async function renderIssuesAdmin(body: HTMLElement): Promise<void> {
       if (q === "") return;
       const res = await Ben_ltkissuesService.getAll({
         filter:
-          `contains(ben_name,'${q}') and ben_ltkissueid ne '${child.ben_ltkissueid}' and ` +
-          `(${OPEN_STATUSES.map((s) => `ben_status eq '${s}'`).join(" or ")})`,
+          `contains(ben_name,'${q}') and ben_ltkissueid ne '${child.ben_ltkissueid}' and ` + openFilter(),
         select: ["ben_ltkissueid", "ben_name", "ben_status", "ben_reportername"],
         top: 8,
       });
@@ -857,40 +942,7 @@ export async function renderIssuesAdmin(body: HTMLElement): Promise<void> {
       running = true;
       st.textContent = "Merging…";
       try {
-        const parent = picked;
-        const r = await Ben_ltkissuesService.update(child.ben_ltkissueid, {
-          ben_status: "merged",
-          "ben_DuplicateOf@odata.bind": `/ben_ltkissues(${parent.ben_ltkissueid})`,
-        } as Parameters<typeof Ben_ltkissuesService.update>[1]);
-        if (r.success === false) throw new Error(r.error?.message ?? "refused");
-        await ensureWatch(
-          parent.ben_ltkissueid,
-          (child.ben_reporteremail ?? "").toLowerCase(),
-          child.ben_reportername ?? ""
-        );
-        // the child's followers come along (issue 38) …
-        for (const w of await watchersOf(child.ben_ltkissueid)) {
-          await ensureWatch(parent.ben_ltkissueid, (w.ben_email ?? "").toLowerCase(), w.ben_watchername ?? "");
-        }
-        // … and reports already merged into the child now point at the
-        // parent, so their reporters hear about it from there
-        for (const g of await mergedInto(child.ben_ltkissueid)) {
-          const rr = await Ben_ltkissuesService.update(g.ben_ltkissueid, {
-            "ben_DuplicateOf@odata.bind": `/ben_ltkissues(${parent.ben_ltkissueid})`,
-          } as Parameters<typeof Ben_ltkissuesService.update>[1]);
-          if (rr.success === false) throw new Error(rr.error?.message ?? "refused");
-          await ensureWatch(parent.ben_ltkissueid, (g.ben_reporteremail ?? "").toLowerCase(), g.ben_reportername ?? "");
-        }
-        await writeMessage(
-          child.ben_ltkissueid,
-          `Merged into "${parent.ben_name ?? ""}" — updates continue there.`,
-          "reporter"
-        );
-        await writeMessage(
-          parent.ben_ltkissueid,
-          `Merged in: "${child.ben_name ?? ""}" (${child.ben_reportername || child.ben_reporteremail || "unknown"})`,
-          "internal"
-        );
+        await mergeInto(child, picked);
         dlg.close();
         onDone();
       } catch (e) {

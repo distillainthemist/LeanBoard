@@ -1216,6 +1216,56 @@ mapping.
 
 **R3 as walked:** about 5.5 days (plan 4.5). No schema.
 
+### R3 as built (2026-11-26, on dev, NOT released)
+
+**No schema.** Three more values in `ben_status` (`partial`,
+`deferred`, `notsoftware`); the label of `done` is "Resolved".
+
+- **One status list** — `issues/status.ts`; the desk, the reporter's
+  list and the PDF read it. Partially resolved is open; a Deferred
+  issue stays in the reporter's "Already reported in this area" list,
+  marked. UAT-ISS-004.
+- **Deferred and Not a software issue ask for a message**, in the
+  dialog Declined uses. Built beyond the walk: Not a software issue
+  will not send its prefilled opening as it stands — it asks for what
+  the reporter should do instead. UAT-ISS-005.
+- **Export to CSV** — the ticked issues in the agreed layout.
+  UAT-ISS-006.
+- **Import answers…** — the preview, its faults, Apply with Stop,
+  apply again, the duplicate pair. UAT-ISS-007, UAT-ISS-008.
+- **One Teams card per person**, the "Tell people on Teams" tick, and
+  "Send again". UAT-ISS-009.
+- `issue-review-prompt.md` §4.5 says how the import reads the file.
+
+**Limits, said plainly:**
+
+- **A message edited in the preview is not the file's message.** The
+  edited text is what is written. Loading the same file again then
+  shows that row as Ready, because the FILE's message is not in the
+  thread — applying it would add a second message. Put the edit in the
+  file too.
+- **"Send again" lasts while the dialog is open** (from the walk).
+- **A merge that fails part-way** (the status landed, the followers
+  did not move) is run again by Apply in the same dialog; after the
+  dialog is closed the row reads as already merged and the rest is
+  made up at the desk.
+- **Reading is one request per issue, six at a time**, plus one for
+  its thread: a file of 30 opens in a few seconds, a file of several
+  hundred in a minute or so. There is no cap.
+- **The import checks each row against the issues as they were when
+  the file was loaded.** A change made by someone else while the
+  preview is open is not seen until the file is chosen again.
+- **An older build shows the new statuses as their raw stored words**
+  (`partial`, `deferred`, `notsoftware`) and leaves a partially
+  resolved issue out of its Open list. Lock older builds at release.
+- **Seen in the harness only** (`issuesdesk.html`, in-memory
+  Dataverse): the status words, both message dialogs, the preview and
+  each fault, apply, apply again, the withdrawn row, the card grouping
+  (five people, the duplicate's reporter, a follower, my own report).
+  Teams is not in the harness, so a card that is actually delivered,
+  the file picker and the CSV download in the hosted app, and a file
+  saved by a spreadsheet program are Ben's check in the test walk.
+
 ---
 
 ## Appendix — the review record (phases 1 and 2, as it was made)

@@ -92,8 +92,18 @@ and the from-a-year questions gone from the list, "Extend to <year>"
 on a priority past its planned end, the form's two sub-pillar fixes,
 and the cursor staying in an added row. As built and its limits: the
 plan's "R2 as built". **R2's test walk (2026-11-26, dev
-`v0.99.0-109-g99212e6`): all eight pass, nothing changed.** Next: R3's
-walk (the CSV import and export for the Issues desk), begun 2026-11-26.
+`v0.99.0-109-g99212e6`): all eight pass, nothing changed.**
+**R3 walked and BUILT 2026-11-26, on dev, NOT released, no schema** —
+the Issues desk's answers in bulk: one status list with three new
+statuses (Partially resolved, Deferred, Not a software issue) and
+"Done" reading "Resolved"; Deferred and Not a software issue ask for a
+message as Declined does; "Export to CSV" of the ticked issues;
+"Import answers…" with a preview that names every fault before
+anything is written, applies row by row through the desk's own
+actions, changes nothing on a second run, and tells each person on ONE
+Teams card. As built and its limits: the plan's "R3 as built". Next:
+R3's test walk. After it the first release is ready to cut (R1, R2,
+R3 and programme tranches 2 to 4).
 What 1A was: the nine reports of the 2026-11-23 issue export
 (`issues-plan-2026-11-23.md`): Teams group messages refused over a
 colon in the chat topic, Replace content's false "landed wrong" on

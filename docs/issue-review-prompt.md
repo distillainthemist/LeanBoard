@@ -216,6 +216,13 @@ Ask only questions whose answer would **change the recommendation**. Offer choic
 | `DuplicateOfID` | If Duplicate | IssueID of the primary issue |
 | `InternalNote` | No | Short note for admins only — **never shown to the reporter**; omit if the import target has no internal field |
 
+**How LeanBoard's import reads this file** (Settings → Issues → "Import answers…", since the 2026-11-25 round)
+- `IssueID` is the issue's Dataverse row id, as the PDF export and "Export to CSV" print it.
+- Columns are matched by name, in any order. Columns the import does not know are ignored, so the export's reference columns (Title, Kind, Area, Reporter, Raised, CurrentStatus) can stay in the file.
+- The six `Status` words become the desk's statuses: Resolved, Partially resolved, Deferred, Declined, Not a software issue as written; `Duplicate` merges the issue into `DuplicateOfID` and it reads "Merged".
+- `ResolvedDate` is read as `YYYY-MM-DD` or, because a spreadsheet rewrites it on save, as a day-first date such as `3/12/2026`. Write ISO.
+- `ResolutionType`, `ReleaseVersion` and `ResolvedDate` become the reporter-visible resolution line; `InternalNote` becomes an internal thread message.
+
 **Reporter message guidance**
 - Thank them, say what changed (or what was decided), and where/how they'll notice it
 - Write for the frontline user: no code, component names, ticket jargon or blame

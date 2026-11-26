@@ -1289,6 +1289,27 @@ Key concepts (details: [leanboard-standard-documents-plan.md](leanboard-standard
   report (`issues/audience.ts`); Decline does the same; a merge copies
   the child's followers and re-points reports already merged into the
   child. Settings → Issues filters by UAT run (§6).
+- **Issue statuses and the answers CSV** (2026-11-26, R3 of the
+  2026-11-25 round): `issues/status.ts` is the ONE list of statuses,
+  their words, which are open, the desk's filters and the CSV's words
+  — the desk, the reporter's list and the PDF all read it. `ben_status`
+  is plain text: `partial` (Partially resolved, still open), `deferred`
+  and `notsoftware` were added with no schema change, and `done` reads
+  "Resolved". Declined, Deferred and Not a software issue are ANSWERS:
+  set by hand they go through one message dialog (`ANSWER_STATUSES`),
+  never silently. **Export to CSV / Import answers…** are the bulk
+  road, in the layout of `issue-review-prompt.md` §4.5 keyed by the
+  row id: `issues/answersCsv.ts` (pure) reads a file a spreadsheet has
+  been at (Windows-1252 or UTF-8, commas or semicolons, day-first
+  dates), judges each row against what is stored and lists the steps
+  it still owes; `issues/answersApply.ts` (pure but for the `ApplyIo`
+  it is handed) runs a row's steps in order through the desk's own
+  actions and groups the answers into one Teams card per person;
+  `issues/importAnswers.ts` is the preview dialog. A step already done
+  is skipped — that is the whole of "the same file twice changes
+  nothing", and of applying a half-failed row again. The merge is one
+  function (`adminTab.ts` `mergeInto`) for the dialog and the import;
+  the import merges into a parent of any status.
 
 ## 5. SharePoint interfacing (the connector roads)
 

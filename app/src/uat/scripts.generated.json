@@ -5264,6 +5264,142 @@
        "changed": "2026-11-23"
       }
      ]
+    },
+    {
+     "title": "Journey 2 — Answering reports, one at a time and in bulk",
+     "cases": [
+      {
+       "id": "UAT-ISS-004",
+       "title": "The status words: Resolved, Partially resolved, Deferred, Not a software issue",
+       "journey": "Journey 2 — Answering reports, one at a time and in bulk",
+       "persona": "superadmin",
+       "modules": [
+        "issues/status.ts",
+        "issues/adminTab.ts",
+        "issues/report.ts",
+        "issues/exportPdf.ts"
+       ],
+       "preconditions": "Settings → Issues with reports in several statuses, one of them closed as fixed before this build; a second account that raised one of them",
+       "steps": [
+        "Open Settings → Issues. Read the status filter's list, then choose \"Everything\" and read the chips.",
+        "Open an open report and read its Status select.",
+        "Set one report to \"Partially resolved\". Set the filter back to \"Open\".",
+        "Choose the filters \"Deferred\" and \"Not a software issue\" in turn.",
+        "As the reporter: ? button → My reports. Then ? → Report an issue, and choose the area of a DEFERRED report.",
+        "Tick two reports and Export to PDF; read their Status lines."
+       ],
+       "expected": "step 1 the filter reads Open (new · triaged · in progress · partially resolved), New, Triaged, In progress, Partially resolved, Resolved, Deferred, Declined, Not a software issue, Merged, Withdrawn, Everything; a report closed as fixed before this build reads \"Resolved\" (the word \"Done\" is gone everywhere — the stored value did not change); step 2 the select offers New, Triaged, In progress, Partially resolved, Resolved, Deferred, Declined, Not a software issue — never Merged or Withdrawn, unless the report IS one, when its own word shows; step 3 the partially resolved report is still in the Open list; step 4 each filter lists only its own; step 5 My reports shows the same words; \"Already reported in this area\" lists the open reports AND the deferred one, the deferred one marked \"Deferred\", each with +1; step 6 the PDF carries the same words",
+       "hash": "66c03482",
+       "changed": "2026-11-26"
+      },
+      {
+       "id": "UAT-ISS-005",
+       "title": "Deferring, or closing as not a software issue, asks for a message",
+       "journey": "Journey 2 — Answering reports, one at a time and in bulk",
+       "persona": "superadmin",
+       "modules": [
+        "issues/adminTab.ts",
+        "issues/status.ts"
+       ],
+       "preconditions": "Settings → Issues; three open reports from another account (Teams must be able to reach that person)",
+       "steps": [
+        "Open the first and set Status to \"Deferred\". Read the dialog; press Cancel.",
+        "Set it to \"Deferred\" again; edit the message; press \"Defer & send\".",
+        "Open the second and set Status to \"Not a software issue\". Press \"Close & send\" without changing the message.",
+        "Add what the reporter should do and press \"Close & send\".",
+        "Open the third and set Status to \"Partially resolved\"."
+       ],
+       "expected": "step 1 a dialog titled \"Defer — <title>\" with a prefilled, complete message and the line saying who it goes to; Cancel leaves the status as it was; step 2 the status reads Deferred, the thread has \"Status → Deferred\" and the message, and the reporter gets one Teams card; step 3 nothing is sent — a line reads \"Add what the reporter should do instead: who to contact, or how to do it.\"; step 4 the status reads Not a software issue, with the message on the thread and one card; step 5 NO dialog — the status changes and the thread has \"Status → Partially resolved\", as Resolved does. Declining still asks for its message as before",
+       "hash": "5fb771e4",
+       "changed": "2026-11-26"
+      },
+      {
+       "id": "UAT-ISS-006",
+       "title": "Export to CSV: the starting file for answers",
+       "journey": "Journey 2 — Answering reports, one at a time and in bulk",
+       "persona": "superadmin",
+       "modules": [
+        "issues/adminTab.ts",
+        "issues/answersCsv.ts"
+       ],
+       "preconditions": "Settings → Issues with several reports, one whose title has a comma and a quotation mark; a spreadsheet program",
+       "steps": [
+        "Read the selection bar with nothing ticked.",
+        "Tick four reports, one of them from another filter. Press \"Export to CSV\".",
+        "Open the file in a spreadsheet program."
+       ],
+       "expected": "step 1 \"Export to CSV\" and \"Export to PDF\" are greyed; \"Import answers…\" is not; step 2 a file `leanboard-issues-<date>.csv` saves and the bar reads \"Exported 4 issues to CSV.\"; step 3 one row per ticked report in the order shown, with the columns IssueID, Title, Kind, Area, Reporter, Raised, CurrentStatus, Status, ResolutionType, ReporterMessage, ReleaseVersion, ResolvedDate, DuplicateOfID, InternalNote; the first seven are filled (the reporter by NAME — no email anywhere in the file), the last seven are blank; the title with a comma and a quotation mark sits in one cell; accents and dashes read correctly",
+       "hash": "c0847e97",
+       "changed": "2026-11-26"
+      },
+      {
+       "id": "UAT-ISS-007",
+       "title": "Import answers: the preview names every fault before anything is written",
+       "journey": "Journey 2 — Answering reports, one at a time and in bulk",
+       "persona": "superadmin",
+       "modules": [
+        "issues/importAnswers.ts",
+        "issues/answersCsv.ts",
+        "issues/status.ts"
+       ],
+       "preconditions": "the file of UAT-ISS-006, filled in with a spreadsheet program and SAVED from it: one row Resolved with a type, a release and a date; one row with the status \"Fixed\"; one row with a status and no message; one row left blank; one row whose IssueID is changed by a character; one Duplicate row with no DuplicateOfID; a report its reporter withdrew, answered Declined; one report that already has a resolution line typed at the desk",
+       "steps": [
+        "Press \"Import answers…\". Read the dialog. Press \"Choose a file…\" and pick a file that is not an answers file (any other CSV).",
+        "Choose the filled-in file. Read the count line and each row.",
+        "Type a message into the row that had none. Type past 400 characters, then shorten it.",
+        "Tick the withdrawn report's row, then untick it.",
+        "Press Close. Open two of the reports at the desk."
+       ],
+       "expected": "step 1 the dialog opens with \"Choose a file…\" and a \"Tell people on Teams\" tick, on; the wrong file is refused with the reason (\"This is not an answers file: it has no … column\"); step 2 a count line such as \"8 rows: 2 ready, 4 with faults, 1 withdrawn by the reporter, 1 no answer\"; each row shows the title, the reporter, the present status, the new status and the message in a box with its count out of 400; the Resolved row reads \"Resolution: Bug fix, released in <release> on <date in words>\" — the date the spreadsheet rewrote is read day first and shown in WORDS; \"Fixed\" is named as not a status, with the six words that are; the changed id reads \"This id is not an issue in this environment.\"; the duplicate reads that it needs DuplicateOfID; the blank row reads \"No answer\" and is greyed; the report with a typed resolution line says it REPLACES that line and quotes it; fault rows cannot be ticked; the button reads \"Apply <the number ticked>\"; step 3 the row turns Ready and is ticked once it has a message; past 400 it is a fault again and loses its tick; shortened, it is ready; step 4 the withdrawn row is unticked to start with, carries a note, and can be ticked; step 5 NOTHING was written — both reports are as they were",
+       "hash": "e160c950",
+       "changed": "2026-11-26"
+      },
+      {
+       "id": "UAT-ISS-008",
+       "title": "Apply, apply again, and a duplicate pair",
+       "journey": "Journey 2 — Answering reports, one at a time and in bulk",
+       "persona": "superadmin",
+       "modules": [
+        "issues/importAnswers.ts",
+        "issues/answersApply.ts",
+        "issues/answersCsv.ts",
+        "issues/adminTab.ts"
+       ],
+       "preconditions": "an answers file for five open reports: one Resolved with type, release, date and an InternalNote; one Duplicate whose DuplicateOfID is that Resolved report; one Deferred; one Not a software issue; one Partially resolved. The duplicate was raised by a different person from its parent",
+       "steps": [
+        "Import the file with \"Tell people on Teams\" UNTICKED. Press Apply.",
+        "Read each row's result and the line under the table. Close.",
+        "At the desk choose \"Everything\" and open each of the five.",
+        "As the duplicate's reporter open ? → My reports.",
+        "Import the SAME file again.",
+        "Edit one message in the file, save it, and import it again."
+       ],
+       "expected": "step 1 the status line counts \"Applying 2 of 5…\"; the Close button reads Stop while it runs; step 2 every row reads \"Applied ✓\"; the line reads \"5 applied.\" and that nobody was told because the tick was off; step 3 each report carries its new status; its thread has the \"Status → …\" line, the message (visible to the reporter) and, where the file had one, the internal note marked internal; the Resolved report's resolution line reads \"<type>, released in <release> on <date>\"; the duplicate reads Merged, its thread says which report it was merged into, and the parent's thread has an internal \"Merged in:\" line — although the parent was resolved in the same file; step 4 the reporter sees Merged, \"Merged into …\", the resolution line and the message — never the internal note; step 5 the count line reads \"5 rows: 5 already applied\", every row is greyed and Apply is greyed — a second run changes nothing; step 6 only that row is Ready, and applying it adds the new message and nothing else. A row that fails says which step was refused, stays ticked, and does not stop the rows after it; Apply again runs only the steps still owed",
+       "hash": "a4b46b2d",
+       "changed": "2026-11-26"
+      },
+      {
+       "id": "UAT-ISS-009",
+       "title": "One Teams card per person",
+       "journey": "Journey 2 — Answering reports, one at a time and in bulk",
+       "persona": "superadmin",
+       "modules": [
+        "issues/importAnswers.ts",
+        "issues/answersApply.ts",
+        "issues/adminTab.ts"
+       ],
+       "preconditions": "an answers file covering: three reports raised by person A; one report raised by person B that is a Duplicate of one of A's; a report person C follows (+1) and did not raise; one report YOU raised. Teams can reach A, B and C",
+       "steps": [
+        "Import the file with \"Tell people on Teams\" ticked. Press Apply.",
+        "Read the lines under the table.",
+        "Ask A, B and C what arrived in Teams.",
+        "Import the same file again and press nothing."
+       ],
+       "expected": "step 2 one line per person — \"<name> — 3 answers … sent ✓\"; a line says your own report's answer is on its thread and that no card went (Teams refuses a chat with yourself); a card that did not go says why and has \"Send again\", which sends that one card; step 3 A has ONE card, \"Updates on your LeanBoard reports\", listing the three reports each with its outcome word and message, and an Open button — not three cards; B has one card with their own duplicate report's answer and NOT the parent's as well; C has one card with the report they follow; step 4 every row is already applied, and nobody is told a second time",
+       "hash": "b80e1e6a",
+       "changed": "2026-11-26"
+      }
+     ]
     }
    ]
   },

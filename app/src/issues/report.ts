@@ -24,6 +24,7 @@ import { Ben_ltkissuewatchsService } from "../generated/services/Ben_ltkissuewat
 import type { Ben_ltkissues } from "../generated/models/Ben_ltkissuesModel";
 import { shrinkImage } from "../../../shared/ui/imageIngest";
 import { IMAGE_ACCEPT, imageVerdict, typedImage } from "../imagePick";
+import { STATUS_WORDS, knownFilter } from "./status";
 
 export type IssueArea = "boards" | "cards" | "priorities" | "improvement" | "documents" | "settings" | "other";
 
@@ -151,9 +152,9 @@ export function openReportDialog(opts: { host: HTMLElement; prefill?: ReportPref
   const paintKnown = async () => {
     clear(knownBox);
     const res = await Ben_ltkissuesService.getAll({
-      filter:
-        `ben_area eq '${area.value}' and ` +
-        `(ben_status eq 'new' or ben_status eq 'triaged' or ben_status eq 'inprogress')`,
+      // the open ones AND the deferred ones: a deferred idea is the one
+      // the next person reports again instead of following (R3's walk)
+      filter: `ben_area eq '${area.value}' and ${knownFilter()}`,
       select: ["ben_ltkissueid", "ben_name", "ben_status"],
       top: 6,
     });
@@ -187,6 +188,7 @@ export function openReportDialog(opts: { host: HTMLElement; prefill?: ReportPref
         })();
       });
       row.append(plus, el("span", "app-issue-knownname", r.ben_name ?? ""));
+      if (r.ben_status === "deferred") row.appendChild(el("span", "app-issad-status app-issad-status-deferred", STATUS_WORDS.deferred));
       knownBox.appendChild(row);
     }
   };
@@ -382,15 +384,6 @@ export function openReportDialog(opts: { host: HTMLElement; prefill?: ReportPref
 // internal notes never render here. Read-only by design: replying
 // happens in the Teams chat the admin's message opened.
 
-const STATUS_WORDS: Record<string, string> = {
-  new: "New",
-  triaged: "Triaged",
-  inprogress: "In progress",
-  done: "Done",
-  declined: "Declined",
-  merged: "Merged",
-  withdrawn: "Withdrawn",
-};
 
 const agoLine = (iso: string | undefined): string => {
   const t = Date.parse(iso ?? "");
