@@ -975,6 +975,14 @@ setting is in `deploy-to-new-org.md`; production needs it at release
 | 5 | Reports 15 and 18 — every hand-over tells the next person | Pass (which roles the document carried was not stated, so which steps truly sent a card and which read "Nobody else to tell." is not recorded) |
 | 6 | Report 5 — two terms with one name stay two terms (the filter; the ingestion grid) | Pass (whether Part B, the ingestion grid, was run was not stated) |
 | 7 | Reports 17 and 11 — the tracked-changes line, Open in Word, page 1 | Pass, all four steps: Word's VIEWING mode shows the tracked changes to the person asked, so the address stays `action=view`; the converted preview opens at page 1 |
+| 8 | Report 13 (walk) — a reviewer from outside the group is let in; the request road | TO UAT (Ben): no suitable second account on dev. NOT tested: that a seated reviewer can open another's draft, that seats are released at approval, that a Document Editor's submit raises the seat as a request and "Let them in" works |
+
+**R1's test walk ended 2026-11-26 on `v0.99.0-100-gf055133`:** seven
+pass, one to UAT. Found and fixed in it: N4's connector answer as a
+string; the sender named as a chat member; the form left open after a
+step landed. Changed outside the app: `blob:` in dev's code-app
+`frame-src`; the dev library's Reviewers column set to take several
+people. R1 stands tested on dev, apart from reviewer seats.
 
 ---
 

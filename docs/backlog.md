@@ -78,8 +78,12 @@ plainly, hand-overs that send themselves, version comments under their
 rows, terms read by id and an exact term filter, the tracked-changes
 line, page 1, and N4's first two steps (a PDF file's preview is a
 first-page picture in the hosted app, now said, with a readout of why).
-As built and its limits: the plan's "R1 as built". Next: Ben's test
-walk of R1, then R2's walk.
+As built and its limits: the plan's "R1 as built". **R1's test walk
+(2026-11-26): seven pass, reviewer seats to UAT** (no second account on
+dev). N4 closed in it: a PDF file's bytes come through the connector
+and `blob:` is added to the environment's code-app `frame-src` — a
+set-up step now, owed in production at the first release. Next: R2's
+walk (the year change), begun 2026-11-26.
 What 1A was: the nine reports of the 2026-11-23 issue export
 (`issues-plan-2026-11-23.md`): Teams group messages refused over a
 colon in the chat topic, Replace content's false "landed wrong" on
