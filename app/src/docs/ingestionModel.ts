@@ -187,14 +187,69 @@ export function subtreeUnder(nodes: { id: string; labels: string[] }[], rootId: 
   return nodes.filter((n) => n.labels.length >= depth && key(n.labels.slice(0, depth)) === prefix).map((n) => ({ ...n, labels: n.labels.slice(depth - 1) }));
 }
 
+/** A term column's saved value as TERMS (issue review 2026-11-25,
+ *  report 5). The feed gives the names in `value` and, since v0.99.0,
+ *  the ids beside them in `idsText` — the id is the term. Where there
+ *  is no id, a name finds its term only when ONE term in the set has
+ *  it: two areas called "General" are two terms, and the app never
+ *  guesses which was meant (it used to take the last one the walk
+ *  listed, and a file tagged Casthouse › General came back as Metal
+ *  Delivery › General). `unsure`: the names it could not place. */
+export function savedTerms(
+  value: string,
+  idsText: string,
+  nodes: { id: string; labels: string[] }[]
+): { terms: { label: string; termId: string }[]; unsure: string[] } {
+  const labels = value.split(";").map((x) => x.trim()).filter((x) => x !== "");
+  const ids = idsText.split(";").map((x) => x.trim()).filter((x) => x !== "");
+  const last = (n: { labels: string[] }) => n.labels[n.labels.length - 1] ?? "";
+  if (ids.length > 0 && ids.length === labels.length) {
+    const byId = new Map(nodes.map((n) => [n.id.toLowerCase(), n]));
+    return {
+      // the term's CURRENT name where the walk knows it (a rename lags
+      // on the item), else the name the item carries
+      terms: ids.map((id, i) => ({ label: byId.has(id.toLowerCase()) ? last(byId.get(id.toLowerCase())!) : labels[i], termId: id })),
+      unsure: [],
+    };
+  }
+  const terms: { label: string; termId: string }[] = [];
+  const unsure: string[] = [];
+  for (const label of labels) {
+    const hits = nodes.filter((n) => last(n).trim().toLowerCase() === label.toLowerCase());
+    if (hits.length === 1) terms.push({ label, termId: hits[0].id });
+    else unsure.push(label);
+  }
+  return { terms, unsure };
+}
+
+/** One term by the id the item carries, else by a name only ONE term
+ *  has; null when it cannot be told (report 5's rule, for a single
+ *  value such as Importance). */
+export function savedTerm(value: string, idsText: string, nodes: { id: string; labels: string[] }[]): { label: string; termId: string } | null {
+  const first = value.split(";")[0]?.trim() ?? "";
+  if (first === "") return null;
+  const firstId = idsText.split(";")[0]?.trim() ?? "";
+  const got = savedTerms(first, firstId, nodes);
+  return got.terms[0] ?? null;
+}
+
 /** The register labels of a file's value that are NOT under the root —
- *  the run's pre-flight for a site-constrained task. A label the walk
- *  does not know is left alone (the walk may be partial). */
-export function labelsOutsideRoot(value: string, nodes: { id: string; labels: string[] }[], rootId: string): string[] {
+ *  the run's pre-flight for a site-constrained task. Judged by the
+ *  term's ID where the item carries one (`idsText`); by name otherwise,
+ *  and then a label the walk does not know is left alone (the walk may
+ *  be partial), as is a name shared by a term under the root. */
+export function labelsOutsideRoot(value: string, nodes: { id: string; labels: string[] }[], rootId: string, idsText = ""): string[] {
   const under = new Set(subtreeUnder(nodes, rootId).map((n) => n.id.toLowerCase()));
   if (under.size === 0) return [];
+  const labels = value.split(";").map((x) => x.trim()).filter((x) => x !== "");
+  const ids = idsText.split(";").map((x) => x.trim().toLowerCase()).filter((x) => x !== "");
+  if (ids.length > 0 && ids.length === labels.length) {
+    const known = new Set(nodes.map((n) => n.id.toLowerCase()));
+    // an id the walk does not know is left alone, as an unknown label is
+    return labels.filter((_, i) => known.has(ids[i]) && !under.has(ids[i]));
+  }
   const out: string[] = [];
-  for (const label of value.split(";").map((x) => x.trim()).filter((x) => x !== "")) {
+  for (const label of labels) {
     const hits = nodes.filter((n) => n.labels[n.labels.length - 1].trim().toLowerCase() === label.toLowerCase());
     if (hits.length > 0 && !hits.some((h) => under.has(h.id.toLowerCase()))) out.push(label);
   }

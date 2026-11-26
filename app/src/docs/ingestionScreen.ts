@@ -76,7 +76,7 @@ import {
 import { buildFieldEditors, editorKind } from "./fieldEditors";
 import { POOL_ROLES } from "./accessGates";
 import type { ParsedSheet, SheetColumn, SheetFile } from "./sheetRoundTrip";
-import { currentTermLabels, IngestionAssignee, IngestionTask, RunLogEntry, blanksToFill, compareByFolderThenName, dirOf, duplicateNames, folderGroups, folderLabel, ingestComment, labelsOutsideRoot, latestByFile, logSummary, missingFor, subFolderOf, taskFolderName } from "./ingestionModel";
+import { currentTermLabels, savedTerm, savedTerms, IngestionAssignee, IngestionTask, RunLogEntry, blanksToFill, compareByFolderThenName, dirOf, duplicateNames, folderGroups, folderLabel, ingestComment, labelsOutsideRoot, latestByFile, logSummary, missingFor, subFolderOf, taskFolderName } from "./ingestionModel";
 
 /** The most files one task lists (sub-folders included); past it the
  *  status line says to split the task. */
@@ -676,16 +676,18 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
     unsavedCount = () => dirtyRows(draft).length;
     const nameCell = makeNameCell(ctx.cellCtx);
     const labelOf = (f: SpField) => ctx.dictBy.get(f.internal)?.label || f.title;
-    // term label → id per set, resolved lazily so a taxonomy cell can open
-    // with its current term selected (the feed gives labels only)
-    const termIds = new Map<string, Promise<Map<string, string>>>();
-    const termIdsFor = (setId: string): Promise<Map<string, string>> => {
-      let p = termIds.get(setId);
+    // a set's terms, read once, so a taxonomy cell can open with its
+    // current term selected. The item's own term ID decides which term
+    // it is; a NAME decides only when one term in the set has it
+    // (savedTerms — report 5, 2026-11-25: two areas named "General")
+    const termNodes = new Map<string, Promise<{ id: string; labels: string[] }[]>>();
+    const termNodesFor = (setId: string): Promise<{ id: string; labels: string[] }[]> => {
+      let p = termNodes.get(setId);
       if (!p) {
         p = cachedTermPaths(ctx.site, setId)
-          .then((w) => new Map(w.nodes.map((n) => [n.labels[n.labels.length - 1].toLowerCase(), n.id])))
-          .catch(() => new Map<string, string>());
-        termIds.set(setId, p);
+          .then((w) => w.nodes as { id: string; labels: string[] }[])
+          .catch(() => [] as { id: string; labels: string[] }[]);
+        termNodes.set(setId, p);
       }
       return p;
     };
@@ -824,9 +826,10 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
       const kind = editorKind(f) ?? "text";
       if (kind === "taxonomy") {
         if (f.termSetId === "") return null;
-        const ids = await termIdsFor(f.termSetId);
-        const terms = (row.values[f.internal] ?? "").split(";").map((x) => x.trim()).filter((x) => x !== "").map((l) => ({ label: l, termId: ids.get(l.toLowerCase()) ?? "" })).filter((t) => t.termId !== "");
-        if (terms.length === 0) return null;
+        const { terms, unsure } = savedTerms(row.values[f.internal] ?? "", row.values[`${f.internal}#termid`] ?? "", await termNodesFor(f.termSetId));
+        // a name it cannot place is never written as something else:
+        // the cell opens unselected and a drag carries nothing
+        if (terms.length === 0 || unsure.length > 0) return null;
         return f.type === "TaxonomyFieldTypeMulti" ? { internal: f.internal, kind, multi: true, terms, label: terms[0].label, termId: terms[0].termId } : { internal: f.internal, kind, label: terms[0].label, termId: terms[0].termId };
       }
       if (kind === "person") {
@@ -1830,7 +1833,7 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
             const setId = ctx.dictBy.get(internal)?.termSetId ?? "";
             if (setId === "" || (row.values[internal] ?? "").trim() === "") continue;
             const walk = await cachedTermPaths(ctx.site, setId, 6, 6000).catch(() => ({ nodes: [] as { id: string; labels: string[] }[] }));
-            const outside = labelsOutsideRoot(row.values[internal] ?? "", walk.nodes, rootId);
+            const outside = labelsOutsideRoot(row.values[internal] ?? "", walk.nodes, rootId, row.values[`${internal}#termid`] ?? "");
             if (outside.length > 0) {
               refuse(`${ctx.dictBy.get(internal)?.label || internal} "${outside.join("; ")}" is outside this task's site (${task.site})`);
               return;
@@ -1882,8 +1885,8 @@ export function openIngestionTask(o: IngestionScreenOpts): () => void {
             if (impLabel !== "" && impSet !== "") {
               try {
                 const walk = await cachedTermPaths(ctx.site, impSet);
-                const node = walk.nodes.find((x) => x.labels[x.labels.length - 1].toLowerCase() === impLabel.toLowerCase());
-                if (node !== undefined) months = cadenceForImportance(ctx.cellCtx.dict, node.id);
+                const term = savedTerm(impLabel, row.values[`${importanceInternal}#termid`] ?? "", walk.nodes);
+                if (term !== null) months = cadenceForImportance(ctx.cellCtx.dict, term.termId);
               } catch {
                 /* unmapped = default */
               }

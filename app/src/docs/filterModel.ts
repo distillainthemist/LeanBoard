@@ -242,3 +242,29 @@ export function firstVisitFolds(nodes: TermLike[], roots: TermLike[], myDepartme
   return folds;
 }
 
+/**
+ * The rows a term filter REALLY matches (issue review 2026-11-25,
+ * report 5). The listing road asks SharePoint by the term's NAME, which
+ * is fast and is wrong when two terms share one: a filter on Metal
+ * Delivery › General also returned Casthouse › General. Each row has
+ * carried its terms' IDs since v0.99.0 (`<col>#termid`), so the app
+ * keeps a row only when one of its ids is among those picked. A row
+ * with no ids on the filtered columns is kept, as it always was — the
+ * name is then all there is to go by.
+ */
+export function matchesTermFilters(values: Record<string, string>, filters: { cols: string[]; ids: string[] }[]): boolean {
+  for (const f of filters) {
+    if (f.ids.length === 0) continue;
+    const carried: string[] = [];
+    for (const col of f.cols) {
+      for (const id of (values[`${col}#termid`] ?? "").split(";")) {
+        const t = id.trim().toLowerCase();
+        if (t !== "") carried.push(t);
+      }
+    }
+    if (carried.length === 0) continue;
+    const picked = new Set(f.ids.map((x) => x.trim().toLowerCase()));
+    if (!carried.some((id) => picked.has(id))) return false;
+  }
+  return true;
+}

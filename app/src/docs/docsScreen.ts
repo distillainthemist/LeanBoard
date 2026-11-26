@@ -87,7 +87,7 @@ import {
 import { openDialog } from "../../../shared/ui/dialog";
 import { currentViewer } from "../runtime";
 import { viewerPerson } from "../store/people";
-import { defaultBranchRoots, featuredFor, firstVisitFolds, leadTerms, restAfterLead, openBranches, orderFilterColumns, termTree, TermTreeNode, TREE_FILTER_MIN_DEPTH, treeSearch, vocabularyDepth } from "./filterModel";
+import { defaultBranchRoots, featuredFor, firstVisitFolds, leadTerms, restAfterLead, openBranches, orderFilterColumns, termTree, TermTreeNode, TREE_FILTER_MIN_DEPTH, matchesTermFilters, treeSearch, vocabularyDepth } from "./filterModel";
 import {
   docLinkUrl,
   docLinkUrlMobile,
@@ -98,7 +98,7 @@ import {
 } from "../links";
 import { rememberTaskCount } from "../taskBadge";
 import { taskGroupHeader, taskRowEl } from "./taskRows";
-import { CLOSED_SHOWN, closedTasksForPanel, tasksForPanel, IngestionTask } from "./ingestionModel";
+import { CLOSED_SHOWN, closedTasksForPanel, savedTerm, tasksForPanel, IngestionTask } from "./ingestionModel";
 import { isUatHidden } from "./uatLibraries";
 import { SiteBranch, SiteVerdict, docSiteVerdict, scopedSite, siteBranchOf, taskInSite } from "./siteScope";
 import { readsRunning, runStamp } from "./ingestionRun";
@@ -490,10 +490,9 @@ export function mountDocs(
       if (impLabel !== "" && impSet !== "") {
         try {
           const walk = await cachedTermPaths(app.siteUrl, impSet);
-          const node = walk.nodes.find(
-            (n) => n.labels[n.labels.length - 1].toLowerCase() === impLabel.toLowerCase()
-          );
-          if (node !== undefined) months = cadenceForImportance(siteDict, node.id);
+          // by the item's own term id; by name only when one term has it
+          const term = savedTerm(impLabel, row.values[`${importanceInternal}#termid`] ?? "", walk.nodes);
+          if (term !== null) months = cadenceForImportance(siteDict, term.termId);
         } catch {
           /* mapping unreachable = fall through to the row's own value */
         }
@@ -2768,6 +2767,7 @@ export function mountDocs(
       for (const pick of picked) {
         const subtree = subtreeIn(nodes, pick);
         for (const n of subtree) ids.add(n.id);
+        ids.add(pick.id);
         // the picked node itself even when the walk missed it
         for (const n of [pick, ...subtree]) labels.add(n.labels[n.labels.length - 1].toLowerCase());
       }
@@ -5428,6 +5428,10 @@ export function mountDocs(
         ? [{ cols: [statusInternal], labels: approvedLabels }]
         : [];
 
+    /** A term filter keeps only the rows whose term IDS it picked — the
+     *  feed was asked by name, and two terms can share one (report 5). */
+    const keepsByTerm = (r: DocRow): boolean =>
+      filters.length === 0 || matchesTermFilters(r.values, filters.map((f) => ({ cols: f.col === "" ? [...orgCols] : [f.col], ids: f.ids })));
     const applyNonCurrent = (rows: DocRow[]): DocRow[] => {
       // a no-op once the CAML filter carries this; it still covers the
       // case where the term set could not be read
@@ -5759,6 +5763,9 @@ export function mountDocs(
                 if (internal !== "" && carried.has(internal)) out.add(internal);
               }
               for (const c of groupBy === "" ? [...orgCols] : [groupBy]) out.add(c);
+              // a FILTERED column is fetched even when it is not shown:
+              // its term ids are what make the filter exact (report 5)
+              for (const f of filters) for (const c of f.col === "" ? [...orgCols] : [f.col]) if (carried.has(c)) out.add(c);
               // the version label, moderation text and check-in comment:
               // every library has them, none is a lookup (issues 7, 19)
               for (const f of KEPT_SYSTEM_FIELDS) out.add(f);
@@ -5847,7 +5854,10 @@ export function mountDocs(
           if (dead || gen !== generation) return finish();
           const i = pickBrowseHead(feeds.map((f) => f.buf), cmp);
           if (i < 0) break;
-          rowsOut.push(feeds[i].buf.shift()!);
+          // a row the name matched and the id does not is dropped HERE,
+          // so a page still fills with rows that belong
+          const head = feeds[i].buf.shift()!;
+          if (keepsByTerm(head)) rowsOut.push(head);
         }
         if (paintedFromCache) list.setRows(clientSorted(applyNonCurrent(rowsOut)));
         else {
@@ -6134,13 +6144,20 @@ export function mountDocs(
             dateRanges: dateFilters.filter((d) => carried.has(d.col)),
             personFilters: personFilters.filter((p) => carried.has(p.col)),
             presentCols: presentCols.filter((c) => carried.has(c)),
-            fields: cols.map((c) => c.internal).filter((i) => carried.has(i) || KEPT_SYSTEM_FIELDS.has(i)),
+            fields: [
+              ...new Set([
+                ...cols.map((c) => c.internal).filter((i) => carried.has(i) || KEPT_SYSTEM_FIELDS.has(i)),
+                // filtered columns ride along for their term ids
+                ...filters.flatMap((f) => (f.col === "" ? [...orgCols] : [f.col])).filter((i) => carried.has(i)),
+              ]),
+            ],
             rowLimit: 100,
           });
           let next = "";
           for (;;) {
             const page = await renderListPage(app.siteUrl, lib.listId, viewXml, next);
             for (const r of page.rows) {
+              if (!keepsByTerm(r)) continue; // the name matched, the term did not
               if (rows.length >= EXPORT_CAP) {
                 truncated = true;
                 break;
