@@ -1567,6 +1567,48 @@ the form hides. Not reported back: the bulk run's documents a minute
   screen, which the harness cannot mount. All of R4 against real
   SharePoint is Ben's test walk.
 
+### R5 walk (began 2026-11-27)
+
+**Item 1 — report 21, the kanban follows the PDCA state.** Found in
+the code: the columns follow STATUS; only a drag writes "in-progress"
+(`controls/ActionBoard/editor.ts` — nothing else in the app does); the
+dialog sets PDCA and touches status only on closing or reopening; a
+new action starts at Do, so nearly every card in To do reads Do (Sue's
+21). The plan's rule stands — Plan = To do; Do, Check, Act = Doing;
+awaiting endorsement = Endorse; Closed = Done; an old card at Do never
+dragged into Doing reads Plan — held by ONE rule that keeps status and
+PDCA in step at every write (dialog, drag, a tick in a list, a
+reopen); a card dragged into Doing whose mark said Plan reads Do.
+**Found:** Do is the default and cannot be told from a chosen Do, but
+Check and Act are never defaults. **Ben's choice 1:** an old card at
+Check or Act still in To do MOVES to Doing and keeps its mark — the
+one exception to "every card is in the same column the day after".
+
+**Item 2 — report 21, where an action starts and where a reopened one
+goes.** A new action starts at PLAN wherever it is raised (the plan's
+reversal of 2026-08-31, already flagged); one raised from the Doing
+column's own "＋" starts at Do, as now. On hold sits in To do with its
+pause mark; a card in Doing put on hold moves there. Found: reopening
+sets Do in three places (a tick taken off in a list, one person of a
+shared action reopening their part, the dialog) and under the new rule
+that is a column, not only a mark. **Ben's choice 1:** a reopened
+action goes to Do, in Doing — what the code sets today. A drag out of
+Done takes the state of the column it is dropped in.
+
+**Item 3 — report 21, the "By PDCA state" view.** The grouping menu
+gains "By PDCA state": Plan, Do, Check, Act, Closed; awaiting
+endorsement in Closed with its marker; On hold in Plan with its pause
+mark (a drop elsewhere takes it off hold). A drop sets the state and
+status follows; a drop in Closed closes by the rules a close already
+has (a shared action with parts outstanding is refused; a
+non-endorser's close waits); a column's "＋" raises at that state; the
+card settings offer it as a default; the Gantt groups the same way.
+Not the default; Check is not merged with Endorse (the plan). **Found:
+two sets of column names** — initiative boards read To do, Doing,
+Endorse, Done; meeting boards Open, In progress, Done. **Ben's choice
+1:** meeting boards read To do, Doing, Done — one vocabulary for one
+rule.
+
 ---
 
 ## Appendix — the review record (phases 1 and 2, as it was made)
