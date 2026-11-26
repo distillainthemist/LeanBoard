@@ -100,6 +100,7 @@ work and release".
 | N1 | none | CSV import and export for the Issues desk | New | Build | Import with three new statuses; one Teams card per person; preview then apply; export to CSV | Ben's item; this round's close-out needs it | R3 | Planned |
 | N2 | none | A version's comment under its row | Enhancement | Build | The comment shows under each version row in place of the tooltip | Ben's item, from question 1 of cluster A | R1 | Planned |
 | N3 | none | Bulk change of properties | New | Build | A controller changes one or more properties on a filtered or ticked set | Ben's item; a general need, and what makes the BSL repair practical | R4 | Planned |
+| N4 | none | A PDF file's preview shows one page | Defect | Build, in two steps | Say so under the fallback picture and add a readout; then choose the fix once the refusal is seen | Found on R1's walk: the bytes fetch is refused in the hosted app and the fallback is silent | R1 | Planned |
 
 ## Clusters and systemic causes
 
@@ -815,6 +816,54 @@ reviewer waiting for a seat is told when seated, not at submit.
 the row; none shows no second line; long ones wrap; the card still
 shows two drafts and "Show more"; the tooltip goes. The explanatory
 lines above the list stay (not asked to go).
+
+**Item 6 — report 5, terms by id. THE BRIEF GREW.** The sweep of
+name-only lookups: the ingestion grid's `valueOf` (the reported fault,
+fixed); the Importance term found by name to choose the cadence, at
+approval (`docs/docsScreen.ts`) and at ingestion landing (fixed the
+same way); the ingestion run's site check `labelsOutsideRoot` (made
+exact); Edit properties reads by id (`prefillFromItem`) and
+`termPathOf` declines on a shared name — both already safe. **And the
+register's term filter matches by NAME** on the listing road
+(`termFiltersFor` sends labels; only the search road sends term ids):
+a filter on "Metal Delivery, General" also returns "Casthouse,
+General". So my advice that the filter would give the BSL re-tag list
+was WRONG, and N3 on a filtered set would have re-tagged the correct
+documents too. **Decided (Ben's choice 1): the filter is made exact in
+R1** — SharePoint is still asked by name, the app keeps only rows whose
+term id is among those picked (ids arrive since v0.99.0); a row with no
+id is kept; the count is trimmed as rows arrive. About half a day.
+
+**Item 7 — report 17.** The line shows on the decision card only to
+the person it asks (a reviewer in review, an approver or owner awaiting
+approval); Word files (.docx, .docm, .doc); the button opens what
+"Open in new tab" opens; the wording "Tracked changes do not show in
+this preview." The same line goes into the Approve and Review complete
+dialogs in R4, with the quick actions.
+
+**Item 8 — report 11, and a new item N4.**
+
+- "Open at page 1" is added to the preview's address for converted
+  files. It asks for the page and nothing else.
+- **Found on the walk (Ben, dev and production, Edge on a Mac):** a
+  file that is ALREADY A PDF shows page 1 only and will not scroll;
+  Word files scroll. Cause in the code: for a PDF the app fetches the
+  file's bytes and shows them from a blob (`cookieFreeSrc`,
+  `docs/viewer.ts`); when the fetch is refused it falls back to a
+  PICTURE of the first page (`pageImage`) and shows no reason
+  (`previewWhy` is only painted on the placeholder). So in the hosted
+  app nobody reads past page 1 of a PDF in the preview. Which step is
+  refused, and by what, was NOT seen (the code's comments expect the
+  player's content policy); how long it has been so is not known; it
+  works in the harness. Report 11 may be this.
+- **N4, added by Ben 2026-11-26 — a PDF file's preview shows one
+  page.** In R1: (1) a line under the fallback picture, "This shows the
+  first page only. Use Open in new tab for the whole document."; (2) a
+  readout for super admins saying which step of the preview failed and
+  why; Ben reads it on dev; (3) then the fix is chosen with him —
+  allowing the fetch in each environment's settings (no build, only if
+  the player then shows the result), or fetching the bytes through the
+  SharePoint connector (about a day, no admin change).
 
 ---
 
