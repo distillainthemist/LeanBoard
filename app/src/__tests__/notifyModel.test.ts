@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import {
   accessRequestPlan,
   escapeHtml,
+  handsOver,
   notifyCard,
   notifyEmailHtml,
   notifyPlanFor,
@@ -66,21 +67,50 @@ describe("notifyPlanFor", () => {
     expect(plan?.recipients.map((p) => p.email)).toEqual(["olive@x.com", "eddy@x.com"]);
   });
 
-  it("never notifies the actor about their own step, and empty plans are null", () => {
+  it("never notifies the actor about their own step", () => {
     const own = notifyPlanFor({
       ...base,
       myEmail: "olive@x.com",
       commandKey: "approve",
       to: "inOwnerApproval",
     });
-    expect(own).toBeNull(); // the owner acting: the plan collapses to nobody
+    // a hand-over keeps its plan with nobody in it: the dialog says
+    // "nobody else to tell" (2026-11-25, reports 15 and 18)
+    expect(own?.recipients).toEqual([]);
+  });
+
+  it("a hand-over with nobody named still has a plan — reviewers may be added in the dialog", () => {
     const none = notifyPlanFor({
       ...base,
       roles: { ...ROLES, reviewers: [] },
       commandKey: "submitReview",
       to: "inReview",
     });
-    expect(none).toBeNull();
+    expect(none).not.toBeNull();
+    expect(none?.recipients).toEqual([]);
+    expect(none?.subject).toContain("Mash SOP");
+  });
+
+  it("a notice nobody waits on has no plan when there is nobody to tell", () => {
+    const final = notifyPlanFor({ ...base, roles: { ...ROLES, reviewers: [], approvers: [] }, commandKey: "approve", to: "approved" });
+    expect(final).toBeNull();
+    const retired = notifyPlanFor({ ...base, myEmail: "olive@x.com", commandKey: "markObsolete", to: "obsolete" });
+    expect(retired).toBeNull();
+  });
+
+  it("knows which steps hand the document on", () => {
+    expect(handsOver("submitReview", "inReview")).toBe(true);
+    expect(handsOver("reviewComplete", "inReview")).toBe(true);
+    expect(handsOver("submitApproval", "inApproval")).toBe(true);
+    expect(handsOver("submitApproval", "inOwnerApproval")).toBe(true);
+    expect(handsOver("requestRevision", "draft")).toBe(true);
+    expect(handsOver("approve", "inOwnerApproval")).toBe(true);
+    // the final approval's courtesy note and the notices are offered, not sent
+    expect(handsOver("approve", "approved")).toBe(false);
+    expect(handsOver("markSuperseded", "superseded")).toBe(false);
+    expect(handsOver("markObsolete", "obsolete")).toBe(false);
+    expect(handsOver("reinstate", "approved")).toBe(false);
+    expect(handsOver("revise", "draft")).toBe(false);
   });
 
   it("start-revision derives no plan (no next actor)", () => {

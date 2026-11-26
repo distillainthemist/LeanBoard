@@ -27,6 +27,9 @@ export function attachNotifyPanel(opts: {
   autoSend?: "teams";
   /** The outcome line, for the caller's own status. */
   onSent?: (line: string, ok: boolean) => void;
+  /** What the typed words are called in the message ("Reason given",
+   *  or "Comment" where the step did not ask for a reason). */
+  reasonLabel?: string;
 }): boolean {
   const n = opts.context;
   const seen = new Set(n.recipients.map((p) => p.email.toLowerCase()));
@@ -41,7 +44,8 @@ export function attachNotifyPanel(opts: {
   box.appendChild(el("div", "app-field-label", "Let the next step know"));
   // the words below are a DRAFT (UAT DOC-042, 2026-10-26: "reads as if
   // the request is sent prior to pressing the button")
-  box.appendChild(el("div", "app-field-hint app-docs-notifynote", "Nothing has been sent yet — check who hears, edit the words, then send."));
+  // a hand-over sends itself: the note would be untrue there
+  if (opts.autoSend === undefined) box.appendChild(el("div", "app-field-hint app-docs-notifynote", "Nothing has been sent yet — check who hears, edit the words, then send."));
   const chips = el("div", "app-docs-pplchips");
   const paintChips = () => {
     clear(chips);
@@ -106,7 +110,7 @@ export function attachNotifyPanel(opts: {
   const msg = el("textarea", "app-input app-docs-cicomment") as HTMLTextAreaElement;
   msg.rows = 4;
   const typed = (opts.reason ?? "").trim();
-  msg.value = n.message + (typed !== "" ? `\n\nReason given: ${typed}` : "");
+  msg.value = n.message + (typed !== "" ? `\n\n${opts.reasonLabel ?? "Reason given"}: ${typed}` : "");
   const outLine = el("div", "app-field-hint");
   const teamsBtn = el(
     "button",
@@ -138,6 +142,14 @@ export function attachNotifyPanel(opts: {
             recips.length === 1 ? "person" : "people"
           }.`;
           opts.onSent?.(outLine.textContent, true);
+          if (opts.autoSend !== undefined) {
+            // it went by itself — the panel stays for a second send with
+            // edited words, or an email
+            teamsBtn.textContent = "Send again on Teams";
+            teamsBtn.disabled = false;
+            mailBtn.disabled = false;
+            return;
+          }
           btnRow.remove();
           msg.disabled = true;
           return;

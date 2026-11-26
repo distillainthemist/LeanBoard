@@ -27,7 +27,7 @@ import { DocLibrary } from "./docsStore";
 import { buildRenderViewXml } from "./rows";
 import { renderListPage } from "./data";
 import { buildDocSearch } from "./docSearch";
-import { NotifyContext } from "./notifyModel";
+import { NotifyContext, handsOver } from "./notifyModel";
 import { attachNotifyPanel } from "./notifyPanel";
 import { DocRow, formatDayMonthYear } from "./rows";
 import { publishReaderFacing } from "./publish";
@@ -352,24 +352,39 @@ export function openLifecycleCommand(opts: LifecycleRunOpts): void {
         : command.key === "reviewComplete"
           ? `✓ Your review is recorded. ${sent}`
           : `✓ ${command.label} — status is now “${opts.targetTerm.label}”. ${sent}`;
+    // a hand-over sends its card as the step lands (reports 15 and 18);
+    // a notice nobody waits on stays offered
+    const auto = handsOver(command.key, command.to);
     const attached = attachNotifyPanel({
       body: dlg.body,
       context: n,
       extra: command.key === "submitReview" ? added : [],
       reason: reason.value,
-      autoSend: command.key === "submitReview" ? "teams" : undefined,
+      reasonLabel: command.needsReason ? "Reason given" : "Comment",
+      autoSend: auto ? "teams" : undefined,
       onSent: (line, ok) => {
-        status.textContent = doneLine(ok ? `Reviewers notified ${line.replace(/^✓ /, "")}` : line);
-        if (!ok) status.classList.add("app-docs-addstatus-warn");
+        const sentWords = command.key === "submitReview" ? `Reviewers notified ${line.replace(/^✓ /, "")}` : line.replace(/^✓ /, "");
+        status.textContent = doneLine(ok ? sentWords : line);
+        status.classList.toggle("app-docs-addstatus-warn", !ok);
       },
     });
-    if (!attached) return false;
+    if (!attached) {
+      // nobody but the person acting: said, not left to be guessed
+      // (submit for review has its own words for "no reviewer named")
+      if (!auto || command.key === "submitReview") return false;
+      const closeBtn = dlg.root.querySelector(".ltk-btn-secondary") as HTMLButtonElement | null;
+      if (closeBtn !== null) closeBtn.textContent = "Close";
+      goBtn.style.display = "none";
+      running = false;
+      status.textContent = doneLine("Nobody else to tell.");
+      return true;
+    }
     // the command is DONE — the dialog's own buttons say so
     const closeBtn = dlg.root.querySelector(".ltk-btn-secondary") as HTMLButtonElement | null;
     if (closeBtn !== null) closeBtn.textContent = "Close";
     goBtn.style.display = "none";
     running = false;
-    status.textContent = doneLine(command.key === "submitReview" ? "Sending the reviewers' Teams card…" : "Not yet notified — send below.");
+    status.textContent = doneLine(command.key === "submitReview" ? "Sending the reviewers' Teams card…" : auto ? "Sending the Teams card…" : "Not yet notified — send below.");
     return true;
   };
 

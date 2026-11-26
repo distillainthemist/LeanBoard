@@ -47,11 +47,25 @@ const people = (myEmail: string, ...groups: NotifyRecipient[][]): NotifyRecipien
   return out;
 };
 
+/** A HAND-OVER: the step passes the document to someone who now has
+ *  work to do, so its card is sent as the step lands (issue review
+ *  2026-11-25, reports 15 and 18 — a review nobody heard of, a reviewer
+ *  never told). The final Approve's courtesy note and the Supersede /
+ *  Obsolete / Reinstate notices are NOT hand-overs: nobody waits on
+ *  them, and they stay offered, never sent by themselves. */
+export function handsOver(commandKey: LifecycleCommandKey, to: LifecycleStage): boolean {
+  if (commandKey === "submitReview" || commandKey === "reviewComplete" || commandKey === "submitApproval" || commandKey === "requestRevision") return true;
+  return commandKey === "approve" && to === "inOwnerApproval";
+}
+
 /**
  * The notify plan for a completed lifecycle step — recipients are the
  * NEXT actor(s), the message says what just happened and what they
  * need to do. Null = no derivable next actor, and the dialog shows no
- * panel at all (Ben's intent: an option, never a chore).
+ * panel at all (Ben's intent: an option, never a chore). A hand-over
+ * always has a plan, even with nobody in it yet: the dialog may add
+ * people (reviewers picked at submit), and "nobody else to tell" is
+ * said, not left to be guessed.
  */
 export function notifyPlanFor(opts: {
   commandKey: LifecycleCommandKey;
@@ -70,7 +84,7 @@ export function notifyPlanFor(opts: {
     subject: string,
     message: string
   ): NotifyContext | null =>
-    recipients.length === 0 ? null : { recipients, subject, message, link };
+    recipients.length === 0 && !handsOver(commandKey, to) ? null : { recipients, subject, message, link };
   const who = actorName !== "" ? actorName : "A colleague";
   switch (commandKey) {
     case "submitReview":
