@@ -54,7 +54,10 @@ dev or in production on 2026-11-26); the cause of 11 (the fix is a try).
 column change, for 1. The next release is already schema-carrying
 (tranche 4 of the backlog programme, built and unreleased).
 
-**Planned release:** not yet agreed — see "Order of work and release".
+**Plan approved by Ben, 2026-11-26. Two releases, as proposed:** the
+first carries R1, R2 and R3 with the backlog programme's tranches 2, 3
+and 4; the second carries R4, R5 and R6. The resolution CSV follows the
+second release.
 
 ## Decision log
 
@@ -133,7 +136,7 @@ imported.
 **Each tranche is walked with Ben before it is built** (his standing
 rule), then built, pushed to dev and test-walked, one test at a time.
 
-**Release — proposed, for Ben to decide:** two releases. The first
+**Release — approved by Ben, 2026-11-26:** two releases. The first
 carries R1, R2 and R3 with the backlog programme's tranches 2, 3 and 4
 already built, in time for the year change (about 20 working days of
 build). The second carries R4, R5 and R6. The resolution CSV is

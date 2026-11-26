@@ -68,10 +68,9 @@ deferred to tranche 5, 1 declined), three items of Ben's own (N1 the
 CSV import and export for the Issues desk, N2 version comments under
 their rows, N3 bulk change of properties for controllers), about 38
 working days in six tranches R1–R6, one column change (the pillar
-follow link). NOTHING BUILT. Waiting on Ben: the plan's approval and
-the release split (proposed: R1–R3 with programme tranches 2–4 before
-the year change, then R4–R6). Each tranche is walked before it is
-built.
+follow link). NOTHING BUILT. **Plan approved 2026-11-26, two releases:**
+R1–R3 with programme tranches 2–4 before the year change, then R4–R6.
+Each tranche is walked before it is built; R1's walk began 2026-11-26.
 What 1A was: the nine reports of the 2026-11-23 issue export
 (`issues-plan-2026-11-23.md`): Teams group messages refused over a
 colon in the chat topic, Replace content's false "landed wrong" on
