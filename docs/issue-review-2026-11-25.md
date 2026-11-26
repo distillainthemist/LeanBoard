@@ -1878,6 +1878,18 @@ UAT: UAT-DOC-011 corrected; UAT-DOC-116 to 119 added (248 cases).
   several libraries are in view, so that Apply keeps it unless it is
   unticked.
 
+### R6 test walk (2026-11-27, dev `v0.100.0-19-geffffa9`)
+
+| # | Test | Result |
+|---|---|---|
+| 1 | Reports 4 and 26 — the columns hold through a library change, Favourites and a reopen; Reset to default | Pass |
+| 2 | Report 25 — Library in the chooser | Pass |
+| 3 | Report 9 — the Libraries card folds and is remembered | Pass |
+| 4 | Reports 8 and 6 — the Filters pane's height and the larger arrows | **To UAT** (Ben). UAT-DOC-119 is its script. Not seen anywhere: the pane's height in a short window, the foot buttons under a long list, the arrows three levels deep |
+
+**R6's test walk ended 2026-11-27:** three pass, one to UAT. Nothing
+was changed in it.
+
 **Limits:**
 
 - **The sort is carried across a library change, not saved.** A new

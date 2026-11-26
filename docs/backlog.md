@@ -184,8 +184,13 @@ code-app `frame-src`, "Lock every older build". Owed from it:
   tall as the window with larger arrows. Report 7's tooltip was
   already there. As built: the plan's "R6 as built". Unseen running
   until Ben's test walk.
-- **Next:** R6's test walk; then the second release is ready to cut
-  (R4, R5, R6), and the round's full resolution CSV follows it. Tranche 5 of the programme
+- **R6's test walk (2026-11-27, dev `v0.100.0-19-geffffa9`): three
+  pass, the Filters pane TO UAT** (UAT-DOC-119).
+- **The round's six tranches are all built and walked.** Owed in UAT
+  from it: reviewer seats (R1), one Teams card per person (R3),
+  approving on behalf (R4), the Filters pane (R6). Held: report 24.
+  The second release (R4, R5, R6) is ready to cut on Ben's word; the
+  round's full resolution CSV follows it. Tranche 5 of the programme
   follows the round.
 
 **v0.99.0 (2026-11-23, app-only):** tranche 1 of the programme
