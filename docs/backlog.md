@@ -158,9 +158,24 @@ code-app `frame-src`, "Lock every older build". Owed from it:
   approving on behalf TO UAT** (UAT-DOC-114). One fix in it: bulk
   change now offers only the properties the Edit properties form
   shows.
-- **Next:** walk R5 (the kanban and PDCA, a department's part of a
-  priority, one list of measures, the chart's axis), then R6, the
-  second release, and the round's full resolution CSV. Tranche 5 of the programme
+- **R5 walked (seven items) and BUILT 2026-11-27, on dev, NOT
+  released, no schema** — the kanban follows the PDCA state (one rule,
+  `alignPdca`; a new action starts at Plan; "By PDCA state"; meeting
+  boards read To do · Doing · Done); a department's part of a shared
+  priority in the popup and the executive summary; one list of
+  measures on a priority with "Convert measures" in Settings →
+  Priorities; Ben's two limits (four measures on a priority, eight
+  metrics on an initiative). **Report 24 (the chart's axis) was NOT
+  built:** its cause is the trend chart's minimum span, Ben's decision
+  of 2026-10-28; he keeps it and will discuss it with Sue. As built
+  and its limits: the plan's "R5 as built".
+- **Owed at the second release:** press "Convert measures" once (a
+  super admin); tell the sites that every card at Do now reads Plan,
+  that a new action starts at Plan, that meeting boards read To do ·
+  Doing · Done, and that department pages list only their own
+  initiatives of a shared priority until "Also shown in" is filled in.
+- **Next:** R5's test walk, then walk R6, the second release, and the
+  round's full resolution CSV. Tranche 5 of the programme
   follows the round.
 
 **v0.99.0 (2026-11-23, app-only):** tranche 1 of the programme

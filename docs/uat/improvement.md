@@ -210,3 +210,13 @@ steps:
 4. Read the two tables. Click the second initiative's row.
 5. Open the panel again with the year picker on LAST year, and again at a department that holds neither initiative.
 expected: step 3 the toolbar ends with a ⋮ holding "Due-date moves…"; step 4 the panel is headed by the org, the year and "moves to a later date"; "By reason · 4" lists the first reason with 3 (the note is not part of the reason), then "Other" with 1 — the move EARLIER is not counted; a move recorded with no reason (an older one, or one on a meeting board when only initiative actions ask) is in a row of its own, "No reason given", last; "Initiatives with the most" lists the second initiative (2) above the first (2 or by name on a tie); clicking a row opens that initiative; step 5 last year and the other department read "No due date moved later." The register's search and filters do not narrow the count
+
+### UAT-IMP-019 — An initiative holds at most eight metrics
+persona: lead
+modules: improvement/initiativeForm.ts improvement/metricsList.ts priorities/measures.ts
+preconditions: an initiative you own with seven metrics; if the site has one, an initiative from before this build with nine or more
+steps:
+1. Edit the initiative's details → Metrics. Add an eighth metric. Read the two add buttons.
+2. Remove one. Read the buttons.
+3. Open the older initiative with nine or more.
+expected: step 1 the eighth is added; both add buttons are then greyed, their tooltip reading "An initiative holds at most 8 metrics. Remove one to add another."; step 2 they are live again; step 3 every one of its metrics is still there and still shows; nothing can be added until it is under eight

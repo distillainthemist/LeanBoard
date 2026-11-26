@@ -20,6 +20,7 @@ import { ProcessPicker, mountProcessPicker } from "../../../shared/ui/processPic
 import { fieldInput, FieldInputContext } from "./fieldInput";
 import { isFieldEmpty } from "./fieldCodec";
 import { renderMetricsList } from "./metricsList";
+import { INITIATIVE_METRIC_CAP } from "../priorities/measures";
 import { pickOwner } from "../priorities/dialogs";
 import { myDirectoryRoad } from "../people/directoryAdd";
 import { isDescendant, OrgRef, orgName, orgRef, pickerSections, sameOrg } from "../priorities/model";
@@ -446,7 +447,9 @@ export function renderInitiativeForm(o: InitiativeFormOpts): InitiativeFormHandl
           : "Optional — a driver the initiative moves, or a measure of its own.";
     const met = group("Metrics", `${rule} ★ = the primary; it headlines the register and the roll-up.${o.mode === "edit" ? " Own metrics can be linked or promoted into the value driver tree." : ""}`);
     const mBox = el("div");
-    renderMetricsList({ host: mBox, metrics: d.metrics, site: () => siteSel.value, canPromote: o.canPromote, onLinked: o.onMetricLinked, readingsOf: o.metricReadings, onRemoved: o.onMetricRemoved });
+    // an initiative holds at most eight metrics (Ben, 2026-11-27); one
+    // that already has more keeps them and cannot be added to
+    renderMetricsList({ host: mBox, metrics: d.metrics, site: () => siteSel.value, canPromote: o.canPromote, onLinked: o.onMetricLinked, readingsOf: o.metricReadings, onRemoved: o.onMetricRemoved, max: INITIATIVE_METRIC_CAP, fullWords: `An initiative holds at most ${INITIATIVE_METRIC_CAP} metrics. Remove one to add another.` });
     met.appendChild(mBox);
   }
 

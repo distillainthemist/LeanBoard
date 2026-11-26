@@ -18,7 +18,7 @@ import {
   AssignmentStatus,
   isAssignmentStatus,
   isPriorityStatus,
-  parseObjectives, parseOwnMetrics, objectivesJson,
+  parseObjectives, parseOwnMetrics, parseMeasures, objectivesJson,
   parsePlacements,
   OrgRef,
   Pillar,
@@ -159,6 +159,8 @@ function priorityFromRow(
     notes: row.ben_notes ?? "",
     objectives: parseObjectives(row.ben_objectivesjson),
     ownMetrics: parseOwnMetrics(row.ben_objectivesjson),
+    // undefined until "Convert measures" has run on it (report 20)
+    measures: parseMeasures(row.ben_objectivesjson) ?? undefined,
     placements: parsePlacements(row.ben_placementsjson),
   };
 }
@@ -329,6 +331,8 @@ export function newPriority(org: OrgRef, period: string): Priority {
     order: 0,
     notes: "",
     objectives: [],
+    // a priority made from 2026-11-27 has its one list from the start
+    measures: [],
     placements: [],
   };
 }

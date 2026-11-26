@@ -1289,6 +1289,39 @@ Key concepts (details: [leanboard-standard-documents-plan.md](leanboard-standard
   report (`issues/audience.ts`); Decline does the same; a merge copies
   the child's followers and re-points reports already merged into the
   child. Settings → Issues filters by UAT run (§6).
+- **An action's column and its PDCA state are one thing** (2026-11-27,
+  R5, report 21). `shared/schema/actions.ts` `alignPdca(a, from)` is
+  the ONE rule: To do = status open = Plan or On hold; Doing =
+  in-progress = Do, Check or Act; Endorse / Done = Closed. It runs at
+  every write ("pdca" after the dialog or a drop in a PDCA column,
+  "status" after a drop in To do or Doing) and once at every read
+  ("stored", in `sanitizeAction`): a row from before the rule at
+  open + Do reads Plan (Do was the default), at open + Check or Act
+  moves to Doing with its mark. `reopenAction` is the one way back
+  from Closed. The kanban's "By PDCA state" grouping
+  (`controls/ActionBoard/editor.ts` `PDCA_COLUMNS`) is a view of the
+  same state.
+- **A priority's measures** (R5, report 20). ONE ordered list —
+  `Priority.measures`, own metrics by key and references
+  `{ initiativeId, metricKey }` — stored in the objectives column
+  behind a `{ list: 1 }` entry; `measures === undefined` means the
+  priority has not been converted and still reads by the three-source
+  rule (`objectiveValues` handles both). `priorities/measures.ts` is
+  the rules, `measuresTab.ts` the Objectives tab of a listed priority
+  (the own-metric editor of 2026-11-18 mounted beneath it),
+  `convertMeasuresRun.ts` the one-off "Convert measures" of Settings →
+  Priorities. Limits: four measures on a priority (`MEASURE_CAP`),
+  eight metrics on an initiative (`INITIATIVE_METRIC_CAP`).
+- **A department's part of a shared priority** (R5, report 22):
+  `priorities/orgPart.ts` — on a page that is not the owner's, an
+  initiative is listed when it is filed under the org in view or
+  within it, or names it in "Also shown in"; the popup and the
+  executive summary share one session switch (`partView`). The tile is
+  not scoped.
+- **The trend chart's minimum span stays** (`TREND_FLOOR`,
+  `shared/schema/buckets.ts`, Ben 2026-10-28; confirmed 2026-11-27
+  against report 24): it is what draws empty periods before a metric's
+  first reading, on the Metrics card and on meeting-board KPI cards.
 - **Controller tools** (2026-11-27, R4 of the 2026-11-25 round).
   **Bulk change** — `docs/bulkChangeModel.ts` is the rules (four
   operations on a several-valued property, the skips, the Importance

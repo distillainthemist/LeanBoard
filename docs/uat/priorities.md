@@ -80,7 +80,7 @@ expected: step 1 List | Kanban | Gantt, Show all completed, All assignees and �
 ### UAT-PRI-007 — An archived primary initiative stops driving the priority
 persona: orgowner
 modules: priorities/model.ts priorities/prioritiesScreen.ts priorities/lifecycle.ts store/priorities.ts
-preconditions: a priority with two linked initiatives, one starred as primary with a charter, commentary and a starred metric; rights to archive that initiative
+preconditions: a priority NOT YET CONVERTED to its one list of measures (made before 2026-11-27 and before Settings → Priorities → "Convert measures" was run — after that this case is replaced by UAT-PRI-024); a priority with two linked initiatives, one starred as primary with a charter, commentary and a starred metric; rights to archive that initiative
 steps:
 1. Read the priority's objectives on its tile and its popup header; open Charter, Objectives and Commentary.
 2. Archive the primary initiative (Improvement tab → ⋮ → Archive). Return to Priorities and read the same places.
@@ -92,7 +92,7 @@ expected: step 1 the primary's starred metric shows as the objective and the thr
 ### UAT-PRI-008 — A priority with no primary initiative: picked objectives
 persona: orgowner
 modules: priorities/model.ts priorities/prioritiesScreen.ts priorities/lifecycle.ts store/priorities.ts improvement/improvementTab.ts improvement/editDetails.ts
-preconditions: a new priority; two initiatives with metrics; a child priority with an initiative that has a metric
+preconditions: a priority NOT YET CONVERTED to its one list of measures (made before 2026-11-27 and before Settings → Priorities → "Convert measures" was run — after that this case is replaced by UAT-PRI-024); a new priority; two initiatives with metrics; a child priority with an initiative that has a metric
 steps:
 1. Create an initiative linked to the new priority as its primary link. Open the priority's popup.
 2. Open the Objectives tab. Tick one metric from each initiative; close the popup; read the Objectives cell, the walk and the poster.
@@ -211,7 +211,7 @@ expected: step 1 the menu holds "Add action…" under "Edit…"; step 2 the stan
 ### UAT-PRI-016 — A priority's own metrics: defined, filled in, counted
 persona: orgowner
 modules: priorities/ownMetricsTab.ts priorities/lifecycle.ts priorities/prioritiesScreen.ts priorities/model.ts store/priorities.ts store/seriesMap.ts store/driverSeries.ts improvement/metricValues.ts improvement/metricsCard.ts improvement/metricsList.ts improvement/metricLocation.ts improvement/status.ts improvement/vdt/gridDialog.ts improvement/initiativeRow.ts
-preconditions: a site you own with a value driver tree; an active site priority with no initiatives; a second site priority with a starred primary initiative that has a starred metric; a company priority the site has accepted as written; a company priority you may edit (as the company's owner or an admin); a person who can open Priorities but does not manage the site
+preconditions: a priority NOT YET CONVERTED to its one list of measures (made before 2026-11-27 and before Settings → Priorities → "Convert measures" was run — after that this case is replaced by UAT-PRI-024); a site you own with a value driver tree; an active site priority with no initiatives; a second site priority with a starred primary initiative that has a starred metric; a company priority the site has accepted as written; a company priority you may edit (as the company's owner or an admin); a person who can open Priorities but does not manage the site
 steps:
 1. Open the first priority and read its tabs. Open Objectives and read the page.
 2. Press ＋ Add metric. Read the dialog. Give it a name, a plan of 2 and an upper limit of 3; Add metric. Read the row.
@@ -298,3 +298,32 @@ steps:
 1. Edit the priority. Change Start period to next year. Read the Sub-pillar field and the Save button.
 2. Cancel. Add a priority and set its Start period to the year with no sub-pillars.
 expected: step 1 the Sub-pillar field shows the sub-pillar that FOLLOWS, already chosen, and Save is live (2026-11-25 report 23: the field went blank and Save was held with no reason shown); step 2 where the select would be, a line reads "No sub-pillars are set for <year> yet. A super admin sets them in Settings → Priorities." — never an empty required select
+
+### UAT-PRI-023 — A department sees its own part of a shared priority
+persona: orgowner
+modules: priorities/orgPart.ts priorities/prioritiesScreen.ts priorities/lifecycle.ts priorities/walk.ts improvement/initiativeModel.ts
+preconditions: a SITE priority with five initiatives, shown on a department's page (the department adopted it, or it is cascaded there): one initiative filed under that department, one filed under the site that names the department in "Also shown in", three that do neither; a second department with none
+steps:
+1. On the SITE's page open the priority → Initiatives.
+2. On the DEPARTMENT's page read the priority's tile, then open it → Initiatives.
+3. Tick "Show all". Close the popup, open ▶ Executive summary and expand the same priority.
+4. On the second department's page open the priority → Initiatives.
+5. Edit one of the other three initiatives' details and add the department under "Also shown in". Return to the department's page.
+6. On the page of an AREA inside the department open the priority.
+expected: step 1 all five, as always — the owner's own page is not scoped; step 2 the tile still counts five initiatives (the tile is the whole priority's); the list shows TWO, under a line "2 of 5 are <department>’s" with a "Show all" box; each row names the org its initiative is filed under, never "This org"; step 3 all five show; the executive summary's expanded card has the same line and the same box, already ticked (one switch for the session); step 4 "0 of 5", and a sentence says why: an initiative shows here when it is filed under the department or names it in "Also shown in"; step 5 three of five; step 6 an initiative that names only the DEPARTMENT does not show on its area's page — the mapping names the level or below, as on the Improvement tab
+
+### UAT-PRI-024 — One list of measures on a priority
+persona: orgowner
+modules: priorities/measures.ts priorities/measuresTab.ts priorities/model.ts priorities/lifecycle.ts priorities/ownMetricsTab.ts improvement/metricsList.ts improvement/initiativeRow.ts priorities/prioritiesScreen.ts store/priorities.ts
+preconditions: a priority made on this build (or converted) with no measure; two initiatives under it, each with two or more metrics, one of them named "Changeover minutes"; a third initiative under a CHILD priority with a metric; a person who can open Priorities but does not manage the org
+steps:
+1. Open the priority → Objectives. Read the page and its tile.
+2. Press "Add measure". Under "From an initiative" pick a metric. Read the row and the tile.
+3. Add three more: one from the other initiative, one from the child priority's initiative, one more. Read "Add measure".
+4. On a row press ⋮ → Move up; on another ⋮ → Remove. Read the tile and the executive summary.
+5. Press "Add measure" → "＋ A measure of this priority's own". Name it "Average changeover time". Press Add metric.
+6. Choose "Create a new measure". Fill in its plan; enter two readings with "Update values".
+7. On the initiative behind a listed measure delete that metric. Unlink another listed initiative from the priority. Open Objectives again.
+8. With an EMPTY list, ★ an initiative on the Initiatives tab.
+9. As the person who does not manage the org, open Objectives.
+expected: step 1 the tab reads "Measures · 0 of 4", "No measure set", an "Add measure" button, and no paragraph explaining sources or ticks; the tile shows no chart; step 2 the measure is a row: its light, "Name: objective", plan and actual, and its initiative's title as a link that opens the initiative — its readings are entered THERE, one set, never a copy; the tile shows its chart; step 3 a child priority's initiative is offered "via <org>"; a metric already listed is greyed; at four the button is greyed: "A priority holds at most 4 measures. Remove one to add another."; step 4 the order changes and the tile and summary follow it; removing a reference takes it off the list and leaves the metric on its initiative; step 5 a question: "Is “Average changeover time” already measured?" offering "Use “Changeover minutes” from <initiative>" and "Create a new measure" — a duplicate is a choice; step 6 the own measure joins the list as "This priority", with its row, plan boxes and full chart under "This priority's own measures", as own metrics always had; removing it from the list asks with its number of readings and deletes them; step 7 the first row reads "No longer on its initiative", the second "Its initiative is no longer under this priority", each until removed; neither shows on the tile (before this they vanished without a word); step 8 after the usual confirmation a second question offers to add the initiative's key metrics as measures; "Not now" leaves the list empty; with a list that already has measures nothing is offered, and its stars change nothing on the priority; step 9 the rows, no ⋮ and no Add measure. A priority carried in with MORE than four shows the first four on the tile with "+n", greys the rows past four, and cannot be added to until trimmed

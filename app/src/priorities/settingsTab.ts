@@ -83,7 +83,49 @@ export async function renderPrioritiesSettings(
   if (isSuper) {
     await renderPillars(body, ctx, saves, () => renderPrioritiesSettings(body, me, ctx));
     await renderPeriod(body, ctx, saves);
+    renderMeasures(body);
   }
+}
+
+/** "Convert measures" (report 20, 2026-11-27): once after release a
+ *  super admin gives every priority its one list of measures, as it
+ *  stands that day. The count says how many still read by the old rule. */
+function renderMeasures(body: HTMLElement): void {
+  const box = sectionTitle("Measures");
+  body.appendChild(box);
+  const row = el("div", "app-org-stamps");
+  const line = el("span", "app-settings-note", "Checking the priorities…");
+  const go = el("button", "app-btn", "Convert measures") as HTMLButtonElement;
+  go.type = "button";
+  go.disabled = true;
+  go.title = "Give every priority one list of measures, holding what it shows today. A primary initiative's stars stop changing a priority from then on.";
+  row.append(line, go);
+  body.appendChild(row);
+  const count = () =>
+    void import("./convertMeasuresRun")
+      .then((m) => m.countUnconverted())
+      .then(({ todo, done }) => {
+        line.textContent = todo === 0 ? `Every priority has its one list of measures${done > 0 ? ` (${done})` : ""}.` : `${todo} priorit${todo === 1 ? "y still reads" : "ies still read"} its measures by the old rule (own metrics, a primary's stars, or the ticked ones).`;
+        go.disabled = todo === 0;
+      })
+      .catch(() => {
+        line.textContent = "The priorities could not be checked.";
+      });
+  go.addEventListener("click", () => {
+    go.disabled = true;
+    void (async () => {
+      try {
+        const [{ runConvertMeasures }, { convertWords }] = await Promise.all([import("./convertMeasuresRun"), import("./measures")]);
+        const r = await runConvertMeasures((done, total) => (line.textContent = `Converting ${done} of ${total}…`));
+        line.textContent = `${convertWords(r.converted, r.already, r.over)}${r.failed > 0 ? ` ${r.failed} could not be saved: press it again.` : ""}`;
+        go.disabled = r.failed === 0;
+      } catch (e) {
+        line.textContent = `Converting stopped: ${e instanceof Error ? e.message : String(e)}. Press it again: priorities already converted are left alone.`;
+        go.disabled = false;
+      }
+    })();
+  });
+  count();
 }
 
 async function renderPillars(body: HTMLElement, ctx: DirtyCtx, saves: (() => Promise<void>)[], rerender: () => Promise<void>) {

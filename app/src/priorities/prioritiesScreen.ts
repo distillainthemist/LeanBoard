@@ -139,6 +139,7 @@ import {
   sameOrg,
   strategyChips,
   Viewer,
+  MEASURE_CAP,
 } from "./model";
 
 export interface PrioritiesMountOpts {
@@ -687,6 +688,7 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
         return out;
       },
       partOrgFor: (p) => (sameOrg(p.org, state.org) ? "" : orgName(state.org)),
+      viewOrg: () => state.org,
       changed: reload,
       initiativeById: (id) => initiativeList.find((i) => i.id === id) ?? null,
       viewerAdminScope: adminScopeFor(viewer.role, viewer.site),
@@ -1833,7 +1835,7 @@ export function mountPriorities(parent: HTMLElement, opts: PrioritiesMountOpts =
       // its objectives, as charts under the circles (Ben, 2026-11-18 —
       // they were a row of their own): titled by the objective's words,
       // no numbers, two to a row
-      if (showObjectives()) card.appendChild(objectiveCharts(objectivesOf(p), tilePaint));
+      if (showObjectives()) card.appendChild(objectiveCharts(objectivesOf(p), tilePaint, MEASURE_CAP));
       // cascade lineage and sender flags live in the detail overlay, not
       // on the card (Ben, 2026-08-19)
       if (p.status !== "active") {

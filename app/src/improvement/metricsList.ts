@@ -44,8 +44,15 @@ export interface MetricsListOpts {
   /** An own metric stays own: no Link… / Promote… (the host has no
    *  series to carry across). */
   noRelink?: boolean;
-  /** How many metrics at most; the adders close at it. */
-  max?: number;
+  /** How many metrics at most; the adders close at it. A function is
+   *  asked at every paint (a priority's own measures share its limit of
+   *  four with the references, which change beside this list). */
+  max?: number | (() => number);
+  /** Why the adders are closed, in place of the default words. */
+  fullWords?: string;
+  /** Asked before a NEW typed metric is added (report 20): false stops
+   *  it — the host has offered one that already exists instead. */
+  beforeAdd?: (name: string) => Promise<boolean>;
   /** More links on a row, ahead of × ("Values…"). */
   rowTools?: (m: TemplateMetric) => HTMLElement[];
   /** How many readings this metric has stored (programme C8,
@@ -262,11 +269,12 @@ export function renderMetricsList(o: MetricsListOpts): { refresh: () => void } {
     fromTree.addEventListener("click", () => void addFromTree());
     const own = btn(noun === "priority" ? "＋ Add metric" : "＋ Initiative-specific metric");
     own.addEventListener("click", () => openOwnForm());
-    const full = o.max !== undefined && o.metrics.length >= o.max;
+    const max = typeof o.max === "function" ? o.max() : o.max;
+    const full = max !== undefined && o.metrics.length >= max;
     if (full) {
       fromTree.disabled = true;
       own.disabled = true;
-      fromTree.title = own.title = `A ${noun} carries up to ${o.max} metrics of its own`;
+      fromTree.title = own.title = o.fullWords ?? `A ${noun} carries up to ${max} metrics${noun === "priority" ? " of its own" : ""}`;
     }
     if (o.noTree !== true) adders.appendChild(fromTree);
     adders.appendChild(own);
@@ -480,7 +488,24 @@ export function renderMetricsList(o: MetricsListOpts): { refresh: () => void } {
         delete existing.usl;
         delete existing.options;
         Object.assign(existing, fields);
-      } else o.metrics.push({ key: keyFor(nm, o.metrics.map((x) => x.key)), ...fields });
+      } else {
+        const push = () => {
+          o.metrics.push({ key: keyFor(nm, o.metrics.map((x) => x.key)), ...fields });
+          scrim.remove();
+          changed();
+        };
+        // a host may offer a metric that already exists instead
+        if (o.beforeAdd) {
+          add.disabled = true;
+          void o.beforeAdd(nm).then((go) => {
+            if (go) push();
+            else scrim.remove();
+          });
+          return;
+        }
+        push();
+        return;
+      }
       scrim.remove();
       changed();
     });

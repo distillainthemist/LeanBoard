@@ -94,7 +94,7 @@ work and release".
 | 21 | e2732115-cfe7-f111-84e9-7ced8da2c4f3 | Action Phase Not Reflecting in Workflow Columns | Design gap | Build | The kanban column comes from the PDCA state; new actions start at Plan; a "By PDCA state" view | Two separate states on an action, set in different places | R5 | Planned |
 | 22 | 961b76b8-cee7-f111-84e9-6045bdc4133d | Department Filtering Across Initiatives and Actions | Design gap | Build | The priority popup follows "Also shown in" | The popup listed every initiative whatever org was in view | R5 | Planned |
 | 23 | 11725f58-c4e7-f111-84e9-7c1e528a789c | Rolling over priority initiative to continue into another year fault | Defect | Build | "Extend" and "Complete" on a tile past its planned end; the form fixed | No direct step; a changed start year blanked the sub-pillar | R2 | v0.100.0 — Resolved |
-| 24 | e8853a1a-c1e7-f111-84e9-7ced8da2c4f3 | Metrics timeframe (dates selection) | Enhancement | Build | The chart's axis starts at the first reading | The chart opened on a fixed span | R5 | Planned |
+| 24 | e8853a1a-c1e7-f111-84e9-7ced8da2c4f3 | Metrics timeframe (dates selection) | Enhancement | **Held** (was Build) | Not built: the minimum span stays; Ben to discuss with Sue (2026-11-27) | The cause is the trend chart's minimum span, Ben's decision of 2026-10-28 — not the fixed page I named; starting at the first reading reverses it | — | Held |
 | 25 | 8674251b-bee7-f111-84e9-7ced8da2c4f3 | Library column keeps appearing | Design gap | Build | Library is an ordinary column in the chooser | The register added it and the chooser could not remove it | R6 | Planned |
 | 26 | 79d69ea6-bde7-f111-84e9-7c1e528a7790 | Custom columns disappear | Defect | Duplicate of 4 | Same fault, same fix | — | R6 | Planned |
 | 27 | 8dafc340-94e7-f111-84e9-6045bdc4133d | Doc status update | Not software | Decline | Status changes go through the existing commands | Ben: use the existing workflows | — | Answered — Declined |
@@ -1689,6 +1689,93 @@ would be cut off the chart. **Ben's choice 1:** the axis starts at the
 first ENTERED value, actual or plan.
 
 **R5 as walked:** about 7.5 days (plan 6.5). No schema.
+
+### R5 as built (2026-11-27, on dev, NOT released)
+
+**No schema.** One new kind of entry in a priority's objectives column
+(`{ list: 1 }`).
+
+| Item | What was built | Where |
+|---|---|---|
+| 21 | ONE rule keeps an action's status and PDCA state in step at every write and once at every read (`alignPdca`); a new action starts at Plan; a reopened one goes into Do (`reopenAction`); "By PDCA state" in the grouping menu and the card settings; meeting boards read To do · Doing · Done | `shared/schema/actions.ts`, `shared/schema/actionEndorsement.ts`, `shared/ui/actionUi.ts`, `controls/ActionBoard/editor.ts`, `controls/CardSettings/registry.ts` |
+| 22 | On a page that is not the priority's owner's, the popup's initiatives and the executive summary's list are that org's part, with "n of m are <org>’s" and Show all | `priorities/orgPart.ts` (pure), `prioritiesScreen.ts`, `lifecycle.ts`, `walk.ts` |
+| 20 | One list of measures: stored in order with a `{ list: 1 }` mark; the Objectives tab for a listed priority; Add measure; Move up / Move down / Remove; a reference that has gone says why; a primary's key metrics offered when the list is empty; the tile shows four then "+n"; "Convert measures" in Settings → Priorities | `priorities/measures.ts` (pure), `measuresTab.ts`, `convertMeasuresRun.ts`, `model.ts`, `lifecycle.ts`, `ownMetricsTab.ts`, `settingsTab.ts`, `improvement/metricsList.ts`, `improvement/initiativeRow.ts`, `store/priorities.ts` |
+| Ben's limits | A priority holds at most four measures; an initiative at most eight metrics | `priorities/model.ts` `MEASURE_CAP`, `priorities/measures.ts` `INITIATIVE_METRIC_CAP`, `improvement/initiativeForm.ts` |
+| 24 | **NOT BUILT — see below** | — |
+
+UAT: UAT-RIT-013 corrected; UAT-PRI-007, 008 and 016 marked as the
+cases of a priority not yet converted; UAT-ACT-017, UAT-PRI-023,
+UAT-PRI-024, UAT-SET-019 and UAT-IMP-019 added (244 cases).
+
+**Report 24 was taken back out at the build, on Ben's word.** I gave
+the wrong cause in phase 2 and again on the walk. The empty years are
+not the entry grid's page (`chartWindow`, which only decides what is
+READ): they are the trend chart's MINIMUM SPAN — five years, twelve
+months, thirteen weeks, twenty-eight days (`TREND_FLOOR`,
+`shared/schema/buckets.ts`), **Ben's own decision of 2026-10-28**, and
+the same chart draws the KPI cards on meeting boards. Starting the
+axis at the first value reverses that decision. The harness showed it:
+the rule I had built changed nothing on screen. Asked on 2026-11-27,
+Ben chose to **keep the minimum span and discuss it with Sue**; the
+change was reverted (`readWindow.ts` is as it was). Report 24 is OPEN,
+held on that conversation; if it comes back, the scoped option is the
+Metrics card alone, leaving meeting-board KPI cards on the floor.
+
+**Deviations from the walk, said plainly:**
+
+- **20 — an unconverted priority keeps the OLD Objectives tab** (the
+  tick list, the primary's card) until "Convert measures" is run; the
+  one list shows only on a converted priority or one made since. So
+  straight after install, old priorities look and behave as before.
+- **20 — the primary's key metrics are offered by a second question**
+  ("Add its key metrics as measures?" — Add them / Not now) after the
+  usual confirmation, not by a tick inside it: the app's confirmation
+  has no tick.
+- **20 — an own measure is created in the editor that exists**
+  ("＋ Add metric" / "＋ From the value driver tree" under "This
+  priority's own measures"); "Add measure → A measure of this
+  priority's own" opens it. The similar-name question is asked when a
+  typed metric is saved, not as the name is typed. A measure taken
+  from the value driver tree is not checked for a similar name.
+- **20 — removing an own measure from the list presses the editor's
+  own ×**, so the question with the number of readings is the existing
+  one.
+- **20 — a referenced measure's chart is not drawn on the tab**, only
+  its row (light, plan, actual) and the link to its initiative; own
+  measures keep their full charts there. The tile draws both.
+- **21 — an action put back after a wrongful close keeps a Check or
+  Act mark** (it is not reset to Do); only one that said nothing but
+  Closed reopens into Do.
+- **Templates:** they carry a metric RULE, not metrics (since
+  2026-09-03), so none starts an initiative over eight.
+
+**Limits:**
+
+- **21 — an OLDER build still writes status and state apart.** A Do
+  chosen in an older build's dialog is read as Plan by this one. Lock
+  older builds at release.
+- **21 — every old card at Do reads Plan after release**, including
+  any whose Do was chosen. That is the walk's decision; the sites
+  should be told.
+- **22 — the tile, the tab's count ("Initiatives 5") and the other
+  tabs are not scoped.** Only the Initiatives list and the summary's
+  list are.
+- **20 — an older build drops the list mark when it saves a
+  priority**, which puts it back on the old rule. Lock older builds.
+- **20 — "Convert measures" converts every company's priorities in one
+  run**, one save each; a failure leaves that priority on the old rule
+  and the button takes it next time.
+- **Seen in the harness:** the kanban's column names and the "By PDCA
+  state" view on seeded actions; the one list on a priority with an own
+  measure (the head, the row, its menu, the add panel, the own editor
+  beneath); "Convert measures" on one seeded priority. **Seen
+  nowhere:** a drag in either view, the dialog moving a card, old
+  cards being re-read; a REFERENCED measure (the harness has no
+  initiatives with metrics), the similar-name question, the offer at
+  starring, a reference that has gone, a priority over four; a
+  department's part of a priority (the harness has one org's page);
+  the initiative limit. Ben's test walk on dev is the first real run
+  of each.
 
 ---
 

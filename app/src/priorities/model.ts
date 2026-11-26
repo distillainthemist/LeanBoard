@@ -257,10 +257,29 @@ export interface Priority {
    *  objectives column; their readings live in the series table at
    *  `OWN_SERIES_BOARD` / `ownSeriesCard`. Absent = none. */
   ownMetrics?: TemplateMetric[];
+  /** ONE list of measures (report 20, 2026-11-27): what the tile shows
+   *  and what the Objectives tab lists, in order — the priority's own
+   *  metrics and references to its initiatives' metrics, never copies.
+   *  UNDEFINED = this priority has not been converted yet and still
+   *  reads by the three-source rule (`objectiveValues`); the column
+   *  carries a `{ list: 1 }` entry once it has. `ownMetrics` keeps the
+   *  definitions of the own entries; `objectives` mirrors the references. */
+  measures?: Measure[];
   /** The sub-pillars it sat under in EARLIER years (issue 4, 2026-11-16);
    *  `pillarId` stays its current home. Oldest first. */
   placements: PriorityPlacement[];
 }
+
+/** One entry of a priority's measures: its own metric (by key), or a
+ *  reference to a metric of an initiative under it. */
+export type Measure = { own: string } | PriorityObjective;
+export const isOwnMeasure = (m: Measure): m is { own: string } => typeof (m as { own?: unknown }).own === "string";
+
+/** A priority holds at most FOUR measures, own and referenced together
+ *  (Ben's rule on R5's walk — the list IS what is featured); the tile
+ *  and the executive summary show four, then "+n" for a priority
+ *  carried in with more. */
+export const MEASURE_CAP = 4;
 
 /** One picked objective: a metric of a linked initiative. */
 export interface PriorityObjective {
@@ -336,13 +355,63 @@ export function parseOwnMetrics(raw: unknown): TemplateMetric[] {
   return out;
 }
 
-/** The objectives column as written: the priority's own metrics first,
- *  then the picks. "" when it has neither. */
-export function objectivesJson(p: Pick<Priority, "objectives" | "ownMetrics">): string {
-  const own = (p.ownMetrics ?? []).slice(0, OWN_METRIC_CAP).map((m) => {
+/** A converted priority's measures, in order, from the objectives
+ *  column — null when the column carries no `{ list: 1 }` entry (the
+ *  priority still reads by the three-source rule). Entries the column
+ *  holds that the order does not name are appended, so nothing typed is
+ *  ever lost to a bad write. */
+export function parseMeasures(raw: unknown): Measure[] | null {
+  let v: unknown = raw;
+  if (typeof v === "string") {
+    try {
+      v = JSON.parse(v || "[]");
+    } catch {
+      return null;
+    }
+  }
+  if (!Array.isArray(v) || !v.some((x) => x && typeof x === "object" && (x as Record<string, unknown>).list === 1)) return null;
+  const own = new Set(parseOwnMetrics(v).map((m) => m.key));
+  const out: Measure[] = [];
+  for (const x of v) {
+    if (!x || typeof x !== "object") continue;
+    const o = x as Record<string, unknown>;
+    const m = o.own as Record<string, unknown> | undefined;
+    if (m && typeof m === "object" && typeof m.key === "string" && own.has(m.key)) {
+      if (!out.some((y) => isOwnMeasure(y) && y.own === m.key)) out.push({ own: m.key });
+    } else if (typeof o.initiativeId === "string" && typeof o.metricKey === "string" && o.initiativeId !== "" && o.metricKey !== "") {
+      if (!out.some((y) => !isOwnMeasure(y) && y.initiativeId === o.initiativeId && y.metricKey === o.metricKey)) out.push({ initiativeId: o.initiativeId, metricKey: o.metricKey });
+    }
+  }
+  return out;
+}
+
+/** The objectives column as written. A converted priority: the list
+ *  mark, then its measures IN ORDER (an own entry carries its
+ *  definition). Otherwise, as before: the priority's own metrics first,
+ *  then the picks. "" when it has nothing and is not converted. A build
+ *  older than 2026-11-27 reads the entries, drops the mark when it
+ *  saves, and the priority is back on the old rule — lock older builds. */
+export function objectivesJson(p: Pick<Priority, "objectives" | "ownMetrics" | "measures">): string {
+  const defs = (p.ownMetrics ?? []).slice(0, OWN_METRIC_CAP).map((m) => {
     const { primary: _starred, ...rest } = m;
-    return { own: rest };
+    return rest;
   });
+  if (p.measures !== undefined) {
+    const written = new Set<string>();
+    const entries: unknown[] = [{ list: 1 }];
+    for (const m of p.measures) {
+      if (isOwnMeasure(m)) {
+        const def = defs.find((d) => d.key === m.own);
+        if (def && !written.has(def.key)) {
+          written.add(def.key);
+          entries.push({ own: def });
+        }
+      } else entries.push({ initiativeId: m.initiativeId, metricKey: m.metricKey });
+    }
+    for (const d of defs) if (!written.has(d.key)) entries.push({ own: d });
+    return JSON.stringify(entries);
+  }
+  const own = defs.map((d) => ({ own: d }));
   return own.length + p.objectives.length > 0 ? JSON.stringify([...own, ...p.objectives]) : "";
 }
 
@@ -426,6 +495,18 @@ export function objectiveValues<V extends { key: string; starred: boolean }>(
    *  they add to its initiatives' objectives, they do not replace them). */
   own: V[] = []
 ): V[] {
+  // a converted priority: its ONE list, in its order (report 20). A
+  // reference whose metric or initiative has gone is not drawn — the
+  // Objectives tab says why.
+  const listed = (p as Pick<Priority, "measures">).measures;
+  if (listed !== undefined) {
+    const out: V[] = [];
+    for (const m of listed) {
+      const v = isOwnMeasure(m) ? own.find((x) => x.key === m.own) : linked(m.initiativeId) ? valuesOf(m.initiativeId).find((x) => x.key === m.metricKey) : undefined;
+      if (v) out.push(v);
+    }
+    return out;
+  }
   if (livePrimary !== "") return [...own, ...valuesOf(livePrimary).filter((v) => v.starred)];
   const out: V[] = [...own];
   for (const o of p.objectives) {

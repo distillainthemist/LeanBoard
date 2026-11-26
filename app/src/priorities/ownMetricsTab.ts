@@ -40,6 +40,14 @@ export interface OwnMetricsOpts {
   save: () => Promise<void>;
   /** Readings changed: read them again, repaint the screen. */
   valuesChanged: () => Promise<void>;
+  /** How many own metrics at most (default: the old limit of eight). A
+   *  priority with its one list of measures shares four with its
+   *  references (report 20). */
+  max?: () => number;
+  /** Asked before a new typed metric is added (measuresTab.ts). */
+  beforeAdd?: (name: string) => Promise<boolean>;
+  /** The definitions changed and are about to be saved. */
+  onDefinitions?: () => void;
 }
 
 /** The values grid's note names whose readings they are. */
@@ -58,7 +66,9 @@ function trackingFor(m: TemplateMetric, d: DriverNode | null): DriverTracking | 
   return null;
 }
 
-export function mountOwnMetrics(o: OwnMetricsOpts): void {
+export function mountOwnMetrics(o: OwnMetricsOpts): { refresh: () => void } {
+  let refreshList: () => void = () => undefined;
+  const handle = { refresh: () => refreshList() };
   const p = o.priority;
   const site = p.org.site;
   const metrics: TemplateMetric[] = (p.ownMetrics ?? []).map((m) => ({ ...m }));
@@ -154,7 +164,7 @@ export function mountOwnMetrics(o: OwnMetricsOpts): void {
     }
     o.host.appendChild(chartsHost);
     mountCharts();
-    return;
+    return handle;
   }
 
   const err = el("div", "app-cp-err", "");
@@ -171,13 +181,14 @@ export function mountOwnMetrics(o: OwnMetricsOpts): void {
   const persist = () => {
     const now = JSON.stringify(metrics);
     if (now === saved) return;
-    if (objectivesJson({ objectives: p.objectives, ownMetrics: metrics }).length > OBJECTIVES_JSON_MAX) {
+    if (objectivesJson({ objectives: p.objectives, ownMetrics: metrics, measures: p.measures }).length > OBJECTIVES_JSON_MAX) {
       err.textContent = "These metrics are too long to store on one priority. Shorten a name or an objective, or remove a metric.";
       return;
     }
     err.textContent = "";
     saved = now;
     p.ownMetrics = metrics.map((m) => ({ ...m }));
+    o.onDefinitions?.();
     // the charts follow the definitions (a metric added, renamed, removed)
     mountCharts();
     // a metric joined to a driver reads the driver's series from now on
@@ -222,7 +233,7 @@ export function mountOwnMetrics(o: OwnMetricsOpts): void {
   o.host.append(list, err, chartsHost);
   void mayPromote().then((canPromote) => {
     if (!list.isConnected) return;
-    renderList(canPromote);
+    refreshList = renderList(canPromote).refresh;
   });
   const renderList = (canPromote: boolean) => renderMetricsList({
     host: list,
@@ -259,7 +270,9 @@ export function mountOwnMetrics(o: OwnMetricsOpts): void {
         err.textContent = `The readings of ${m.name} could not be moved into the driver. They are still stored with this priority.`;
       }
     },
-    max: OWN_METRIC_CAP,
+    max: o.max ?? OWN_METRIC_CAP,
+    ...(o.max ? { fullWords: "A priority holds at most four measures. Remove one to add another." } : {}),
+    beforeAdd: o.beforeAdd,
     onChanged: persist,
     // this list saves at once, so a removed metric's readings go at once
     // — after the person has been asked, with the count (programme C8)
@@ -282,4 +295,5 @@ export function mountOwnMetrics(o: OwnMetricsOpts): void {
     },
   });
   mountCharts();
+  return handle;
 }

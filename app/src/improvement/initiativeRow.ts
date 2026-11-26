@@ -157,9 +157,17 @@ export function metricTile(mv: MetricValue, o: Pick<InitiativeRowOpts, "colour" 
  *  a row of their own under the priorities): two charts to a row, as
  *  many rows as it takes, each titled by the objective's own words, or
  *  the metric's name where none were written. */
-export function objectiveCharts(list: MetricValue[], o: Pick<InitiativeRowOpts, "colour" | "metricColour">): HTMLElement {
+export function objectiveCharts(list: MetricValue[], o: Pick<InitiativeRowOpts, "colour" | "metricColour">, cap = 0): HTMLElement {
   const box = el("div", "app-cp-objcharts");
-  for (const mv of list) box.appendChild(metricTile(mv, o, 28, mv.objective !== "" ? mv.objective : mv.name));
+  // a priority shows at most four measures (Ben, 2026-11-27); one
+  // carried in with more shows the first four and "+n"
+  const shown = cap > 0 ? list.slice(0, cap) : list;
+  for (const mv of shown) box.appendChild(metricTile(mv, o, 28, mv.objective !== "" ? mv.objective : mv.name));
+  if (list.length > shown.length) {
+    const more = el("div", "app-ir-metric-more", `+${list.length - shown.length}`);
+    more.title = list.slice(shown.length).map((m) => m.name).join("\n");
+    box.appendChild(more);
+  }
   return box;
 }
 

@@ -24,13 +24,14 @@ import {
 import { addModeToggle, modal, field, OrgTree, childOrgs, priorityDialog, cascadeTargetList, CascadeTarget } from "./dialogs";
 import { rememberBoardOrigin } from "../improvement/boardOrigin";
 import { popupTabFor, rememberPopupTab } from "../sessionView";
-import { promptConfirm } from "../prompts";
+import { promptChoice, promptConfirm } from "../prompts";
 import { initiativeRow, initiativeRowHead, rowRank } from "../improvement/initiativeRow";
 import { offerStepMessage } from "./stepMessage";
 import { openOwn } from "./actionsTabModel";
 import { relinkPillarPlan, relinkPillarWords } from "./relinkPillar";
 import { staleTag } from "../improvement/staleMark";
 import { partLine, partNone, partView } from "./orgPart";
+import { setMeasures, starredKeys } from "./measures";
 import {
   CLOSE_REASONS,
   CloseReason,
@@ -55,6 +56,7 @@ import {
   PrioritySettings,
   Rag,
   ragPaletteKey,
+  MEASURE_CAP,
   reviewQueue,
   sameOrg,
   senderFlags,
@@ -144,6 +146,8 @@ export interface LifecycleCtx {
   /** The org whose PART of a priority the page shows: its name when the
    *  page is not the priority's owner's, "" on the owner's own page. */
   partOrgFor: (p: Priority) => string;
+  /** The org whose page this is. */
+  viewOrg: () => OrgRef;
   /** The raw initiatives + actions behind a priority — the Actions tab's
    *  Gantt (P8). Confidential initiatives are excluded outright. */
   ganttFor: (p: Priority) => {
@@ -1322,6 +1326,23 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
               );
               if (!ok) return;
               live.primaryInitiativeId = isPrimary ? "" : r.id;
+              // starring a primary no longer takes the measures over
+              // (report 20): with an EMPTY list its key metrics are
+              // offered, once, as ordinary entries
+              if (!isPrimary && live.measures !== undefined && live.measures.length === 0) {
+                const keys = starredKeys(ctx.initiativeById(r.id)?.metrics ?? []).slice(0, MEASURE_CAP);
+                if (keys.length > 0) {
+                  const add = await promptChoice({
+                    title: "Add its key metrics as measures?",
+                    note: `This priority has no measure set. “${r.title}” has ${keys.length === 1 ? "one key metric" : `${keys.length} key metrics`}: added, ${keys.length === 1 ? "it shows" : "they show"} on the tile as this priority's measures. The list can be changed on the Objectives tab at any time.`,
+                    choices: [
+                      { key: "add", label: keys.length === 1 ? "Add it" : "Add them", primary: true },
+                      { key: "no", label: "Not now" },
+                    ],
+                  });
+                  if (add === "add") setMeasures(live, keys.map((metricKey) => ({ initiativeId: r.id, metricKey })));
+                }
+              }
               await savePriority(live, ctx.data());
               await ctx.changed();
               if (scrim.isConnected) paint();
@@ -1452,6 +1473,37 @@ export function openPriorityOverlay(ctx: LifecycleCtx, p: Priority, onEdit: (p: 
       const host = el("div", "app-cp-ov-charter");
       body.appendChild(host);
       void mountPrimaryCard(host, primary.id, "CanvasCard", { actor: ctx.actor(), adminScope: ctx.viewerAdminScope, priorityId: live.id });
+    } else if (tab === "metrics" && live.measures !== undefined) {
+      // ONE list of measures (report 20, 2026-11-27): this priority has
+      // been converted, or was made since — no three-source rule and no
+      // paragraph to explain it. An unconverted one keeps the old tab
+      // below until "Convert measures" is run in Settings → Priorities.
+      const host = el("div", "app-ms");
+      body.appendChild(host);
+      void import("./measuresTab").then((m) => {
+        if (!host.isConnected) return;
+        m.mountMeasures({
+          host,
+          priority: live,
+          canManage: ctx.canManage(live.org) && sameOrg(live.org, ctx.viewOrg()),
+          canEditOwn: ctx.ownMetrics.canEdit(live),
+          ownValues: () => ctx.ownMetrics.valuesOf(live),
+          choices: () => ctx.metricChoicesFor(live),
+          linkedIds: () => new Set(ctx.initiativesFor(live).map((r) => r.id)),
+          initiativeById: ctx.initiativeById,
+          palette: ctx.palette,
+          save: async () => {
+            await savePriority(live, ctx.data());
+            await ctx.changed();
+          },
+          refreshOwn: () => ctx.ownMetrics.refresh(live),
+          openInitiative: (boardId) => {
+            rememberBoardOrigin("#/priorities", live.id);
+            close();
+            window.location.hash = `#/board/${boardId}`;
+          },
+        });
+      });
     } else if (tab === "metrics") {
       // "This priority" first: the metrics defined on it. Its managers
       // edit them here; everyone else reads them (an adopting org too).

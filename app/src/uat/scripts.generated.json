@@ -3425,9 +3425,9 @@
         "Switch to Gantt; then back to Kanban and choose \"By status\". Leave the card and open it again in the same session.",
         "[Owner] In the card's settings set Kanban grouping to \"By person\"; open the card as someone who has not chosen a grouping."
        ],
-       "expected": "step 1 the select reads By status / By issue / By person and changes only your own view; step 2 one column per person holding an action, by name, then \"Unassigned\"; the shared action stands in BOTH its people's columns reading \"with 1 other\", and \"✓ part done\" under the person whose part is done; a column's count is that person's actions; step 3 the dragged action is theirs afterwards (its Who shows the new person) and the counts follow; dropping on Unassigned leaves nobody on it; step 4 the shared action stays where it was and the card says it is shared and that who is on it changes in the action itself; step 5 the new action is raised for that column's person; step 6 the Gantt's rows are grouped under the same people (a shared action under each of them); \"By status\" returns the status columns and the Gantt to one flat list; the grouping you chose is remembered for the session; step 7 the card opens by person for them; the tile shows the same grouping with no select",
-       "hash": "68376a24",
-       "changed": "2026-11-18"
+       "expected": "step 1 the select reads By status / By PDCA state / By issue / By person and changes only your own view; step 2 one column per person holding an action, by name, then \"Unassigned\"; the shared action stands in BOTH its people's columns reading \"with 1 other\", and \"✓ part done\" under the person whose part is done; a column's count is that person's actions; step 3 the dragged action is theirs afterwards (its Who shows the new person) and the counts follow; dropping on Unassigned leaves nobody on it; step 4 the shared action stays where it was and the card says it is shared and that who is on it changes in the action itself; step 5 the new action is raised for that column's person; step 6 the Gantt's rows are grouped under the same people (a shared action under each of them); \"By status\" returns the status columns and the Gantt to one flat list; the grouping you chose is remembered for the session; step 7 the card opens by person for them; the tile shows the same grouping with no select",
+       "hash": "eaf75f9b",
+       "changed": "2026-11-27"
       },
       {
        "id": "UAT-RIT-014",
@@ -3936,6 +3936,33 @@
        "expected": "step 1 the line counts the open actions with no stamp (\"N open actions have no org stamp yet.\"); the button reports \"N open actions checked, N stamped\" and the line then reads \"Every open action carries its org stamp.\"; step 3 the first site lists the action assigned there and the shared one; under \"Raised here, assigned elsewhere · 1\" it lists the one handed to the second site; the first site's department lists the same only when its people are in that department; the second site lists the action assigned there and the shared one, and has no \"Raised here\" group; step 4 the whole-company scope paints at once with \"Loading… N actions read so far\" until every action is in; step 5 the moved person's action leaves the first site's scope and shows in the second's (and, raised at the first site, under its \"Raised here, assigned elsewhere\"); step 6 a note \"Updating actions\" counts while the rename runs; the actions show under the department's new name; step 7 the archived site is not offered in the picker; its open actions still show in the whole-company scope, on its boards and in each person's own list. Before step 1 (rows not yet stamped) every list in step 3 is already complete: unstamped actions are found the old way",
        "hash": "d38b607a",
        "changed": "2026-11-25"
+      },
+      {
+       "id": "UAT-ACT-017",
+       "title": "The kanban follows the PDCA state",
+       "journey": "Journey 4 — Shared actions, support, duplicate and message (2026-11-17)",
+       "persona": "owner",
+       "modules": [
+        "shared/schema/actions.ts",
+        "shared/schema/actionEndorsement.ts",
+        "shared/ui/actionUi.ts",
+        "controls/ActionBoard/editor.ts",
+        "controls/CardSettings/registry.ts",
+        "cardRegistry.ts"
+       ],
+       "preconditions": "a meeting board and an initiative board, each with an Action card on its kanban view holding actions raised BEFORE this build: several never moved from the first column, one that was set to Check in its dialog and never dragged, one in the second column; a shared action; a closed action",
+       "steps": [
+        "Read the column names on both boards. Read where each old card stands and the disc on it.",
+        "Open a card in To do and set its PDCA state to Do; Save. Then set another to Check, and one in Doing to On hold.",
+        "Drag a card from Doing to To do; drag one from To do to Doing; drag one at Check from To do… (it is already in Doing) within Doing to Done and back to Doing.",
+        "Press ＋ Add action (the card's, then the hub's). Read the new action's state and column. Press ＋ at the head of Doing.",
+        "Tick a done action open again in the List view. Reopen one part of a closed shared action.",
+        "Beside List | Kanban | Gantt choose \"By PDCA state\". Read the columns. Drag a card to Check, one to Closed, one out of Closed. Switch to Gantt.",
+        "[Owner] In the card's settings read the Kanban grouping choices."
+       ],
+       "expected": "step 1 BOTH boards read To do · Doing · Done (the initiative board with Endorse between) — the meeting board no longer reads Open · In progress; old cards that were never moved are in To do and their disc reads PLAN (they read Do before: Do was every new action's default); the card set to Check has MOVED to Doing and still reads Check; step 2 the card set to Do is in Doing; Check keeps it in Doing; On hold moves the card to To do with its pause mark; step 3 a card dropped in To do reads Plan; dropped in Doing it reads Do; a card at Check or Act keeps its mark in Doing; out of Done it takes the state of the column it lands in; step 4 a new action starts at PLAN, in To do, wherever it is raised; raised from Doing's ＋ it starts at Do; step 5 a reopened action goes back into Do, in Doing; step 6 Plan · Do · Check · Act · Closed; an action on hold stands in Plan with its pause mark, one awaiting endorsement in Closed with its marker; a drop sets the state, and the status view shows the card in the matching column; a drop in Closed is a close like any other — refused for a shared action with parts outstanding, and waiting for an endorser where the initiative asks for one; the Gantt groups its rows by state; step 7 By status · By PDCA state · By issue · By person",
+       "hash": "b790d54d",
+       "changed": "2026-11-27"
       }
      ]
     }
@@ -4369,6 +4396,26 @@
        "expected": "step 3 the toolbar ends with a ⋮ holding \"Due-date moves…\"; step 4 the panel is headed by the org, the year and \"moves to a later date\"; \"By reason · 4\" lists the first reason with 3 (the note is not part of the reason), then \"Other\" with 1 — the move EARLIER is not counted; a move recorded with no reason (an older one, or one on a meeting board when only initiative actions ask) is in a row of its own, \"No reason given\", last; \"Initiatives with the most\" lists the second initiative (2) above the first (2 or by name on a tie); clicking a row opens that initiative; step 5 last year and the other department read \"No due date moved later.\" The register's search and filters do not narrow the count",
        "hash": "4065fdeb",
        "changed": "2026-11-25"
+      },
+      {
+       "id": "UAT-IMP-019",
+       "title": "An initiative holds at most eight metrics",
+       "journey": "Journey 2 — Initiatives",
+       "persona": "lead",
+       "modules": [
+        "improvement/initiativeForm.ts",
+        "improvement/metricsList.ts",
+        "priorities/measures.ts"
+       ],
+       "preconditions": "an initiative you own with seven metrics; if the site has one, an initiative from before this build with nine or more",
+       "steps": [
+        "Edit the initiative's details → Metrics. Add an eighth metric. Read the two add buttons.",
+        "Remove one. Read the buttons.",
+        "Open the older initiative with nine or more."
+       ],
+       "expected": "step 1 the eighth is added; both add buttons are then greyed, their tooltip reading \"An initiative holds at most 8 metrics. Remove one to add another.\"; step 2 they are live again; step 3 every one of its metrics is still there and still shows; nothing can be added until it is under eight",
+       "hash": "af54a439",
+       "changed": "2026-11-27"
       }
      ]
     }
@@ -4532,7 +4579,7 @@
         "priorities/lifecycle.ts",
         "store/priorities.ts"
        ],
-       "preconditions": "a priority with two linked initiatives, one starred as primary with a charter, commentary and a starred metric; rights to archive that initiative",
+       "preconditions": "a priority NOT YET CONVERTED to its one list of measures (made before 2026-11-27 and before Settings → Priorities → \"Convert measures\" was run — after that this case is replaced by UAT-PRI-024); a priority with two linked initiatives, one starred as primary with a charter, commentary and a starred metric; rights to archive that initiative",
        "steps": [
         "Read the priority's objectives on its tile and its popup header; open Charter, Objectives and Commentary.",
         "Archive the primary initiative (Improvement tab → ⋮ → Archive). Return to Priorities and read the same places.",
@@ -4541,8 +4588,8 @@
         "Edit the other initiative's details and remove its link to the priority while it is starred."
        ],
        "expected": "step 1 the primary's starred metric shows as the objective and the three tabs show its content; step 2 the tile shows no objective, the header has no ★ line, the popup has no Charter or Commentary tab, and the Objectives tab (always so named) shows the tick list in place of the primary's metrics card; step 3 the notice names the archived initiative (\"was archived, so it no longer headlines this priority\") and Clear removes it; step 4 a COMPLETED primary keeps headlining: its metric still shows, the header reads \"★ <title> (completed)\", and the Initiatives tab says so with a Clear link; step 5 an unlinked primary drops the same way with \"is no longer linked to this priority\"",
-       "hash": "9ec38c80",
-       "changed": "2026-11-18"
+       "hash": "b1f91132",
+       "changed": "2026-11-27"
       },
       {
        "id": "UAT-PRI-008",
@@ -4557,7 +4604,7 @@
         "improvement/improvementTab.ts",
         "improvement/editDetails.ts"
        ],
-       "preconditions": "a new priority; two initiatives with metrics; a child priority with an initiative that has a metric",
+       "preconditions": "a priority NOT YET CONVERTED to its one list of measures (made before 2026-11-27 and before Settings → Priorities → \"Convert measures\" was run — after that this case is replaced by UAT-PRI-024); a new priority; two initiatives with metrics; a child priority with an initiative that has a metric",
        "steps": [
         "Create an initiative linked to the new priority as its primary link. Open the priority's popup.",
         "Open the Objectives tab. Tick one metric from each initiative; close the popup; read the Objectives cell, the walk and the poster.",
@@ -4565,8 +4612,8 @@
         "On the Initiatives tab ★ one initiative; read the tabs and the Objectives cell. Open the priority's Edit form and read it. Clear the star."
        ],
        "expected": "step 1 the initiative is NOT starred by itself — the priority has no primary, no Charter or Commentary tab; step 2 the tab lists each initiative under the priority with its metrics (name, objective, plan, actual, light), the child priority's marked \"via <org>\"; the ticked metrics show as the priority's objectives everywhere the Objectives row is drawn; step 3 the cell follows; a non-manager sees the ticks greyed; step 4 with a primary starred its starred metrics take over, Charter and Commentary return, and the Objectives tab shows the primary's metrics card under \"★ <title>\"; the Edit form has no \"Primary initiative\" line — the star lives on the Initiatives tab alone; clearing the star brings the picked objectives back",
-       "hash": "6763e370",
-       "changed": "2026-11-18"
+       "hash": "cc93bc52",
+       "changed": "2026-11-27"
       },
       {
        "id": "UAT-PRI-009",
@@ -4805,7 +4852,7 @@
         "improvement/vdt/gridDialog.ts",
         "improvement/initiativeRow.ts"
        ],
-       "preconditions": "a site you own with a value driver tree; an active site priority with no initiatives; a second site priority with a starred primary initiative that has a starred metric; a company priority the site has accepted as written; a company priority you may edit (as the company's owner or an admin); a person who can open Priorities but does not manage the site",
+       "preconditions": "a priority NOT YET CONVERTED to its one list of measures (made before 2026-11-27 and before Settings → Priorities → \"Convert measures\" was run — after that this case is replaced by UAT-PRI-024); a site you own with a value driver tree; an active site priority with no initiatives; a second site priority with a starred primary initiative that has a starred metric; a company priority the site has accepted as written; a company priority you may edit (as the company's owner or an admin); a person who can open Priorities but does not manage the site",
        "steps": [
         "Open the first priority and read its tabs. Open Objectives and read the page.",
         "Press ＋ Add metric. Read the dialog. Give it a name, a plan of 2 and an upper limit of 3; Add metric. Read the row.",
@@ -4820,8 +4867,8 @@
         "On the first priority press × on a metric that has readings; read the question and Cancel; press × again and Remove. Read the tile. Add a metric under the same name and open its values."
        ],
        "expected": "step 1 the tab is named \"Objectives\" (never \"Metrics\"); the page leads with \"This priority\" — \"No metrics on this priority yet.\" and two buttons, \"＋ From the value driver tree\" and \"＋ Add metric\" — then \"From its initiatives\" with the tick list or its note; step 2 the dialog is titled \"Add metric\" with Name, Unit, Rows, Plan, limits, Tracking and Cadence, no note under the title and no sentences under the fields; Name carries a red asterisk and \"Add metric\" is disabled until it is filled; \"Options\" shows only for the Status picklist tracking; the row reads the name, \"· priority-specific\", its unit and direction, with plan and limit boxes and the links Edit…, Link…, Promote… and × — no ★ (Link… and Promote… are UAT-PRI-018; a company-level priority has neither); step 3 under the rows each metric has its FULL TREND, the same chart the initiative Metrics card draws (title, cadence, plan and limit lines, \"No readings yet\" before the first value), with \"Update values\" in its title strip; the values grid opens titled with the metric's name, its note reading \"Weekly · <unit> · this priority's readings. Targets and limits set here carry forward until changed.\", with Plan and Upper limit rows carried across; each reading shows a state dot (green, amber, red); after Done the chart draws the three readings; a click on the chart's body pops it out large, with Done to close; step 4 the tile shows the metric's chart, titled by \"Name: objective\", with NO number beside it; the tile's edge is the off-track colour and the circles' tooltip ends \"· <name> outside its limits\"; hovering the chart gives the value and plan; step 5 the edge returns to on track (\"No initiatives\" alone in the tooltip, the priority reading on track on its own metric); step 6 the driver's name is added as a \"· VDT\" row; its grid's note says the values are the value driver's own series; step 7 at eight both buttons are disabled with the tooltip \"A priority carries up to 8 metrics of its own\"; step 8 the page shows \"This priority\" with its rows and charts, then ONE line \"★ <primary's title> · Open board\" and the primary's metrics card; the tile and the summary row show the priority's own metric FIRST, then the primary's starred metric; step 9 the metrics are listed read-only — a light, \"Name: objective\", \"Plan … · Actual …\" — with each one's trend chart beneath (no \"Update values\" on it); Values… on a row opens the grid marked Read-only; no add buttons; step 10 at the site the adopted priority's Objectives tab has no add buttons (only its owning org defines its metrics); at the company only \"＋ Add metric\" is offered (a company has no value driver tree); back at the site the adopted tile shows the company's metric and follows its state; step 11 the question reads \"Remove <name> and its N readings?\" and \"This cannot be undone.\"; Cancel keeps the metric; after Remove the metric leaves the tile at once and no longer counts toward the status, and a metric added under the same name starts with NO readings (a metric with no readings is asked about too: \"Remove <name>?\", \"It has no readings.\")",
-       "hash": "fb3efb64",
-       "changed": "2026-11-25"
+       "hash": "8cbdcbe6",
+       "changed": "2026-11-27"
       },
       {
        "id": "UAT-PRI-017",
@@ -4957,6 +5004,63 @@
        "expected": "step 1 the Sub-pillar field shows the sub-pillar that FOLLOWS, already chosen, and Save is live (2026-11-25 report 23: the field went blank and Save was held with no reason shown); step 2 where the select would be, a line reads \"No sub-pillars are set for <year> yet. A super admin sets them in Settings → Priorities.\" — never an empty required select",
        "hash": "f00cebec",
        "changed": "2026-11-26"
+      },
+      {
+       "id": "UAT-PRI-023",
+       "title": "A department sees its own part of a shared priority",
+       "journey": "Journey 7 — Metrics on a priority (2026-11-18)",
+       "persona": "orgowner",
+       "modules": [
+        "priorities/orgPart.ts",
+        "priorities/prioritiesScreen.ts",
+        "priorities/lifecycle.ts",
+        "priorities/walk.ts",
+        "improvement/initiativeModel.ts"
+       ],
+       "preconditions": "a SITE priority with five initiatives, shown on a department's page (the department adopted it, or it is cascaded there): one initiative filed under that department, one filed under the site that names the department in \"Also shown in\", three that do neither; a second department with none",
+       "steps": [
+        "On the SITE's page open the priority → Initiatives.",
+        "On the DEPARTMENT's page read the priority's tile, then open it → Initiatives.",
+        "Tick \"Show all\". Close the popup, open ▶ Executive summary and expand the same priority.",
+        "On the second department's page open the priority → Initiatives.",
+        "Edit one of the other three initiatives' details and add the department under \"Also shown in\". Return to the department's page.",
+        "On the page of an AREA inside the department open the priority."
+       ],
+       "expected": "step 1 all five, as always — the owner's own page is not scoped; step 2 the tile still counts five initiatives (the tile is the whole priority's); the list shows TWO, under a line \"2 of 5 are <department>’s\" with a \"Show all\" box; each row names the org its initiative is filed under, never \"This org\"; step 3 all five show; the executive summary's expanded card has the same line and the same box, already ticked (one switch for the session); step 4 \"0 of 5\", and a sentence says why: an initiative shows here when it is filed under the department or names it in \"Also shown in\"; step 5 three of five; step 6 an initiative that names only the DEPARTMENT does not show on its area's page — the mapping names the level or below, as on the Improvement tab",
+       "hash": "3c856415",
+       "changed": "2026-11-27"
+      },
+      {
+       "id": "UAT-PRI-024",
+       "title": "One list of measures on a priority",
+       "journey": "Journey 7 — Metrics on a priority (2026-11-18)",
+       "persona": "orgowner",
+       "modules": [
+        "priorities/measures.ts",
+        "priorities/measuresTab.ts",
+        "priorities/model.ts",
+        "priorities/lifecycle.ts",
+        "priorities/ownMetricsTab.ts",
+        "improvement/metricsList.ts",
+        "improvement/initiativeRow.ts",
+        "priorities/prioritiesScreen.ts",
+        "store/priorities.ts"
+       ],
+       "preconditions": "a priority made on this build (or converted) with no measure; two initiatives under it, each with two or more metrics, one of them named \"Changeover minutes\"; a third initiative under a CHILD priority with a metric; a person who can open Priorities but does not manage the org",
+       "steps": [
+        "Open the priority → Objectives. Read the page and its tile.",
+        "Press \"Add measure\". Under \"From an initiative\" pick a metric. Read the row and the tile.",
+        "Add three more: one from the other initiative, one from the child priority's initiative, one more. Read \"Add measure\".",
+        "On a row press ⋮ → Move up; on another ⋮ → Remove. Read the tile and the executive summary.",
+        "Press \"Add measure\" → \"＋ A measure of this priority's own\". Name it \"Average changeover time\". Press Add metric.",
+        "Choose \"Create a new measure\". Fill in its plan; enter two readings with \"Update values\".",
+        "On the initiative behind a listed measure delete that metric. Unlink another listed initiative from the priority. Open Objectives again.",
+        "With an EMPTY list, ★ an initiative on the Initiatives tab.",
+        "As the person who does not manage the org, open Objectives."
+       ],
+       "expected": "step 1 the tab reads \"Measures · 0 of 4\", \"No measure set\", an \"Add measure\" button, and no paragraph explaining sources or ticks; the tile shows no chart; step 2 the measure is a row: its light, \"Name: objective\", plan and actual, and its initiative's title as a link that opens the initiative — its readings are entered THERE, one set, never a copy; the tile shows its chart; step 3 a child priority's initiative is offered \"via <org>\"; a metric already listed is greyed; at four the button is greyed: \"A priority holds at most 4 measures. Remove one to add another.\"; step 4 the order changes and the tile and summary follow it; removing a reference takes it off the list and leaves the metric on its initiative; step 5 a question: \"Is “Average changeover time” already measured?\" offering \"Use “Changeover minutes” from <initiative>\" and \"Create a new measure\" — a duplicate is a choice; step 6 the own measure joins the list as \"This priority\", with its row, plan boxes and full chart under \"This priority's own measures\", as own metrics always had; removing it from the list asks with its number of readings and deletes them; step 7 the first row reads \"No longer on its initiative\", the second \"Its initiative is no longer under this priority\", each until removed; neither shows on the tile (before this they vanished without a word); step 8 after the usual confirmation a second question offers to add the initiative's key metrics as measures; \"Not now\" leaves the list empty; with a list that already has measures nothing is offered, and its stars change nothing on the priority; step 9 the rows, no ⋮ and no Add measure. A priority carried in with MORE than four shows the first four on the tile with \"+n\", greys the rows past four, and cannot be added to until trimmed",
+       "hash": "c7dde7e0",
+       "changed": "2026-11-27"
       }
      ]
     }
@@ -5366,6 +5470,30 @@
        "expected": "step 2 the cursor is in the new row, under the first pillar; the page has not jumped to the foot of the list; what is typed lands in the new row and nowhere else — never in another pillar's sub-pillar, and never in a row of \"Other years\" (2026-11-25 report 2: the cursor went to the last sub-pillar box in the whole list); step 3 the same for a new pillar",
        "hash": "ecb0b7c5",
        "changed": "2026-11-26"
+      },
+      {
+       "id": "UAT-SET-019",
+       "title": "Convert measures: every priority gets its one list, as it stands today",
+       "journey": "Journey 6 — A slow connection",
+       "persona": "superadmin",
+       "modules": [
+        "priorities/convertMeasuresRun.ts",
+        "priorities/measures.ts",
+        "priorities/settingsTab.ts",
+        "priorities/model.ts",
+        "store/priorities.ts"
+       ],
+       "preconditions": "super admin, straight after this build is installed; priorities from before it: one with a starred primary initiative that has two starred metrics, one with ticked objectives and no primary, one with metrics of its own, one with more than four altogether. Note what each tile shows BEFORE step 2",
+       "steps": [
+        "Settings → Priorities → Measures. Read the line and the button.",
+        "Press \"Convert measures\". Read the line.",
+        "On the Priorities tab read each of the four tiles; open each → Objectives.",
+        "On the first priority's primary initiative, star a different metric and unstar one. Read the priority's tile.",
+        "Return to Settings → Priorities → Measures."
+       ],
+       "expected": "step 1 the line counts the priorities that still read their measures by the old rule; step 2 it counts as it goes, then says how many were converted and how many have more than 4; step 3 EVERY tile shows what it showed before (the priority over four shows its first four and \"+n\"); each Objectives tab is now the one list: own metrics first, then the primary's starred metrics or the ticked ones as references to their initiatives; step 4 the tile does NOT change — a primary's stars no longer take a priority's measures over; step 5 \"Every priority has its one list of measures\", the button greyed. A priority created on this build has its list from the start and is never counted. Pressed again after a failure, it takes only what was left",
+       "hash": "a19bce19",
+       "changed": "2026-11-27"
       }
      ]
     }

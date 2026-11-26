@@ -68,8 +68,12 @@ export async function seed(): Promise<void> {
   // a metric last filled in nine weeks ago (the Yield driver's shape on
   // dev, 2026-11-19): eleven weekly readings, 6 July to 14 September —
   // its chart reaches back for them and still ends at today
+  // …and a priority from BEFORE the one list of measures (2026-11-27):
+  // `measures` undefined, so it reads by the old rule until "Convert
+  // measures" is run in prioritysettings.html
   await pri("pr-w3", weipa, "Leadership Capability Uplift", "S2", {
     ownMetrics: [{ key: "yield", name: "Yield", objective: "Lift yield to 90 g/L", unit: "", target: 50, goodDirection: "up", tracking: "value", kind: "own", cadence: "weekly" }],
+    measures: undefined,
   });
   seedSeries(
     OWN_SERIES_BOARD,

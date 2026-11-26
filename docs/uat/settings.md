@@ -212,3 +212,15 @@ steps:
 2. Under the FIRST pillar press "＋ Add sub-pillar" and type a name straight away.
 3. Press "＋ Add pillar" and type a name straight away.
 expected: step 2 the cursor is in the new row, under the first pillar; the page has not jumped to the foot of the list; what is typed lands in the new row and nowhere else — never in another pillar's sub-pillar, and never in a row of "Other years" (2026-11-25 report 2: the cursor went to the last sub-pillar box in the whole list); step 3 the same for a new pillar
+
+### UAT-SET-019 — Convert measures: every priority gets its one list, as it stands today
+persona: superadmin
+modules: priorities/convertMeasuresRun.ts priorities/measures.ts priorities/settingsTab.ts priorities/model.ts store/priorities.ts
+preconditions: super admin, straight after this build is installed; priorities from before it: one with a starred primary initiative that has two starred metrics, one with ticked objectives and no primary, one with metrics of its own, one with more than four altogether. Note what each tile shows BEFORE step 2
+steps:
+1. Settings → Priorities → Measures. Read the line and the button.
+2. Press "Convert measures". Read the line.
+3. On the Priorities tab read each of the four tiles; open each → Objectives.
+4. On the first priority's primary initiative, star a different metric and unstar one. Read the priority's tile.
+5. Return to Settings → Priorities → Measures.
+expected: step 1 the line counts the priorities that still read their measures by the old rule; step 2 it counts as it goes, then says how many were converted and how many have more than 4; step 3 EVERY tile shows what it showed before (the priority over four shows its first four and "+n"); each Objectives tab is now the one list: own metrics first, then the primary's starred metrics or the ticked ones as references to their initiatives; step 4 the tile does NOT change — a primary's stars no longer take a priority's measures over; step 5 "Every priority has its one list of measures", the button greyed. A priority created on this build has its list from the start and is never counted. Pressed again after a failure, it takes only what was left

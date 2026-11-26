@@ -30,21 +30,8 @@ describe("what the Metrics card's chart reads", () => {
   it("no readings: the page around today", () => {
     expect(chartWindow(today, "weekly", [], page)).toEqual({ from: page.from, to: page.to, asOf: "" });
   });
-  it("fewer than twelve readings: one empty period before the first, and still ends at today", () => {
-    expect(chartWindow(today, "weekly", yieldDates, page)).toEqual({ from: "2026-06-29", to: page.to, asOf: "" });
-  });
-  it("a yearly metric with one reading in 2026 starts at 2025, not at the page's 2022 (report 24)", () => {
-    expect(chartWindow(today, "annually", ["2026-03-10"], { from: "2022-01-01", to: "2026-12-31" })).toEqual({ from: "2025-01-01", to: "2026-12-31", asOf: "" });
-  });
-  it("a plan value typed ahead of the first actual is not cut off", () => {
-    const p5 = { from: "2022-01-01", to: "2026-12-31" };
-    expect(chartWindow(today, "annually", ["2026-03-10"], p5, ["2024-01-01", "2025-01-01", "2026-03-10", "2027-01-01"]).from).toBe("2023-01-01");
-    // plans entered only after the first actual change nothing
-    expect(chartWindow(today, "annually", ["2026-03-10"], p5, ["2027-01-01"]).from).toBe("2025-01-01");
-  });
-  it("twelve readings exactly: the twelfth-last, unchanged", () => {
-    const twelve = [...yieldDates, "2026-09-21"];
-    expect(chartWindow(today, "weekly", twelve, page)).toEqual({ from: "2026-07-06", to: page.to, asOf: "" });
+  it("reaches back for the last twelve readings and still ends at today", () => {
+    expect(chartWindow(today, "weekly", yieldDates, page)).toEqual({ from: "2026-07-06", to: page.to, asOf: "" });
   });
   it("takes the twelfth-last reading, not the first, when there are more", () => {
     const many = Array.from({ length: 30 }, (_, i) => `2026-${String(Math.floor(i / 4) + 3).padStart(2, "0")}-${String((i % 4) * 7 + 2).padStart(2, "0")}`);
@@ -54,12 +41,12 @@ describe("what the Metrics card's chart reads", () => {
     expect(w.from <= twelfth).toBe(true);
     expect(w.from > [...many].sort()[many.length - 14]).toBe(true);
   });
-  it("a few readings inside the page: the axis starts one period before them, not at the page's start", () => {
-    expect(chartWindow(today, "weekly", ["2026-11-02", "2026-11-09", "2026-11-16"], page)).toEqual({ from: "2026-10-26", to: page.to, asOf: "" });
+  it("readings all inside the page: the page, unchanged", () => {
+    expect(chartWindow(today, "weekly", ["2026-11-02", "2026-11-09", "2026-11-16"], page)).toEqual({ from: page.from, to: page.to, asOf: "" });
   });
   it("a last reading more than thirteen periods old: the chart opens on the readings and says when", () => {
     const old = ["2026-01-05", "2026-01-12", "2026-01-19"];
-    expect(chartWindow(today, "weekly", old, page)).toEqual({ from: "2025-12-29", to: "2026-01-25", asOf: "2026-01-19" });
+    expect(chartWindow(today, "weekly", old, page)).toEqual({ from: "2026-01-05", to: "2026-01-25", asOf: "2026-01-19" });
   });
   it("thirteen periods old is still drawn through to today", () => {
     // 2026-08-17's week + 13 weeks = 2026-11-16, today's week: not stale
@@ -67,6 +54,6 @@ describe("what the Metrics card's chart reads", () => {
     expect(chartWindow(today, "weekly", ["2026-08-10"], page).asOf).toBe("2026-08-10");
   });
   it("reads dates in any order and ignores what is not a date", () => {
-    expect(chartWindow(today, "weekly", ["2026-09-14", "", "2026-07-06", "n/a"], page).from).toBe("2026-06-29");
+    expect(chartWindow(today, "weekly", ["2026-09-14", "", "2026-07-06", "n/a"], page).from).toBe("2026-07-06");
   });
 });
