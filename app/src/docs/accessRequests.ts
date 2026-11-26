@@ -61,6 +61,30 @@ export interface AccessRequest {
    *  on their tasks badge (news that never highlights never reaches
    *  anyone, Ben 2026-08-06). */
   seen?: boolean;
+  /** "reviewer" (issue review 2026-11-25, R1 walk item 1): a SEAT for
+   *  someone named as a reviewer who is outside the Owners & Approvers
+   *  group — they cannot open a draft without one. Granted = seated in
+   *  the editors group for the cycle; pending = the submitter could not
+   *  seat them, and the owner is asked to. Absent = an edit request.
+   *  It writes nothing to the Revision editors column. */
+  kind?: "reviewer";
+  /** Who named the reviewer (a reviewer seat only). */
+  askedBy?: { name: string; email: string };
+}
+
+/** A reviewer seat's id: by email — a reviewer picked from the directory
+ *  may have no roster row. */
+export const reviewerSeatId = (uniqueId: string, email: string): string =>
+  `${uniqueId.trim().toLowerCase()}:rev:${email.trim().toLowerCase()}`;
+
+/** Add or replace entries by id, verified like every ledger write. */
+export async function putEntries(entries: AccessRequest[]): Promise<void> {
+  if (entries.length === 0) return;
+  const ids = new Set(entries.map((e) => e.id));
+  await mutateLedger(
+    (all) => [...all.filter((e) => !ids.has(e.id)), ...entries],
+    (all) => entries.every((e) => all.some((x) => x.id === e.id))
+  );
 }
 
 /** Stamp outcomes as seen — called when the panel paints them. */
@@ -173,7 +197,7 @@ const sameDoc = (e: AccessRequest, uniqueId: string): boolean =>
  * grant elsewhere still needs it. Returns a warning ("" = clean) —
  * callers surface it but never fail the command that already landed.
  */
-const claimsLogin = (email: string): string =>
+export const claimsLogin = (email: string): string =>
   `i:0#.f|membership|${email.trim().toLowerCase()}`;
 
 /**
@@ -248,7 +272,7 @@ export async function grantHealth(): Promise<
 }
 
 /** Resolve the SP editors site group's id (0 = not configured/found). */
-async function siteEditorsGroupId(cfg: {
+export async function siteEditorsGroupId(cfg: {
   siteUrl: string;
   spEditorsGroup: string;
 }): Promise<number> {
@@ -533,7 +557,7 @@ export function repairGranted(id: string, by: string): Promise<void> {
   return markGranted(id, by);
 }
 
-async function markGranted(id: string, by: string): Promise<void> {
+export async function markGranted(id: string, by: string): Promise<void> {
   const stamp = { by, when: new Date().toISOString() };
   await mutateLedger(
     (all) => all.map((e) => (e.id === id ? { ...e, declined: undefined, granted: stamp } : e)),

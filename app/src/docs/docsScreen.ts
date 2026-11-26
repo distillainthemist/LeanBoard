@@ -890,6 +890,10 @@ export function mountDocs(
               myEmail,
               link: docLinkUrlWork(row.listId, row.id),
             }) ?? undefined,
+          seatCtx:
+            cmd.key === "submitReview"
+              ? { owners: rolePeople(row, ownerInternal), by: { name: currentViewer()?.name ?? "", email: myEmail } }
+              : undefined,
           onDone: () => void refreshRow(row),
         });
       });
@@ -1817,7 +1821,7 @@ export function mountDocs(
         (async () => {
           const { readLedger, repairGranted } = await import("./accessRequests");
           const ledger = (await readLedger()).filter((e) => !isUatHidden(e.listId));
-          const outgoingEntries = ledger.filter((e) => e.who.id === whoId);
+          const outgoingEntries = ledger.filter((e) => e.kind !== "reviewer" && e.who.id === whoId);
           const iPreside = (e: (typeof ledger)[number]) =>
             docAdmin() || e.owners.some((o) => o.toLowerCase() === myEmail);
           const mine = ledger.filter(
@@ -1825,8 +1829,10 @@ export function mountDocs(
           );
           // live grants this user presides over — standing visibility
           // with one-click revoke (their own grants stay in `outgoing`)
+          // (a reviewer's seat is not an edit grant: it ends with the
+          // cycle, and is not listed for revoking)
           const presided = ledger.filter(
-            (e) => e.granted !== undefined && e.who.id !== whoId && iPreside(e)
+            (e) => e.granted !== undefined && e.kind !== "reviewer" && e.who.id !== whoId && iPreside(e)
           );
           // one live-row fetch covers EVERY queue — a request row (any
           // side) opens the document overlay armed
@@ -1873,6 +1879,7 @@ export function mountDocs(
           // the ledger says — it leaves the queue, and the ledger is
           // repaired in the background
           const stillMine = mine.filter(inMySite).filter((e) => {
+            if (e.kind === "reviewer") return true; // a seat: the column says nothing about it
             const r = rowFor.get(`${e.listId.toLowerCase()}:${e.itemId}`);
             const granted = r !== undefined && grantEmails(r).some((m) => m.toLowerCase() === e.who.email.toLowerCase());
             if (granted) void repairGranted(e.id, "the Revision editors column").catch(() => undefined);
@@ -2047,7 +2054,7 @@ export function mountDocs(
             // the reason was only readable inside the Approve dialog)
             panel.classList.add("app-docs-taskspanel-wide");
             bodyEl.appendChild(
-              el("div", "app-docs-tasksgroup", `Edit-access requests (${t.requests.length})`)
+              el("div", "app-docs-tasksgroup", `Access requests (${t.requests.length})`)
             );
             for (const rt of t.requests) {
               // a request is a small CARD, not a one-line row: the
@@ -2055,10 +2062,23 @@ export function mountDocs(
               // reason, then the decision buttons — nothing is read for
               // the first time inside a decision dialog
               const rowEl = el("div", "app-docs-reqcard");
+              const seat = rt.req.kind === "reviewer";
               rowEl.append(
                 el("div", "app-docs-reqname", rt.req.name),
-                el("div", "app-field-hint", `${rt.req.who.name} asked${rt.req.when !== "" ? ` · ${formatWhen(rt.req.when)}` : ""}${rt.libName !== "" ? ` · ${rt.libName}` : ""}`),
-                el("div", "app-docs-reqreason", rt.req.reason !== "" ? rt.req.reason : "(no reason given)")
+                el(
+                  "div",
+                  "app-field-hint",
+                  seat
+                    ? `${rt.req.askedBy?.name || "Someone"} named ${rt.req.who.name} as a reviewer${rt.req.when !== "" ? ` · ${formatWhen(rt.req.when)}` : ""}${rt.libName !== "" ? ` · ${rt.libName}` : ""}`
+                    : `${rt.req.who.name} asked${rt.req.when !== "" ? ` · ${formatWhen(rt.req.when)}` : ""}${rt.libName !== "" ? ` · ${rt.libName}` : ""}`
+                ),
+                el(
+                  "div",
+                  "app-docs-reqreason",
+                  seat
+                    ? `${rt.req.who.name} is outside the Owners & Approvers group and cannot open the draft until let in. The access ends when the document is approved or the revision is cancelled.`
+                    : rt.req.reason !== "" ? rt.req.reason : "(no reason given)"
+                )
               );
               const acts = el("div", "app-docs-reqacts");
               rowEl.appendChild(acts);
@@ -2075,6 +2095,46 @@ export function mountDocs(
                 refreshTasksBadge();
                 reload();
               };
+              if (seat) {
+                // a reviewer's seat: one press lets them in, and they
+                // are told at once (R1 walk item 1, 2026-11-26)
+                const note = el("div", "app-field-hint");
+                const letIn = el("button", "app-btn app-btn-primary app-docs-taskact", "Let them in") as HTMLButtonElement;
+                letIn.addEventListener("click", (e) => {
+                  e.stopPropagation();
+                  letIn.disabled = true;
+                  note.textContent = "Letting them in…";
+                  void (async () => {
+                    try {
+                      const { seatFromRequest } = await import("./reviewerSeats");
+                      const why = await seatFromRequest(rt.req, currentViewer()?.name ?? "");
+                      if (why !== "") {
+                        note.textContent = `Not let in: ${why}`;
+                        letIn.disabled = false;
+                        return;
+                      }
+                      note.textContent = `✓ ${rt.req.who.name} can open the draft. Telling them…`;
+                      const { sendNotifyTeams } = await import("./notify");
+                      const sent = await sendNotifyTeams(
+                        [{ name: rt.req.who.name, email: rt.req.who.email }],
+                        `Review requested — ${rt.req.name}`,
+                        `Hi — ${rt.req.askedBy?.name || "A colleague"} has submitted “${rt.req.name}” for review in LeanBoard. Please review it when you have a moment.`,
+                        docLinkUrlWork(rt.req.listId, rt.req.itemId)
+                      ).catch((err: unknown) => ({ error: err instanceof Error ? err.message : String(err), how: "" }));
+                      note.textContent =
+                        sent.error === ""
+                          ? `✓ ${rt.req.who.name} can open the draft, and has been told.`
+                          : `✓ ${rt.req.who.name} can open the draft. The message did not go (${spErrorText(sent.error).slice(0, 160)}) — tell them yourself.`;
+                      window.setTimeout(decided, sent.error === "" ? 900 : 4000);
+                    } catch (err) {
+                      note.textContent = `Not let in: ${err instanceof Error ? err.message : String(err)}`;
+                      letIn.disabled = false;
+                    }
+                  })();
+                });
+                acts.appendChild(letIn);
+                rowEl.appendChild(note);
+              } else
               // approve needs the live row (the check-out door) AND a
               // mapped grant column — without one, the hint says which
               if (rt.row !== null && revEditorsInternal !== "") {
@@ -2137,7 +2197,8 @@ export function mountDocs(
                         kind: "declined",
                         docName: rt.req.name,
                         actorName: currentViewer()?.name ?? "",
-                        targets: [{ name: rt.req.who.name, email: rt.req.who.email }],
+                        // a reviewer's seat declined: whoever NAMED them hears
+                        targets: seat && rt.req.askedBy ? [{ name: rt.req.askedBy.name, email: rt.req.askedBy.email }] : [{ name: rt.req.who.name, email: rt.req.who.email }],
                         myEmail,
                         link: docLinkUrlWork(rt.req.listId, rt.req.itemId),
                       }) ?? undefined,

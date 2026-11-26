@@ -30,13 +30,17 @@ export function attachNotifyPanel(opts: {
   /** What the typed words are called in the message ("Reason given",
    *  or "Comment" where the step did not ask for a reason). */
   reasonLabel?: string;
+  /** Emails left out (lower case): reviewers still waiting to be let
+   *  in to the draft are told when they are, not before. */
+  exclude?: string[];
 }): boolean {
   const n = opts.context;
   const seen = new Set(n.recipients.map((p) => p.email.toLowerCase()));
+  const out = new Set((opts.exclude ?? []).map((e) => e.trim().toLowerCase()));
   let recips: NotifyRecipient[] = [
     ...n.recipients,
     ...(opts.extra ?? []).filter((p) => !seen.has(p.email.toLowerCase())),
-  ];
+  ].filter((p) => !out.has(p.email.trim().toLowerCase()));
   if (recips.length === 0) return false;
 
   const box = el("div", "app-docs-notifybox");

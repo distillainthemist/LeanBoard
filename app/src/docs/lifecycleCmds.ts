@@ -32,6 +32,7 @@ import { attachNotifyPanel } from "./notifyPanel";
 import { DocRow, formatDayMonthYear } from "./rows";
 import { publishReaderFacing } from "./publish";
 import { newBracket, refused } from "./bracket";
+import { NO_SEATS, SeatOutcome, seatWords, waitingEmails } from "./reviewerSeatsModel";
 import {
   checkInFile,
   checkOutFile,
@@ -98,6 +99,10 @@ export interface LifecycleRunOpts {
   /** Supersede names its successor (UAT DOC-041): the picker searches
    *  these libraries, the link lands in this column with the status. */
   successor?: { libraries: DocLibrary[]; linksInternal: string; docIdInternal: string };
+  /** Submit for review: who owns the document and who is acting, so a
+   *  reviewer from outside the Owners & Approvers group can be let in
+   *  to the draft — or the owner asked to (reviewerSeats.ts). */
+  seatCtx?: { owners: { name: string; email: string }[]; by: { name: string; email: string } };
 }
 
 type Sp = { ok: boolean; status: string; data: unknown };
@@ -340,6 +345,8 @@ export function openLifecycleCommand(opts: LifecycleRunOpts): void {
    * dialog then closes as before). Recipients added as reviewers in
    * THIS dialog join the prefill — they are exactly who should hear.
    */
+  /** Reviewers let in to the draft at submit, and those waiting. */
+  let seats: SeatOutcome = NO_SEATS;
   const showNotifyPanel = (): boolean => {
     const n = opts.notify;
     if (n === undefined) return false;
@@ -348,7 +355,7 @@ export function openLifecycleCommand(opts: LifecycleRunOpts): void {
     // review sends the reviewers' Teams card at once
     const doneLine = (sent: string) =>
       command.key === "submitReview"
-        ? `✓ Submitted for review — status is now “${opts.targetTerm.label}”. Each reviewer marks “Review complete”; Submit for approval warns while any has not. ${sent}`
+        ? `✓ Submitted for review — status is now “${opts.targetTerm.label}”. Each reviewer marks “Review complete”; Submit for approval warns while any has not. ${sent}${seatWords(seats) !== "" ? ` ${seatWords(seats)}` : ""}`
         : command.key === "reviewComplete"
           ? `✓ Your review is recorded. ${sent}`
           : `✓ ${command.label} — status is now “${opts.targetTerm.label}”. ${sent}`;
@@ -361,6 +368,7 @@ export function openLifecycleCommand(opts: LifecycleRunOpts): void {
       extra: command.key === "submitReview" ? added : [],
       reason: reason.value,
       reasonLabel: command.needsReason ? "Reason given" : "Comment",
+      exclude: waitingEmails(seats),
       autoSend: auto ? "teams" : undefined,
       onSent: (line, ok) => {
         const sentWords = command.key === "submitReview" ? `Reviewers notified ${line.replace(/^✓ /, "")}` : line.replace(/^✓ /, "");
@@ -610,6 +618,38 @@ export function openLifecycleCommand(opts: LifecycleRunOpts): void {
     }
 
     bracket.took = false; // checked in: nothing left to give back
+    // a reviewer from outside the Owners & Approvers group cannot open
+    // a draft: seat them for the cycle, or ask the owner to (R1 walk)
+    if (command.key === "submitReview" && opts.seatCtx !== undefined && opts.reviewersPicker !== undefined) {
+      status.textContent = "Letting the reviewers in…";
+      const everyone = [...opts.reviewersPicker.existing, ...added];
+      const { seatReviewers } = await import("./reviewerSeats");
+      seats = await seatReviewers({
+        doc: { listId: opts.listId, itemId: row.id, uniqueId: row.uniqueId, name: row.name },
+        reviewers: everyone,
+        owners: opts.seatCtx.owners.map((o) => o.email),
+        by: opts.seatCtx.by,
+      });
+      // the owner is asked by a card of their own (a hand-over to them)
+      if (seats.requested.length > 0) {
+        const me = opts.seatCtx.by.email.trim().toLowerCase();
+        const owners = opts.seatCtx.owners.filter((o) => o.email.trim() !== "" && o.email.trim().toLowerCase() !== me);
+        if (owners.length > 0 && opts.notify !== undefined) {
+          const names = seats.requested.map((p) => p.name).join(", ");
+          void import("./notify")
+            .then(({ sendNotifyTeams }) =>
+              sendNotifyTeams(
+                owners,
+                `Let a reviewer in — ${row.name}`,
+                `Hi — ${opts.seatCtx?.by.name ?? "A colleague"} has submitted “${row.name}” for review and named ${names} as ${seats.requested.length === 1 ? "a reviewer" : "reviewers"}. ` +
+                  `They are outside the Owners & Approvers group, so they cannot open the draft until you let them in — it is waiting in your Document tasks in LeanBoard.`,
+                opts.notify?.link ?? ""
+              )
+            )
+            .catch(() => undefined);
+        }
+      }
+    }
     // the command LANDED — everything below is follow-through, warned
     // but never fatal. When a warning holds the dialog open, its
     // buttons must say so: "Cancel" becomes "Close" and the primary
@@ -665,6 +705,16 @@ export function openLifecycleCommand(opts: LifecycleRunOpts): void {
       }
     }
 
+    if (command.key === "approve" && command.to === "approved") {
+      try {
+        const { releaseReviewerSeats } = await import("./reviewerSeats");
+        const warn = await releaseReviewerSeats(row.uniqueId);
+        if (warn !== "") warnings.push(warn);
+      } catch {
+        /* Access diagnostics flags a seat with no grant behind it */
+      }
+    }
+
     if (warnings.length > 0) {
       status.textContent = `${command.key === "approve" ? "Approved" : "Done"}. ${warnings.join(" ")}`;
       status.classList.add("app-docs-addstatus-warn");
@@ -684,7 +734,10 @@ export function openLifecycleCommand(opts: LifecycleRunOpts): void {
         if (closeBtn !== null) closeBtn.textContent = "Close";
         goBtn.style.display = "none";
         running = false;
-        status.textContent = "✓ Sent for review — the status has moved. No reviewer is named on this document, so nobody was messaged: add reviewers, or tell them yourself.";
+        status.textContent =
+          seatWords(seats) !== ""
+            ? `✓ Sent for review — the status has moved. ${seatWords(seats)}`
+            : "✓ Sent for review — the status has moved. No reviewer is named on this document, so nobody was messaged: add reviewers, or tell them yourself.";
         return;
       }
       dlg.close();
@@ -811,6 +864,13 @@ export function openCancelRevision(opts: CancelRevisionOpts): void {
       }
     }
 
+    // the cycle is over: reviewers let in for it are let out
+    try {
+      const { releaseReviewerSeats } = await import("./reviewerSeats");
+      await releaseReviewerSeats(row.uniqueId);
+    } catch {
+      /* Access diagnostics flags a seat with no grant behind it */
+    }
     // the restore reverted the grant COLUMN (the approved major
     // predates it); memberships and ledger entries release here
     if (opts.grantRelease !== undefined && opts.grantRelease.emails.length > 0) {
