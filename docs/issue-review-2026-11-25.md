@@ -1792,6 +1792,64 @@ view. Report 24 stays Held. Dev's priorities are now converted.
   the initiative limit. Ben's test walk on dev is the first real run
   of each.
 
+### R6 walk (began 2026-11-27)
+
+**Item 1 — reports 4 and 26, the columns are the person's.** As
+decided: a library change keeps the columns, filters, search and sort;
+entering Favourites keeps the columns (filters are hidden there and
+return on leaving); "Apply" in the chooser saves the columns for the
+person and "Reset to default" clears them; a library that does not
+carry a chosen column shows blank cells. Found in the code: the SORT
+is not part of a view (`currentView`, `docs/docsScreen.ts`) — carried
+across a library change, saved views and links left as they are; a
+view names ONE library or ALL (`DocView.listId`), so opening a saved
+view sets the libraries to its own and the person's ticks return when
+it is closed. **Ben's choice 1:** choosing columns while a NAMED view
+is open changes the screen only — the person's own set is untouched
+and returns when the view is closed ("Update view" changes the view).
+On a shared link (unnamed) Apply saves them as the person's.
+
+**Item 2 — report 25, the Library column.** Found: the register adds
+it itself beside Document whenever more than one library is in view
+(`libraryLabel`, `docs/registerCells.ts`), outside the chooser. Built
+as decided: "Library" is a row in the chooser, ticked and dragged like
+the others; with the DEFAULT columns nothing changes; with a chosen
+set it shows only if ticked, wherever it is put — also with one
+library ticked, because it was asked for. The phone's line under the
+name and the CSV export's Library column are unchanged. **Found:**
+saved views and shared links with a chosen set do not name Library (it
+could not be chosen), and nothing dates a view. **Ben's choice 1:**
+they open WITHOUT the Library column; whoever wants it ticks it and
+presses "Update view". No one-off migration.
+
+**Item 3 — report 7's tooltip, and report 9.** **Report 7: NOTHING TO
+BUILD.** The plan listed a tooltip, "Show only this library", on a
+library's name; the code already has it (`name.title`,
+`docs/docsScreen.ts`), with an "Only" button on hover that does the
+same. I listed it as a build without checking — my mistake. Report 7
+is answered by its reply alone. (Showing "Only" all the time was
+mentioned and not proposed; Ben did not ask for it.) **Report 9:** the
+Libraries card's heading becomes a toggle; folded it is one line;
+"Select all" hides while folded; the fold is remembered for the person
+(`DocUiPrefs`); it starts open for everyone; the browse tree takes the
+room. **Ben's choice 1:** the folded line is a count, "Libraries · 3
+of 4", the names in its tooltip.
+
+**Item 4 — reports 8 and 6, the Filters pane.** Found: a pop-over 400
+wide whose scrolling part is at most 480 high (or 70% of the window);
+a term row is a 24-wide arrow with a 12-point glyph, then a tick box
+with the name; only the arrow opens a branch, and **a click on the
+NAME ticks it as a filter**. Built as: the pane reaches from under the
+Filters button to the bottom of the window; 480 wide where there is
+room; arrows 32 by 32 with a larger glyph. **Corrected from the plan:**
+"clicking anywhere on a branch's row expands it" was written without
+reading the row — it would have taken away the click that picks a
+filter. **Ben's choice 1:** the name keeps ticking; only the arrow
+grows; "whole row expands" is dropped.
+
+**R6 as walked:** about 2 days (plan 2). Report 7's tooltip comes out
+(already there); the sort carry-over goes in. No schema.
+
 ---
 
 ## Appendix — the review record (phases 1 and 2, as it was made)
