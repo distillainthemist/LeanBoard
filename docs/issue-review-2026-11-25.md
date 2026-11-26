@@ -48,7 +48,11 @@ resolution CSV unless filed:
 
 **Not explained, carried open:** why Approve failed on the edit request
 in 16; the Weipa 2027 page with no pillar row in 1 (not reproduced on
-dev or in production on 2026-11-26); the cause of 11 (the fix is a try).
+dev or in production on 2026-11-26); the cause of 11 (the fix is a
+try); whether Cancel revision on a started-only revision restores the
+OLDER approved version when a document has two (suspected from the
+code, never run — R1 walk, item 9); which step refuses a PDF file's
+preview in the hosted app (N4).
 
 **Size:** about 38 working days in six tranches (below). **Schema:** one
 column change, for 1. The next release is already schema-carrying
@@ -121,7 +125,7 @@ structure for 2027 has to be set before January.
 
 | Tranche | What | Items | Days |
 |---|---|---|---|
-| R1 | Documents: the review step, check-outs, messages, wrong tags | 13 (15), 14, 16, 18 with the hand-over rule, N2, 5's lookup fix and sweep, 17, 11, 19's script | 6 |
+| R1 | Documents: the review step, check-outs, messages, wrong tags | 13 (15) with reviewer seating, 14, 16, 18 with the hand-over rule, N2, 5's lookup fix, sweep and exact filter, 17, 11, N4 steps 1 and 2, 19's script | 9.5 (as walked) |
 | R2 | The year change | 2, 23, 1 | 9 |
 | R3 | The Issues desk | N1 | 4.5 |
 | R4 | Controller tools | N3, 28, 12, 10 | 10.5 |
@@ -864,6 +868,29 @@ dialogs in R4, with the quick actions.
   allowing the fetch in each environment's settings (no build, only if
   the player then shows the result), or fetching the bytes through the
   SharePoint connector (about a day, no admin change).
+
+**Item 9 — report 19, the UAT-DOC-040 script.** Written for what Ben
+saw: cancelling a revision with nothing checked in returns the
+document to its last published version and leaves no version and no
+comment. **AN OPEN RISK, NOT RUN:** the code, after discarding the
+check-out, reads the file's EARLIER versions, takes the highest major
+and restores it (`openCancelRevision`, `docs/lifecycleCmds.ts`); on a
+document with two approved versions that would bring the OLDER one
+back as a new version. Ben's result (history unchanged) fits a
+document with only ONE approved version, where the command stops at
+"Nothing to restore". Which his document was is not known; asked
+2026-11-26, skipped. The two-version case has never been run. To run
+before the command is next touched, or sooner: on dev, a standard with
+two approved versions of different content, Start revision, Cancel
+revision, read the history and the dialog's last line.
+
+**R1 as walked (2026-11-26).** Items: 13 with reviewer seating and the
+request road; 14; 16; the hand-over rule (18, 15); N2; 5 with the
+sweep and the exact filter; 17; 11 for converted files; N4 steps 1 and
+2; 19's script. About 9.5 days, up from 6. No schema change. Needs a
+SECOND ACCOUNT on dev to prove: a reviewer from outside the group
+seated and able to open a draft; a Document Editor's submit raising
+the seat as a request.
 
 ---
 
