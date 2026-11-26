@@ -45,6 +45,7 @@ import {
   headReading,
   parseDocLinks,
   parseMocRecords,
+  spErrorText,
 } from "./model";
 import { visibleLinks } from "./uatLibraries";
 
@@ -1465,10 +1466,7 @@ export function openDocViewer(opts: ViewerOpts): () => void {
       // never found, and the fragment is never sent to SharePoint)
       return src === "" ? "" : `${src}#page=1`;
     }
-    if (p.downloadUrl === "") {
-      previewWhy = "SharePoint returned no download link for this file.";
-      return "";
-    }
+    if (p.downloadUrl === "") return viaConnector("SharePoint returned no download link for this file");
     // (never the address itself: it is a signed one — the host says enough)
     let host = "";
     try {
@@ -1478,21 +1476,46 @@ export function openDocViewer(opts: ViewerOpts): () => void {
     }
     try {
       const res = await fetch(p.downloadUrl);
-      if (!res.ok) {
-        previewWhy = `Fetching the file answered ${res.status}.`;
-        previewStep = `Step: fetching the PDF's bytes from ${host}. The server answered ${res.status} ${res.statusText}.`;
-        return "";
-      }
+      if (!res.ok) return viaConnector(`fetching the PDF's bytes from ${host} — the server answered ${res.status} ${res.statusText}`);
       const bytes = await res.blob();
       if (blobUrl !== "") URL.revokeObjectURL(blobUrl);
       blobUrl = URL.createObjectURL(
         bytes.type === "application/pdf" ? bytes : new Blob([bytes], { type: "application/pdf" })
       );
-      return blobUrl;
+      return `${blobUrl}#page=1`;
     } catch (e) {
-      // a player CSP connect-src could refuse the fetch
-      previewWhy = "This app was not allowed to fetch the file bytes (browser policy).";
-      previewStep = `Step: fetching the PDF's bytes from ${host}. The browser refused before any answer (${e instanceof Error ? `${e.name}: ${e.message}` : String(e)}) — a content security policy (connect-src) or a cross-origin rule on that host.`;
+      // the player's policy refuses this fetch (measured on dev and in
+      // production, 2026-11-26) — the CONNECTOR is not subject to it
+      const direct = `fetching the PDF's bytes from ${host} — the browser refused before any answer (${e instanceof Error ? `${e.name}: ${e.message}` : String(e)})`;
+      return viaConnector(direct);
+    }
+  };
+
+  /** A PDF's bytes through the SharePoint connector (the road Replace
+   *  content reads back on), shown from memory. "" when it cannot. */
+  const PDF_PREVIEW_MAX = 25 * 1024 * 1024;
+  const viaConnector = async (direct: string): Promise<string> => {
+    try {
+      const { connectorFileIdFor, connectorGetFileContent, fetchFileInfo } = await import("./sp");
+      const info = await fetchFileInfo(site, row.serverUrl);
+      const size = Number(((info.data ?? {}) as { Length?: unknown }).Length ?? 0);
+      if (size > PDF_PREVIEW_MAX) {
+        previewWhy = `This PDF is ${Math.round(size / (1024 * 1024))} MB — too large to preview whole here.`;
+        previewStep = `Step: ${direct}; the connector road is kept to ${PDF_PREVIEW_MAX / (1024 * 1024)} MB.`;
+        return "";
+      }
+      const got = await connectorGetFileContent(site, connectorFileIdFor(site, row.serverUrl));
+      if (!got.ok || !(got.data instanceof Uint8Array) || got.data.length === 0) {
+        previewWhy = "The app could not fetch the file's bytes.";
+        previewStep = `Step: ${direct}; then reading them through the SharePoint connector — ${!got.ok ? spErrorText(got.status).slice(0, 200) : got.data instanceof Uint8Array ? "it answered with no bytes" : `it answered as ${typeof got.data}, not bytes`}.`;
+        return "";
+      }
+      if (blobUrl !== "") URL.revokeObjectURL(blobUrl);
+      blobUrl = URL.createObjectURL(new Blob([got.data as BlobPart], { type: "application/pdf" }));
+      return `${blobUrl}#page=1`;
+    } catch (e2) {
+      previewWhy = "The app could not fetch the file's bytes.";
+      previewStep = `Step: ${direct}; then reading them through the SharePoint connector — ${e2 instanceof Error ? e2.message : String(e2)}.`;
       return "";
     }
   };
@@ -1563,6 +1586,57 @@ export function openDocViewer(opts: ViewerOpts): () => void {
     });
   };
 
+  /** The first-page picture, or the placeholder: what stands in when
+   *  the whole document cannot be shown. */
+  const paintFallback = async (): Promise<void> => {
+      const img = await pageImage();
+      if (!stage.isConnected) return;
+      clear(stage);
+      if (img) {
+        stage.append(img, firstPageNote());
+        return;
+      }
+      // img-src refuses SharePoint's media host in the player, but
+      // frame-src allows it — the same page image, framed. A frame
+      // paints an image at its NATURAL size, so a sharp preview means
+      // asking for twice the display size and scaling the frame back
+      // down: same layout, two device pixels per CSS pixel (Ben,
+      // 2026-08-02: "quite low res").
+      const box = stage.getBoundingClientRect();
+      const w = Math.max(320, Math.round(box.width));
+      const h = Math.max(320, Math.round(box.height));
+      // The requested box FITS the page inside it, so the tall limit
+      // must be the loose one: the stage is wider than it is tall, and
+      // asking for 2w x 2h let the height bind a portrait page and came
+      // back at a third of the size. 2w by the service's ceiling makes
+      // the WIDTH bind — the page fills the stage exactly, as before,
+      // at twice the pixels, and the frame clips what runs past.
+      const big = await pagePreviewUrl(site, opts.driveId, row, w * 2, 2048);
+      if (!stage.isConnected) return;
+      const p = await presigned();
+      if (!stage.isConnected) return;
+      const shotUrl = big !== "" ? big : p.thumbUrl;
+      if (shotUrl !== "") {
+        const shotBox = el("div", "app-docs-shotbox");
+        const shot = el("iframe", "app-docs-viewshot") as HTMLIFrameElement;
+        shot.title = `First page of ${row.name}`;
+        if (big !== "") {
+          shot.style.width = `${w * 2}px`;
+          shot.style.height = `${h * 2}px`;
+          shot.style.transform = "scale(0.5)";
+        }
+        const wait = spinner();
+        showWhenLoaded(shot, wait);
+        shot.src = shotUrl;
+        shotBox.appendChild(shot);
+        stage.append(wait, shotBox, firstPageNote());
+        return;
+      }
+      previewWhy += " The page image was refused as well.";
+      paintPlaceholder();
+      return;
+  };
+
   const paintPreview = () => {
     clear(stage);
     stage.appendChild(spinner());
@@ -1570,51 +1644,7 @@ export function openDocViewer(opts: ViewerOpts): () => void {
       const src = await cookieFreeSrc();
       if (!stage.isConnected) return;
       if (src === "") {
-        const img = await pageImage();
-        if (!stage.isConnected) return;
-        clear(stage);
-        if (img) {
-          stage.append(img, firstPageNote());
-          return;
-        }
-        // img-src refuses SharePoint's media host in the player, but
-        // frame-src allows it — the same page image, framed. A frame
-        // paints an image at its NATURAL size, so a sharp preview means
-        // asking for twice the display size and scaling the frame back
-        // down: same layout, two device pixels per CSS pixel (Ben,
-        // 2026-08-02: "quite low res").
-        const box = stage.getBoundingClientRect();
-        const w = Math.max(320, Math.round(box.width));
-        const h = Math.max(320, Math.round(box.height));
-        // The requested box FITS the page inside it, so the tall limit
-        // must be the loose one: the stage is wider than it is tall, and
-        // asking for 2w x 2h let the height bind a portrait page and came
-        // back at a third of the size. 2w by the service's ceiling makes
-        // the WIDTH bind — the page fills the stage exactly, as before,
-        // at twice the pixels, and the frame clips what runs past.
-        const big = await pagePreviewUrl(site, opts.driveId, row, w * 2, 2048);
-        if (!stage.isConnected) return;
-        const p = await presigned();
-        if (!stage.isConnected) return;
-        const shotUrl = big !== "" ? big : p.thumbUrl;
-        if (shotUrl !== "") {
-          const shotBox = el("div", "app-docs-shotbox");
-          const shot = el("iframe", "app-docs-viewshot") as HTMLIFrameElement;
-          shot.title = `First page of ${row.name}`;
-          if (big !== "") {
-            shot.style.width = `${w * 2}px`;
-            shot.style.height = `${h * 2}px`;
-            shot.style.transform = "scale(0.5)";
-          }
-          const wait = spinner();
-          showWhenLoaded(shot, wait);
-          shot.src = shotUrl;
-          shotBox.appendChild(shot);
-          stage.append(wait, shotBox, firstPageNote());
-          return;
-        }
-        previewWhy += " The page image was refused as well.";
-        paintPlaceholder();
+        await paintFallback();
         return;
       }
       clear(stage);
@@ -1622,6 +1652,21 @@ export function openDocViewer(opts: ViewerOpts): () => void {
       frame.title = row.name;
       const wait = spinner();
       showWhenLoaded(frame, wait);
+      // a PDF held in memory: the player's content policy may refuse to
+      // FRAME it (it refuses pictures held that way). The browser says
+      // so in an event; the picture then stands in, and the readout
+      // names the rule (N4, 2026-11-26)
+      if (src.startsWith("blob:")) {
+        const onBlocked = (e: SecurityPolicyViolationEvent) => {
+          if (!String(e.blockedURI ?? "").startsWith("blob")) return;
+          document.removeEventListener("securitypolicyviolation", onBlocked);
+          previewWhy = "The app has the PDF, but the player's security policy would not let it be shown here.";
+          previewStep = `Step: showing the PDF from memory in the preview frame. Refused by the policy rule "${e.violatedDirective || e.effectiveDirective || "unknown"}" (a blob: address is not allowed there).`;
+          if (stage.isConnected) void paintFallback();
+        };
+        document.addEventListener("securitypolicyviolation", onBlocked);
+        window.setTimeout(() => document.removeEventListener("securitypolicyviolation", onBlocked), 15_000);
+      }
       frame.src = src;
       stage.append(wait, frame);
     })();

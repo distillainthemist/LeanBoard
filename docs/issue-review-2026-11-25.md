@@ -942,6 +942,24 @@ UAT: UAT-DOC-040 and 042 updated; UAT-DOC-103 to 108 added.
 - **Item 9's open risk stands** (Cancel revision with two approved
   versions, never run).
 
+### R1 test walk (began 2026-11-26, dev `v0.99.0-94-gfe5c103`)
+
+| # | Check | Result |
+|---|---|---|
+| 1 | N4 — the first-page note and the readout | Pass. The readout, on dev: "fetching the PDF's bytes from pecheydistillingcom.sharepoint.com. The browser refused before any answer (TypeError: Failed to fetch)" |
+
+**N4's fix, decided on that readout (Ben's choice 1, 2026-11-26):**
+read the bytes through the SharePoint connector (`connectorGetFileContent`
+— the road Replace content reads back on, proven on dev by the write
+probe on 2026-10-27) and show them from memory, capped at 25 MB. Tried
+first is still the direct fetch, for an environment that allows it.
+NOT KNOWN: whether the player lets a PDF held in memory be FRAMED (it
+refused a picture held that way). The app listens for the browser's
+policy-violation event; if the frame is refused the first-page picture
+stands in and the readout names the rule — which is then what an
+environment setting would need. Built the same day (`docs/viewer.ts`
+`viaConnector`, `paintFallback`); unseen until Ben opens a PDF on dev.
+
 ---
 
 ## Appendix — the review record (phases 1 and 2, as it was made)
