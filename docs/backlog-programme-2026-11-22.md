@@ -490,7 +490,7 @@ Thirteen items built; E9 was already built. App-only, no schema.
 Tranche 1 stands tested on dev except C4 (production, after a release)
 and F7 (cannot be forced).
 
-### Tranche 2 (built 2026-11-24, on dev, NOT released)
+### Tranche 2 (built 2026-11-24, RELEASED in v0.100.0 on 2026-11-26)
 
 Six items built, five off the backlog with nothing built (C5, D7, D8,
 E5, E17 part 1). App-only, no schema.
@@ -574,7 +574,7 @@ E5, E17 part 1). App-only, no schema.
 
 Tranche 2 stands tested on dev.
 
-### Tranche 3 (built 2026-11-25, on dev, NOT released)
+### Tranche 3 (built 2026-11-25, RELEASED in v0.100.0 on 2026-11-26)
 
 Four items built; C2 off the backlog. App-only, no schema.
 
@@ -656,7 +656,7 @@ Four items built; C2 off the backlog. App-only, no schema.
 
 Tranche 3 stands tested on dev.
 
-### Tranche 4 (built 2026-11-25, on dev, NOT released) — SCHEMA-CARRYING
+### Tranche 4 (built 2026-11-25, RELEASED in v0.100.0 on 2026-11-26) — SCHEMA-CARRYING
 
 Six items built; E1 off the backlog. Two columns on `ben_ltkaction`
 (E13), deployed to dev on 2026-11-25 with Ben's sign-in.

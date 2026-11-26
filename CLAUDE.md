@@ -531,6 +531,34 @@ workflow (the asset is replaced) and import again.
   review's summary tiles and the task banner heading removed) is
   SOLUTION-CARRYING for the Utilities app only: prod imports the managed
   solution; the LeanBoard app is unchanged. No schema change.
+  v0.100.0 (2026-11-26, SOLUTION-CARRYING — `ben_assigneeorgs`,
+  `ben_raisedorg` on `ben_ltkaction`, `ben_succeedsjson` on
+  `ben_ltkpillar`: the backlog programme's tranches 2, 3 and 4 —
+  `docs/backlog-programme-2026-11-22.md` — and R1, R2 and R3 of the
+  2026-11-25 issue round — `docs/issue-review-2026-11-25.md`, the
+  first round run by `docs/issue-review-prompt.md`. Programme: the
+  priority roll-up, the sign-off record, the calendar year as the only
+  period, snapshots marked; the stale metric mark, Link / Promote a
+  priority's own metric, the decision zone on a phone; the org on the
+  action row (server-filtered organisation scope, "Re-stamp actions"
+  in Settings → Organisation), attachment captions and the image
+  viewer, the Gantt picture, the due-date moves panel. R1, Documents:
+  a refused step gives back its check-out (`docs/bracket.ts`,
+  `docs/refusal.ts`); reviewer seats (`docs/reviewerSeats.ts`);
+  hand-overs that never send to yourself (`withoutSelf`); terms by id
+  (`savedTerms`, `matchesTermFilters`); a PDF's bytes through the
+  connector (`docs/connectorBytes.ts`) — needs `blob:` in the
+  environment's code-app `frame-src`. R2: the year-change panel
+  (`priorities/yearChange.ts` pure, `yearChangePanel.ts`) is the ONE
+  place a pillar's follow link is set; `followsOf` / `withFollows`
+  read and write it; "Extend to <year>". R3: `issues/status.ts` is the
+  one status list (`partial`, `deferred`, `notsoftware`; `done` reads
+  "Resolved"); `issues/answersCsv.ts` and `answersApply.ts` are the
+  CSV round trip, `importAnswers.ts` its preview. Prod: import the
+  solution FIRST, install the app, "Re-stamp actions" once, `blob:` in
+  frame-src, then "Lock every older build". RELEASED PARTLY UNSEEN:
+  reviewer seats and one Teams card per person go to UAT untested on
+  dev.)
   v0.99.0 (2026-11-23, app-only, no schema: tranche 1 of the backlog
   programme — `docs/backlog-programme-2026-11-22.md` — and tranche 1A,
   the 2026-11-23 issue export — `docs/issues-plan-2026-11-23.md`.

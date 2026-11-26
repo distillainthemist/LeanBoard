@@ -1455,6 +1455,66 @@ reschedule/cancel history with a reason picklist.
   the view before the launch re-route mounted the hub again, so the
   second mount saw nothing. The pending view now lives for a 20 s
   grace window instead of one read.
+- **2026-11-26 — released as v0.100.0** (SOLUTION-CARRYING: three
+  columns; Utilities unchanged). Two bodies of work, each with its own
+  record of the walk with Ben, the as-built notes and his test walks:
+  **the backlog programme's tranches 2, 3 and 4**
+  (`backlog-programme-2026-11-22.md`) and **R1, R2 and R3 of the
+  2026-11-25 issue round** (`issue-review-2026-11-25.md`, run by
+  `issue-review-prompt.md`).
+  **Schema:** `ben_assigneeorgs` and `ben_raisedorg` on `ben_ltkaction`
+  (tranche 4, E13), `ben_succeedsjson` on `ben_ltkpillar` (R2). All
+  additive, all start empty.
+  **Production, in this order:** import the managed solution FIRST;
+  install the app; Settings → Organisation → "Re-stamp actions" once
+  (a super admin); add `blob:` to the environment's code-app
+  `frame-src` (the PDF preview, N4); "Lock every older build" — an
+  older bundle saves an action without its org stamp, leaves a
+  pillar's follow list as it was, shows the new issue statuses as raw
+  words and drops a partially resolved issue from its Open list.
+  **Programme tranche 2:** the priority roll-up (C1), the sign-off
+  record (C6), metric readings deleted (C8), the calendar year as the
+  only period (D10), snapshots marked (E17), a shared ritual seen not
+  changed (G8). **Tranche 3:** the stale metric mark five working days
+  after a period ends (D1), Link / Promote a priority's own metric
+  (D5), a re-parented priority takes its parent's sub-pillar and says
+  so (D9), the decision zone on a phone and in the executive summary
+  (D11). **Tranche 4:** the org on the action row and the hub's
+  server-filtered organisation scope with "Raised here, assigned
+  elsewhere" (E13), attachment captions and the image viewer (E2), the
+  Gantt picture (E6), a picture on leaving a card (E8), the due-date
+  moves panel (E10), the endorser's attachments (E11).
+  **R1, Documents:** Review complete records itself and a reviewer
+  from outside the group is seated for the cycle (13, 15); a step
+  refused in its bracket gives back the check-out it took and says
+  what state the document is in (16); Word's lock said plainly (14);
+  hand-over messages that send themselves, never to yourself (18); a
+  version's comment under its row (N2); terms read by id and an exact
+  term filter (5); "Open in Word" for tracked changes (17); a PDF
+  opening on page 1 (11) and, in the hosted app, read through the
+  connector into the preview frame (N4).
+  **R2, the year change:** Settings → Priorities → "Change for <next
+  year>…" — each pillar and sub-pillar Continues, Becomes or Ends,
+  with merges, new rows and what would be lost said before the save
+  (1); the Follows select and the from-a-year questions gone from the
+  list; "Extend to <year>" on a priority past its planned end, and the
+  form's two sub-pillar fixes (23); the cursor in an added row (2).
+  **R3, the Issues desk:** one status list with Partially resolved,
+  Deferred and Not a software issue, and "Done" reading "Resolved";
+  Deferred and Not a software issue ask for a message; Export to CSV;
+  Import answers… with a preview, an apply that changes nothing the
+  second time, and one Teams card per person (N1).
+  **Tested on dev by Ben:** every tranche's test walk — tranche 2
+  (2026-11-25), tranche 3 (2026-11-25), tranche 4 (2026-11-26, one
+  fix), R1 (seven pass), R2 (all eight), R3 (five pass).
+  **Released unseen running, to UAT:** reviewer seats (R1: no second
+  account on dev; UAT-DOC-103…108 hold the cases) and one Teams card
+  per person (R3: UAT-ISS-009). Never run anywhere: a year-change save
+  that stops part-way, Extend into a year with no sub-pillars, Stop
+  during an import, and Cancel revision with two approved versions.
+  **Unexplained and still open:** report 1's own fault (a 2027 view
+  with no pillar row, not reproduced) and why Approve failed on the
+  edit request of report 16.
 - **2026-11-23 — released as v0.99.0** (app-only, no schema; Utilities
   unchanged). Tranche 1 of the backlog programme
   (`backlog-programme-2026-11-22.md`, thirteen small fixes) and tranche

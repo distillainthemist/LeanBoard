@@ -22,7 +22,7 @@ the plan's last section): A, B, D, F, G and H pass on dev; C, E, I and
 J go to UAT unseen running. A walk finding fixed the same day: each
 lifecycle command asks its own reason question.
 
-**Tranche 2 is built and on dev (2026-11-24), not released.** Walked
+**Tranche 2 was built 2026-11-24 and RELEASED in v0.100.0 (2026-11-26).** Walked
 with Ben item by item (the programme's "Walked with Ben" section): six
 built — C1 (a cascaded priority's own actions and metrics count
 upward), C6 (who pressed a sign-off), C8 (a removed metric takes its
@@ -39,14 +39,14 @@ mark, on his five-working-days rule, no effect on status), D5 (Link… /
 Promote… on a priority's own metric), D9 (a re-parented priority takes
 its parent's sub-pillar, carried down, with a message), D11 (the
 decision zone on the phone and in the executive summary) — and C2 off
-the backlog. **Built and on dev 2026-11-25, not released**; as built:
+the backlog. **Built 2026-11-25, RELEASED in v0.100.0 (2026-11-26)**; as built:
 the programme's "Tranche 3" section. Ben's test walk (2026-11-25): all
 four pass on dev, with three changes made in it (the stale mark drawn
 larger; a Leads-linked metric's empty chart fixed; Change link… and
 Unlink on a linked metric's row).
 
-**Tranche 4 is built and on dev (2026-11-25), not released, and is
-SCHEMA-CARRYING** — two columns on `ben_ltkaction` for the org stamp
+**Tranche 4 was built 2026-11-25, RELEASED in v0.100.0 (2026-11-26),
+and is SCHEMA-CARRYING** — two columns on `ben_ltkaction` for the org stamp
 (E13), deployed to dev. Six built: E2 (attachment captions and an
 image viewer), E6 (the Gantt's picture), E8 (a card's picture as it is
 left), E10 (due-date moves by reason), E11 (the endorser's "📎 n"),
@@ -71,7 +71,7 @@ working days in six tranches R1–R6, one column change (the pillar
 follow link). NOTHING BUILT. **Plan approved 2026-11-26, two releases:**
 R1–R3 with programme tranches 2–4 before the year change, then R4–R6.
 Each tranche is walked before it is built. **R1 walked and BUILT
-2026-11-26, on dev, NOT released** — the review step (the read, a
+2026-11-26, RELEASED in v0.100.0** — the review step (the read, a
 reviewer from outside the group seated for the cycle, the request
 road), a refused step giving back its check-out, Word's lock said
 plainly, hand-overs that send themselves, version comments under their
@@ -83,7 +83,7 @@ As built and its limits: the plan's "R1 as built". **R1's test walk
 dev). N4 closed in it: a PDF file's bytes come through the connector
 and `blob:` is added to the environment's code-app `frame-src` — a
 set-up step now, owed in production at the first release.
-**R2 walked and BUILT 2026-11-26, on dev, NOT released, SCHEMA-CARRYING
+**R2 walked and BUILT 2026-11-26, RELEASED in v0.100.0, SCHEMA-CARRYING
 (`ben_succeedsjson` on `ben_ltkpillar`, deployed to dev)** — the
 year-change panel (Settings → Priorities → "Change for <next year>…":
 each pillar and sub-pillar Continues, Becomes or Ends; merges, new
@@ -93,7 +93,9 @@ on a priority past its planned end, the form's two sub-pillar fixes,
 and the cursor staying in an added row. As built and its limits: the
 plan's "R2 as built". **R2's test walk (2026-11-26, dev
 `v0.99.0-109-g99212e6`): all eight pass, nothing changed.**
-**R3 walked and BUILT 2026-11-26, on dev, NOT released, no schema** —
+**R1, R2, R3 and programme tranches 2, 3 and 4 were RELEASED in
+v0.100.0 on 2026-11-26.**
+**R3 walked and BUILT 2026-11-26, no schema** —
 the Issues desk's answers in bulk: one status list with three new
 statuses (Partially resolved, Deferred, Not a software issue) and
 "Done" reading "Resolved"; Deferred and Not a software issue ask for a
@@ -104,10 +106,8 @@ actions, changes nothing on a second run, and tells each person on ONE
 Teams card. As built and its limits: the plan's "R3 as built". **R3's
 test walk (2026-11-26, dev `v0.99.0-112-gaad8991`): five pass, the
 Teams card per person TO UAT** (dev has no reports from a second
-person). **The first release is ready to cut on Ben's word**: R1, R2,
-R3 and programme tranches 2 to 4. It carries schema
-(`ben_assigneeorgs`, `ben_raisedorg`, `ben_succeedsjson`). Owed in UAT
-from this round: reviewer seats (R1) and one card per person (R3).
+person). Owed in UAT from this round: reviewer seats (R1) and one
+card per person (R3).
 What 1A was: the nine reports of the 2026-11-23 issue export
 (`issues-plan-2026-11-23.md`): Teams group messages refused over a
 colon in the chat topic, Replace content's false "landed wrong" on
@@ -117,15 +117,37 @@ dialog's image picker, the link picker's layout, the unused PDF
 rendition folder, UAT-only libraries, and a controller's view scoped to
 their site.
 
-## Current state (2026-11-23, after v0.99.0)
+## Current state (2026-11-26, after v0.100.0)
 
-Released through v0.99.0 (ledger: `leanboard-cascade-improvement-plan.md`;
+Released through v0.100.0 (ledger: `leanboard-cascade-improvement-plan.md`;
 release paragraphs: `../CLAUDE.md`). Production took v0.88.1 and the
 v0.89.0/v0.90.0 managed solution; v0.91.0 and v0.93.0 are app-only,
 v0.92.0 carries the Utilities app in the managed solution, v0.94.0
 and v0.95.0 are SOLUTION-CARRYING — import the solution first — and
-v0.96.0, v0.97.0, v0.98.0 and v0.99.0 are app-only. Lock older builds
-from Settings once the new one runs.
+v0.96.0, v0.97.0, v0.98.0 and v0.99.0 are app-only, and v0.100.0 is
+SOLUTION-CARRYING. Lock older builds from Settings once the new one
+runs.
+
+**v0.100.0 (2026-11-26, SOLUTION-CARRYING):** programme tranches 2, 3
+and 4 (`backlog-programme-2026-11-22.md`) and R1, R2 and R3 of the
+2026-11-25 issue round (`issue-review-2026-11-25.md`). Production, in
+order: import the managed solution, install the app, Settings →
+Organisation → "Re-stamp actions" once, `blob:` in the environment's
+code-app `frame-src`, "Lock every older build". Owed from it:
+- **Untested on dev, to UAT:** reviewer seats (UAT-DOC-103…108) and
+  one Teams card per person (UAT-ISS-009).
+- **Never run:** a year-change save that stops part-way; Extend into a
+  year with no sub-pillars; Stop during an import; Cancel revision
+  with two approved versions.
+- **Unexplained:** report 1's own fault (a 2027 view with no pillar
+  row); why Approve failed on report 16's edit request.
+- **Ben's own:** set the 2027 structure with the panel before January;
+  tell sites "Done" now reads "Resolved"; the BSL process-tree repair
+  waits for R4's bulk change.
+- **Next:** walk R4 (bulk change of properties, rename and correct
+  approval date, approving on behalf, document tasks), then R5 and R6,
+  the second release, and the round's resolution CSV. Tranche 5 of the
+  programme follows the round.
 
 **v0.99.0 (2026-11-23, app-only):** tranche 1 of the programme
 (`backlog-programme-2026-11-22.md`) and tranche 1A, the 2026-11-23

@@ -138,6 +138,10 @@ lookup fix goes in first so no new wrong tags are made meanwhile. N1
 has to be in production before this round's resolution CSV can be
 imported.
 
+**The first release was cut on 2026-11-26 as v0.100.0**: R1, R2 and
+R3 with programme tranches 2, 3 and 4. The second (R4, R5, R6) and the
+resolution CSV follow.
+
 **Each tranche is walked with Ben before it is built** (his standing
 rule), then built, pushed to dev and test-walked, one test at a time.
 
@@ -893,7 +897,7 @@ SECOND ACCOUNT on dev to prove: a reviewer from outside the group
 seated and able to open a draft; a Document Editor's submit raising
 the seat as a request.
 
-### R1 as built (2026-11-26, on dev, NOT released)
+### R1 as built (2026-11-26, RELEASED in v0.100.0)
 
 Built in seven commits; 140 test files, 1,513 app tests pass; no schema
 change. NOTHING here has been seen running against SharePoint: the
@@ -1038,7 +1042,7 @@ The two form fixes stand.
 
 **R2 as walked:** about 10 days. One column on `ben_ltkpillar`.
 
-### R2 as built (2026-11-26, on dev, NOT released)
+### R2 as built (2026-11-26, RELEASED in v0.100.0)
 
 **Schema, deployed to dev:** `ben_succeedsjson` on `ben_ltkpillar` —
 every row a pillar or sub-pillar follows, as a JSON list of ids. The
@@ -1216,7 +1220,7 @@ mapping.
 
 **R3 as walked:** about 5.5 days (plan 4.5). No schema.
 
-### R3 as built (2026-11-26, on dev, NOT released)
+### R3 as built (2026-11-26, RELEASED in v0.100.0)
 
 **No schema.** Three more values in `ben_status` (`partial`,
 `deferred`, `notsoftware`); the label of `done` is "Resolved".
