@@ -1100,6 +1100,26 @@ are gone from the list. UAT-SET-017, UAT-SET-014 rewritten.
   the same day). The panel removes the hand-set link it was blamed on;
   it is not evidence the fault is fixed.
 
+### R2 test walk (2026-11-26, dev `v0.99.0-109-g99212e6`)
+
+Eight tests, one per message, all run by Ben in the hosted app on dev.
+**All eight pass; nothing was changed in the walk.**
+
+| # | Test | Result |
+|---|---|---|
+| 1 | The cursor stays in an added pillar or sub-pillar row (report 2) | Pass |
+| 2 | The list: no Follows control, a rename or move asks nothing and applies to every year | Pass |
+| 3 | The panel opens reading the stored state; Cancel changes nothing | Pass |
+| 4 | A merge of two sub-pillars into a new one; priorities follow at every org | Pass |
+| 5 | A new pillar that an old one becomes; sub-pillars carried; one moved in from another pillar; "continues but its pillar ends" refused | Pass |
+| 6 | Ends: the footer's unplaced count and the board named; taken back; an earlier change warns | Pass |
+| 7 | Extend to the year in view: carries, asks, History line (report 23) | Pass |
+| 8 | The form: a changed start year keeps the sub-pillar; a year with none says so (report 23) | Pass |
+
+Not run: a save that stops part-way (it cannot be provoked by hand),
+and Extend into a year with no sub-pillars at all. Report 1's own
+fault stays unexplained.
+
 ---
 
 ## Appendix — the review record (phases 1 and 2, as it was made)

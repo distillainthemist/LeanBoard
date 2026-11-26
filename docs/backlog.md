@@ -91,8 +91,9 @@ rows, what would be lost said before the save), the "Follows" select
 and the from-a-year questions gone from the list, "Extend to <year>"
 on a priority past its planned end, the form's two sub-pillar fixes,
 and the cursor staying in an added row. As built and its limits: the
-plan's "R2 as built". Next: R2's test walk, then R3's walk (the CSV
-import and export for the Issues desk).
+plan's "R2 as built". **R2's test walk (2026-11-26, dev
+`v0.99.0-109-g99212e6`): all eight pass, nothing changed.** Next: R3's
+walk (the CSV import and export for the Issues desk), begun 2026-11-26.
 What 1A was: the nine reports of the 2026-11-23 issue export
 (`issues-plan-2026-11-23.md`): Teams group messages refused over a
 colon in the chat topic, Replace content's false "landed wrong" on
