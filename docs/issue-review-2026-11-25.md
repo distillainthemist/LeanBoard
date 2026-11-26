@@ -1120,6 +1120,102 @@ Not run: a save that stops part-way (it cannot be provoked by hand),
 and Extend into a year with no sub-pillars at all. Report 1's own
 fault stays unexplained.
 
+### R3 walk (began 2026-11-26)
+
+**Item 1 — the statuses and their words.** Found in the code: the
+desk's seven statuses share one word with the CSV's six ("Declined");
+"Resolved" is the desk's "Done", "Duplicate" is its "Merged". The words
+are written out three times and the open list four times — made one
+list in this build. **Ben's choice 1: the label "Done" becomes
+"Resolved"** (stored value unchanged, nothing migrates), so the CSV,
+the desk and the reporter read one vocabulary. "Merged" stays (the
+import's "Duplicate" runs the merge). The three new statuses as the
+plan has them: Partially resolved is open (the Open filter, the
+"already reported in this area" list, a merge target); Deferred and
+Not a software issue each have a filter. **Added in the walk, not
+objected to:** a Deferred issue stays in the "already reported in this
+area" list a reporter sees, marked Deferred, so the same idea is
+followed rather than reported again.
+
+**Item 2 — the new statuses set by hand.** Today only Declined asks
+for a message (the August rule: a decline is never silent); every
+other change writes its line to the thread and sends nothing. **Ben's
+choice 1:** Deferred and Not a software issue open the same dialog as
+Declined, each with its own prefilled message, edited before it goes
+(thread + one Teams card per person). Partially resolved is a plain
+change, like Resolved. About a quarter of a day.
+
+**Item 3 — Export to CSV.** Layout agreed by Ben: IssueID · Title ·
+Kind · Area · Reporter (name, NO email — the file leaves the app) ·
+Raised · CurrentStatus, then the answer columns blank (Status ·
+ResolutionType · ReporterMessage · ReleaseVersion · ResolvedDate ·
+DuplicateOfID · InternalNote). Changed from the plan: the reference
+column is CurrentStatus, not Status; Kind, Area and Raised added so a
+person filling it in by hand can tell issues apart. The ticked issues
+in the order shown; reports merged into a ticked issue get no row of
+their own; UTF-8 with the byte-order mark Excel needs;
+`leanboard-issues-YYYY-MM-DD.csv`.
+
+**Item 4 — reading the file and the preview.** "Import answers…" in
+the selection bar, no ticks needed; nothing is written before Apply.
+Columns matched by name in any order, case ignored; unknown columns
+ignored; a file without IssueID, Status or ReporterMessage is refused.
+Reading copes with Excel: a file that is not UTF-8 is read as
+Windows-1252, commas or semicolons, a line break inside a message
+becomes a space, status and type words forgiven for case and spaces.
+Row states: "No answer" (no status and no message — skipped quietly),
+"Already applied" (the status is set and the message is in the
+thread), ready, or a fault. **Faults added in the walk** to the plan's
+five: the same id twice; a duplicate whose parent is unknown, itself,
+or itself a duplicate; an issue already merged answered as anything
+but Duplicate of the same parent. An issue its reporter withdrew is a
+note, unticked, and may be ticked. Every id unknown = "this file looks
+like it came from another environment". A blank ResolutionType is
+allowed; a word not in the list is a fault. Only a missing or too-long
+message can be put right in the preview; the rest need the file.
+**Dates (Ben's choice 1):** ISO and slash dates are both read, slash
+dates day first, and the preview shows the date read in words
+("3 Dec 2026") — a loosening of §4.5's ISO-only rule, because Excel
+rewrites the date on save.
+
+**Item 5 — what Apply writes.** Per ticked row, in order: the status
+(with its thread line, as the desk does) or, for Duplicate, the desk's
+own merge; the resolution line; the reporter message to the thread;
+the internal note as an internal message. Found: the merge dialog
+offers only OPEN parents, and a resolution file's parent is usually
+resolved in the same file — the import merges into a parent of any
+status. Each step is skipped when already done, so a half-applied row
+can be applied again and a second run of the file changes nothing.
+Rows run one after another in file order ("Applying 7 of 26…", a Stop
+that finishes the current row); each ends Applied or Failed with its
+reason; failed rows stay ticked; a failure does not stop the rest.
+Thread messages carry the importer's name and the import's time.
+**The resolution line's wording (not objected to):** Resolved and
+Partially resolved read "Bug fix, released in 1.0.0 on 3 Dec 2026",
+blank parts left out; any other status carries the type alone, and
+nothing when the type is "No change". **An existing line (Ben's choice
+1):** the import replaces it and the preview shows the old line and
+that it will be replaced.
+
+**Item 6 — how people hear, and the rest.** After the rows are
+applied, ONE Teams card per person (reporter, reporter of a merged-in
+report, follower) listing their reports in the file: title, outcome
+word, message, a link. Rules found in the walk: only rows whose
+message was written in THIS run go on a card (an "Already applied" row
+never sends again); a person whose duplicate report has its own row
+gets that row and not the parent's line as well; more than twenty
+answers split into cards marked "1 of 2"; whoever runs the import gets
+no card for their own reports (Teams refuses a chat with yourself);
+the results list each person as sent or failed with "Send again".
+**Limit:** "Send again" lasts while the dialog is open — after that a
+failed card is made up by hand from the desk. **Ben's choice 1:** a
+"Tell people on Teams" tick, on by default; unticked, the import
+writes statuses and threads and sends nothing. `issue-review-prompt.md`
+§4.5 gains the id, unknown columns, both date forms and the status
+mapping.
+
+**R3 as walked:** about 5.5 days (plan 4.5). No schema.
+
 ---
 
 ## Appendix — the review record (phases 1 and 2, as it was made)
