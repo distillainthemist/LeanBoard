@@ -3184,6 +3184,14 @@ button.app-doclist-hsort:hover { color: var(--app-accent, #2563eb); }
   .app-bulk-row { grid-template-columns: 22px 1fr; }
   .app-bulk-row > :nth-child(n+3) { grid-column: 2; }
 }
+/* Rename and the date correction (2026-11-27, R4 — report 28) */
+.app-ctl-namerow { display: flex; align-items: center; gap: 6px; }
+.app-ctl-namerow .app-input { flex: 1; min-width: 0; }
+.app-ctl-ext { color: #6d675c; font-size: 13px; white-space: nowrap; }
+.app-ctl-present { font-size: 12.5px; color: #3d3a33; margin-bottom: 6px; }
+.app-ctl-outcome { font-size: 12.5px; color: #3d3a33; margin: 2px 0 8px; }
+.app-ctl-outcome:empty { display: none; }
+.app-ctl-due { color: #92610f; }
 /* Import answers (2026-11-26, R3): the preview of a CSV of answers */
 .app-isimp-body { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
 .app-isimp-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 12.5px; }

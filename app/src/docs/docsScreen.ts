@@ -51,6 +51,7 @@ import {
   isYesValue,
   parseDocLinks,
   cadenceForImportance,
+  DEFAULT_CADENCE_MONTHS,
   columnOffered,
   defaultColumnsFor,
   deriveTypeStates,
@@ -934,6 +935,92 @@ export function mountDocs(
       if (rev === "") return false;
       const t = Date.parse(dateIsoOf(row, rev));
       return !Number.isNaN(t) && t <= Date.now() + REVIEW_HORIZON_DAYS * 86_400_000;
+    };
+    // ---- two commands for document controllers (report 28, R4) ----------
+    /** A stage the lifecycle is part-way through: nothing renames or
+     *  re-dates a document under its reviewers. */
+    const inCirculation = (row: DocRow): boolean => ["inReview", "inApproval", "inOwnerApproval"].includes(stageOfRow(row));
+    const readerFacingRow = (row: DocRow): boolean => ["approved", "superseded", "obsolete"].includes(stageOfRow(row));
+    /** Another site's document, to a site's controller. */
+    const otherSites = async (row: DocRow): Promise<boolean> => {
+      const scope = await controllerScope();
+      return scope.branch !== null && rowSite(row, scope.branch) === "other";
+    };
+    const canRenameRow = (row: DocRow, lib: DocLibrary | null | undefined): boolean =>
+      docAdmin() && lib != null && (lib.libType === "standard" || lib.libType === "working") && (row.checkoutName ?? "") === "" && !(lib.libType === "standard" && inCirculation(row));
+    const openRenameRow = (row: DocRow) => {
+      void (async () => {
+        const lib = byListId.get(row.listId);
+        if (lib === undefined) return;
+        if (await otherSites(row)) {
+          status.textContent = `“${row.name}” belongs to another site. Its own site's controller renames it.`;
+          return;
+        }
+        const prior = libInternal(lib, "priorNames", internalForRole("priorNames"));
+        let singleLine = false;
+        if (prior !== "") {
+          const { loadLibraryFields } = await import("./libraryFields");
+          const fields = await loadLibraryFields(app.siteUrl, lib.listId).catch(() => null);
+          singleLine = fields?.fields.find((f) => f.internal === prior)?.type === "Text";
+        }
+        const { openRename } = await import("./controllerCmds");
+        openRename({
+          host: dialogHost,
+          site: app.siteUrl,
+          row,
+          actor: currentViewer()?.name ?? "",
+          readerFacing: lib.libType === "standard" && readerFacingRow(row),
+          priorNames: { internal: prior, singleLine },
+          onDone: (newName) => {
+            status.textContent = `Renamed to “${newName}”.`;
+            void load(true);
+          },
+        });
+      })();
+    };
+    /** The library's effective-date column, where this document may
+     *  have it corrected: approved, superseded or obsolete, and free. */
+    const correctDateCol = (row: DocRow, lib: DocLibrary | null | undefined): string => {
+      if (!docAdmin() || lib == null || lib.libType !== "standard" || (row.checkoutName ?? "") !== "" || !readerFacingRow(row)) return "";
+      return libInternal(lib, "effectiveDate", effectiveInternal);
+    };
+    const openCorrectDateRow = (row: DocRow) => {
+      void (async () => {
+        const lib = byListId.get(row.listId);
+        const eff = correctDateCol(row, lib);
+        if (lib === undefined || eff === "") return;
+        if (await otherSites(row)) {
+          status.textContent = `“${row.name}” belongs to another site. Its own site's controller corrects it.`;
+          return;
+        }
+        const rev = libInternal(lib, "nextReviewDate", reviewInternal);
+        // the dates and the importance as they stand NOW — the register
+        // row carries them only when the view shows those columns
+        const page = await renderListPage(app.siteUrl, row.listId, buildRenderViewXml({ idIn: [row.id], fields: [eff, rev, importanceInternal, libInternal(lib, "reviewCadence", cadenceInternal)].filter((f) => f !== ""), rowLimit: 1 })).catch(() => ({ rows: [] as DocRow[] }));
+        const fresh = page.rows[0] ?? row;
+        const iso = fresh.values[`${eff}.`] ?? "";
+        const t = Date.parse(iso);
+        const d = iso === "" || Number.isNaN(t) ? null : new Date(t);
+        const two = (n: number) => String(n).padStart(2, "0");
+        const dates = await resolveDatesFor(fresh, lib);
+        const { openCorrectDate } = await import("./controllerCmds");
+        openCorrectDate({
+          host: dialogHost,
+          site: app.siteUrl,
+          row,
+          actor: currentViewer()?.name ?? "",
+          label: labelOf(eff),
+          effectiveInternal: eff,
+          reviewInternal: rev,
+          presentYmd: d === null ? "" : `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}`,
+          months: dates?.cadenceMonths ?? DEFAULT_CADENCE_MONTHS,
+          onDone: () => {
+            status.textContent = `${labelOf(eff)} corrected on “${row.name}”.`;
+            void refreshRow(row);
+            refreshTasksBadge();
+          },
+        });
+      })();
     };
     const openMarkReviewedRow = (row: DocRow) => {
       void import("./lifecycleCmds").then(async ({ openMarkReviewed }) => {
@@ -5316,6 +5403,15 @@ export function mountDocs(
       // work-on-it group — properties, content, check-out, favourites
       if (canEditProps(row, lib)) {
         item("Edit properties…", () => openEditPropertiesRow(row));
+      }
+      // controllers only (report 28): the name and the one typed date
+      if (canRenameRow(row, lib)) item("Rename…", () => openRenameRow(row));
+      {
+        const dateCol = correctDateCol(row, lib);
+        if (dateCol !== "") {
+          const title = labelOf(dateCol);
+          item(`Correct ${title.charAt(0).toLowerCase()}${title.slice(1)}…`, () => openCorrectDateRow(row));
+        }
       }
       if (canReplaceContent(row, lib)) {
         item("Replace content…", () => openReplaceContentRow(row));
