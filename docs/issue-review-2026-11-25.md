@@ -744,6 +744,48 @@ case in the same commit; the case ids are assigned at build.
 |---|---|---|---|---|
 | | | | | |
 
+## Tranche walks
+
+Each tranche is walked with Ben, one item per message, before it is
+built. What a walk changes in a brief is recorded here, and wins over
+the brief above.
+
+### R1 walk (began 2026-11-26)
+
+**Item 1 — report 13, Review complete. THE BRIEF GREW.**
+
+- Found on the walk: Marie's screenshot has no "Waiting on" line, so
+  the history read failed for her; Ben: "General reviewers will not
+  have visibility on minor versions." The reviewer picker lets ANYONE
+  be named (`reviewerPeopleSource`, `docs/accessGates.ts`, the first
+  feedback round's C2), but someone outside the Owners & Approvers
+  group has Read only: they cannot open the draft, check out, or read
+  minor versions. Naming them is a trap.
+- **Decided (Ben's choice 2): a reviewer may still be anyone, and the
+  app gives them access for the cycle.** A reviewer from outside the
+  group is seated in the editors site group when the document is
+  submitted for review, through the ledger the edit requests use, and
+  released when the document is approved or the revision is cancelled
+  (a person reviewing two documents keeps the seat until the second
+  ends — `releaseGrants` already works that way).
+- Ben: in his libraries the editors group has Contribute, the same
+  level as owners and approvers, so a seated reviewer can open drafts.
+  The cookbook says drafts show to approvers and authors only — TO
+  CONFIRM with a second account on dev before release, and the
+  cookbook corrected to what runs.
+- **When the submitter cannot seat** (a Document Editor is a member of
+  the group, not an owner): the seat becomes an ACCESS REQUEST to the
+  owner, answered in Document tasks like an edit request; one press
+  seats the reviewer, who is then told (Ben's choice 2). NOT done:
+  letting members change the group's membership (any temporary editor
+  or reviewer could then add or remove anyone, in SharePoint too);
+  limiting an editor to reviewers who can already open drafts.
+- With every reviewer able to read the history, Review complete is
+  fixed by the better read, as first decided. No new table. Considered
+  and withdrawn: recording reviews in the app.
+- Adds about two and a half days to R1 (seating and release, the
+  request road, a setting, the per-site check).
+
 ---
 
 ## Appendix — the review record (phases 1 and 2, as it was made)
