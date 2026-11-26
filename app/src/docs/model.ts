@@ -3772,11 +3772,23 @@ export function orgSyncPlan(
  *  (the editor, or the name the comment itself carries). Names match
  *  case-insensitively, which is what a person column's display text
  *  allows. No submit marker = every version counts. */
+/** A person's name as two sources may write it: case, the apostrophe's
+ *  shape, a non-breaking or doubled space — none of them a different
+ *  person (the reviewers column and a version's editor are two feeds). */
+export function nameKey(s: string): string {
+  return s
+    .replace(/[\u2018\u2019\u02BC\u0060\u00B4]/g, "'")
+    .replace(/[\u00A0\u2000-\u200B\u202F]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
 export function reviewsOutstanding(
   versions: { comment: string; author: string }[],
   reviewerNames: string[]
 ): string[] {
-  const norm = (s: string) => s.trim().toLowerCase();
+  const norm = nameKey;
   const submitAt = versions.findIndex((v) => /^submitted for review/i.test(v.comment.trim()));
   const since = submitAt >= 0 ? versions.slice(0, submitAt) : versions;
   const done = new Set<string>();
@@ -3798,7 +3810,7 @@ export function reviewProgress(
   reviewerNames: string[],
   myName: string
 ): { outstanding: string[]; mineDone: boolean; mineAt: string } {
-  const norm = (s: string) => s.trim().toLowerCase();
+  const norm = nameKey;
   const outstanding = reviewsOutstanding(versions, reviewerNames);
   const me = norm(myName);
   const named = me !== "" && reviewerNames.some((n) => norm(n) === me);

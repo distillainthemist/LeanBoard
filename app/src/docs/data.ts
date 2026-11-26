@@ -352,7 +352,7 @@ export async function itemVersions(
    *  2026-11-23): a major whose own comment is empty is read again from
    *  the file's versions and the approval comment. Callers that only
    *  look for a step's words on the version itself leave it off. */
-  o: { fillComments?: boolean } = {}
+  o: { fillComments?: boolean; fillDrafts?: boolean } = {}
 ): Promise<{ versions: DocVersion[]; error: string }> {
   const query = (expand: boolean, modComments: boolean) =>
     `_api/web/lists(guid'${listId}')/items(${itemId})/versions` +
@@ -391,7 +391,10 @@ export async function itemVersions(
   if (o.fillComments !== true) return { versions, error: "" };
   // a major with no words of its own: the FILE's versions may hold them
   // (two reads, only when some major is bare; a refusal changes nothing)
-  const bare = versions.some((v) => /^\d+\.0$/.test(v.label) && v.comment.trim() === "");
+  // `fillDrafts` (the review check, 2026-11-25 report 13): a DRAFT's
+  // words count too — "Review complete by …" is a minor check-in, and
+  // the history found it where the plain read did not
+  const bare = versions.some((v) => (o.fillDrafts === true || /^\d+\.0$/.test(v.label)) && v.comment.trim() === "");
   const fileComments = new Map<string, string>();
   if (bare) {
     const base = `_api/web/lists(guid'${listId}')/items(${itemId})/File`;

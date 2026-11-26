@@ -662,6 +662,12 @@ export function mountDocs(
     // and the submit turns solid once every review is in. Unknown until
     // read — the buttons are then as they always were.
     const reviewStates = new Map<string, { outstanding: string[]; mineDone: boolean; mineAt: string }>();
+    /** Documents whose review record could not be read: said on the
+     *  card, never guessed (report 13, 2026-11-25). */
+    const reviewUnread = new Set<string>();
+    /** Every place the words may be: the history's own read. */
+    const reviewVersions = (row: DocRow) =>
+      itemVersions(app.siteUrl, row.listId, row.id, { fillComments: true, fillDrafts: true }).catch(() => ({ versions: [], error: "unreadable" }));
     /** The row's reviewers as the column names them, and the viewer's
      *  own name among them ("" = not a reviewer). */
     const reviewersOf = (row: DocRow): { names: string[]; mine: string } => {
@@ -674,17 +680,28 @@ export function mountDocs(
     const loadReviewState = async (row: DocRow): Promise<void> => {
       const { names, mine } = reviewersOf(row);
       if (stageOfRow(row) !== "inReview" || names.length === 0) {
-        if (reviewStates.delete(row.uniqueId)) for (const rp of viewerRepaints) rp();
+        const had = reviewStates.delete(row.uniqueId);
+        if (reviewUnread.delete(row.uniqueId) || had) for (const rp of viewerRepaints) rp();
         return;
       }
-      const vres = await itemVersions(app.siteUrl, row.listId, row.id).catch(() => ({ versions: [], error: "unreadable" }));
-      if (dead || vres.error !== "") return; // unknown stays unknown
+      const vres = await reviewVersions(row);
+      if (dead) return;
+      if (vres.error !== "") {
+        // unknown stays unknown — and the card says it could not read
+        reviewStates.delete(row.uniqueId);
+        reviewUnread.add(row.uniqueId);
+        for (const rp of viewerRepaints) rp();
+        return;
+      }
+      reviewUnread.delete(row.uniqueId);
       reviewStates.set(row.uniqueId, reviewProgress(vres.versions, names, mine));
       for (const rp of viewerRepaints) rp();
     };
     /** The decision card's lines for a document in review. */
     const reviewNotes = (row: DocRow): string[] => {
-      const st = stageOfRow(row) === "inReview" ? reviewStates.get(row.uniqueId) : undefined;
+      const inReview = stageOfRow(row) === "inReview";
+      if (inReview && reviewUnread.has(row.uniqueId)) return ["Who has completed their review could not be read."];
+      const st = inReview ? reviewStates.get(row.uniqueId) : undefined;
       if (st === undefined) return [];
       const lines: string[] = [];
       if (st.mineDone) lines.push(`✓ You completed your review${st.mineAt !== "" ? ` on ${formatWhen(st.mineAt)}` : ""}`);
@@ -764,13 +781,37 @@ export function mountDocs(
         };
       }
       void import("./lifecycleCmds").then(async ({ openLifecycleCommand }) => {
+        // a review already recorded this round is not recorded twice:
+        // asked of SharePoint now, before anything is written (report
+        // 13 — four presses had made four versions)
+        if (cmd.key === "reviewComplete" && stageOfRow(row) === "inReview") {
+          const { names, mine } = reviewersOf(row);
+          if (mine !== "" && names.length > 0) {
+            const vres = await reviewVersions(row);
+            if (vres.error === "") {
+              const st = reviewProgress(vres.versions, names, mine);
+              reviewUnread.delete(row.uniqueId);
+              reviewStates.set(row.uniqueId, st);
+              for (const rp of viewerRepaints) rp();
+              if (st.mineDone) {
+                await promptConfirm({
+                  title: "Your review is already recorded",
+                  note: `You completed your review${st.mineAt !== "" ? ` on ${formatWhen(st.mineAt)}` : ""}.${st.outstanding.length > 0 ? ` Waiting on ${st.outstanding.join(", ")}.` : " Every review is complete."}`,
+                  confirmLabel: "Close",
+                  hideCancel: true,
+                });
+                return;
+              }
+            }
+          }
+        }
         // the review gate (issue 4, warn-and-confirm): submitting for
         // approval while a named reviewer has not recorded "Review
         // complete" asks first — the version comments are the record
         if (cmd.key === "submitApproval" && stageOfRow(row) === "inReview" && reviewersInternal !== "") {
           const names = (row.values[reviewersInternal] ?? "").split(";").map((s) => s.trim()).filter((s) => s !== "");
           if (names.length > 0) {
-            const vres = await itemVersions(app.siteUrl, row.listId, row.id).catch(() => ({ versions: [], error: "unreadable" }));
+            const vres = await reviewVersions(row);
             const outstanding = vres.error === "" ? reviewsOutstanding(vres.versions, names) : names;
             if (outstanding.length > 0) {
               const ok = await promptConfirm({

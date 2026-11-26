@@ -199,6 +199,8 @@ export function promptConfirm(opts: {
   note?: string;
   confirmLabel?: string;
   danger?: boolean;
+  /** A notice with one button: nothing to decide, only to read. */
+  hideCancel?: boolean;
 }): Promise<boolean> {
   return new Promise((resolve) => {
     const overlay = el("div", "app-modal-overlay app-modal-top");
@@ -210,7 +212,8 @@ export function promptConfirm(opts: {
     cancel.type = "button";
     const ok = el("button", "app-btn " + (opts.danger ? "app-btn-danger" : "app-btn-primary"), opts.confirmLabel ?? "OK") as HTMLButtonElement;
     ok.type = "button";
-    footer.append(cancel, ok);
+    if (opts.hideCancel === true) footer.append(ok);
+    else footer.append(cancel, ok);
     box.appendChild(footer);
     const done = (v: boolean) => {
       overlay.remove();
