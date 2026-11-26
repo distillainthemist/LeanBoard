@@ -120,6 +120,9 @@ void (async () => {
       importanceInternal: "Importance",
       cadence: { high: 12, low: 36 },
       datesOf: () => ({ effective: "DMSEffectiveDate", review: "DMSReview", cadence: "DMSCadence", org: "", status: "Status" }),
+      // "Notes" is in the dictionary and the library but hidden in the
+      // column manager: it must not be offered
+      offeredFor: () => new Set(["Area", "Importance", "DocClass", "DMSEffectiveDate"]),
       onDone: () => (state.textContent = "The register would re-read now."),
     })
   );

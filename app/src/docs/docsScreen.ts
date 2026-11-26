@@ -6338,6 +6338,7 @@ export function mountDocs(
             org: orgFieldFor(lib),
             status: statusInternal,
           }),
+          offeredFor: (lib) => (siteDict.columns.length > 0 ? new Set(dialogSections(siteDict, lib.libType).flatMap((g) => g.columns)) : null),
           onDone: () => void load(true),
         });
       });

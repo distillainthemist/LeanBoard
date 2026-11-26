@@ -70,6 +70,13 @@ export interface BulkChangeOpts {
   importanceInternal: string;
   cadence: Record<string, number>;
   datesOf(lib: DocLibrary): { effective: string; review: string; cadence: string; org: string; status: string };
+  /** The properties Edit properties shows for a library — the Document
+   *  Columns manager's choice for its type. A column the manager hides
+   *  (SharePoint's own "Image Tags", say) is not a bulk change's to
+   *  offer either (Ben, 2026-11-27: "why is there a property image
+   *  tags?"). null = the site has no manager settings: every available
+   *  column, as the form itself falls back to. */
+  offeredFor(lib: DocLibrary): Set<string> | null;
   onDone(): void;
 }
 
@@ -129,6 +136,8 @@ export function openBulkChange(opts: BulkChangeOpts): void {
   /** property → its live field in the first library that carries it. */
   const fieldOf = new Map<string, SpField>();
   const libFields = new Map<string, SpField[]>();
+  /** library → the properties its Edit properties form shows (null = all). */
+  const offered = new Map<string, Set<string> | null>();
 
   const dlg = openDialog({
     host: opts.host,
@@ -405,7 +414,7 @@ export function openBulkChange(opts: BulkChangeOpts): void {
           checkedOutTo: row.checkoutName ?? "",
           checkedOutToMe: (row.checkoutName ?? "") !== "" && opts.isMine(row),
           site: opts.siteOf(row),
-          carries: new Set(lib.config.columns.filter((c) => c.available && have.has(c.internal)).map((c) => c.internal)),
+          carries: new Set(lib.config.columns.filter((c) => c.available && have.has(c.internal) && (offered.get(lib.listId)?.has(c.internal) ?? true)).map((c) => c.internal)),
           required: new Set(fields.filter((f) => f.required).map((f) => f.internal)),
           current,
           effectiveYmd: ymdOf(row, d.effective),
@@ -598,11 +607,14 @@ export function openBulkChange(opts: BulkChangeOpts): void {
     for (const lib of opts.libs) {
       const r = await loadLibraryFields(site, lib.listId).catch(() => ({ ok: false, status: "", fields: [] as SpField[] }));
       libFields.set(lib.listId, r.fields);
+      offered.set(lib.listId, opts.offeredFor(lib));
     }
     for (const [internal, col] of opts.dictBy) {
       if (NEVER.has(col.role)) continue;
       for (const lib of opts.libs) {
         if (!lib.config.columns.some((c) => c.internal === internal && c.available)) continue;
+        // only what the form shows for this library's type
+        if (offered.get(lib.listId)?.has(internal) === false) continue;
         const f = (libFields.get(lib.listId) ?? []).find((x) => x.internal === internal);
         if (f === undefined) continue;
         const kind = editorKind(f);

@@ -1517,6 +1517,16 @@ and the date correction against a FAKED SharePoint
 - **A change that would empty a required property skips the whole
   document**, the other changes of that run with it.
 
+### R4 test walk (began 2026-11-27, dev `v0.100.0-7-ga13c55f`)
+
+| # | Test | Result |
+|---|---|---|
+| 1 | Rename — the refusals, the rename, the version and its comment | Pass. The move-then-bracket road WORKS in a controlled library (the probe that was owed) |
+| 2 | Correct the effective date | Pass |
+| 3 | Change properties — the preview, nothing written | Pass |
+| 4 | Change properties — the run and the report | Pass (the run's measured rate was not reported back) |
+| 5 | Several properties and Importance | FOUND at its first step — Ben: "Why is there a property image tags?" The list offered every dictionary column the library has, where the walk said "the properties Edit properties offers": the form shows only what the Document Columns manager shows for the library's type (`dialogSections`), and bulk change did not apply that. Fixed the same day: `offeredFor(lib)`; a column the manager hides is neither offered nor written. Re-test owed |
+
 **Limits:**
 
 - **N3 reads at most 2,000 documents into a preview** and says so
