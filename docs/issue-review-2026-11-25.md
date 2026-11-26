@@ -960,6 +960,8 @@ stands in and the readout names the rule — which is then what an
 environment setting would need. Built the same day (`docs/viewer.ts`
 `viaConnector`, `paintFallback`); unseen until Ben opens a PDF on dev.
 
+| 2 | N4 — a PDF's full preview through the connector | FAILED first: "reading them through the SharePoint connector — it answered as string, not bytes". Cause, read in the SDK (`runtimeDataClient.js`, 1.2.7): a response that is neither JSON, an image nor octet-stream comes back as a string of one character per byte — lossless. The October probe read a `.bin` (octet-stream), so the string shape was never met. Fixed: `bytesFromConnector` (`docs/connectorBytes.ts`) turns the string back into bytes and checks the file begins `%PDF`. Re-test owed |
+
 ---
 
 ## Appendix — the review record (phases 1 and 2, as it was made)

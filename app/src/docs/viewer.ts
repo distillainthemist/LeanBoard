@@ -1505,13 +1505,17 @@ export function openDocViewer(opts: ViewerOpts): () => void {
         return "";
       }
       const got = await connectorGetFileContent(site, connectorFileIdFor(site, row.serverUrl));
-      if (!got.ok || !(got.data instanceof Uint8Array) || got.data.length === 0) {
+      // a PDF comes back as a string, one character per byte — the SDK's
+      // shape for any content type but octet-stream (connectorBytes.ts)
+      const { bytesFromConnector, describeAnswer } = await import("./connectorBytes");
+      const pdf = got.ok ? bytesFromConnector(got.data, "%PDF") : null;
+      if (pdf === null) {
         previewWhy = "The app could not fetch the file's bytes.";
-        previewStep = `Step: ${direct}; then reading them through the SharePoint connector — ${!got.ok ? spErrorText(got.status).slice(0, 200) : got.data instanceof Uint8Array ? "it answered with no bytes" : `it answered as ${typeof got.data}, not bytes`}.`;
+        previewStep = `Step: ${direct}; then reading them through the SharePoint connector — ${!got.ok ? spErrorText(got.status).slice(0, 200) : `it answered with ${describeAnswer(got.data)}, which is not a PDF`}.`;
         return "";
       }
       if (blobUrl !== "") URL.revokeObjectURL(blobUrl);
-      blobUrl = URL.createObjectURL(new Blob([got.data as BlobPart], { type: "application/pdf" }));
+      blobUrl = URL.createObjectURL(new Blob([pdf as BlobPart], { type: "application/pdf" }));
       return `${blobUrl}#page=1`;
     } catch (e2) {
       previewWhy = "The app could not fetch the file's bytes.";
