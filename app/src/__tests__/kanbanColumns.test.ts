@@ -32,7 +32,7 @@ describe("kanban group-by reaches the card", () => {
     const offered = spec.config
       .find((f) => f.key === "kanbanGroupBy")!
       .options!.map((o) => o.value);
-    expect(offered).toEqual(["status", "issue", "person"]);
+    expect(offered).toEqual(["status", "pdca", "issue", "person"]);
     // every offered value must survive the mounter's validation — the bug
     // was that "issue" did not, so the setting did nothing at all
     for (const value of offered) expect(groupByOf(value)).toBe(value);

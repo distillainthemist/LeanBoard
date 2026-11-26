@@ -217,11 +217,11 @@ describe("a shared action closes only when every part is done", () => {
   it("puts back an action a road closed over outstanding parts", () => {
     const a = act({ status: "done", pdca: "closed", assignees: [p("a", true), p("b")], verified: { whoId: "o", who: "O", when: NOW } });
     expect(holdOpenUntilAllParts(a)).toBe(true);
-    expect(a).toMatchObject({ status: "open", pdca: "do" });
+    expect(a).toMatchObject({ status: "in-progress", pdca: "do" });
     expect(a.verified).toBeUndefined();
     const v = act({ status: "verify", pdca: "check", assignees: [p("a"), p("b")] });
     holdOpenUntilAllParts(v);
-    expect(v).toMatchObject({ status: "open", pdca: "check" });
+    expect(v).toMatchObject({ status: "in-progress", pdca: "check" });
   });
   it("leaves alone one that everyone finished, one person's action, and an open one", () => {
     expect(holdOpenUntilAllParts(act({ status: "done", assignees: [p("a", true), p("b", true)] }))).toBe(false);
@@ -238,7 +238,7 @@ describe("a shared action closes only when every part is done", () => {
     expect(a).toMatchObject({ status: "done", pdca: "closed" });
     // undoing one part reopens the action; the other part stands
     expect(tickPart(a, "a", NOW)).toBe("undone");
-    expect(a.status).toBe("open");
+    expect(a.status).toBe("in-progress");
     expect(a.assignees.map((x) => x.done)).toEqual([false, true]);
     expect(a.assignees[0].doneAt).toBeUndefined();
   });
@@ -272,7 +272,7 @@ describe("duplicate", () => {
     });
     const d = duplicateAction(src);
     expect(d.id).not.toBe(src.id);
-    expect(d).toMatchObject({ issue: "Guarding", description: "Audit the fillers", instanceId: "init-I1:card", initiativeId: "I1", start: "2026-11-01", due: "2026-11-30", status: "open", pdca: "do", escalated: true, confidential: true });
+    expect(d).toMatchObject({ issue: "Guarding", description: "Audit the fillers", instanceId: "init-I1:card", initiativeId: "I1", start: "2026-11-01", due: "2026-11-30", status: "open", pdca: "plan", escalated: true, confidential: true });
     expect(d.assignees).toEqual([p("a"), p("b")]);
     expect(d.supporters).toEqual([{ whoId: "s", who: "Sup" }]);
     expect(d.comments).toEqual([]);

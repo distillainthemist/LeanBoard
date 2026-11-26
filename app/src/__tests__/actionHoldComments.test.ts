@@ -26,7 +26,8 @@ describe("On hold", () => {
   });
   it("survives the sanitiser", () => {
     expect(sanitizeAction({ ...act({ pdca: "hold" }) }).pdca).toBe("hold");
-    expect(sanitizeAction({ ...act({ pdca: "paused" }) }).pdca).toBeUndefined();
+    // a state the app does not know reads from the column: Plan in To do
+    expect(sanitizeAction({ ...act({ pdca: "paused" }) }).pdca).toBe("plan");
   });
   it("counts as open but not overdue in an initiative's roll-up", () => {
     const r = actionCountsFor({ id: "I1", boardId: "init-I1" }, [{ initiativeId: "I1", status: "open", pdca: "hold", due: "2026-09-01" }, { initiativeId: "I1", status: "open", pdca: "do", due: "2026-09-01" }], "2026-09-30");

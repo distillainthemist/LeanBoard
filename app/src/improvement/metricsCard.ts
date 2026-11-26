@@ -144,13 +144,17 @@ export function mountMetricsCard(opts: CardMount & { source?: MetricsCardSource 
     // one latest reading
     const page = { from: cols[0].from, to: cols[cols.length - 1].to };
     const since = readFrom(today, loc.cadence);
-    let dates = (await listSeries(loc.boardId, loc.cardId, since, "2999-12-31").catch(() => [])).filter((c) => loc.isActual(c.key) && c.value !== "").map((c) => c.date);
+    const filled = (await listSeries(loc.boardId, loc.cardId, since, "2999-12-31").catch(() => [])).filter((c) => c.value !== "");
+    let dates = filled.filter((c) => loc.isActual(c.key)).map((c) => c.date);
+    // every value anyone typed, plan included: the chart's axis starts
+    // one period before the first of them (report 24)
+    const entered = filled.map((c) => c.date);
     if (dates.length === 0 && since !== READ_FROM_START) {
       const old = await latestSeriesCell(loc.boardId, loc.cardId, loc.actualKey).catch(() => null);
       if (old) dates = [old.date];
     }
     const newest = dates.reduce((a, b) => (b > a ? b : a), "");
-    return { m, loc, driver: d, leads: ledDriver(m, drivers)?.name ?? "", source, cells, lastRaw, tracking, win: chartWindow(today, loc.cadence, dates, page), page, stale: staleWords(newest, loc.cadence, today) };
+    return { m, loc, driver: d, leads: ledDriver(m, drivers)?.name ?? "", source, cells, lastRaw, tracking, win: chartWindow(today, loc.cadence, dates, page, entered), page, stale: staleWords(newest, loc.cadence, today) };
   };
 
   const load = async () => {

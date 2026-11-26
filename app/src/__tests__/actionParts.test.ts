@@ -26,7 +26,7 @@ describe("settleFromParts — the parts and the whole agree", () => {
     expect(settleFromParts(a, { reopen: false })).toBe(false);
     expect(a.status).toBe("done");
     expect(settleFromParts(a, { reopen: true })).toBe(true);
-    expect(a.status).toBe("open");
+    expect(a.status).toBe("in-progress");
     expect(a.pdca).toBe("do");
   });
   it("leaves waiting, cancelled and unassigned actions alone", () => {

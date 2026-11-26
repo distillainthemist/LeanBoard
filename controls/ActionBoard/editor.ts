@@ -12,7 +12,7 @@ import {
   pdcaDisc, actionRow, completeCircle, openActionDialog, confidentialGlyph, commentGlyph, movedGlyph, partsChip, supportFlag } from "../../shared/ui/actionUi";
 import { makeInteractive } from "../../shared/interact/drag";
 import { cssForSubtree, htmlToPng, htmlToSvg, saveSvg, SnapshotScheduler } from "../../shared/export/png";
-import { assigneesLabel, isShared, pdcaOf, ActionStatus, isOverdue, LtkAction, newAction, partsOutstanding, partsTitle, RECENT_DONE_DAYS, recentlyDone, supportLabel } from "../../shared/schema/actions";
+import { alignPdca, assigneesLabel, isShared, pdcaOf, ActionStatus, isOverdue, LtkAction, newAction, partsOutstanding, partsTitle, RECENT_DONE_DAYS, recentlyDone, supportLabel } from "../../shared/schema/actions";
 import { todayIso } from "../../shared/schema/id";
 import { applyEndorsementRule } from "../../shared/schema/actionEndorsement";
 import { endorsementFor } from "../../shared/ui/actionLinkProvider";
@@ -39,14 +39,30 @@ export function viewFor(narrow: boolean, userView: BoardView | null, configured:
   const v = narrow ? "list" : (userView ?? configured);
   return v === "gantt" && !ganttRoom ? "list" : v;
 }
-export type KanbanGroupBy = "status" | "issue" | "person";
+export type KanbanGroupBy = "status" | "issue" | "person" | "pdca";
 
 /** A stored "Kanban grouping" as the card understands it — the values
  *  the settings registry offers; anything else is by status. The mounter
  *  and the test read this ONE rule (they once disagreed, and "By issue"
  *  silently did nothing). */
 export function kanbanGroupOf(raw: string): KanbanGroupBy {
-  return raw === "issue" || raw === "person" ? raw : "status";
+  return raw === "issue" || raw === "person" || raw === "pdca" ? raw : "status";
+}
+
+/** "By PDCA state" (report 21, 2026-11-27): one column per state. On
+ *  hold stands in Plan with its pause mark, as it stands in To do; an
+ *  action awaiting endorsement stands in Closed with its marker. */
+export const PDCA_COLUMNS: { key: "plan" | "do" | "check" | "act" | "closed"; label: string }[] = [
+  { key: "plan", label: "Plan" },
+  { key: "do", label: "Do" },
+  { key: "check", label: "Check" },
+  { key: "act", label: "Act" },
+  { key: "closed", label: "Closed" },
+];
+/** The PDCA column an action stands in. */
+export function pdcaColumnOf(a: Pick<LtkAction, "status" | "pdca">): string {
+  const p = pdcaOf(a);
+  return p === "hold" ? "plan" : p;
 }
 
 /**
@@ -96,9 +112,12 @@ const GANTT_HEAD_H = 28;
 const GANTT_MIN_DAY_W = 8;
 const GANTT_MAX_DAY_W = 56;
 
+// one vocabulary on every board (Ben, 2026-11-27): a meeting board read
+// Open · In progress · Done while an initiative board read To do · Doing
+// · Endorse · Done, for what is now one rule (alignPdca)
 const STATUS_COLUMNS: { status: ActionStatus; label: string }[] = [
-  { status: "open", label: "Open" },
-  { status: "in-progress", label: "In progress" },
+  { status: "open", label: "To do" },
+  { status: "in-progress", label: "Doing" },
   { status: "done", label: "Done" },
 ];
 
@@ -679,6 +698,7 @@ export class ActionBoardEditor {
     if (!this.narrow && view === "kanban") {
       const group = selectInput(this.grouping(), [
         { value: "status", label: "By status" },
+        { value: "pdca", label: "By PDCA state" },
         { value: "issue", label: "By issue" },
         { value: "person", label: "By person" },
       ]);
@@ -797,6 +817,9 @@ export class ActionBoardEditor {
       this.columnPeople = new Map(cols.map((c) => [c.key, c.person]));
       return cols.map((c) => ({ key: c.key, label: c.label, items: c.items }));
     }
+    if (this.grouping() === "pdca") {
+      return PDCA_COLUMNS.map((c) => ({ key: c.key, label: c.label, items: visible.filter((a) => pdcaColumnOf(a) === c.key) }));
+    }
     if (this.grouping() === "status") {
       // initiative boards get the fourth column (design 2.4); elsewhere
       // "verify" keeps showing in Done with its marker
@@ -872,7 +895,7 @@ export class ActionBoardEditor {
       for (const a of this.sorted(col.items)) {
         cards.appendChild(this.renderKanbanCard(a, col.key));
       }
-      if (this.grouping() === "status" && col.key === "done" && this.hiddenDone() > 0) {
+      if (((this.grouping() === "status" && col.key === "done") || (this.grouping() === "pdca" && col.key === "closed")) && this.hiddenDone() > 0) {
         // the column stays as the drop target; the note says what it
         // holds beyond the recently completed
         const note = el("button", "ltk-ab-col-hidden", `${this.hiddenDone()} older completed hidden`) as HTMLButtonElement;
@@ -1261,6 +1284,7 @@ export class ActionBoardEditor {
     // by person a shared action stands in several columns: "where it is"
     // is the column the drag started in
     if (g === "person") return this.dragFrom ?? UNASSIGNED_KEY;
+    if (g === "pdca") return pdcaColumnOf(a);
     return g === "status" ? a.status : a.issue.trim();
   }
 
@@ -1299,7 +1323,25 @@ export class ActionBoardEditor {
       this.commit();
       return;
     }
-    if (this.grouping() === "status") {
+    if (this.grouping() === "pdca" && key !== "closed") {
+      // a drop in Plan, Do, Check or Act sets that state; the column in
+      // the status view follows (alignPdca). Out of Closed, it reopens.
+      const prior = a.status;
+      const wasClosed = prior === "done" || prior === "verify";
+      if (wasClosed) {
+        a.status = "open";
+        for (const x of a.assignees) x.done = false;
+      }
+      a.pdca = key as "plan" | "do" | "check" | "act";
+      alignPdca(a, "pdca");
+      a.verified = undefined;
+      if (this.actor.whoId !== "") applyEndorsementRule(a, prior, endorsementFor(a), this.actor, new Date().toISOString());
+      this.commit();
+      return;
+    }
+    if (this.grouping() === "status" || this.grouping() === "pdca") {
+      // (a drop in the PDCA view's Closed column is a close like any other)
+      if (this.grouping() === "pdca") key = "done";
       const wasVerify = a.status === "verify";
       const prior = a.status;
       const wasClosed = prior === "done" || prior === "verify";
@@ -1322,8 +1364,10 @@ export class ActionBoardEditor {
       else if (wasClosed && !done) for (const x of a.assignees) x.done = false;
       // the stored PDCA follows the column too (the display derives it,
       // the row should say the same — 2026-10-06)
+      // into To do is Plan; into Doing is Do, and Check and Act keep
+      // their mark there (report 21, 2026-11-27)
       if (done) a.pdca = "closed";
-      else if (a.pdca === "closed" || a.pdca === undefined) a.pdca = a.status === "in-progress" ? "do" : "plan";
+      else alignPdca(a, "status");
       if (a.status === "done" && wasVerify && this.actor.whoId !== "") {
         a.verified = { whoId: this.actor.whoId, who: this.actor.who, when: new Date().toISOString().slice(0, 10) };
       }
@@ -1374,6 +1418,16 @@ export class ActionBoardEditor {
         // the PDCA state the dialog opens on follows the column
         action.pdca = status === "done" || status === "verify" ? "closed" : status === "in-progress" ? "do" : "plan";
         if (status === "done" || status === "verify") for (const x of action.assignees) x.done = true;
+      } else if (this.grouping() === "pdca") {
+        // raised from a state's column: at that state
+        if (columnKey === "closed") {
+          action.status = "done";
+          action.pdca = "closed";
+          for (const x of action.assignees) x.done = true;
+        } else {
+          action.pdca = columnKey as "plan" | "do" | "check" | "act";
+          alignPdca(action, "pdca");
+        }
       } else {
         action.issue = columnKey;
       }

@@ -7,7 +7,7 @@
 // action with a part each, 2026-11-17); actions are never hard-deleted (the danger button cancels); Done/Due/
 // Overdue are capitalised; circle colours are set inline (Safari rule).
 
-import { ActionComment, ActionPdca, ACTION_PDCA, assigneesLabel, signedOffWords, canEditComment, cleanSupporters, COMMENT_EDIT_HOURS, duplicateAction, editComment, holdOpenUntilAllParts, isOverdue, isShared, LtkAction, partsOutstanding, tickPart, MAX_ASSIGNEES, mergeAssignees, newAction, newComment, partsLabel, partsTitle, settleFromParts, Supporter, supportLabel, PDCA_LABELS, PDCA_QUARTERS, pdcaOf } from "../schema/actions";
+import { ActionComment, ActionPdca, ACTION_PDCA, alignPdca, reopenAction, assigneesLabel, signedOffWords, canEditComment, cleanSupporters, COMMENT_EDIT_HOURS, duplicateAction, editComment, holdOpenUntilAllParts, isOverdue, isShared, LtkAction, partsOutstanding, tickPart, MAX_ASSIGNEES, mergeAssignees, newAction, newComment, partsLabel, partsTitle, settleFromParts, Supporter, supportLabel, PDCA_LABELS, PDCA_QUARTERS, pdcaOf } from "../schema/actions";
 import { ActionLink, applyLink, boardOnlyTarget, currentLink, isCardKeyed, linkChanges, linkLabel, LinkTarget, searchLinkTargets } from "../schema/actionLinks";
 import { ACTION_MOVED_EVENT, actionAttachments, actionDirectory, ActionDirectoryRoad, ActionLinkContext, actionLinkProvider, actionMessenger, actionTeam, ActionTeamRoad, actionViewer, endorsementFor } from "./actionLinkProvider";
 import { dueMove, dueMoves, isLaterMove, reasonChoices, recordDueMove, slipCount } from "../schema/reschedule";
@@ -1135,8 +1135,12 @@ export function completeCircle(
       // a tick on a WAITING action reopens it (its work was ticked done;
       // only an endorser closes it — through the dialog)
       const nowDone = a.status !== "done" && a.status !== "verify";
-      a.status = nowDone ? "done" : "open";
-      a.pdca = nowDone ? "closed" : "do"; // the PDCA disc follows completion
+      // the PDCA disc follows completion; a reopened action goes back
+      // into Do, in Doing (report 21)
+      if (nowDone) {
+        a.status = "done";
+        a.pdca = "closed";
+      } else reopenAction(a);
       for (const x of a.assignees) x.done = nowDone;
       if (who !== null) applyEndorsementRule(a, prior, endorsementFor(a), who, new Date().toISOString());
       paint();
@@ -1862,7 +1866,7 @@ export function openActionDialog(o: ActionDialogOptions): void {
   // PDCA toggle (Ben, 2026-08-31): disc + label each — replaces the old
   // Completed checkbox (Closed IS completion). On hold (2026-09-30)
   // pauses: the action stays open and is not overdue while held.
-  let pdca: ActionPdca = o.isNew ? (action.pdca ?? "do") : pdcaOf(action);
+  let pdca: ActionPdca = o.isNew ? (action.pdca ?? "plan") : pdcaOf(action);
   const pdcaWrap = el("div", "ltk-pdca-seg");
   const pdcaBtns = new Map<ActionPdca, HTMLButtonElement>();
   const paintPdca = () => {
@@ -1953,6 +1957,9 @@ export function openActionDialog(o: ActionDialogOptions): void {
     // keeps the status (awaiting endorsement / in-progress survive).
     if (pdca === "closed" && !wasClosed && action.status !== "cancelled") action.status = "done";
     else if (pdca !== "closed" && wasClosed) action.status = "open";
+    // the kanban's column follows the state chosen here (report 21):
+    // Plan and On hold are To do; Do, Check and Act are Doing
+    alignPdca(action, "pdca");
     action.escalated = flagged;
     action.confidential = confChk.box.checked ? true : undefined;
     form.apply(action); // after status, so assignee done flags match

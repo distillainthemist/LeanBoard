@@ -66,7 +66,8 @@ describe("a waiting action", () => {
     expect([a.status, a.pdca, a.verified?.who]).toEqual(["done", "closed", "Olive Owner"]);
     const b = act({ status: "verify", pdca: "closed", assignees: [{ whoId: "u1", who: "Jane Smith", done: true }] });
     sendBack(b, owner, NOW, "  Torque values not recorded ");
-    expect([b.status, b.pdca, b.assignees[0].done]).toEqual(["open", "do", false]);
+    // reopened: back into Do, in Doing (report 21)
+    expect([b.status, b.pdca, b.assignees[0].done]).toEqual(["in-progress", "do", false]);
     expect(b.verified).toBeUndefined();
     expect(b.history?.at(-1)).toEqual({ kind: "reopened", whoId: "own", who: "Olive Owner", when: NOW, reason: "Torque values not recorded" });
   });

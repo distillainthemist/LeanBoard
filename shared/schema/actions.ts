@@ -11,9 +11,11 @@ import { newId, todayIso } from "./id";
 // overdue purposes and as open work for the assignee's rollups.
 export type ActionStatus = "open" | "in-progress" | "verify" | "done" | "cancelled";
 
-/** The PDCA progression (Ben, 2026-08-31): a parallel axis to status —
- *  where the work IS in the improvement cycle. Closed mirrors status
- *  done/cancelled; new actions start at Do. */
+/** The PDCA progression (Ben, 2026-08-31): where the work IS in the
+ *  improvement cycle. Closed mirrors status done/cancelled. Since
+ *  2026-11-27 (report 21) it is no longer a parallel axis: the kanban's
+ *  column FOLLOWS it (`alignPdca`), and a new action starts at PLAN —
+ *  it started at Do until then. */
 /** "hold" (Ben, 2026-09-30): ON HOLD — paused, not abandoned. It sits
  *  beside the cycle rather than on it (a pause glyph, no quadrants): the
  *  action stays open, and while it is held it is not overdue. Listed
@@ -66,8 +68,7 @@ export function settleFromParts(a: LtkAction, opts: { reopen: boolean }): boolea
     return true;
   }
   if (opts.reopen && !allDone && (a.status === "done" || a.status === "verify")) {
-    a.status = "open";
-    a.pdca = "do";
+    reopenAction(a);
     a.verified = undefined;
     return true;
   }
@@ -75,13 +76,73 @@ export function settleFromParts(a: LtkAction, opts: { reopen: boolean }): boolea
 }
 
 /** The state to DISPLAY: a done/cancelled action is closed regardless of
- *  what was stored; a stored "closed" on a live action falls back to Do
- *  (the two are kept in step by the dialog, this covers older writes). */
+ *  what was stored; a live action with no state of its own reads from
+ *  its column — Do in Doing, Plan in To do. */
 export function pdcaOf(a: { status: ActionStatus; pdca?: ActionPdca }): ActionPdca {
   // awaiting endorsement: the work is done — it reads Closed, with its
   // marker beside it (Ben, 2026-09-30)
   if (a.status === "done" || a.status === "cancelled" || a.status === "verify") return "closed";
-  return a.pdca !== undefined && a.pdca !== "closed" ? a.pdca : "do";
+  return a.pdca !== undefined && a.pdca !== "closed" ? a.pdca : a.status === "in-progress" ? "do" : "plan";
+}
+
+const WORKING = new Set<ActionPdca | undefined>(["do", "check", "act"]);
+
+/**
+ * Status and PDCA state kept in step (report 21, 2026-11-27 — Sue's 21
+ * cards at Do sitting in To do). The kanban's column is the status; the
+ * dialog sets the PDCA state; until now only a drag into Doing wrote
+ * "in-progress", so the two said different things. ONE rule, applied
+ * at every write and once at every read:
+ *
+ *   To do  = open         = Plan, or On hold
+ *   Doing  = in-progress  = Do, Check or Act
+ *   Endorse / Done        = Closed
+ *
+ * `from` says which of the two was just chosen:
+ *  - "pdca": the dialog (or a drop in a PDCA column) chose a state — the
+ *    status follows;
+ *  - "status": a drop in To do or Doing chose a column — into To do is
+ *    Plan, into Doing is Do, and Check and Act keep their mark there;
+ *  - "stored": a row as it was saved before the rule. Do was the DEFAULT
+ *    of every new action, so an open action at Do reads PLAN and stays
+ *    where it was; Check and Act are never defaults, so an open action
+ *    at one of them MOVES to Doing with its mark (Ben's choice on R5's
+ *    walk); a card dragged into Doing whose mark said Plan reads Do; On
+ *    hold sits in To do.
+ * A row this build saved passes "stored" unchanged.
+ */
+export function alignPdca(a: { status: ActionStatus; pdca?: ActionPdca }, from: "pdca" | "status" | "stored"): void {
+  if (a.status === "done" || a.status === "verify") {
+    a.pdca = "closed";
+    return;
+  }
+  if (a.status === "cancelled") return;
+  if (from === "pdca") {
+    if (a.pdca === undefined || a.pdca === "closed") a.pdca = "plan";
+    a.status = WORKING.has(a.pdca) ? "in-progress" : "open";
+    return;
+  }
+  if (from === "status") {
+    if (a.status === "in-progress") {
+      if (!WORKING.has(a.pdca)) a.pdca = "do";
+    } else a.pdca = "plan";
+    return;
+  }
+  if (a.status === "in-progress") {
+    if (a.pdca === "hold") a.status = "open";
+    else if (!WORKING.has(a.pdca)) a.pdca = "do";
+  } else if (a.pdca === "check" || a.pdca === "act") {
+    a.status = "in-progress";
+  } else if (a.pdca !== "hold") {
+    a.pdca = "plan";
+  }
+}
+
+/** Reopened: back into Do, in Doing (Ben's choice on R5's walk — it was
+ *  worked on, found unfinished, and is being worked on again). */
+export function reopenAction(a: { status: ActionStatus; pdca?: ActionPdca }): void {
+  a.status = "in-progress";
+  a.pdca = "do";
 }
 
 export const ACTION_STATUSES: ActionStatus[] = [
@@ -293,7 +354,7 @@ export function newAction(context: ActionContext): LtkAction {
     start: "",
     due: "",
     status: "open",
-    pdca: "do",
+    pdca: "plan",
     comments: [],
     escalated: false,
     context,
@@ -385,7 +446,7 @@ export function sanitizeAction(a: Partial<LtkAction>): LtkAction {
   const history = sanitizeHistory(a.history);
   const initiativeId =
     typeof a.initiativeId === "string" && a.initiativeId !== "" ? a.initiativeId : undefined;
-  return {
+  const out: LtkAction = {
     id: typeof a.id === "string" && a.id !== "" ? a.id : newId("a"),
     instanceId: typeof a.instanceId === "string" ? a.instanceId : "",
     issue: typeof a.issue === "string" ? a.issue : "",
@@ -414,6 +475,9 @@ export function sanitizeAction(a: Partial<LtkAction>): LtkAction {
     ...(typeof a.createdBy === "string" && a.createdBy !== "" ? { createdBy: a.createdBy } : {}),
     ...(Array.isArray(a.visibleTo) ? { visibleTo: a.visibleTo.filter((x): x is string => typeof x === "string" && x !== "") } : {}),
   };
+  // status and PDCA state read in step, whatever build saved the row
+  alignPdca(out, "stored");
+  return out;
 }
 
 /** Parse an actions array defensively; never throws. */
@@ -601,8 +665,11 @@ export function partsOutstanding(a: Pick<LtkAction, "assignees">): number {
 export function holdOpenUntilAllParts(a: LtkAction): boolean {
   if (partsOutstanding(a) === 0) return false;
   if (a.status !== "done" && a.status !== "verify") return false;
+  // put back where it was: a state it still carries stands (Check stays
+  // Check), and one that only said Closed reopens into Do
   a.status = "open";
   if (a.pdca === undefined || a.pdca === "closed") a.pdca = "do";
+  alignPdca(a, "pdca");
   a.verified = undefined;
   return true;
 }
@@ -737,10 +804,11 @@ export function mergeParts(rowNow: Assignee[], mine: Assignee[], baseline: Assig
 
 /** A new action made from an existing one: what it is, who, when and
  *  where it is linked — not its life (comments, history, parts done,
- *  endorsement, completion). A closed source duplicates as Do. */
+ *  endorsement, completion). A live source's state comes with it; a
+ *  closed one duplicates as a new action does, at Plan. */
 export function duplicateAction(src: LtkAction): LtkAction {
   const open = src.pdca !== undefined && src.pdca !== "closed" && src.status !== "done" && src.status !== "verify" && src.status !== "cancelled";
-  return {
+  const copy: LtkAction = {
     id: newId("a"),
     instanceId: src.instanceId,
     issue: src.issue,
@@ -750,13 +818,15 @@ export function duplicateAction(src: LtkAction): LtkAction {
     start: src.start,
     due: src.due,
     status: "open",
-    pdca: open ? src.pdca : "do",
+    pdca: open ? src.pdca : "plan",
     comments: [],
     escalated: src.escalated,
     context: { ...src.context },
     ...(src.initiativeId ? { initiativeId: src.initiativeId } : {}),
     ...(src.confidential === true ? { confidential: true } : {}),
   };
+  alignPdca(copy, "pdca");
+  return copy;
 }
 
 export function isOverdue(a: LtkAction, today = todayIso()): boolean {

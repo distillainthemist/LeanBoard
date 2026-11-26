@@ -11,7 +11,7 @@
 // an honest screen, the store applies it again as the backstop — so no
 // closing road can skip it. Pure.
 
-import { ActionStatus, LtkAction } from "./actions";
+import { ActionStatus, LtkAction, reopenAction } from "./actions";
 
 export interface EndorseContext {
   /** The action's initiative has endorsement on (and is not single-action). */
@@ -44,8 +44,7 @@ export function endorse(a: LtkAction, by: Endorser, nowIso: string): void {
 
 /** Send back: the action reopens into Do, the reason on its history. */
 export function sendBack(a: LtkAction, by: Endorser, nowIso: string, reason: string): void {
-  a.status = "open";
-  a.pdca = "do";
+  reopenAction(a);
   for (const x of a.assignees) x.done = false;
   a.verified = undefined;
   log(a, "reopened", by, nowIso, reason.trim());

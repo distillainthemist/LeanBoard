@@ -392,7 +392,7 @@ function pal(opts: CardMount): Record<string, string> {
  *  default; this is what they switched to. */
 const chosenActionView = new Map<string, "list" | "kanban" | "gantt">();
 /** The grouping the person chose on an action card, for the session. */
-const chosenActionGroup = new Map<string, "status" | "issue" | "person">();
+const chosenActionGroup = new Map<string, "status" | "issue" | "person" | "pdca">();
 
 /** The board a surface is configured to roll up ("" = its own). */
 function linkSourceBoard(settings: Record<string, unknown>): string {

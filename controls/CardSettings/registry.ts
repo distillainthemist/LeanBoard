@@ -287,10 +287,11 @@ export const CARDS: CardSpec[] = [
         kind: "enum",
         options: [
           { value: "status", label: "By status" },
+          { value: "pdca", label: "By PDCA state" },
           { value: "issue", label: "By issue" },
           { value: "person", label: "By person" },
         ],
-        help: "What each kanban column stands for when the card opens: a status, an issue, or a person holding actions. Anyone can switch it for themselves on the card; the Gantt groups its rows the same way.",
+        help: "What each kanban column stands for when the card opens: a status, a PDCA state, an issue, or a person holding actions. Anyone can switch it for themselves on the card; the Gantt groups its rows the same way.",
       },
       {
         key: "verifyColumn",

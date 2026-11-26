@@ -44,20 +44,35 @@ export interface ChartWindow {
   asOf: string;
 }
 
-/** What the chart reads. `readingDates`: the metric's reading dates in
- *  any order. `page`: the page around today (the window it had).
+/** What the chart reads. `readingDates`: the metric's ACTUAL reading
+ *  dates in any order. `page`: the page around today (the window it
+ *  had). `enteredDates`: the dates of every value anyone typed, plan
+ *  included.
  *   - no readings: the page;
- *   - last reading within STALE_PERIODS of today: from the twelfth-last
- *     reading's period (or the page's start, whichever is earlier)
- *     through to the page's end — the trend AND the gap;
- *   - older: the twelfth-last reading's period to the last reading's,
- *     with `asOf` set. */
-export function chartWindow(today: string, cadence: BucketCadence, readingDates: string[], page: { from: string; to: string }): ChartWindow {
-  const dates = readingDates.filter((d) => /^\d{4}-\d{2}-\d{2}/.test(d)).map((d) => d.slice(0, 10)).sort();
+ *   - fewer than twelve readings (2026-11-27, report 24): the axis
+ *     starts ONE EMPTY PERIOD before the first entered value — a yearly
+ *     metric with one reading in 2026 opened on four empty years. A plan
+ *     value typed ahead of the first actual counts (Ben's choice on R5's
+ *     walk): nothing someone entered is cut off the chart;
+ *   - twelve or more, last reading within STALE_PERIODS of today: from
+ *     the twelfth-last reading's period (or the page's start, whichever
+ *     is earlier) through to the page's end — the trend AND the gap;
+ *   - older: through to the last reading's period, with `asOf` set. */
+export function chartWindow(today: string, cadence: BucketCadence, readingDates: string[], page: { from: string; to: string }, enteredDates: string[] = []): ChartWindow {
+  const clean = (list: string[]) => list.filter((d) => /^\d{4}-\d{2}-\d{2}/.test(d)).map((d) => d.slice(0, 10)).sort();
+  const dates = clean(readingDates);
   if (dates.length === 0) return { from: page.from, to: page.to, asOf: "" };
   const last = dates[dates.length - 1];
-  const twelfth = bucketSpan(dates[Math.max(0, dates.length - CHART_READINGS)], cadence).from;
   const stale = addBuckets(last, cadence, STALE_PERIODS) < bucketSpan(today, cadence).from;
-  if (stale) return { from: twelfth, to: bucketSpan(last, cadence).to, asOf: last };
-  return { from: twelfth < page.from ? twelfth : page.from, to: page.to, asOf: "" };
+  let from: string;
+  if (dates.length < CHART_READINGS) {
+    const entered = clean(enteredDates);
+    const first = entered.length > 0 && entered[0] < dates[0] ? entered[0] : dates[0];
+    from = addBuckets(first, cadence, -1);
+  } else {
+    const twelfth = bucketSpan(dates[dates.length - CHART_READINGS], cadence).from;
+    from = stale || twelfth < page.from ? twelfth : page.from;
+  }
+  if (stale) return { from, to: bucketSpan(last, cadence).to, asOf: last };
+  return { from, to: page.to, asOf: "" };
 }
