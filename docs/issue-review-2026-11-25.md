@@ -73,7 +73,7 @@ work and release".
 |---|---|---|---|---|---|---|---|---|
 | 1 | 42db6c12-91e8-f111-84e9-7ced8da2c4f3 | Priority transition | Design gap | Build | Merge rule and a year-change panel, pillars and sub-pillars | A year change is row by row, cannot express a merge, and can be left half done | R2 | v0.100.0 — Resolved |
 | 2 | a51354a0-8fe8-f111-84e9-7c1e528a7790 | Adding pillars | Defect | Build | The new row gets the cursor; the page stays put | The cursor went to the last sub-pillar in the whole list | R2 | v0.100.0 — Resolved |
-| 3 | 9a809e66-88e8-f111-84e9-7c1e528a7790 | Ingestion task - use keyboard not mouse for data entry | Enhancement | Defer | Keyboard entry in the ingestion grid joins tranche 5 | Belongs with the type-ahead pickers; the spreadsheet round trip serves today | Tranche 5 | Planned |
+| 3 | 9a809e66-88e8-f111-84e9-7c1e528a7790 | Ingestion task - use keyboard not mouse for data entry | Enhancement | Defer | Keyboard entry in the ingestion grid joins tranche 5 | Belongs with the type-ahead pickers; the spreadsheet round trip serves today | Tranche 5 | Answered — Deferred |
 | 4 | ff668fcd-87e8-f111-84e9-7c1e528a7790 | Custom columms reset | Defect | Build | The chosen columns are the person's, kept across library changes and visits | A library change rebuilt the screen without the view; columns were never saved for the person | R6 | Planned |
 | 5 | ee83abdd-86e8-f111-84e7-6045bdc41cd5 | Metal Delivery process areas incorrect | Not software? | Build + non-software | Terms read by id, never guessed by name; BSL tree repaired by Ben | The ingestion grid resolved a saved term by name alone; BSL's tree holds duplicates from the v0.83 copy | R1, then repair after R4 | v0.100.0 — Partially resolved |
 | 6 | 2c7da473-86e8-f111-84e9-7c1e528a7790 | Larger arrows to expand filter menus | Enhancement | Build | Covered by 8: larger arrows, whole-row expand | Arrows are small text and only the arrow expands | R6 | Planned |
@@ -97,10 +97,10 @@ work and release".
 | 24 | e8853a1a-c1e7-f111-84e9-7ced8da2c4f3 | Metrics timeframe (dates selection) | Enhancement | Build | The chart's axis starts at the first reading | The chart opened on a fixed span | R5 | Planned |
 | 25 | 8674251b-bee7-f111-84e9-7ced8da2c4f3 | Library column keeps appearing | Design gap | Build | Library is an ordinary column in the chooser | The register added it and the chooser could not remove it | R6 | Planned |
 | 26 | 79d69ea6-bde7-f111-84e9-7c1e528a7790 | Custom columns disappear | Defect | Duplicate of 4 | Same fault, same fix | — | R6 | Planned |
-| 27 | 8dafc340-94e7-f111-84e9-6045bdc4133d | Doc status update | Not software | Decline | Status changes go through the existing commands | Ben: use the existing workflows | — | Planned |
+| 27 | 8dafc340-94e7-f111-84e9-6045bdc4133d | Doc status update | Not software | Decline | Status changes go through the existing commands | Ben: use the existing workflows | — | Answered — Declined |
 | 28 | 5bcf3b53-92e7-f111-84e7-6045bdc41cd5 | Updating doc properties | Design gap | Build | Controller commands: Rename, Correct approval date | No rename existed; a wrong approval date from ingestion had no remedy | R4 | Planned |
-| 29 | 83cffed5-8ce7-f111-84e9-7c1e528a7790 | Can we have a link to directly open the Documents tab | Enhancement | Non-software | A reply: bookmark a view link | "Copy view link" already opens on Documents | — | Planned |
-| 30 | bd8489ab-8be7-f111-84e9-7c1e528a7790 | Status filter - remove Awaiting Owner Approval | Not software | Non-software | A reply: two different steps | The statuses are distinct by design | — | Planned |
+| 29 | 83cffed5-8ce7-f111-84e9-7c1e528a7790 | Can we have a link to directly open the Documents tab | Enhancement | Non-software | A reply: bookmark a view link | "Copy view link" already opens on Documents | — | Answered — Not a software issue |
+| 30 | bd8489ab-8be7-f111-84e9-7c1e528a7790 | Status filter - remove Awaiting Owner Approval | Not software | Non-software | A reply: two different steps | The statuses are distinct by design | — | Answered — Not a software issue |
 | N1 | none | CSV import and export for the Issues desk | New | Build | Import with three new statuses; one Teams card per person; preview then apply; export to CSV | Ben's item; this round's close-out needs it | R3 | Planned |
 | N2 | none | A version's comment under its row | Enhancement | Build | The comment shows under each version row in place of the tooltip | Ben's item, from question 1 of cluster A | R1 | Planned |
 | N3 | none | Bulk change of properties | New | Build | A controller changes one or more properties on a filtered or ticked set | Ben's item; a general need, and what makes the BSL repair practical | R4 | Planned |
@@ -758,8 +758,9 @@ case in the same commit; the case ids are assigned at build.
 
 At Ben's request, an answers file for the issues the first release
 settles, ahead of the full close-out:
-`issue-resolutions-2026-11-25-v0.100.0.csv` — twelve rows, read clean
-by the app's own import reader. The decision log's Status column
+`issue-resolutions-2026-11-25-v0.100.0.csv` — sixteen rows, read clean
+by the app's own import reader: the twelve the release settles and,
+added at Ben's word the same day, four replies that need no build. The decision log's Status column
 carries each outcome.
 
 | # | Status in the file | Evidence |
@@ -776,11 +777,14 @@ carries each outcome.
 | 18 | Resolved | R1 tests 3 and 5 |
 | 19 | Not a software issue | UAT-DOC-040 corrected in the release |
 | 23 | Resolved | R2 tests 7 and 8 |
+| 3 | Deferred | No build: tranche 5; the reply points to the spreadsheet round trip |
+| 27 | Declined | No build: Ben's decision; the reply says where the commands are |
+| 29 | Not a software issue | No build: "Copy link to this view" exists (`docs/docsScreen.ts`) |
+| 30 | Not a software issue | No build: two steps by design |
 
-Not in this file: the eighteen issues of R4, R5 and R6 and the replies
-that need no build (3 deferred, 27 declined, 7, 29 and 30 not software
-— 7's tooltip is in R6). The full `issue-resolutions-2026-11-25.csv`
-follows the second release and repeats these twelve, so that file run
+Not in this file: the fourteen issues of R4, R5 and R6, among them 7,
+whose reply waits for its tooltip in R6. The full `issue-resolutions-2026-11-25.csv`
+follows the second release and repeats these sixteen, so that file run
 after this one changes nothing for them.
 
 ## Tranche walks
