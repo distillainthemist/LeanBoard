@@ -961,6 +961,7 @@ environment setting would need. Built the same day (`docs/viewer.ts`
 `viaConnector`, `paintFallback`); unseen until Ben opens a PDF on dev.
 
 | 2 | N4 — a PDF's full preview through the connector | FAILED first: "reading them through the SharePoint connector — it answered as string, not bytes". Cause, read in the SDK (`runtimeDataClient.js`, 1.2.7): a response that is neither JSON, an image nor octet-stream comes back as a string of one character per byte — lossless. The October probe read a `.bin` (octet-stream), so the string shape was never met. Fixed: `bytesFromConnector` (`docs/connectorBytes.ts`) turns the string back into bytes and checks the file begins `%PDF`. Re-test owed |
+| 2 (again) | N4 — the same, on `v0.99.0-96-gc94636f` | The bytes ARRIVE; the display is refused, and the app detected it: "showing the PDF from memory in the preview frame. Refused by the policy rule "frame-src" (a blob: address is not allowed there)." So the connector road works, and the player's content policy (`frame-src`, `'self'` by default in a code app) will not frame a PDF held in memory. What is left: allow `blob:` in each environment's code-app `frame-src`, or draw the PDF inside the app with no frame |
 
 ---
 
