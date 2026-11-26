@@ -1609,6 +1609,24 @@ Endorse, Done; meeting boards Open, In progress, Done. **Ben's choice
 1:** meeting boards read To do, Doing, Done — one vocabulary for one
 rule.
 
+**Item 4 — report 22, a department's part of a shared priority.**
+Found: the popup lists every initiative of the priority and its child
+priorities whatever page it is opened from (`initiativesFor`,
+`prioritiesScreen.ts`); the Improvement tab already has the settled
+rule (`orgsOf(i).some(inScope)`: filed under the org or within it, or
+"Also shown in" names it or something within it); there is a precedent
+for scoping by the org in view (an action raised on an adopted
+priority, 2026-11-18). Built as: on a page that is NOT the priority's
+owner's, the Initiatives tab lists only what passes that rule; "2 of
+5" with a "Show all" switch for the session; each row names the org
+its initiative is filed under; an empty list says why; the priority's
+own page is unchanged. Said plainly: the mapping must name the level
+or below (a department named does not show on an area's page); the
+TILE is not scoped (the plan), so it can say five where the list shows
+two of five. **Found: the executive summary's expanded card uses the
+same list. Ben's choice 1:** it follows the same rule, with the same
+line and switch.
+
 ---
 
 ## Appendix — the review record (phases 1 and 2, as it was made)
