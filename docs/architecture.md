@@ -1007,6 +1007,16 @@ Key concepts (details: [leanboard-standard-documents-plan.md](leanboard-standard
   owners & approvers pool (Entra), a SharePoint **site group** for
   temporary edit grants (instant; the Entra editors group is retired),
   wall-TV/kiosk accounts. Requests → grant → revision-end release.
+  **Reviewer seats** (2026-11-26): a reviewer may be anyone, but only
+  the owners & approvers pool and the controllers can open a draft —
+  so at Submit for review a reviewer from outside is seated in the same
+  editors site group for the cycle, recorded in the same ledger as an
+  entry of `kind: "reviewer"` (`docs/reviewerSeats.ts`,
+  `reviewerSeatsModel.ts`), and released at the final Approve or a
+  Cancel revision. A submitter who cannot seat (a member of the group,
+  not an owner of it) leaves the seat as a request the document's owner
+  answers in Document tasks. Nothing is written to the Revision editors
+  column for a seat.
   In-app gates hide affordances; SharePoint stays the hard gate.
   Reviewers may be anyone (C2, 2026-10-06: `reviewerPeopleSource`,
   the pool first, the directory behind); owners and approvers stay
@@ -1293,6 +1303,21 @@ conditional access all apply. The important roads:
   check-in, recycle) via REST. Every lifecycle write runs the
   **bracket**: check-out → writes → check-in (with a meaningful
   comment) → moderation publish when reader-facing → grant release.
+  **A refusal inside the bracket** (2026-11-26, `docs/bracket.ts`,
+  `docs/refusal.ts`): a check-out the step TOOK is discarded, so the
+  step is all or nothing and no document is left locked by someone who
+  did not ask for it; one the person already held is left alone. Word's
+  file lock ("locked for exclusive use by …") is worded as what it is.
+  Add document is outside the rule — a discard there deletes the file.
+  **Hand-overs** (`handsOver`, `docs/notifyModel.ts`): Submit for
+  review, Review complete, Submit for approval, an approver's Approve
+  and Request revision send their Teams card as the step lands; the
+  final Approve's note and the retire notices are offered, not sent.
+  **A term is its id**: a saved term is read by the id the item carries
+  (`<col>#termid`), by name only when one term in the set has it
+  (`savedTerms`, `docs/ingestionModel.ts`); the register's term filter
+  asks SharePoint by name and keeps the rows whose term id it picked
+  (`matchesTermFilters`, `docs/filterModel.ts`).
   A refused step aborts before the check-in; nothing half-lands.
 - **Previews**: presigned, cookie-free drive URLs (an iframe to SP is
   a third-party-cookie context that renders a blocked sign-in frame).

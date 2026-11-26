@@ -70,7 +70,16 @@ their rows, N3 bulk change of properties for controllers), about 38
 working days in six tranches R1–R6, one column change (the pillar
 follow link). NOTHING BUILT. **Plan approved 2026-11-26, two releases:**
 R1–R3 with programme tranches 2–4 before the year change, then R4–R6.
-Each tranche is walked before it is built; R1's walk began 2026-11-26.
+Each tranche is walked before it is built. **R1 walked and BUILT
+2026-11-26, on dev, NOT released** — the review step (the read, a
+reviewer from outside the group seated for the cycle, the request
+road), a refused step giving back its check-out, Word's lock said
+plainly, hand-overs that send themselves, version comments under their
+rows, terms read by id and an exact term filter, the tracked-changes
+line, page 1, and N4's first two steps (a PDF file's preview is a
+first-page picture in the hosted app, now said, with a readout of why).
+As built and its limits: the plan's "R1 as built". Next: Ben's test
+walk of R1, then R2's walk.
 What 1A was: the nine reports of the 2026-11-23 issue export
 (`issues-plan-2026-11-23.md`): Teams group messages refused over a
 colon in the chat topic, Replace content's false "landed wrong" on

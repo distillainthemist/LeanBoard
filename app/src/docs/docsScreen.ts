@@ -4537,6 +4537,7 @@ export function mountDocs(
         const scrolled: { el: Element | Window; top: number }[] = [{ el: window, top: window.scrollY }];
         for (const e of Array.from(wrap.querySelectorAll<HTMLElement>("*"))) if (e.scrollTop > 0) scrolled.push({ el: e, top: e.scrollTop });
         closeViewer = openDocViewer({
+          previewReadout: meIsSuper,
           onClose: () => {
             requestAnimationFrame(() => {
               for (const s of scrolled) {
@@ -4666,6 +4667,12 @@ export function mountDocs(
                       : "";
                   },
                   notes: () => reviewNotes(row),
+                  // Word's own view of the document: where tracked
+                  // changes can be seen (report 17) — view, never edit
+                  wordUrl: () =>
+                    new Set(["docx", "docm", "doc"]).has(row.ext) && row.uniqueId !== ""
+                      ? `${app.siteUrl}/_layouts/15/Doc.aspx?sourcedoc={${row.uniqueId}}&action=view`
+                      : "",
                   actions: () => [
                     ...lifecycleActionsFor(row, lib).map((c) => ({
                       key: c.key,

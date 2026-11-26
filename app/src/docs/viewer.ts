@@ -204,7 +204,15 @@ interface ViewerOpts {
     /** A reason the decision is withheld (issue 8: the named owner is
      *  not in the approvers group) — painted in the decision card. */
     blocked?: () => string;
+    /** The document's own address in Word ("" = not a Word file): the
+     *  preview is a PDF, which shows tracked changes applied with no
+     *  markup — a reviewer or approver is told, and sent here (report
+     *  17, 2026-11-25). */
+    wordUrl?: () => string;
   } | null;
+  /** Say which step of the preview failed and why — for super admins,
+   *  under the fallback picture (N4, 2026-11-26). */
+  previewReadout?: boolean;
 }
 
 function overlay(
@@ -523,6 +531,15 @@ export function openDocViewer(opts: ViewerOpts): () => void {
                   : "In review";
       decision.appendChild(el("div", "app-docs-decision-head", heading));
       for (const line of notes) decision.appendChild(el("div", "app-field-hint app-docs-decision-why", line));
+      // asked to review or approve a Word document: the preview cannot
+      // show what was tracked (report 17) — said here, at the decision
+      const word = lcActs.some((a) => a.key === "reviewComplete" || a.key === "approve") ? (lc?.wordUrl?.() ?? "") : "";
+      if (word !== "") {
+        const row2 = el("div", "app-docs-decision-word");
+        row2.appendChild(el("span", "app-field-hint", "Tracked changes do not show in this preview."));
+        row2.appendChild(linkBtn("Open in Word ↗", word, false));
+        decision.appendChild(row2);
+      }
       // a revision-needed document's real next step is EDITING: the
       // check-out door belongs IN the card, or action parity breaks —
       // the pending branch used to swallow it entirely (Ben, 2026-08-08)
@@ -1410,6 +1427,21 @@ export function openDocViewer(opts: ViewerOpts): () => void {
   /** Why the preview could not be built — shown under the placeholder so
    *  a blocked tenant is diagnosable without a browser console. */
   let previewWhy = "";
+  /** The same, as a super admin needs it: which step, which host, what
+   *  came back (N4). Shown only with `previewReadout`. */
+  let previewStep = "";
+  /** Under a first-page picture: that it IS only the first page (N4 —
+   *  a PDF's preview fell back to a picture and said nothing, so it read
+   *  as a preview that would not scroll). */
+  const firstPageNote = (): HTMLElement => {
+    const box = el("div", "app-docs-prevnote");
+    box.appendChild(el("div", "", `This shows the first page only. Use ${viewOnly ? "Open in viewer" : "Open in new tab"} for the whole document.`));
+    if (opts.previewReadout === true) {
+      const detail = [previewWhy, previewStep].filter((x) => x.trim() !== "").join(" ");
+      box.appendChild(el("div", "app-docs-prevnote-why", detail !== "" ? `Why: ${detail}` : "Why: no reason was recorded."));
+    }
+    return box;
+  };
 
   const cookieFreeSrc = async (): Promise<string> => {
     if (viewOnly) {
@@ -1428,16 +1460,27 @@ export function openDocViewer(opts: ViewerOpts): () => void {
     if (row.ext !== "pdf") {
       const src = transformPdfUrl(p.thumbUrl, row.ext);
       if (src === "") previewWhy = "SharePoint returned no rendering for this file.";
-      return src;
+      // "#page=1": the browser's PDF viewer is asked to open at the top
+      // (report 11 — documents were opening at the bottom; the cause was
+      // never found, and the fragment is never sent to SharePoint)
+      return src === "" ? "" : `${src}#page=1`;
     }
     if (p.downloadUrl === "") {
       previewWhy = "SharePoint returned no download link for this file.";
       return "";
     }
+    // (never the address itself: it is a signed one — the host says enough)
+    let host = "";
+    try {
+      host = new URL(p.downloadUrl).host;
+    } catch {
+      host = "an address the app could not read";
+    }
     try {
       const res = await fetch(p.downloadUrl);
       if (!res.ok) {
         previewWhy = `Fetching the file answered ${res.status}.`;
+        previewStep = `Step: fetching the PDF's bytes from ${host}. The server answered ${res.status} ${res.statusText}.`;
         return "";
       }
       const bytes = await res.blob();
@@ -1446,9 +1489,10 @@ export function openDocViewer(opts: ViewerOpts): () => void {
         bytes.type === "application/pdf" ? bytes : new Blob([bytes], { type: "application/pdf" })
       );
       return blobUrl;
-    } catch {
+    } catch (e) {
       // a player CSP connect-src could refuse the fetch
       previewWhy = "This app was not allowed to fetch the file bytes (browser policy).";
+      previewStep = `Step: fetching the PDF's bytes from ${host}. The browser refused before any answer (${e instanceof Error ? `${e.name}: ${e.message}` : String(e)}) — a content security policy (connect-src) or a cross-origin rule on that host.`;
       return "";
     }
   };
@@ -1530,7 +1574,7 @@ export function openDocViewer(opts: ViewerOpts): () => void {
         if (!stage.isConnected) return;
         clear(stage);
         if (img) {
-          stage.appendChild(img);
+          stage.append(img, firstPageNote());
           return;
         }
         // img-src refuses SharePoint's media host in the player, but
@@ -1566,7 +1610,7 @@ export function openDocViewer(opts: ViewerOpts): () => void {
           showWhenLoaded(shot, wait);
           shot.src = shotUrl;
           shotBox.appendChild(shot);
-          stage.append(wait, shotBox);
+          stage.append(wait, shotBox, firstPageNote());
           return;
         }
         previewWhy += " The page image was refused as well.";

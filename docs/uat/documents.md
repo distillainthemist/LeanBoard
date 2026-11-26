@@ -393,7 +393,8 @@ steps:
 2. Confirm.
 3. Repeat on a revision checked out to you; then on one checked out to someone else.
 4. Open Details → Versions on the cancelled document; expand the newest card.
-expected: the last approved major's content and status come back as a NEW major (v3.0 restored lands as v4.0 with the comment "Revision cancelled — restored v3.0"), published where content approval is on; the draft versions stay in history; step 4 the restored version's card shows “Revision cancelled — restored v3.0” under its label (never "No comment", and never "published from" one of the cancelled drafts), its folded line counts "n cancelled drafts", and each draft of the abandoned revision reads "cancelled" where it used to read "draft"; the audit view names the step "Revision cancelled"; your own check-out is discarded first; another person's check-out refuses with their name
+5. On another approved standard choose Start revision, do NOT edit or check in, then Cancel revision… and confirm. Open its Versions.
+expected: the last approved major's content and status come back as a NEW major (v3.0 restored lands as v4.0 with the comment "Revision cancelled — restored v3.0"), published where content approval is on; the draft versions stay in history; step 4 the restored version's card shows “Revision cancelled — restored v3.0” under its label (never "No comment", and never "published from" one of the cancelled drafts), its folded line counts "n cancelled drafts", and each draft of the abandoned revision reads "cancelled" where it used to read "draft"; the audit view names the step "Revision cancelled"; your own check-out is discarded first; another person's check-out refuses with their name; step 5 a revision that was only STARTED has nothing checked in, so cancelling it returns the document to its last published version and leaves NO new version and NO "Revision cancelled" comment — the history reads exactly as before Start revision (2026-11-25 report 19: this is the app doing the right thing, not a failure)
 
 ### UAT-DOC-041 — Supersede and obsolete
 persona: controller
@@ -407,10 +408,10 @@ expected: "Superseded by" is the same type-ahead as Link a document (a floating 
 ### UAT-DOC-042 — The notify panel: Teams and email, people chips
 persona: owner
 modules: docs/notifyPanel.ts docs/notify.ts docs/notifyModel.ts
-preconditions: a lifecycle step whose panel asks before sending (Submit for approval)
+preconditions: a lifecycle step whose panel asks before sending — a NOTICE, not a hand-over: the final Approve's courtesy note, or Supersede / Mark obsolete / Reinstate run by a controller for an owner (the hand-over steps send themselves, UAT-DOC-104)
 steps:
 1. Run the step; in the panel remove one recipient chip, add a note, choose Teams.
-2. Run another step and choose Email.
+2. Run another such step and choose Email.
 expected: the panel says "Nothing has been sent yet" above the chips; the chips show who hears and why; the removed person gets nothing; "Add a person…" finds someone in the directory and adds a chip; the note rides the card; "Send on Teams" / "Send by email" — the email arrives with the link; a refused send is reported with its reason, never silently
 
 ## Journey 5 — Access requests
@@ -1013,3 +1014,77 @@ steps:
 3. Reload; switch to Tiles; repeat steps 1 and 2.
 expected: step 1 the list goes on past its first 20 documents by itself until the rows fill the window and more — the line under the title counts up ("70 documents of 111 matching") without a click; step 2 every scroll to the end brings the next documents until the count reaches the total; step 3 the tiles behave the same
 
+## Journey — the 2026-11-25 round, tranche R1
+
+### UAT-DOC-103 — A refused step puts the document back, and Word's lock is said plainly
+persona: reviewer
+modules: docs/bracket.ts docs/refusal.ts docs/lifecycleCmds.ts docs/editProperties.ts docs/accessRequests.ts docs/docsScreen.ts
+preconditions: a standard in review with you as a reviewer, NOT checked out; Word for the web available; a second document you hold checked out
+steps:
+1. Open the first document in Word in another browser tab and leave it open. In LeanBoard press Review complete on it.
+2. Read the message. Press Review complete again at once.
+3. Close the Word tab, wait a few seconds, press again.
+4. On the document you hold checked out, with it open in Word, press Check in… and confirm.
+5. As an owner, Edit properties on an approved standard, type a change, and have the save refused (a value SharePoint will not take, or the document open in Word).
+expected: step 1 the dialog reads "Nothing was changed. This document is open in Word. Close it there, then press again." and stays ready; the document is NOT left checked out to you (its lock is gone from the register and the card); step 2 the same line, with "Word can hold a document for a moment after it is closed. Wait a few seconds and press again."; step 3 the step lands; step 4 the notice says the document is open in Word — your own check-out is still yours, with your work in it; step 5 the form keeps what you typed, the message starts "Nothing was changed." and the document is not left checked out; where a check-out was yours BEFORE the step, the message ends "It was already checked out, and still is." — never a document left checked out to someone who did not ask for it (2026-11-25 reports 14 and 16). Someone else's lock names them: "<Name> has this document open in Word. Ask them to close it, then press again."
+
+### UAT-DOC-104 — Every hand-over tells the next person by itself
+persona: owner
+modules: docs/notifyModel.ts docs/notifyPanel.ts docs/lifecycleCmds.ts
+preconditions: a standard in draft with NO reviewers named; a colleague who can be a reviewer; an approver named; Teams
+steps:
+1. Submit for review; in the dialog add the colleague as a reviewer; type a comment; submit.
+2. As the reviewer press Review complete with a comment.
+3. As the owner Submit for approval.
+4. As the approver Approve; then as the owner give the final Approve.
+5. As a reviewer who is ALSO the document's only owner, press Review complete.
+6. Have a send fail (a recipient Teams refuses).
+expected: step 1 the reviewer added in the dialog receives the Teams card with the comment in it, and the dialog reads "✓ Submitted for review … Reviewers notified …" — never "No reviewer is named" (2026-11-25 report 18); step 2 the owner's card is sent as the step lands, with no second press, and the dialog reads "✓ Your review is recorded. Sent by Teams card to 1 person." (report 15); step 3 the approvers' card likewise; step 4 the approver's Approve sends the owner's card; the FINAL Approve does not send by itself — its courtesy note waits in the panel under "Nothing has been sent yet"; step 5 nothing is sent and the dialog says "Nobody else to tell."; step 6 the line is a warning: the change is done and the message did not go. After a card has gone by itself the panel stays: "Send again on Teams" with the words editable, and "Send by email". Several recipients share one group chat. Nobody is messaged about their own step
+
+### UAT-DOC-105 — A completed review is known, and its words are read in the history
+persona: reviewer
+modules: docs/docsScreen.ts docs/model.ts docs/data.ts docs/viewer.ts
+preconditions: a standard submitted for review naming two reviewers, you among them (both in the Owners & Approvers group)
+steps:
+1. Open it; read the card. Press Review complete with a comment.
+2. Read the card again. Close and reopen the document.
+3. Find Review complete in the ⋯ menu or the task list and press it once more.
+4. Open Details → Version history; open the "In progress" card.
+5. As the owner open the document and read the card; press Submit for approval.
+expected: step 1 the card reads "Awaiting your review" with "Waiting on" both names; step 2 it reads "✓ You completed your review on <date>" and "Waiting on" the other reviewer, with no Review complete button — and still does after reopening (2026-11-25 report 13: the button came back and each press made a version); step 3 a notice "Your review is already recorded" with the date, and NO new version is made; step 4 each draft row shows its comment on a line beneath it — "Submitted for review", "Review complete by <you> — <comment>" — without hovering; a draft with no comment shows no second line; step 5 the owner's card waits on the other reviewer only, and the submit asks first, naming them. If the history cannot be read the card says "Who has completed their review could not be read."
+
+### UAT-DOC-106 — A reviewer from outside the group is let in for the cycle
+persona: owner
+modules: docs/reviewerSeats.ts docs/reviewerSeatsModel.ts docs/accessRequests.ts docs/lifecycleCmds.ts docs/docsScreen.ts
+preconditions: a standard in draft; a colleague who is NOT in the Owners & Approvers group and not a document controller (a second account); the editors site group named in Settings → Access control; a third person who holds an edit grant on another draft (a Document Editor)
+steps:
+1. As the owner, Submit for review and add the outside colleague as a reviewer.
+2. As that colleague, open the Teams card's link; open the document; press Review complete.
+3. As the owner give the final Approve. As the colleague, open the register again.
+4. As the Document Editor, on the draft they are revising, Submit for review naming another outside colleague.
+5. As that draft's owner open Document tasks; read the request; press "Let them in".
+6. Cancel the revision on a document with a seated reviewer.
+expected: step 1 the dialog adds nothing unusual — the colleague is let in and told; step 2 they can open the DRAFT (not only the last approved version), check out and complete their review; step 3 after approval they are no longer in the editors group (Settings → Access control shows the seat gone) unless another document still has them reviewing; step 4 the dialog says "<name> cannot open the draft yet: the document's owner has been asked to let them in, and they are told once that is done." — that reviewer gets NO card yet, and the owner gets one titled "Let a reviewer in"; step 5 Document tasks lists it under "Access requests" as "<editor> named <name> as a reviewer", with "Let them in" and "Decline…"; one press seats them and sends their review-request card; step 6 the seat ends with the cancel. A reviewer who is already in the group, or a controller, is never seated. The health report does not list a seated reviewer as a seat with no grant
+
+### UAT-DOC-107 — Two terms with one name stay two terms
+persona: controller
+modules: docs/ingestionModel.ts docs/ingestionScreen.ts docs/filterModel.ts docs/docsScreen.ts
+preconditions: a term set with the SAME name under two parents (Process area: "General" under two areas); documents tagged with each; an ingestion task holding a file already tagged with one of them
+steps:
+1. In the ingestion task open that file's Process area cell; read which term is selected; apply without changing. Reload the task.
+2. Drag that cell's value down over two other files with the fill handle. Save. Open each file's cell.
+3. In Documents tick ONE library, open Filters and pick the first "General" (under its own parent). Read the list.
+4. Pick the other "General" instead. Read the list. Export the list.
+5. Tick a second library and repeat step 3.
+expected: step 1 the cell opens on the term the file really carries — the right parent — and applying leaves it unchanged (2026-11-25 report 5: it came back as the other "General"); step 2 the two files receive the SAME term, by its id; step 3 the list holds only documents tagged with THAT "General" — none tagged with the other one; step 4 the other set, with no overlap, and the export holds the same rows as the screen; step 5 the same with several libraries. A file from before term ids were kept, tagged with a name two terms share, opens its cell with nothing selected and the fill handle carries nothing — the app does not guess
+
+### UAT-DOC-108 — What the preview cannot show, said where it matters
+persona: approver
+modules: docs/viewer.ts docs/docsScreen.ts docs/rows.ts
+preconditions: a Word standard awaiting your approval, edited with tracked changes; a PowerPoint awaiting approval; a multi-page PDF file; a multi-page Word file
+steps:
+1. Open the Word standard. Read the card. Press "Open in Word".
+2. Open the PowerPoint. Read the card.
+3. Open the multi-page Word file; note the page it opens on.
+4. Open the PDF file. Read under the preview. As a super admin read the same place.
+expected: step 1 above the decision buttons one line reads "Tracked changes do not show in this preview." with "Open in Word ↗" beside it; the button opens the document in Word, where the tracked changes show (2026-11-25 report 17); step 2 no such line — it is for Word files only; an owner looking at their own document with nothing to decide sees no line either; step 3 the preview opens at the top of page 1 (report 11 — a try: the cause was never found); step 4 where the app can show the whole PDF it does; where it falls back to a picture of the first page a line under it reads "This shows the first page only. Use Open in new tab for the whole document." (N4), and a super admin also reads "Why:" with the step that failed, the host it asked and what came back — never a signed address

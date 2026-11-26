@@ -892,6 +892,56 @@ SECOND ACCOUNT on dev to prove: a reviewer from outside the group
 seated and able to open a draft; a Document Editor's submit raising
 the seat as a request.
 
+### R1 as built (2026-11-26, on dev, NOT released)
+
+Built in seven commits; 140 test files, 1,513 app tests pass; no schema
+change. NOTHING here has been seen running against SharePoint: the
+rules are unit-tested, the screens are Ben's to check on dev.
+
+| Item | What changed | Where |
+|---|---|---|
+| 14, 16 | One rule for every step that writes inside a check-out (lifecycle steps, Mark reviewed, edit requests' approve and revoke, Edit properties): a check-out the step took is discarded on a refusal and the line reads "Nothing was changed. <reason>"; one held beforehand is left ("It was already checked out, and still is."); a refused release says to Check in or Discard. Word's lock is worded as agreed, for every step and for a plain Check in. | `docs/bracket.ts`, `docs/refusal.ts`, `lifecycleCmds.ts`, `accessRequests.ts`, `editProperties.ts`, `docsScreen.ts` `commandFailed` |
+| 18, 15 | `handsOver` names the five hand-over steps; their plan exists even with nobody in it; the panel sends as the step lands, then offers "Send again on Teams" and "Send by email"; "Nobody else to tell." where the person acting is the only one; the typed comment travels as "Comment:" (or "Reason given:" where the step asks for a reason). | `docs/notifyModel.ts`, `notifyPanel.ts`, `lifecycleCmds.ts` |
+| N2 | A draft row's comment is a second line beneath it; the tooltip is gone. | `docs/viewer.ts`, `style.css` |
+| 13 | The review check asks for a draft's words wherever SharePoint keeps them (`fillDrafts`); names are compared without regard to the apostrophe's shape or odd spaces (`nameKey`); a second Review complete in the same round is refused before any write; an unreadable record says so on the card and keeps the button. | `docs/data.ts`, `model.ts`, `docsScreen.ts`, `prompts.ts` |
+| 13 (walk) | Reviewer seats: at Submit for review each reviewer outside the pool and the controllers is seated in the editors site group and recorded in the ledger (`kind: "reviewer"`); a refused seat is a request to the owner, who gets a card; Document tasks lists it under "Access requests" with "Let them in" and "Decline…"; the reviewer is told once let in; seats end at the final Approve and at Cancel revision. | `docs/reviewerSeats.ts`, `reviewerSeatsModel.ts`, `accessRequests.ts`, `lifecycleCmds.ts`, `docsScreen.ts` |
+| 5 | `savedTerms` / `savedTerm`: the id the item carries, else a name only one term has; used by the ingestion grid's cell and fill handle, the Importance lookups at approval and landing, and the run's site check. The register's term filter keeps only rows whose term id it picked (`matchesTermFilters`), fetching a filtered column for its ids even when not shown; the export follows it. | `docs/ingestionModel.ts`, `ingestionScreen.ts`, `filterModel.ts`, `docsScreen.ts` |
+| 17 | On a Word file, to the person asked to review or approve: "Tracked changes do not show in this preview." with "Open in Word ↗". | `docs/viewer.ts`, `docsScreen.ts` |
+| 11 | A converted file's preview address ends `#page=1`. | `docs/viewer.ts` |
+| N4, steps 1 and 2 | Under a first-page picture: "This shows the first page only. Use Open in new tab for the whole document."; for a super admin, "Why:" with the step, the host asked and what came back (never the signed address). | `docs/viewer.ts`, `style.css` |
+| 19 | UAT-DOC-040 gains the revision that was only started. | `docs/uat/documents.md` |
+
+UAT: UAT-DOC-040 and 042 updated; UAT-DOC-103 to 108 added.
+
+**Limits and deviations, said plainly:**
+
+- **17: "Open in Word" opens Word's own VIEW of the document**
+  (`Doc.aspx?…&action=view`). On the walk I told Ben it would open
+  what "Open in new tab" opens — WRONG: that button opens the PDF
+  rendition, which is the very thing that hides the changes. Whether
+  Word's viewing mode shows tracked markup to an approver has not been
+  seen; if it does not, the address changes to Word's editing view.
+- **Reviewer seats rest on two things not seen:** that the editors
+  group's level lets a seated person open another's draft (Ben says it
+  does in his libraries; the cookbook says drafts show to approvers and
+  authors), and that a submitter who cannot seat is refused cleanly.
+  Both need a second account. With the pool not linked or unreadable,
+  nobody is seated (no guess). A DECLINED seat leaves the reviewer
+  named on the document: the owner's card still waits on them.
+- **13:** which of the three places holds the review comment in
+  production is still not known; the check now reads all three.
+- **5:** the exact filter needs the ids the feed has carried since
+  v0.99.0; a row with none is kept by name, as before. A cell whose
+  saved name two terms share opens unselected and the fill handle
+  carries nothing, without a message.
+- **11:** converted files only. PDF files never reach the PDF viewer
+  in the hosted app (N4).
+- **N4:** steps 1 and 2 only. The fix waits on the readout.
+- **Hand-overs:** "Nobody else to tell." keeps the dialog open for one
+  more press of Close.
+- **Item 9's open risk stands** (Cancel revision with two approved
+  versions, never run).
+
 ---
 
 ## Appendix — the review record (phases 1 and 2, as it was made)
