@@ -584,6 +584,69 @@ items: F6, F11, G1, G3.
 **Tranche 6 as walked:** about 17 hours (plan 29–42): F6 five, F11
 none, G1 six, G3 six. No schema.
 
+### Tranche 7
+
+The walk began 2026-11-27, after tranche 6's test walk. All three
+entries were checked against the code first (the lesson of tranche 6):
+none is already built. E14 not at all; E15 half exists (the KPI card
+draws states when linked to a value driver — `setTracking` — and a
+standalone card has no setting for it); E16 parked since 2026-09-09,
+code kept (`improvement/vdt/simulate.ts`), button hidden. E14 is two
+separate things and is walked as two items.
+
+- **E14, the picklist option library** — **left** (Ben, 2026-11-27,
+  choice 3). Found: a status picklist's options are typed by hand in a
+  value driver's settings and in a metric's form, each starting from
+  the same three (On track, At risk, Off track); nothing saves a list
+  for reuse. The backlog entry is conditional ("if the same lists keep
+  being retyped") and no issue export or feedback round carries that
+  complaint — said to Ben. Offered: saved lists copied in (4 h), saved
+  lists linked (8 h, with the risk that renaming an option orphans
+  past readings, which are stored by name). It stays in the backlog
+  with its condition.
+- **E14, a target state for picklist KPIs** — **left** (Ben,
+  2026-11-27, choice 1, my recommendation). Found: a picklist metric
+  is on or off plan by the colour of the option it reads; it has no
+  plan, so it cannot be "short of plan". The entry is conditional and
+  no report asks for it. It would need a new rule — the ORDER of a
+  picklist's options as its progression — and about seven hours. It
+  stays in the backlog with its condition.
+- **E15** — **build it as planned** (Ben, 2026-11-27, choice 1).
+  Found: a meeting board's KPI card takes numbers only — its settings
+  have a target, limits and a unit, nothing for a state. The SAME card
+  already draws a state trend (a band per option in its colour, a line
+  through the readings) and is entered by a pick per period, but only
+  when it is linked to a good / bad or picklist value driver
+  (`KpiTrendEditor.setTracking`, fed from `stateLink()` in
+  `cardRegistry.ts`). Built as: the card's settings gain "Tracking" —
+  value against target, good / bad, or a status picklist with its
+  options and the state each means; a standalone state card shows the
+  trend it already draws for a linked driver and is entered the same
+  way, its readings stored under the card; a card linked to a value
+  driver keeps taking its tracking from the driver. Switching a card
+  with number readings to a state kind deletes nothing: the numbers
+  stay stored, are not drawn while it is a state card, and return if
+  it is switched back. About seven hours. No schema.
+- **E16, Simulate** — **left parked** (Ben, 2026-11-27, choice 3).
+  Looked first, in a new harness page (`harness/simulate.html`): the
+  parked code STILL RUNS — the tree and the "What if" panel draw, a
+  ticked initiative recomputes at once (a 350 kL change read EBITDA
+  +$1.91m against plan, the path marked), Save scenario, Reset to plan
+  and Adopt as forecast are there. What stands between it and a
+  feature: the button is hidden by one line; BASELINE has no entry
+  surface but the finance-pack paste, so a default change (target less
+  baseline) exists only for pasted drivers and is typed otherwise; it
+  has not been run in the player since 2026-09-09, across the calendar
+  year becoming the only period and metrics on priorities; Adopt's
+  write was not seen; the panel overflowed the right edge at one
+  width; it lists initiatives only, not a priority's linked metric.
+  Offered: revive with a Baseline row in the values grid (6 h), revive
+  as it is (2 h). The backlog entry now says how small the revival is.
+
+**Tranche 7 as walked:** about 7 hours (plan 22–32): E15 alone. E14's
+two halves stay in the backlog with their conditions; E16 stays
+parked. No schema.
+
 ## As built
 
 ### Tranche 1 (built 2026-11-22, RELEASED in v0.99.0 on 2026-11-23)

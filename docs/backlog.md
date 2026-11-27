@@ -858,7 +858,10 @@ deferrals still open (details in leanboard-cascade-improvement-plan.md).
 - **P10 Reporting** — designed (plan §4), not built. Awaiting Ben's go.
 - **Simulate** — parked 2026-09-09 (button hidden, code kept). Reviving
   it needs a home for BASELINE again (its entry surface went with the
-  period tiles).
+  period tiles). **Checked 2026-11-27 (programme E16): the parked code
+  still runs** (`harness/simulate.html`); Ben left it parked. A revival
+  is about six hours with a Baseline row in the values grid, two
+  without; Adopt's write and the player were not seen.
 - **Endorsement** — built 2026-09-30 (see "Actions card" above for the
   Verify column's name). The endorser is not messaged — a count in
   the app only, Ben's call.
@@ -891,9 +894,13 @@ deferrals still open (details in leanboard-cascade-improvement-plan.md).
   with Ben.
 - **Picklist option library** (site-level reusable option sets) and a
   **target-state row** for picklist KPIs — if the same lists keep being
-  retyped / a "short of plan" state is wanted.
+  retyped / a "short of plan" state is wanted. Walked 2026-11-27
+  (programme E14): both LEFT by Ben — no report asks for either; the
+  target state would need the ORDER of a picklist's options to mean
+  its progression.
 - **Standalone KPI cards as good/bad or picklist** — drivers and own
   initiative metrics have it; standalone meeting-board cards are numeric.
+  TO BUILD in tranche 7 (programme E15, walked 2026-11-27).
 - **Secondary organisations on a ritual: BUILT 2026-11-24** (programme
   G8) — a site admin there sees it in Settings › Rituals and opens it;
   Edit, Replicate and Archive stay with the site that runs it.
