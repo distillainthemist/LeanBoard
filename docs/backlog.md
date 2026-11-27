@@ -474,7 +474,10 @@ Recent decisions of record:
    app), the standard-documents plan's Phase 6 section closed, and this
    queue's items 1–2 struck.
 
-7. **Doc cards refresh (NEXT).** The Standard documents card renders
+7. **Doc cards refresh — BUILT 2026-08-08** (`b0d8fe5`, `bbb91bc`,
+   `9e1a807`; the "NEXT" here was never struck — found at tranche 6's
+   walk, 2026-11-27, where F6 became "level the cards with what the
+   register has learned since"). The Standard documents card renders
    register-true rows (extracted cells: status chip, owner avatar,
    file-type chip, checkout lock); Document health renders R5 task
    rows; both configured by PASTING a filtered view's Copy link from
@@ -658,9 +661,10 @@ user-feedback-test-script-2026-10.md. Released v0.65.0 / v0.65.1.
   remain. The priorities poster scales a crowded view down rather than
   paginating — a floor on the scale (and a second page) only if a site
   ever has too many columns to read.
-- **Hierarchy in filters** (report 36): a parent term such as SMELTER
-  including every term beneath it when ticked — logged, not built
-  (B1 kept "a pick includes its subtree" as before).
+- ~~**Hierarchy in filters** (report 36): a parent term such as SMELTER
+  including every term beneath it when ticked.~~ BUILT in v0.74.0 as
+  item 13 of the 2026-10-18 round ("Filters reach every level", passed
+  by Ben 2026-10-19); struck 2026-11-27 at tranche 6's walk (F11).
 - **Waiting on people**: report 2 (what Marie clicked — the message
   is Power Apps' own package validation); reports 38 / 40 (Ben checks
   a failing preview file for a sensitivity label); report 12 (Ellen

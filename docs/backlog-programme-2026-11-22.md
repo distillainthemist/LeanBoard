@@ -489,6 +489,67 @@ deferred here.
 
 **Tranche 5 as walked:** about 24 hours (plan 25–34). No schema.
 
+### Tranche 6
+
+The walk began 2026-11-27, straight after tranche 5's test walk. Four
+items: F6, F11, G1, G3.
+
+- **F6** — **already built; level the cards with the register** (Ben,
+  2026-11-27, choice 1). **Corrected:** parts A and B of
+  `leanboard-doc-cards-plan.md` were built on 2026-08-08 (`b0d8fe5`
+  B1, `bbb91bc` A + B2, `9e1a807` B3 + B4); the backlog entry still
+  read "NEXT", Ben ticked it on 2026-11-22, and I priced it at 16–24
+  hours without reading `docs/docsCards.ts`. Found instead: four
+  things the register has learned since that the cards have not, each
+  of which makes a card show MORE than its pasted view — a term
+  filter matched by name only (the register keeps the exact term ids
+  since R1, report 5 of the 2026-11-25 round); people filters
+  (`view.people`) ignored; "has linked documents" (`view.present`)
+  ignored; a custom Modified range (`modifiedFrom` / `modifiedTo`)
+  ignored. Built as: the cards apply the same four rules through the
+  register's own functions, so the two cannot drift again; anything in
+  a view a card still cannot honour is said on the card. About five
+  hours.
+- **F11** — found ALREADY BUILT while preparing the walk (2026-11-27).
+  The entry came from the 2026-10-06 feedback round (report 36,
+  "logged, not built"). The 2026-10-18 issue round built it as item 13,
+  "Filters reach every level", released in v0.74.0 and passed by Ben on
+  2026-10-19: `filterFromPicks` (`docs/docsScreen.ts`) unions every
+  picked term's subtree, ids and names; R1's exact-id pass keeps the
+  subtree ids; the Default filters tree and the doc cards expand the
+  same way. UAT-DOC case "pick a parent term" covers it. The backlog
+  line was never struck. **Struck as built** (Ben, 2026-11-27).
+- **G1** — found LARGELY BUILT while preparing the walk (2026-11-27).
+  The entry is M2's leftover of 2026-10-07 (SQDPC, RiskMatrix, RACI,
+  Fishbone). The card responsiveness round of 2026-10-30
+  (`card-responsiveness-review-2026-10-30.md`, R3 and its follow-up,
+  released in v0.85.0) narrowed them: SQDPC picks the largest tile
+  over one to three wrap rows; RiskMatrix wraps its register under the
+  matrix, sizes square cells from the room it has and hides the
+  register in a phone tile; RACI flips to a stacked form under 480 px;
+  Fishbone lost its 420 px floor. LEFT by that round: Fishbone's
+  vertical spine (its R5, with FiveWhys and FaultTree, one to two
+  days), which Ben decided on 2026-10-30 "waits for the phone pass".
+  The phone pass itself has not been done.
+  **Ben, 2026-11-27: "Look first"** (choice 1). Looked the same day in
+  a new harness page (`harness/phonecards.html`: the real board grid
+  and the real tile mount at 375 px, where the grid lists the cards
+  one per row on a 341 × 227 stage; `?focus=` opens one as the
+  focused card). Seen:
+  - **SQDPC, tile: BROKEN.** Five letters wrap to two rows that need
+    262 px of a 227 px stage — the second row (P, C) is cut in half —
+    and the legend is drawn over the letters. Opened, it is right.
+  - **RiskMatrix, tile: the consequence labels are cut** at the bottom
+    edge ("Very low", "Very high" lose their second line). Opened, it
+    is right, register under the matrix. At every size two markers in
+    one cell overlap and spill out of it.
+  - **RACI: right**, tile and opened. A tile shows the first two
+    deliverables and clips the rest.
+  - **Fishbone: whole, and unreadable.** The diagram shrinks to the
+    width: cause text is about 4 px in a tile and about 6 px opened,
+    where it sits in a third of the pane with empty space above and
+    below.
+
 ## As built
 
 ### Tranche 1 (built 2026-11-22, RELEASED in v0.99.0 on 2026-11-23)
