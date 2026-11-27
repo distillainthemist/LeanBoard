@@ -38,7 +38,7 @@ Project charters, plans-on-a-page, quad charts. Plus a **Canvas rollup**
 6. **Actions are CARD-LEVEL only** (standard channel via the action
    manager — no per-field raising; explicitly rejected).
 7. **A dedicated Canvas rollup card**, equivalent to the Capture rollup.
-8. **Capture cards KEEP their row dialog** — hybrid entry is not
+8. **Capture cards KEEP their row dialog** (REVERSED for ADDING a row, Ben, 2026-11-27: a blank row at the foot of the table is typed into — backlog programme tranche 6, G3; EDITING a row keeps the dialog) — hybrid entry is not
    retrofitted. A capture row is a record entered in one burst; the
    dialog groups its cells and stays touch-safe, and the rollup
    write-back reuses it. Consistency lives in the shared vocabulary
@@ -267,6 +267,8 @@ both ways.
 
 Computed/derived fields (dependency graph — needs a concrete recurring
 case), status/choice-value filter on the Canvas rollup, inline add-row
-affordance on Capture cards (only if testers ask), canvas fields as
+affordance on Capture cards (only if testers ask — BUILT 2026-11-27 on
+Ben's choice at tranche 6's walk, reversing decision 8 for ADDING a row:
+`controls/CaptureCard/addRow.ts`; editing a row is still the dialog), canvas fields as
 CAPTURE-rollup sources (superseded by the dedicated Canvas rollup).
 Rejected: per-field action raising (card-level only, Ben 2026-08-15).

@@ -71,6 +71,7 @@ import {
   termsForStage, isRegisterLibrary, libRoleInternal, SiteColumn, reviewsOutstanding, reviewProgress, orgTreePaths, orgTreePathsWithCompany, pathKey, paneLabels } from "./model";
 import { controllerLookupFailed, reviewerPeopleSource, viewerInPool, viewerIsController } from "./accessGates";
 import { docPeopleBox } from "./peopleField";
+import { modifiedBounds, termFiltersCarried } from "./viewFeed";
 import {
   TermNode,
   TermWalk,
@@ -2604,13 +2605,10 @@ export function mountDocs(
     // state reads it during the initial mount, and a later `let` would be
     // a temporal-dead-zone crash that kills the whole screen
     let query = bootView?.query ?? "";
-    const modifiedIso = (): string | undefined =>
-      modifiedFrom !== ""
-        ? new Date(`${modifiedFrom}T00:00:00`).toISOString()
-        : modifiedDays > 0
-          ? new Date(Date.now() - modifiedDays * 86400000).toISOString()
-          : undefined;
-    const modifiedBeforeIso = (): string | undefined => (modifiedTo !== "" ? new Date(`${modifiedTo}T23:59:59`).toISOString() : undefined);
+    // the Modified window by the rule the board's doc cards share
+    // (viewFeed.ts, tranche 6)
+    const modifiedIso = (): string | undefined => modifiedBounds({ modifiedDays, modifiedFrom, modifiedTo }, Date.now()).afterIso;
+    const modifiedBeforeIso = (): string | undefined => modifiedBounds({ modifiedDays, modifiedFrom, modifiedTo }, Date.now()).beforeIso;
 
     // secondary actions (share the current filter as a player link,
     // export the register) live behind one kebab — the app's convention
@@ -5625,19 +5623,14 @@ export function mountDocs(
      *  columns cut to the ones it carries. null = this library cannot
      *  match (a filtered column it lacks — SharePoint would refuse a
      *  query naming it, and the honest answer is no rows; issue 13). */
-    const termFiltersFor = (carried: Set<string>): { cols: string[]; labels: string[] }[] | null => {
-      const out: { cols: string[]; labels: string[] }[] = [];
-      const asked = [
-        ...filters.map((f) => ({ cols: f.col === "" ? [...orgCols] : [f.col], labels: [...f.labels] })),
-        ...approvedFilterFor(),
-      ];
-      for (const f of asked) {
-        const cols = f.cols.filter((c) => carried.has(c));
-        if (cols.length === 0) return null;
-        out.push({ cols, labels: f.labels });
-      }
-      return out;
-    };
+    const termFiltersFor = (carried: Set<string>): { cols: string[]; labels: string[] }[] | null =>
+      termFiltersCarried(
+        [
+          ...filters.map((f) => ({ cols: f.col === "" ? [...orgCols] : [f.col], labels: [...f.labels] })),
+          ...approvedFilterFor(),
+        ],
+        carried
+      );
     // suspended while the task scope holds: task documents are
     // mid-workflow by nature
     const approvedFilterFor = (): { cols: string[]; labels: string[] }[] =>

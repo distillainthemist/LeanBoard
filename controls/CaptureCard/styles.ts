@@ -104,4 +104,35 @@ export const CAPTURE_CSS = `
   transition: border-color 150ms ease, color 150ms ease;
 }
 .ltk-cc-add:hover { border-color: var(--ltk-accent); color: var(--ltk-accent); }
+/* the add row (addRow.ts): a blank row at the foot of the table, typed
+   into in place. It stays in view while the rows scroll, and it never
+   takes the height the rows are stretched over */
+.ltk-cc-table tfoot td {
+  position: sticky; bottom: 0; z-index: 2;
+  background: var(--ltk-bg);
+  border-top: 2px solid var(--ltk-hairline); border-bottom: none;
+  height: 1px; vertical-align: middle;
+  font-size: 13px; padding: 6px 12px 6px 4px;
+}
+.ltk-cc-incell { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ltk-cc-in {
+  width: 100%; min-width: 64px; box-sizing: border-box;
+  font: inherit; font-size: 13px; color: var(--ltk-fg);
+  background: var(--ltk-bg);
+  border: 1px solid var(--ltk-hairline); border-radius: 6px;
+  padding: 6px 8px; min-height: 34px;
+}
+.ltk-cc-in:focus { outline: 2px solid var(--ltk-accent); outline-offset: -1px; }
+.ltk-cc-in::placeholder { color: var(--ltk-muted); }
+.ltk-cc-intick { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; cursor: pointer; }
+.ltk-cc-intick input { width: 18px; height: 18px; margin: 0; accent-color: var(--ltk-accent); }
+.ltk-cc-inlast { display: flex; align-items: flex-start; gap: 6px; }
+.ltk-cc-inlast > .ltk-cc-incell { flex: 1 1 auto; }
+.ltk-cc-addgo {
+  flex: none; width: 34px; height: 34px; border-radius: 6px;
+  border: 1px solid var(--ltk-hairline); background: var(--ltk-bg); color: var(--ltk-fg);
+  font: inherit; font-size: 16px; font-weight: 600; cursor: pointer;
+}
+.ltk-cc-addgo:hover { border-color: var(--ltk-accent); color: var(--ltk-accent); }
+.ltk-cc-addrow .ltk-who-box { display: flex; }
 `;

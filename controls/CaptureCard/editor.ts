@@ -1,5 +1,6 @@
 // The CaptureCard editor: a table driven entirely by the column config.
-// Rows edit through a dialog with one field per column — text/number inputs,
+// A row is ADDED in the table itself (addRow.ts, 2026-11-27) and edited
+// through a dialog with one field per column — text/number inputs,
 // a yes/no chip, and list chips (single = radio-style, multi = checkboxes)
 // whose options re-filter live when their parent column's value changes.
 
@@ -21,6 +22,7 @@ import {
   peopleText,
 } from "./types";
 import type { Person } from "../../shared/schema/people";
+import { InlineCell, buildInlineCell, hasContent } from "./addRow";
 import {
   buildCaptureField,
   FieldEditor,
@@ -39,6 +41,12 @@ export interface CaptureEditorCallbacks {
   onChange: (env: CaptureEnvelope) => void;
   onSnapshot?: (svgMarkup: string) => void;
 }
+
+/** The styles a PICTURE of the card carries (the stored tile, the
+ *  downloads): the card's own, less the blank add row. The rule lives in
+ *  the picture only — hiding or lifting the row out of the live card
+ *  for the moment of copying took the cursor out of it mid-typing. */
+const PICTURE_CSS = LTK_BASE_CSS + CAPTURE_CSS + "\n.ltk-cc-table tfoot { display: none; }";
 
 export class CaptureEditor {
   private readonly root: HTMLElement;
@@ -125,6 +133,15 @@ export class CaptureEditor {
 
   /** The people a person column picks from. Nothing is drawn from it
    *  until a row dialog opens, so there is no repaint. */
+  /** The add row (tranche 6, G3): built once and KEPT across repaints,
+   *  so a row half typed survives a refresh that lands under it. It is
+   *  rebuilt when it is used, emptied, or its columns or people change. */
+  private addRow: { sig: string; tr: HTMLTableRowElement; cells: InlineCell[] } | null = null;
+  /** An empty card shows its prompt until someone asks to add. */
+  private adding = false;
+  /** Put the cursor in the add row's first cell after the next paint. */
+  private focusAdd = false;
+
   setPeople(people: Person[]): void {
     this.people = people;
   }
@@ -209,13 +226,18 @@ export class CaptureEditor {
     this.root.appendChild(body);
 
     const fixed = this.rowHeaders.length > 0;
-    if (!fixed && this.env.data.rows.length === 0) {
+    if (!fixed && this.env.data.rows.length === 0 && !(this.adding && !this.readOnly)) {
       const lines = this.prompts.general.length
         ? this.prompts.general
         : DEFAULT_GHOST;
       const ghost = renderGhost(body, this.readOnly ? lines.slice(0, 1) : lines);
       if (!this.readOnly) {
-        ghost.addEventListener("click", () => this.editRow(null));
+        // the first row is typed into the table, like every other
+        ghost.addEventListener("click", () => {
+          this.adding = true;
+          this.focusAdd = true;
+          this.render();
+        });
       }
       return;
     }
@@ -268,14 +290,75 @@ export class CaptureEditor {
     wrap.appendChild(table);
     body.appendChild(wrap);
 
+    // free rows are ADDED in the table itself: a blank row at its foot
+    // (tranche 6, G3). Editing a row is still the dialog
     if (!this.readOnly && !fixed) {
-      const add = el("button", "ltk-cc-add", "＋ Add row");
-      add.type = "button";
-      add.addEventListener("click", () => this.editRow(null));
-      body.appendChild(add);
+      const foot = el("tfoot");
+      foot.appendChild(this.addRowEl());
+      table.appendChild(foot);
+      if (this.focusAdd) {
+        this.focusAdd = false;
+        this.addRow?.cells[0]?.focus();
+      }
     }
 
     this.applyFontScale();
+  }
+
+  /** The add row for the columns as they are now, kept between paints. */
+  private addRowEl(): HTMLTableRowElement {
+    const sig = JSON.stringify([this.columns, this.people.length, this.lastPromptsRaw]);
+    if (this.addRow !== null && this.addRow.sig === sig) return this.addRow.tr;
+    const tr = el("tr", "ltk-cc-addrow") as HTMLTableRowElement;
+    const cells = this.columns.map((col) => buildInlineCell(col, this.people, hintFor(this.prompts, col.key, "")));
+    wireDependentFields(cells);
+    const go = el("button", "ltk-cc-addgo", "＋") as HTMLButtonElement;
+    go.type = "button";
+    go.title = "Add this row (Enter)";
+    go.setAttribute("aria-label", "Add this row");
+    cells.forEach((cell, n) => {
+      const td = el("td");
+      if (n === cells.length - 1) {
+        // the last cell carries the button a mouse or a thumb uses
+        const line = el("div", "ltk-cc-inlast");
+        line.append(cell.el, go);
+        td.appendChild(line);
+      } else td.appendChild(cell.el);
+      tr.appendChild(td);
+    });
+    const add = () => {
+      const row = readFields(cells);
+      // a row with nothing in it is never added
+      if (!hasContent(row)) {
+        cells[0]?.focus();
+        return;
+      }
+      this.env.data.rows.push({ id: newId("row"), rowKey: "", cells: row });
+      this.addRow = null;
+      this.focusAdd = true;
+      this.commit();
+    };
+    go.addEventListener("click", add);
+    tr.addEventListener("keydown", (e) => {
+      const t = e.target as HTMLElement;
+      if (e.key === "Enter") {
+        // a search with its list open has used Enter for its pick; a
+        // button keeps Enter for its own press
+        if (e.defaultPrevented || t.tagName === "BUTTON") return;
+        e.preventDefault();
+        add();
+      } else if (e.key === "Escape") {
+        if (e.defaultPrevented || !hasContent(readFields(cells))) return;
+        // Escape empties the row; an empty row lets the key go on
+        e.preventDefault();
+        e.stopPropagation();
+        this.addRow = null;
+        this.focusAdd = true;
+        this.render();
+      }
+    });
+    this.addRow = { sig, tr, cells };
+    return tr;
   }
 
   /**
@@ -388,19 +471,19 @@ export class CaptureEditor {
 
   private generateSnapshot(): void {
     if (!this.cb.onSnapshot) return;
-    htmlToSvg(this.root, LTK_BASE_CSS + CAPTURE_CSS, this.theme.background, (svg) =>
+    htmlToSvg(this.root, PICTURE_CSS, this.theme.background, (svg) =>
       this.cb.onSnapshot!(svg)
     );
   }
 
     private downloadSvg(): void {
-    htmlToSvg(this.root, LTK_BASE_CSS + CAPTURE_CSS, this.theme.background, (svg) =>
+    htmlToSvg(this.root, PICTURE_CSS, this.theme.background, (svg) =>
       saveSvg(svg, "capture.svg")
     );
   }
 
 private downloadPng(): void {
-    htmlToPng(this.root, LTK_BASE_CSS + CAPTURE_CSS, this.theme.background, (uri) => {
+    htmlToPng(this.root, PICTURE_CSS, this.theme.background, (uri) => {
       const link = document.createElement("a");
       link.href = uri;
       link.download = "capture.png";

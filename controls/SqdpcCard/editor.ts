@@ -341,7 +341,7 @@ export class SqdpcEditor {
     // and keep the largest tile — a narrow box gets two or three rows of
     // big letters instead of one row of specks (card-responsiveness-
     // review-2026-10-30, R3)
-    let tile = 12;
+    let tile = 0;
     for (let wrapRows = 1; wrapRows <= Math.min(3, n || 1); wrapRows++) {
       const perRow = Math.ceil((n || 1) / wrapRows);
       let widest = 1;
@@ -358,7 +358,11 @@ export class SqdpcEditor {
       const tileH = (rowH - GAP * (maxRows - 1)) / maxRows;
       tile = Math.max(tile, Math.floor(Math.min(widest, tileH)));
     }
-    tile = Math.max(12, Math.min(88, tile));
+    // a TILE never grows past its box: the old floor of 12 px made five
+    // letters wrap to a second row that a phone's list slot cut in half,
+    // with the legend drawn over them (seen at 341 × 227, tranche 6 G1).
+    // Under 18 px the digits are already hidden and the colour carries
+    tile = Math.max(tile0 ? 5 : 12, Math.min(88, tile));
     if (this.root.style.getPropertyValue("--sq-tile") !== `${tile}px`) {
       this.root.style.setProperty("--sq-tile", `${tile}px`);
     }

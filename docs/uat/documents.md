@@ -1274,3 +1274,18 @@ steps:
 3. Pick someone who is not a member.
 4. After a lifecycle step, in "Add a person…" type three letters, pick with ↓ and Enter.
 expected: step 1 the roster's matches show at once, the directory's follow under "In the directory" after the third letter; a pick adds the chip and keeps the cursor; step 2 the member is shown greyed with "a member" and cannot be picked; step 3 the row is busy while they are added, then the members list shows them; a refusal is said under their name; step 4 the person joins the recipients and the box is ready for the next
+
+## Journey — backlog programme tranche 6 (the board's doc cards)
+
+### UAT-DOC-124 — A doc card shows exactly what its pasted view shows
+persona: controller
+modules: docs/docsCards.ts docs/viewFeed.ts docs/docsScreen.ts docs/filterModel.ts
+preconditions: a ritual board with a Standard documents card and a Document health card; documents owned by two different people; a term column where two branches hold a term of the same name (or two statuses to tick); a document with linked documents
+steps:
+1. In Documents filter Owner to one person. Copy link. Paste it into the Standard documents card's View setting. Read the line shown while designing, then the card.
+2. Clear the filters. Tick TWO terms on one column (two statuses, or two document types). Copy link, paste, read the card.
+3. Filter to a term whose name also exists in another branch. Copy link, paste, read the card.
+4. Set "Has linked documents", then a custom Modified range. Copy link, paste, read the card each time.
+5. Tick "Search everything" with a word in the search box. Copy link, paste.
+6. Paste the Owner link of step 1 into the Document health card.
+expected: step 1 the design line names the filter ("Owner: <name>") and the card lists only that person's documents — it used to list everyone's; step 2 the card shows documents with EITHER term — it used to show none; step 3 only the picked branch's documents, as the register shows; step 4 the card matches the register each time; step 5 a line on the card says it matches the words in names only; step 6 the overdue and due-soon counts are that owner's alone; a library that lacks a filtered term column contributes nothing rather than refusing

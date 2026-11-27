@@ -124,6 +124,14 @@ export function riskClass(l: number, c: number): number {
 }
 
 /** Colour-band index (0..3) for a cell — driven by its risk class. */
+/** How many of a cell's markers are drawn, and how many are left to a
+ *  "+n": up to four fit (two by two); past that the cell shows three and
+ *  the count. Pure. */
+export function chipsShown(count: number): { shown: number; more: number } {
+  if (count <= 4) return { shown: Math.max(0, count), more: 0 };
+  return { shown: 3, more: count - 3 };
+}
+
 export function band(l: number, c: number): 0 | 1 | 2 | 3 {
   return (riskClass(l, c) - 1) as 0 | 1 | 2 | 3;
 }

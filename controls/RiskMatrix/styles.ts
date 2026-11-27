@@ -26,6 +26,7 @@ export const RISKMATRIX_CSS = `
   align-items: stretch;
 }
 /* a narrow tile: the chips on the matrix already number the risks */
+[data-ltk-tier="phone"].ltk-tile .ltk-rm-list,
 [data-ltk-tier="phone"] .ltk-tile .ltk-rm-list { display: none; }
 .ltk-rm-cell {
   border-radius: 5px;
@@ -102,6 +103,21 @@ export const RISKMATRIX_CSS = `
   border: 2px solid transparent;
   padding: 0 3px;
 }
+/* a marker is as large as its cell allows, never larger than 20 px; two
+   or more share the cell at half its width, so they sit side by side
+   (and two by two) inside it instead of wrapping out of it */
+.ltk-rm-cell { --rm-chip: min(20px, calc(var(--rm-cell, 46px) - 8px)); }
+.ltk-rm-cell-many { --rm-chip: min(20px, calc((var(--rm-cell, 46px) - 8px) / 2)); align-content: center; }
+.ltk-rm-cell .ltk-rm-chip {
+  box-sizing: border-box;
+  min-width: var(--rm-chip);
+  height: var(--rm-chip);
+  font-size: max(7px, calc(var(--rm-chip) * 0.55));
+}
+.ltk-rm-cell-many .ltk-rm-chip { padding: 0; border-width: 1.5px; }
+.ltk-rm-chip-more { background: transparent; font-weight: 600; }
+/* small cells (a phone's tile): the consequence labels stay apart */
+.ltk-rm-tight .ltk-rm-axis-con { font-size: 7.5px; }
 .ltk-rm-chip.ltk-rm-pre-ghost {
   background: transparent !important;
   opacity: 0.75;

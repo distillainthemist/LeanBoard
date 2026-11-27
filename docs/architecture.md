@@ -658,6 +658,16 @@ initiative health check (`healthQuestions`, `__health`) was removed.
   path. "＋ Add a team…" reads a leader's reporting line through the
   directory walk and adds only people already in the app
   (`actions/team.ts`, `teamModel.ts`).
+- **One set of feed rules for a Documents view** (`docs/viewFeed.ts`,
+  2026-11-27, pure): what a view asks of one library — words, term
+  filters cut to the columns it carries, date windows, people, "has a
+  value", the Modified window. The register and the board's two doc
+  cards (`docs/docsCards.ts`) both build their query from it, and both
+  keep rows by term id afterwards (`matchesTermFilters`); the cards had
+  carried their own copy and fell behind the register for three
+  months. `CARD_VIEW_PARTS` lists what a card does with every part of
+  a `DocView`, and a test fails when a part is added without a line
+  there.
 - **One search-picker builder** (`shared/ui/typeAhead.ts`,
   2026-11-27): `buildTypeAhead` is the standing type-ahead of
   `ui-standard.md` §2.x for the app and the controls alike — held

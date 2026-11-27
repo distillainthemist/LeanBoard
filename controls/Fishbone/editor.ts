@@ -116,6 +116,9 @@ export class FishboneEditor {
   private stage!: HTMLDivElement;
   private svg!: SVGSVGElement;
   private scene!: SVGGElement;
+  /** The same fishbone as a LIST — what a phone shows in place of the
+   *  diagram (CSS swaps them on the host's "phone" tier). */
+  private outline!: HTMLDivElement;
 
   private model: FishboneModel = emptyModel();
   private style: StyleConfig = defaultStyle();
@@ -296,6 +299,92 @@ export class FishboneEditor {
 
     this.scene = document.createElementNS(SVG_NS, "g") as SVGGElement;
     this.svg.appendChild(this.scene);
+
+    this.outline = document.createElement("div");
+    this.outline.className = "fb-outline";
+    this.root.appendChild(this.outline);
+  }
+
+  /**
+   * The fishbone as a list (backlog programme tranche 6, G1, 2026-11-27):
+   * the problem, then each bone as a heading with its causes under it.
+   * A diagram shrunk to a phone's width draws its causes 4 to 6 px high;
+   * the list reads at any width. Both are always built — the stylesheet
+   * shows the list on the phone tier and the diagram everywhere else —
+   * so nothing here has to watch the host's size.
+   */
+  private renderOutline(): void {
+    const o = this.outline;
+    while (o.firstChild) o.removeChild(o.firstChild);
+    const div = (cls: string, text?: string): HTMLDivElement => {
+      const d = document.createElement("div");
+      d.className = cls;
+      if (text !== undefined) d.textContent = text;
+      return d;
+    };
+    const tap = (node: HTMLElement, run: () => void, label: string): void => {
+      if (this.readOnly) return;
+      node.classList.add("fb-clickable");
+      node.setAttribute("role", "button");
+      node.tabIndex = 0;
+      node.title = label;
+      node.addEventListener("click", run);
+      node.addEventListener("keydown", (e) => {
+        if (e.key !== "Enter" && e.key !== " ") return;
+        e.preventDefault();
+        run();
+      });
+    };
+    const head = div("fb-ol-problem");
+    head.appendChild(div("fb-ol-problem-h", this.style.effectLabel));
+    const problem = this.model.problem.trim();
+    head.appendChild(div("fb-ol-problem-t" + (problem === "" ? " fb-ol-empty" : ""), problem !== "" ? problem : "Not written yet"));
+    tap(head, () => this.editProblem(), "Edit the problem");
+    o.appendChild(head);
+
+    for (const category of this.model.categories) {
+      const causes = this.model.causes.filter((c) => c.category === category);
+      const bone = div("fb-ol-bone");
+      const h = div("fb-ol-bone-h");
+      const name = document.createElement("span");
+      name.textContent = category;
+      const count = document.createElement("span");
+      count.className = "fb-ol-count";
+      count.textContent = String(causes.length);
+      h.append(name, count);
+      bone.appendChild(h);
+      for (const cause of causes) {
+        const row = div("fb-ol-cause");
+        const st = this.statusStyle(cause.status);
+        const dot = document.createElement("span");
+        dot.className = "fb-ol-dot";
+        dot.style.background = st.border;
+        dot.title = cause.status;
+        const text = document.createElement("span");
+        text.className = "fb-ol-text";
+        text.textContent = cause.text;
+        row.append(dot, text);
+        if (cause.votes > 0) {
+          const votes = document.createElement("span");
+          votes.className = "fb-ol-votes";
+          votes.textContent = `▲ ${cause.votes}`;
+          votes.title = `${cause.votes} vote${cause.votes === 1 ? "" : "s"}`;
+          row.appendChild(votes);
+        }
+        tap(row, () => this.editCause(cause.id), `${cause.status} — tap to edit`);
+        bone.appendChild(row);
+      }
+      if (causes.length === 0) bone.appendChild(div("fb-ol-none", "No causes yet"));
+      if (!this.readOnly) {
+        const add = document.createElement("button");
+        add.type = "button";
+        add.className = "fb-ol-add";
+        add.textContent = "＋ Add cause";
+        add.addEventListener("click", () => this.addCause(category));
+        bone.appendChild(add);
+      }
+      o.appendChild(bone);
+    }
   }
 
   // ---------- text measurement ----------
@@ -608,6 +697,7 @@ export class FishboneEditor {
     this.drawSpine(layout);
     for (const bone of layout.bones) this.drawBone(bone);
     this.drawHead(layout);
+    this.renderOutline();
     this.scheduleSnapshot();
 
     // Fit the viewBox to the actual content so nothing (e.g. a left-side chip

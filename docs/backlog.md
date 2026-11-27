@@ -213,6 +213,18 @@ code-app `frame-src`, "Lock every older build". Owed from it:
   earlier build; no rerun asked for. Owed in UAT now: reviewer seats
   (R1), one Teams card per person (R3), approving on behalf (R4), the
   Filters pane (R6), the Users directory search (tranche 5).
+- **Tranche 6 of the programme was walked and built on 2026-11-27, on
+  dev, unreleased, no schema.** Three of its four entries were already
+  built in whole or part (F6 on 2026-08-08, F11 in v0.74.0, G1 in
+  v0.85.0) — the backlog lines had never been struck. Built: F6 the
+  doc cards level with the register (`docs/viewFeed.ts`: people
+  filters, "has a value", a custom Modified range, same-named terms,
+  several terms on one column); G1 SQDPC and the risk matrix fit a
+  phone's board list and Fishbone reads as a list there; G3 a capture
+  card's row is typed into the table (Ben's choice; it reverses the
+  canvas plan's decision 8 for adding a row). As built: the
+  programme's "Tranche 6" section. Tranches 7 and 8 are checked
+  against the code before they are walked.
 
 **v0.99.0 (2026-11-23, app-only):** tranche 1 of the programme
 (`backlog-programme-2026-11-22.md`) and tranche 1A, the 2026-11-23

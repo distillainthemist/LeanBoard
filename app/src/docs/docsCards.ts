@@ -41,6 +41,8 @@ import {
 } from "./rows";
 import { taskGroupHeader, taskRowEl } from "./taskRows";
 import { DocView, emptyDocView, viewFromPaste } from "./views";
+import { TermAsk, cardViewLimits, filtersByColumn, termFilterFields, viewFilterWords, viewQueryFor } from "./viewFeed";
+import { matchesTermFilters } from "./filterModel";
 import {
   SiteDictionary,
   columnOffered,
@@ -117,9 +119,13 @@ interface CardScope {
   dict: SiteDictionary;
   /** The effective view — pasted, or synthesised from the legacy keys. */
   view: DocView;
-  /** CAML label filters (org + taxonomy), subtree-expanded — the same
-   *  shape the register's own feed carries. */
-  termFilters: { cols: string[]; labels: string[] }[];
+  /** Term filters (org + taxonomy), subtree-expanded — the names the
+   *  feed is asked by and the ids the exact pass keeps, the same shape
+   *  the register's own feed carries (viewFeed.ts). */
+  termFilters: TermAsk[];
+  /** "Has a value" columns, less the tags column (the register filters
+   *  tags by value, not by presence). */
+  present: string[];
   statusCol: { internal: string; termSetId: string } | null;
   ownerInternal: string;
   labelToId: Map<string, string>;
@@ -156,6 +162,7 @@ async function resolveCardScope(opts: CardMount): Promise<CardScope> {
     dict: emptySiteDictionary(),
     view: emptyDocView(),
     termFilters: [],
+    present: [],
     statusCol: null,
     ownerInternal: "",
     labelToId: new Map(),
@@ -269,10 +276,14 @@ async function resolveCardScope(opts: CardMount): Promise<CardScope> {
     return "";
   };
   const filterPaths: string[] = [];
+  /** One column's filter from the terms picked on it: every pick's
+   *  subtree, names and ids unioned — any of them matches (the
+   *  register's `filterFromPicks`; a card used to AND them, so two
+   *  statuses ticked in a view showed nothing). */
   const addFilter = async (
     col: string,
     setId: string,
-    termId: string,
+    termIds: string[],
     legacyLeaf: string
   ): Promise<boolean> => {
     if (setId === "") {
@@ -280,41 +291,61 @@ async function resolveCardScope(opts: CardMount): Promise<CardScope> {
       return false;
     }
     const { nodes } = await cachedTermPaths(out.site, setId);
-    let node: TermNode | undefined;
-    if (termId !== "") {
-      node = nodes.find((n) => n.id === termId);
+    const picks: TermNode[] = [];
+    if (termIds.length > 0) {
+      for (const id of termIds) {
+        const node = nodes.find((n) => n.id === id);
+        if (node === undefined) {
+          out.fatal = "A term this view filters on no longer exists — re-copy the link from Documents.";
+          return false;
+        }
+        picks.push(node);
+      }
     } else {
       // legacy docsOrg: deepest node whose LEAF label matches
-      node = nodes
+      const node = nodes
         .filter((n) => n.labels[n.labels.length - 1].toLowerCase() === legacyLeaf)
         .sort((a, b) => b.labels.length - a.labels.length)[0];
+      if (node === undefined) {
+        out.fatal = `No organisation term called “${legacyLeaf}”.`;
+        return false;
+      }
+      picks.push(node);
     }
-    if (node === undefined) {
-      out.fatal =
-        termId !== ""
-          ? "A term this view filters on no longer exists — re-copy the link from Documents."
-          : `No organisation term called “${legacyLeaf}”.`;
-      return false;
+    const labels = new Set<string>();
+    const ids = new Set<string>();
+    for (const node of picks) {
+      const subtree = subtreeIn(nodes, node);
+      for (const l of leafLabels(node, subtree)) labels.add(l);
+      for (const n of [node, ...subtree]) ids.add(n.id);
+      filterPaths.push(node.labels[node.labels.length - 1]);
     }
-    out.termFilters.push({
-      cols: col === "" ? orgCols : [col],
-      labels: leafLabels(node, subtreeIn(nodes, node)),
-    });
-    filterPaths.push(node.labels[node.labels.length - 1]);
+    out.termFilters.push({ cols: col === "" ? orgCols : [col], labels: [...labels], ids: [...ids] });
     return true;
   };
-  if (out.view.orgTermId !== "") {
-    if (!(await addFilter("", app.orgSetId, out.view.orgTermId, ""))) return out;
-  } else if (view === null && cfg(opts, "docsOrg") !== "") {
+  // the organisation slot and any organisation picks among the filters
+  // are one column ("" = the organisation columns)
+  const asked = filtersByColumn([
+    ...(out.view.orgTermId !== "" ? [{ col: "", termId: out.view.orgTermId }] : []),
+    ...out.view.filters.map((f) => ({ col: f.col, termId: f.termId })),
+  ]);
+  if (asked.length === 0 && view === null && cfg(opts, "docsOrg") !== "") {
     if (app.orgSetId === "") {
       out.fatal = "No organisation term set is configured.";
       return out;
     }
-    if (!(await addFilter("", app.orgSetId, "", cfg(opts, "docsOrg").toLowerCase()))) return out;
+    if (!(await addFilter("", app.orgSetId, [], cfg(opts, "docsOrg").toLowerCase()))) return out;
   }
-  for (const f of out.view.filters) {
-    if (!(await addFilter(f.col, setForCol(f.col), f.termId, ""))) return out;
+  for (const f of asked) {
+    const ids = [...new Set(f.picks.map((x) => x.termId))];
+    if (!(await addFilter(f.col, f.col === "" ? app.orgSetId : setForCol(f.col), ids, ""))) return out;
   }
+  // "has a value": never the tags column — the register drops it too
+  // (tags are filtered by value; issue 33 of the 2026-10-18 round)
+  const roleOf = (col: string): string => out.dict.columns.find((c) => c.internal === col)?.role ?? "";
+  out.present = out.view.present.filter((c) => roleOf(c) !== "tags");
+  // what the view asks that a card cannot do is SAID, never dropped
+  out.notes.push(...cardViewLimits(out.view));
 
   // ---- the human summary ----------------------------------------------
   const parts: string[] = [
@@ -323,8 +354,8 @@ async function resolveCardScope(opts: CardMount): Promise<CardScope> {
       : "All documents",
     ...filterPaths,
   ];
-  if (out.view.query !== "") parts.push(`“${out.view.query}”`);
-  if (out.view.modifiedDays > 0) parts.push(`modified ${out.view.modifiedDays}d`);
+  const labelOf = (col: string): string => out.dict.columns.find((c) => c.internal === col)?.label || col;
+  parts.push(...viewFilterWords({ ...out.view, present: out.present }, labelOf));
   parts.push(out.view.nonCurrent ? "including drafts & superseded" : "approved only");
   out.summary = parts.join(" · ");
   return out;
@@ -425,11 +456,7 @@ async function paintDocs(
   // the register's feed, in miniature: one RLDAS page per library —
   // filters in the CAML, fields only where the library carries them —
   // merged newest-first (C3b: the search road disagreed with the screen)
-  const modifiedAfterIso =
-    scope.view.modifiedDays > 0
-      ? new Date(Date.now() - scope.view.modifiedDays * 86400000).toISOString()
-      : undefined;
-  const words = scope.view.query.trim() === "" ? undefined : scope.view.query.trim().split(/\s+/);
+  const nowMs = Date.now();
   const approvedFilter =
     onlyApproved && scope.statusCol !== null && scope.approvedLabels.length > 0
       ? [{ cols: [scope.statusCol.internal], labels: scope.approvedLabels }]
@@ -461,9 +488,17 @@ async function paintDocs(
         })
       : defaults();
 
-  const feeds = scope.libs.map((lib) => {
+  // a term filter is asked BY NAME and kept by id afterwards, so a few
+  // rows may fall out of each page: ask for more than the card shows
+  const ask = scope.termFilters.length > 0 ? Math.min(60, n * 3) : n;
+  const feeds = scope.libs.flatMap((lib) => {
     const carried = new Set(lib.config.columns.map((c) => c.internal));
-    const fields = new Set<string>();
+    // the view's part of the query, by the register's own rules
+    // (viewFeed.ts); null = this library lacks a filtered column and
+    // contributes nothing
+    const q = viewQueryFor({ ...scope.view, present: scope.present }, [...scope.termFilters, ...approvedFilter], carried, nowMs);
+    if (q === null) return [];
+    const fields = new Set<string>(termFilterFields(scope.termFilters, carried));
     for (const internal of wanted) {
       if (internal !== "Modified" && carried.has(internal)) fields.add(internal);
     }
@@ -475,15 +510,8 @@ async function paintDocs(
     if (lib.libType === "working" || lib.libType === "revision" || lib.libType === "standard") {
       fields.add("CheckoutUser");
     }
-    const viewXml = buildRenderViewXml({
-      modifiedAfterIso,
-      nameWords: words,
-      termFilters: [...scope.termFilters, ...approvedFilter],
-      dateRanges: scope.view.dates.filter((d) => carried.has(d.col)),
-      fields: [...fields],
-      rowLimit: n,
-    });
-    return { lib, viewXml };
+    const viewXml = buildRenderViewXml({ ...q, fields: [...fields], rowLimit: ask });
+    return [{ lib, viewXml }];
   });
 
   const pages = await Promise.all(
@@ -495,7 +523,10 @@ async function paintDocs(
   // merge newest-first across libraries — each page is already its
   // library's top-n, so the merged head is the true top-n
   const cmp = browseComparator("modified", false);
-  const buffers = pages.map((p) => [...p.rows]);
+  // the exact-term pass (report 5 of the 2026-11-25 round): two terms
+  // can share a name, and the feed was asked by name
+  const keeps = (r: DocRow): boolean => matchesTermFilters(r.values, scope.termFilters);
+  const buffers = pages.map((p) => p.rows.filter(keeps));
   let rows: DocRow[] = [];
   for (;;) {
     const i = pickBrowseHead(buffers, cmp);
@@ -611,9 +642,15 @@ async function paintHealth(
     // the register's own review sweep, communal: the due question is
     // asked SERVER-SIDE (dueWithinDays covers overdue and due-soon in
     // one clause), so only findings come back — not the corpus
+    // the view's filters, by the register's own rules (viewFeed.ts):
+    // words, people, dates, "has a value" and the Modified window narrow
+    // the sweep as they narrow the register
+    const q = viewQueryFor({ ...scope.view, present: scope.present }, [...scope.termFilters, ...approvedClause], carried, now);
+    if (q === null) continue;
+    fields.push(...termFilterFields(scope.termFilters, carried).filter((c) => !fields.includes(c)));
     const viewXml = buildRenderViewXml({
+      ...q,
       dueWithinDays: { col: reviewCol.internal, days: dueSoonDays },
-      termFilters: [...scope.termFilters, ...approvedClause],
       fields,
       rowLimit: 100,
     });
@@ -623,6 +660,8 @@ async function paintHealth(
       const page = await renderListPage(scope.site, lib.listId, viewXml, next);
       if (page.error !== "") return note(body, `Documents refused: ${page.error}`);
       for (const row of page.rows) {
+        // the exact-term pass, as on the register
+        if (!matchesTermFilters(row.values, scope.termFilters)) continue;
         // the ISO twin ("Column.") is the real value; the display text
         // is a site-locale guess we only fall back to
         const iso = row.values[`${reviewCol.internal}.`] ?? "";

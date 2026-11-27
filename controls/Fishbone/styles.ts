@@ -45,6 +45,56 @@ export const FISHBONE_CSS = `
    canvas" on a phone and a short wall slot) */
 .ltk-tile .fb-root { min-height: 0; }
 [data-ltk-tier="phone"] .fb-root { min-height: 0; }
+
+/* ---------- the list a phone shows in place of the diagram ----------
+   (tranche 6, G1): the host stamps its width tier; under 480 px the
+   diagram's cause text is 4 to 6 px, so the same fishbone reads as the
+   problem, then each bone with its causes under it */
+.fb-outline { display: none; }
+[data-ltk-tier="phone"] .fb-stage { display: none; }
+[data-ltk-tier="phone"] .fb-outline {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px 12px 12px;
+  overflow-y: auto;
+  font-size: 14px;
+  line-height: 1.35;
+}
+.ltk-tile .fb-outline { overflow: hidden !important; gap: 6px !important; font-size: 12.5px !important; }
+.fb-ol-problem {
+  border: 1.5px solid var(--fb-diagram, #141414);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #f4f4f4;
+}
+.fb-ol-problem-h { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+.fb-ol-problem-t { font-weight: 600; }
+.fb-ol-empty, .fb-ol-none { color: #77736b; font-weight: 400; font-style: italic; }
+.fb-ol-none { font-size: 12.5px; padding: 2px 0 2px 16px; }
+.fb-ol-bone { display: flex; flex-direction: column; gap: 3px; }
+.fb-ol-bone-h {
+  display: flex; align-items: baseline; gap: 8px;
+  font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+  border-bottom: 1.5px solid var(--fb-diagram, #141414);
+  padding-bottom: 2px;
+}
+.fb-ol-count { font-weight: 600; color: #77736b; }
+.fb-ol-cause { display: flex; align-items: flex-start; gap: 8px; padding: 5px 4px; border-radius: 6px; min-height: 32px; box-sizing: border-box; }
+.ltk-tile .fb-ol-cause { padding: 1px 4px; min-height: 0; }
+.fb-ol-cause.fb-clickable:hover { background: #f1efea; }
+.fb-ol-dot { flex: none; width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; }
+.ltk-tile .fb-ol-dot { margin-top: 4px; width: 8px; height: 8px; }
+.fb-ol-text { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.fb-ol-votes { flex: none; font-size: 12px; font-weight: 600; color: #55524b; white-space: nowrap; }
+.fb-ol-add {
+  align-self: flex-start; font: inherit; font-size: 13px; color: #55524b;
+  background: none; border: 1px dashed #c9c5bb; border-radius: 6px; padding: 6px 10px; min-height: 32px; cursor: pointer;
+}
+.fb-ol-add:hover { border-color: #55524b; color: #1b1b1b; }
+.ltk-tile .fb-ol-add { display: none !important; }
 .fb-svg {
   width: 100%;
   height: 100%;

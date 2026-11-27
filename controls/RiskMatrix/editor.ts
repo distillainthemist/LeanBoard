@@ -28,6 +28,7 @@ import { newId, nowIso } from "../../shared/schema/id";
 import { Person } from "../../shared/schema/people";
 import {
   band,
+  chipsShown,
   CLASS_ROMAN,
   CONSEQUENCE_LABELS,
   LIKELIHOOD_LABELS,
@@ -148,8 +149,13 @@ export class RiskMatrixEditor {
     // the matrix may take up to 60% of the width beside a register, all of it when narrow
     const matrixW = w < 480 ? w - 24 : (w - 24) * 0.6;
     const byW = (matrixW - 92 - 22 /* the vertical likelihood title */ - 4 * 3) / 5;
-    const cell = Math.max(36, Math.min(120, Math.floor(Math.min(byW, byH))));
+    // a TILE never grows past its box: the floor of 36 px pushed the
+    // consequence labels off the bottom of a phone's list slot (seen at
+    // 341 × 227, tranche 6 G1). A tile may go down to 22
+    const cell = Math.max(tile ? 22 : 36, Math.min(120, Math.floor(Math.min(byW, byH))));
     if (this.root.style.getPropertyValue("--rm-cell") !== `${cell}px`) this.root.style.setProperty("--rm-cell", `${cell}px`);
+    // small cells: the consequence labels sit closer than their words
+    this.root.classList.toggle("ltk-rm-tight", cell < 34);
   }
 
   // ---- theming ----
@@ -227,34 +233,50 @@ export class RiskMatrixEditor {
         wm.style.color = this.bandColour(l, c);
         cell.appendChild(wm);
 
-        // chips for risks sitting in this cell
+        // chips for risks sitting in this cell. They are gathered first:
+        // two or more share the cell side by side at half its width (the
+        // 20 px chips wrapped to a second line the cell then cut off —
+        // seen in every size, tranche 6 G1), and past four the cell
+        // shows three and a count
+        const here: { risk: Risk; idx: number; ghosted: boolean }[] = [];
         this.env.data.risks.forEach((risk, idx) => {
           const cur = this.currentRating(risk);
-          const hasPost =
-            risk.postLikelihood !== null && risk.postConsequence !== null;
-          const put = (ghosted: boolean) => {
-            const chip = el("div", "ltk-rm-chip", String(idx + 1));
-            if (ghosted) {
-              chip.classList.add("ltk-rm-pre-ghost");
-              chip.style.borderColor = this.theme.foreground;
-              chip.style.color = this.theme.foreground;
-              chip.title = `${riskLabel(risk)} (before controls)`;
-            } else {
-              chip.style.background = this.theme.foreground;
-              chip.style.color = textOn(this.theme.foreground);
-              chip.title = riskLabel(risk);
-            }
-            if (!this.readOnly) {
-              chip.addEventListener("click", (e) => {
-                e.stopPropagation();
-                this.editRisk(risk, null, null);
-              });
-            }
-            cell.appendChild(chip);
-          };
-          if (cur.l === l && cur.c === c) put(false);
-          if (hasPost && risk.likelihood === l && risk.consequence === c) put(true);
+          const hasPost = risk.postLikelihood !== null && risk.postConsequence !== null;
+          if (cur.l === l && cur.c === c) here.push({ risk, idx, ghosted: false });
+          if (hasPost && risk.likelihood === l && risk.consequence === c) here.push({ risk, idx, ghosted: true });
         });
+        const { shown, more } = chipsShown(here.length);
+        if (here.length > 1) cell.classList.add("ltk-rm-cell-many");
+        for (const { risk, idx, ghosted } of here.slice(0, shown)) {
+          const chip = el("div", "ltk-rm-chip", String(idx + 1));
+          if (ghosted) {
+            chip.classList.add("ltk-rm-pre-ghost");
+            chip.style.borderColor = this.theme.foreground;
+            chip.style.color = this.theme.foreground;
+            chip.title = `${riskLabel(risk)} (before controls)`;
+          } else {
+            chip.style.background = this.theme.foreground;
+            chip.style.color = textOn(this.theme.foreground);
+            chip.title = riskLabel(risk);
+          }
+          if (!this.readOnly) {
+            chip.addEventListener("click", (e) => {
+              e.stopPropagation();
+              this.editRisk(risk, null, null);
+            });
+          }
+          cell.appendChild(chip);
+        }
+        if (more > 0) {
+          const rest = el("div", "ltk-rm-chip ltk-rm-chip-more", `+${more}`);
+          rest.style.borderColor = this.theme.foreground;
+          rest.style.color = this.theme.foreground;
+          rest.title = here
+            .slice(shown)
+            .map((x) => `${x.idx + 1}. ${riskLabel(x.risk)}${x.ghosted ? " (before controls)" : ""}`)
+            .join("\n");
+          cell.appendChild(rest);
+        }
         grid.appendChild(cell);
       }
     }

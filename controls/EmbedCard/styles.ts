@@ -32,6 +32,7 @@ export const EMBED_CSS = `
    so the frame keeps the room */
 [data-ltk-tier="phone"] .ltk-em-main { flex-direction: column; }
 [data-ltk-tier="phone"] .ltk-em-aside { flex: 0 0 40%; max-height: 40%; border-left: none; border-top: 1px solid var(--ltk-hairline); }
+[data-ltk-tier="phone"].ltk-tile .ltk-em-aside,
 [data-ltk-tier="phone"] .ltk-tile .ltk-em-aside { display: none; }
 .ltk-em-fmtbar { display: flex; gap: 4px; padding-bottom: 4px; }
 .ltk-em-fmt {

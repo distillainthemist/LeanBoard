@@ -1027,6 +1027,78 @@ way.
 Tranche 5 stands tested on dev, with F2 owed in UAT. Next: tranche 6's
 walk.
 
+### Tranche 6 (built 2026-11-27, on dev, UNRELEASED) — no schema
+
+Three items built; F11 struck as already built.
+
+- **F6 — the doc cards level with the register.** `docs/viewFeed.ts`
+  (pure) holds what a view asks of one library's feed: `modifiedBounds`
+  (a custom range leads, else the last N days), `termFiltersCarried`
+  (null when a library lacks a filtered column), `viewQueryFor` (words,
+  term filters, date windows, people, "has a value", the Modified
+  window), `termFilterFields`, `filtersByColumn`. The register calls
+  the first two in place of its own copies; `docs/docsCards.ts` builds
+  both cards' queries from `viewQueryFor` and then keeps rows by term
+  id (`matchesTermFilters`). FIVE gaps closed, one more than walked:
+  same-named terms, people filters, "has linked documents", a custom
+  Modified range — and **several terms ticked on one column**, found
+  while building: a card ANDed them, so a view of two statuses showed
+  nothing; they are one filter now (`filtersByColumn`), as on the
+  register. A term filter asks for up to three times the card's rows
+  (60 at most), since the exact pass can drop a few. Document health
+  now honours the view's words, people, dates and Modified window too
+  — it took only the term filters before. `CARD_VIEW_PARTS` names what
+  a card does with EVERY part of a view, and a test fails when
+  `DocView` gains a part it does not name. A view that searches inside
+  documents says so on the card (`cardViewLimits`). The design-time
+  line names the new filters (`viewFilterWords`). UAT-DOC-124.
+- **G1 — four cards on a phone.** SQDPC: a tile's letters may go under
+  the old 12 px floor (5 at least), so five letters sit in one row
+  inside a 341 × 227 stage with the legend under them. Risk matrix: a
+  tile's cells may go down to 22 px (`ltk-rm-tight` under 34 px sets
+  the consequence labels at 7.5 px); a cell's markers are gathered
+  first, sized from the cell (`--rm-chip`), two or more at half its
+  width, and past four the cell shows three and "+n" (`chipsShown`).
+  Fishbone: `renderOutline` builds the same model as a list beside the
+  diagram, and the stylesheet shows the list on the phone tier and the
+  diagram elsewhere — a tap on a cause, on "＋ Add cause" or on the
+  problem opens the diagram's own dialogs. RACI unchanged.
+  **Found while looking:** three "hide this in a phone tile" rules
+  never matched (`[data-ltk-tier="phone"] .ltk-tile …` — the board
+  stamps the tier ON the tile's own host): the risk matrix's register,
+  the heatmap's list and the embed's commentary showed in phone tiles
+  since v0.85.0. All three match now. UAT-RIT-020, 021;
+  `harness/phonecards.html`.
+- **G3 — the capture card's add row.** `controls/CaptureCard/addRow.ts`:
+  `buildInlineCell` per column type (text, number, date, a tick, a
+  select — one that adds chips for a several-values list — and the
+  standing type-ahead for a person, where a name nobody has is kept as
+  typed), sharing the dialog's `FieldEditor` shape so
+  `wireDependentFields` and `readFields` serve both; `hasContent`
+  decides a row is worth adding. The row lives in a sticky `tfoot`,
+  is built once and kept across repaints, and is rebuilt when used,
+  emptied, or its columns change. Enter adds (not when a search has
+  spent it, not on a button), Escape empties, and a "＋" in the last
+  cell adds for a mouse or a thumb. An empty card's prompt opens the
+  blank row. **A fault met and fixed in the harness:** lifting the row
+  out of the card for the moment a picture is taken took the cursor
+  out of it two seconds after every add; pictures now carry a rule
+  that hides the `tfoot` (`PICTURE_CSS`) and the live card is not
+  touched. Editing a row is still the dialog. UAT-RIT-022.
+
+**Seen in the harness:** the four cards at 375 px before and after;
+Fishbone's list as a tile and opened; the capture card's add row —
+typing, a person picked with Enter, a row added with the cursor kept
+through the snapshot, Escape, Enter on an empty row. **Not seen
+running:** the doc cards (they need SharePoint); every card inside the
+player and on a real phone; a capture card with list and date columns.
+
+**Limits.** A term filter on a card asks for at most 60 rows a library
+before the exact pass. SQDPC's letters are small in a phone tile
+(7 px squares): the slot is 227 px tall. Fishbone's list shows on any
+host under 480 px wide, a narrow split pane included. The add row has
+no undo: a row added by mistake is deleted from its dialog.
+
 ## Tranche 1A — the 2026-11-23 issue export (inserted by Ben, 2026-11-23)
 
 Nine reports from the DMS UAT re-run, reviewed in

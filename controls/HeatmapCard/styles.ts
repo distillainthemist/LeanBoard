@@ -25,6 +25,7 @@ export const HEATMAP_CSS = `
    height; a narrow tile keeps the whole box for the image */
 [data-ltk-tier="phone"] .ltk-hm-body { flex-direction: column; }
 [data-ltk-tier="phone"] .ltk-hm-list { flex: 0 0 auto; min-width: 0; max-width: none; max-height: 40%; }
+[data-ltk-tier="phone"].ltk-tile .ltk-hm-list,
 [data-ltk-tier="phone"] .ltk-tile .ltk-hm-list { display: none; }
 .ltk-hm-list-empty {
   color: var(--ltk-muted);

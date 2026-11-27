@@ -210,3 +210,39 @@ steps:
 2. Clear the box and press Enter. Then type a name nobody has and click away.
 3. Edit an agenda item. In "Search everyone…" type a name and pick it.
 expected: step 1 the list floats under the box, the pick scopes the tab to that person; step 2 an empty box is everyone; a name nobody has snaps back to the current person; "Me" works as before; step 3 the person is added as a ticked chip and the list closes
+
+## Journey 4 — Cards on a phone, and the capture card's add row (backlog programme tranche 6)
+
+### UAT-RIT-020 — SQDPC and the risk matrix fit a phone's board list
+persona: participant
+modules: controls/SqdpcCard/editor.ts controls/RiskMatrix/editor.ts controls/RiskMatrix/styles.ts controls/RiskMatrix/types.ts controls/HeatmapCard/styles.ts controls/EmbedCard/styles.ts
+preconditions: a board with an SQDPC card of five letters, a risk matrix with two risks rated into the same square (one with a residual rating), a heatmap with a list and an embed with commentary; a phone, or a pane under 480 px
+steps:
+1. Open the board on the phone. Read the SQDPC tile.
+2. Read the risk matrix tile, then open it.
+3. Read the heatmap and embed tiles.
+4. On a laptop, read the square that holds two risks. Rate five risks into one square.
+expected: step 1 all five letters show whole, small, with the legend under them and nothing drawn over anything; step 2 the tile shows the matrix with its consequence labels and axis title and NO register; opened, the register sits under the matrix; step 3 the heatmap's list and the embed's commentary are hidden in the tile; step 4 two markers sit side by side inside the square, up to four sit two by two, and five show three and "+2" whose tooltip names the rest
+
+### UAT-RIT-021 — Fishbone reads as a list on a phone
+persona: owner
+modules: controls/Fishbone/editor.ts controls/Fishbone/styles.ts
+preconditions: a board with a fishbone of six bones and about ten causes, some with votes and one Confirmed; a phone, or a pane under 480 px; a laptop
+steps:
+1. On the phone read the fishbone tile, then open the card.
+2. Tap a cause. Change its status and save. Tap "＋ Add cause" under a bone and add one. Tap the problem.
+3. Open the same card on the laptop.
+expected: step 1 the tile and the card show the problem in a box, then each bone as a heading with its count and its causes under it, each with its status colour and its votes; no diagram; the text is ordinary reading size; step 2 the same dialogs as the diagram open; the list shows the change; step 3 the laptop shows the diagram, with the cause added on the phone on its bone
+
+### UAT-RIT-022 — A capture card's row is added in the table
+persona: participant
+modules: controls/CaptureCard/editor.ts controls/CaptureCard/addRow.ts controls/CaptureCard/styles.ts
+preconditions: a capture card with free rows and a text, a number, a date, a yes/no, a list (one with several values, one that depends on another) and a person column; a capture card with fixed row headers; an empty capture card
+steps:
+1. Open the card. Type in the first cell of the blank row at the foot. Press Tab across the cells, filling each. In the person cell type two letters and press Enter on the lit name.
+2. Press Enter. Type the next row straight away and press Enter again.
+3. Type something in the blank row and press Escape. Then press Enter on the empty row.
+4. Pick a value in the list that others depend on; open the dependent list. In the several-values list pick two.
+5. Click an existing row.
+6. Open the card with fixed row headers, the empty card, and the board's tile of the first card. Download the card as a PNG.
+expected: step 1 there is no "＋ Add row" button; each cell is an editor of its column's kind; Enter in the person cell picks the name and does NOT add the row; step 2 the row joins the table and the cursor is in the first cell of a fresh blank row, which stays in view when the table scrolls; step 3 Escape empties the row; Enter on an empty row adds nothing; step 4 the dependent list offers only its parent's options; each pick of the several-values list becomes a chip; step 5 the row dialog opens, as before, with Delete; step 6 the fixed-header card has no blank row; the empty card shows its prompt and a click on it opens the blank row; the tile and the PNG show no blank row
