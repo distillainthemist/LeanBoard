@@ -549,6 +549,40 @@ items: F6, F11, G1, G3.
     width: cause text is about 4 px in a tile and about 6 px opened,
     where it sits in a third of the pane with empty space above and
     below.
+  **Decided: fix the three faults, and Fishbone reads as a list on
+  the phone** (Ben, 2026-11-27, choice 1). Built as: SQDPC's tile size
+  is chosen within the stage's HEIGHT too and its legend never sits
+  over the letters; the risk matrix keeps its consequence labels in a
+  phone tile, and two markers in one cell sit side by side inside it;
+  on the phone tier Fishbone reads as the problem, then each bone as a
+  heading with its causes under it — the diagram stays on wider
+  screens. The list replaces the vertical spine of the 2026-10-30
+  plan (my suggestion: a list is readable at 340 px, a drawn spine
+  with ten causes is still tight); that plan's "waits for the phone
+  pass" is answered by this look for these four cards. FiveWhys and
+  FaultTree are not in it. About six hours.
+- **G3** — **type into the table** (Ben, 2026-11-27, choice 2, against
+  my recommendation of "Add and next" in the dialog). Found: not
+  built — "＋ Add row" and a click on a row both open the row dialog
+  (`controls/CaptureCard/editor.ts` `editRow`). The backlog entry was
+  conditional ("only if testers find the row dialog slow"); no issue
+  export or feedback round carries such a report — said to Ben.
+  **This REVERSES decision 8 of `leanboard-canvas-card-plan.md`**
+  ("capture keeps its dialog") for ADDING a row; said to Ben before he
+  chose. Built as: on a card with free rows, a blank row sits at the
+  foot of the table in place of the "＋ Add row" button. Tab moves
+  across its cells, Enter adds the row and starts the next with the
+  cursor in the first cell, Escape empties it. Text, number, decimal,
+  date and date-time cells are typed in place; yes/no and flag are a
+  tick; a list is a select (several values: the dialog's own picker
+  opened from the cell); a person cell is the standing type-ahead. A
+  row with nothing in it is never added. Editing an existing row stays
+  the dialog (a click on the row), and so does a card with fixed row
+  headers, which has no rows to add. Nothing shows in a tile or a
+  read-only card. About six hours.
+
+**Tranche 6 as walked:** about 17 hours (plan 29–42): F6 five, F11
+none, G1 six, G3 six. No schema.
 
 ## As built
 
