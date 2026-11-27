@@ -505,6 +505,25 @@ function objectListEditor(spec: FieldSpec, get: Get, set: Set, host: FieldHost):
               push();
             })
           );
+        } else if (f.kind === "enum") {
+          // a select over the column's options; a row that holds none of
+          // them yet reads as the first, and keeps it once touched
+          const sel = el("select", "ltk-input ltk-cs-cell") as HTMLSelectElement;
+          sel.setAttribute("aria-label", f.label);
+          const options = f.options ?? [];
+          for (const o of options) {
+            const op = el("option", undefined, o.label) as HTMLOptionElement;
+            op.value = o.value;
+            sel.appendChild(op);
+          }
+          if (!options.some((o) => o.value === row[f.key]) && options.length > 0) row[f.key] = options[0].value;
+          sel.value = row[f.key] ?? "";
+          sel.disabled = host.readOnly;
+          sel.addEventListener("change", () => {
+            row[f.key] = sel.value;
+            push();
+          });
+          td.appendChild(sel);
         } else {
           const input = el("input", "ltk-input ltk-cs-cell") as HTMLInputElement;
           input.type = "text";

@@ -232,6 +232,14 @@ code-app `frame-src`, "Lock every older build". Owed from it:
   seats (R1), one Teams card per person (R3), approving on behalf
   (R4), the Filters pane (R6), the Users directory search (tranche 5),
   and these three (tranche 6).
+- **Tranche 7 of the programme was walked and built on 2026-11-27, on
+  dev, unreleased, no schema.** One item of four: E15, a KPI card on
+  its own as good / bad or a status picklist. E14 (option library,
+  target state) left in the backlog — no report asks for either; E16
+  Simulate left parked, though the parked code still runs. As built:
+  the programme's "Tranche 7" section. Next: tranche 8 (C9 Reporting,
+  E12 confidential actions), each checked against the code first; E12
+  is re-confirmed with Ben before any of it starts.
 
 **v0.99.0 (2026-11-23, app-only):** tranche 1 of the programme
 (`backlog-programme-2026-11-22.md`) and tranche 1A, the 2026-11-23
@@ -900,7 +908,9 @@ deferrals still open (details in leanboard-cascade-improvement-plan.md).
   its progression.
 - **Standalone KPI cards as good/bad or picklist** — drivers and own
   initiative metrics have it; standalone meeting-board cards are numeric.
-  TO BUILD in tranche 7 (programme E15, walked 2026-11-27).
+  BUILT 2026-11-27 on dev, unreleased (programme E15, tranche 7):
+  "Tracking" in the KPI card's settings;
+  `controls/KpiTrendCard/tracking.ts`.
 - **Secondary organisations on a ritual: BUILT 2026-11-24** (programme
   G8) — a site admin there sees it in Settings › Rituals and opens it;
   Edit, Replicate and Archive stay with the site that runs it.

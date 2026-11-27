@@ -30,6 +30,7 @@ import { listSharePointFolder } from "./improvement/folderContents";
 
 import { KpiTrendEditor } from "../../controls/KpiTrendCard/editor";
 import { parseKpiTrend, serializeKpiTrend } from "../../controls/KpiTrendCard/types";
+import { parseCardTracking, removedStatePoints, statePointsFromCells } from "../../controls/KpiTrendCard/tracking";
 import { SqdpcEditor } from "../../controls/SqdpcCard/editor";
 import {
   Granularity as SqdpcGranularity,
@@ -49,7 +50,7 @@ import {
   serializeConditions,
 } from "../../controls/ConditionsCard/types";
 import { applySeries, hasAnySeries, listSeries } from "./store/series";
-import { EMPTY_SPEC_SERIES } from "../../shared/schema/specSeries";
+import { EMPTY_SPEC_SERIES, isSpecSeriesKey } from "../../shared/schema/specSeries";
 import type { Cadence, DriverTracking, NodeFormat } from "./improvement/vdt/model";
 import { DEFAULT_ROWS_CARD } from "../../shared/schema/specSeries";
 import {
@@ -762,6 +763,12 @@ const REGISTRY: Record<string, CardMounter> = {
     // series location + point identity swap, the editor never knows
     let link: { driverId: string; name: string; cadenceLabel: string; days: number; node: { id: string; cadence: Cadence; aggregate: "sum" | "avg" | "last" | "min" | "max"; unit: string; format: NodeFormat; tracking: DriverTracking } } | null = null;
     const stateLink = () => (link && link.node.tracking.kind !== "value" ? link.node.tracking : null);
+    // a card that stands ALONE says its own tracking in its settings
+    // (tranche 7, E15): good / bad or a status picklist. A linked card
+    // takes the driver's, above
+    const ownTracking = parseCardTracking(cfgStr(opts, "tracking"), config(opts).trackingOptions);
+    const ownState = () => (link ? null : ownTracking);
+    const isReading = (key: string) => key !== "" && !isSpecSeriesKey(key);
     const seriesLoc = () => (link ? { boardId: "vdt", cardId: link.driverId } : { boardId: opts.boardId, cardId: opts.cardId });
     // grid entry (2026-09-08): an own card's cadence from settings (default
     // weekly); a linked card takes the driver's
@@ -784,7 +791,15 @@ const REGISTRY: Record<string, CardMounter> = {
       onChange: (env2) => {
         edited = true;
         const st = stateLink();
-        const { put, del } = st ? driverDiffStatePoints(lastPoints, env2.data.points, st) : link ? driverDiffPoints(lastPoints, env2.data.points) : diffPoints(lastPoints, env2.data.points);
+        // an own state card never writes a point's plotted number over
+        // its label: states are entered in the grid, the card only removes
+        const { put, del } = st
+          ? driverDiffStatePoints(lastPoints, env2.data.points, st)
+          : link
+            ? driverDiffPoints(lastPoints, env2.data.points)
+            : ownState()
+              ? { put: [], del: removedStatePoints(lastPoints, env2.data.points) }
+              : diffPoints(lastPoints, env2.data.points);
         lastPoints = env2.data.points.map((p) => ({ ...p }));
         const loc = seriesLoc();
         void applySeries(loc.boardId, loc.cardId, put, del).catch((err) =>
@@ -802,6 +817,7 @@ const REGISTRY: Record<string, CardMounter> = {
             title: opts.title.split("\n")[0],
             location: seriesLoc(),
             driver: link ? link.node : null,
+            tracking: ownState() ?? undefined,
             cadence: link ? link.node.cadence : ownCadence(),
             unit: link ? link.node.unit : cfgStr(opts, "unit") || env.data.unit,
             level: level(),
@@ -877,7 +893,8 @@ const REGISTRY: Record<string, CardMounter> = {
       editor.setSpecSeries(spec);
       if (first && edited) return; // never overwrite an edit that beat the load
       const st = stateLink();
-      const points = st ? driverStatePointsFromCells(cells, st) : link ? driverPointsFromCells(cells) : pointsFromCells(cells);
+      const own = ownState();
+      const points = st ? driverStatePointsFromCells(cells, st) : link ? driverPointsFromCells(cells) : own ? statePointsFromCells(cells, own, isReading).points : pointsFromCells(cells);
       lastPoints = points.map((p) => ({ ...p }));
       env.data.points = points;
       // reading entry: the cadence sets the default date; a shiftly driver
@@ -921,7 +938,15 @@ const REGISTRY: Record<string, CardMounter> = {
       const st = stateLink();
       const palette = pal(opts);
       const ragKey = { green: "good", amber: "atrisk", red: "issue" } as const;
-      editor.setTracking(st && st.kind !== "value" ? { kind: st.kind, options: st.kind === "goodbad" ? [{ label: "Good", state: "green" }, { label: "Bad", state: "red" }] : st.options, color: (s) => palette[ragKey[s]] ?? "#9a948a" } : null);
+      const colour = (state: "green" | "amber" | "red") => palette[ragKey[state]] ?? "#9a948a";
+      const own = ownState();
+      editor.setTracking(
+        st && st.kind !== "value"
+          ? { kind: st.kind, options: st.kind === "goodbad" ? [{ label: "Good", state: "green" }, { label: "Bad", state: "red" }] : st.options, color: colour }
+          : own
+            ? { kind: own.kind, options: own.options, color: colour }
+            : null
+      );
     };
     void (async () => {
       try {

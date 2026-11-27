@@ -1177,6 +1177,46 @@ seen against SharePoint since this change, and no card has been seen
 on a real phone. Next: tranche 7, each item checked against the code
 before it is walked.
 
+### Tranche 7 (built 2026-11-27, on dev, UNRELEASED) — no schema
+
+One item built; E14's two halves left in the backlog; E16 left parked.
+
+- **E15 — a standalone KPI card as good / bad or a status picklist.**
+  `controls/KpiTrendCard/tracking.ts` (pure, clear of the improvement
+  chunk since the board path mounts the card): `parseCardTracking`
+  from the card's settings (null = a number card; good / bad has its
+  fixed pair; a picklist with no usable option takes On track, At
+  risk, Off track), `optionIndexOf`, `statePointsFromCells`,
+  `removedStatePoints`. Settings: "Tracking" and "Picklist options" on
+  the KPI trend card; an object-list column may now be a drop-down
+  (`ObjectField` kind `enum`) for the option's "Means". The mounter
+  (`cardRegistry.ts`) gives an unlinked card its own tracking: the
+  editor's existing state trend (`setTracking`), the values grid in
+  its existing state mode (`tracking` on `openValueGridDialog`), the
+  readings stored under the card by label. A linked card still takes
+  the driver's. A reading that is none of the options — a number from
+  before the switch, an option since removed — is LEFT OUT of the
+  trend, never drawn as the first option; the numbers stay stored and
+  return when the card is switched back. The card itself only ever
+  REMOVES a state reading: it never writes a point's plotted number
+  (an option's place in the list) over the reading's label. The grid's
+  note no longer speaks of a unit, targets and limits for a state.
+  UAT-RIT-023; `harness/kpistate.html`.
+
+**Seen in the harness:** a picklist card, a good / bad card (readings
+stored as words and as 1 / 0) and a card switched from numbers, all
+through the real mounter; the grid opening in state mode with the
+readings in their periods; a state picked there and written. **Not
+seen running:** the settings form with the new drop-down column; the
+card in the player; a state card's tile on a board.
+
+**Limits.** A state reading entered in the grid sits on its period's
+first day, and the grid shows a state only there (true of value
+drivers too). The target, limits and unit settings are ignored by a
+state card but still show in its settings. The kebab's "Link to a
+value driver" still offers itself on a state card; linking hands the
+tracking to the driver.
+
 ## Tranche 1A — the 2026-11-23 issue export (inserted by Ben, 2026-11-23)
 
 Nine reports from the DMS UAT re-run, reviewed in

@@ -246,3 +246,16 @@ steps:
 5. Click an existing row.
 6. Open the card with fixed row headers, the empty card, and the board's tile of the first card. Download the card as a PNG.
 expected: step 1 there is no "＋ Add row" button; each cell is an editor of its column's kind; Enter in the person cell picks the name and does NOT add the row; step 2 the row joins the table and the cursor is in the first cell of a fresh blank row, which stays in view when the table scrolls; step 3 Escape empties the row; Enter on an empty row adds nothing; step 4 the dependent list offers only its parent's options; each pick of the several-values list becomes a chip; step 5 the row dialog opens, as before, with Delete; step 6 the fixed-header card has no blank row; the empty card shows its prompt and a click on it opens the blank row; the tile and the PNG show no blank row
+
+### UAT-RIT-023 — A KPI card on its own as good / bad or a status picklist
+persona: owner
+modules: controls/KpiTrendCard/tracking.ts controls/CardSettings/registry.ts controls/CardSettings/fields.ts cardRegistry.ts improvement/vdt/gridDialog.ts
+preconditions: a ritual board with two KPI trend cards that are NOT linked to a value driver, one of them with number readings already; a third KPI card linked to a good / bad value driver
+steps:
+1. Open the first card's settings. Set Tracking to "Good / bad". Save. Open the card and press "Update values…".
+2. Click three periods to set Good, Bad, Good. Press Done.
+3. Open the second card's settings (the one with numbers). Set Tracking to "Status picklist". Under Picklist options add Running (On track), Reduced (At risk), Down (Issue). Save.
+4. Read the card. Press "Update values…" and pick a state for this period. Press Done.
+5. Set the second card's Tracking back to "Value against target".
+6. Read the linked card.
+expected: step 1 the grid has one row, "Good / bad", and no Plan or limit rows; its note names no unit or target; step 2 the card draws two bands, Good and Bad, with a line through the three readings in the site's colours; step 3 the Means column is a drop-down of On track, At risk, Issue; step 4 the card shows three bands in the order entered and NONE of the old numbers; the picked state is drawn on its period; a picklist left with no options offers On track, At risk, Off track; step 5 the number readings are back, the chart as it was, and the states are not drawn; step 6 the linked card still takes its tracking from the driver, whatever its own Tracking setting says

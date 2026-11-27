@@ -47,7 +47,10 @@ export async function openValueGridDialog(o: GridDialogOpts): Promise<void> {
       "app-modal-note",
       o.driver
         ? `${CADENCE_LABELS[o.driver.cadence]} · ${o.unit || "no unit"} · the value driver's own series — every linked card and the Value drivers tab read the same numbers.`
-        : `${CADENCE_LABELS[o.cadence]} · ${o.unit || "no unit"} · ${o.ownerWords ?? "this card's own readings"}. Targets and limits set here carry forward until changed.`
+        : o.tracking !== undefined && o.tracking.kind !== "value"
+          ? // a state has no unit, target or limit to speak of
+            `${CADENCE_LABELS[o.cadence]} · ${o.ownerWords ?? "this card's own readings"}.`
+          : `${CADENCE_LABELS[o.cadence]} · ${o.unit || "no unit"} · ${o.ownerWords ?? "this card's own readings"}. Targets and limits set here carry forward until changed.`
     )
   );
   const host = el("div");

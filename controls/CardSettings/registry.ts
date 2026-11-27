@@ -34,9 +34,11 @@ export interface ObjectField {
   key: string;
   label: string;
   /** paletteColor = a select over the site state palette (stores the KEY);
-   *  longtext = a full-width line under the row (a sentence, not a word). */
-  kind: "text" | "color" | "paletteColor" | "longtext";
+   *  longtext = a full-width line under the row (a sentence, not a word);
+   *  enum = a select over `options` (a new row takes the first). */
+  kind: "text" | "color" | "paletteColor" | "longtext" | "enum";
   placeholder?: string;
+  options?: { value: string; label: string }[];
 }
 
 export interface FieldSpec {
@@ -454,6 +456,36 @@ export const CARDS: CardSpec[] = [
         label: "Lower spec limit",
         kind: "number",
         help: "A reading below this is flagged out of spec (red). Empty = none.",
+      },
+      {
+        key: "tracking",
+        label: "Tracking",
+        kind: "enum",
+        options: [
+          { value: "value", label: "Value against target" },
+          { value: "goodbad", label: "Good / bad" },
+          { value: "picklist", label: "Status picklist" },
+        ],
+        help: "Good / bad and a status picklist show states, not a chart of numbers. A card linked to a value driver takes the driver's.",
+      },
+      {
+        key: "trackingOptions",
+        label: "Picklist options",
+        kind: "objectList",
+        help: "For a status picklist: each option and the state it means. Empty = On track, At risk, Off track.",
+        fields: [
+          { key: "label", label: "Option", kind: "text", placeholder: "On track" },
+          {
+            key: "state",
+            label: "Means",
+            kind: "enum",
+            options: [
+              { value: "green", label: "On track" },
+              { value: "amber", label: "At risk" },
+              { value: "red", label: "Issue" },
+            ],
+          },
+        ],
       },
       {
         key: "kpiWindowDays",
