@@ -1099,6 +1099,21 @@ before the exact pass. SQDPC's letters are small in a phone tile
 host under 480 px wide, a narrow split pane included. The add row has
 no undo: a row added by mistake is deleted from its dialog.
 
+#### Ben's test walk of tranche 6 on dev (2026-11-27, `v0.100.0-26-gf1e3a7d`)
+
+| # | Check | Result |
+|---|---|---|
+| 1 | G3 — a capture card's row is added in the table (UAT-RIT-022) | Pass |
+| 2 | F6 — the doc cards show what their view shows (UAT-DOC-124) | TO UAT, unseen |
+| 3 | G1 — SQDPC and the risk matrix on a phone (UAT-RIT-020) | TO UAT, unseen |
+| 4 | G1 — Fishbone reads as a list on a phone (UAT-RIT-021) | TO UAT, unseen |
+
+One of four seen running by Ben. F6 and G1 stand on the harness
+pictures and the tests alone until UAT: the doc cards have never been
+seen against SharePoint since this change, and no card has been seen
+on a real phone. Next: tranche 7, each item checked against the code
+before it is walked.
+
 ## Tranche 1A — the 2026-11-23 issue export (inserted by Ben, 2026-11-23)
 
 Nine reports from the DMS UAT re-run, reviewed in

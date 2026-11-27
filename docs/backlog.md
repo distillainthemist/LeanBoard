@@ -225,6 +225,13 @@ code-app `frame-src`, "Lock every older build". Owed from it:
   canvas plan's decision 8 for adding a row). As built: the
   programme's "Tranche 6" section. Tranches 7 and 8 are checked
   against the code before they are walked.
+- **Tranche 6's test walk (2026-11-27, dev `v0.100.0-26-gf1e3a7d`):
+  the capture card's add row passes; the doc cards, SQDPC and the risk
+  matrix on a phone, and Fishbone's list go TO UAT unseen**
+  (UAT-DOC-124, UAT-RIT-020, UAT-RIT-021). Owed in UAT now: reviewer
+  seats (R1), one Teams card per person (R3), approving on behalf
+  (R4), the Filters pane (R6), the Users directory search (tranche 5),
+  and these three (tranche 6).
 
 **v0.99.0 (2026-11-23, app-only):** tranche 1 of the programme
 (`backlog-programme-2026-11-22.md`) and tranche 1A, the 2026-11-23
