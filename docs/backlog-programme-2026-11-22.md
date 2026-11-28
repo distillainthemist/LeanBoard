@@ -674,6 +674,48 @@ checked against the code first: neither is built.
   a four-hour spike on dev to prove the sharing call and size the
   build. It stays in the backlog with its condition, and the entry now
   carries these findings.
+- **C9, Reporting (P10)** — **left** (Ben, 2026-11-28, choice 4).
+  Found: none of it is built as a page, and the design
+  (`leanboard-cascade-templates-gantt-vdt-reporting-design.md` §4,
+  September) predates what it would report on — the on track / flagged
+  / off track status rule (it tallies the old ticks and crosses), the
+  calendar year as the only period (it compares financial years), the
+  executive summary (which already walks initiatives, status, actions
+  and metrics priority by priority) and the due-date moves panel. The
+  numbers behind all four tiles exist; one page that adds them up
+  across an org, the drill lists, the year comparison and the export
+  do not. Offered: refresh the design first with a harness picture
+  (4 h, my recommendation), a first slice of four tiles (12 h), or the
+  September design as written (30–45 h). It stays in the backlog; the
+  entry says the design must be refreshed before it is walked again.
+
+**Tranche 8 as walked:** nothing to build (plan 42–61 hours).
+
+## The programme, closed (2026-11-28)
+
+All eight tranches have been walked with Ben. Tranches 1 to 7 are
+built; tranche 8 builds nothing. Against the 190–270 hours first
+sized, a large part fell away at the walks: items already built
+whose backlog lines had never been struck (F6, F11, most of G1),
+conditional items nobody had asked for (E14, E12), a parked feature
+left parked (E16) and a stale design left for a refresh (C9).
+
+- **Released:** tranche 1 (v0.99.0); tranches 2, 3 and 4 (v0.100.0).
+- **On dev, unreleased, no schema:** tranches 5, 6 and 7, with R4, R5
+  and R6 of the 2026-11-25 issue round — dev build
+  `v0.100.0-29-gb256a9c`.
+- **Owed in UAT:** reviewer seats (R1); one Teams card per person
+  (R3); approving on behalf (R4); the Filters pane (R6); the Users
+  directory search (tranche 5); the doc cards, SQDPC and the risk
+  matrix on a phone, Fishbone's list (tranche 6).
+- **Left in the backlog by Ben at the walks, with what was found:**
+  the picklist option library and a target state (E14), Simulate
+  (E16 — the parked code still runs), confidential actions hardened
+  (E12 — a spike first), Reporting (C9 — refresh the design first).
+- **The lesson kept:** an item is checked against the code and the
+  git log BEFORE it is sized or walked. The programme was sized from
+  the backlog's words on 2026-11-22, and three entries of tranche 6
+  described work that had shipped months earlier.
 
 ## As built
 

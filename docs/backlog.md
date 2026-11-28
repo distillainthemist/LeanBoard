@@ -242,6 +242,13 @@ code-app `frame-src`, "Lock every older build". Owed from it:
   is re-confirmed with Ben before any of it starts.
 - **Tranche 7's test walk (2026-11-28, dev `v0.100.0-29-gb256a9c`):
   E15 passes.**
+- **Tranche 8 walked 2026-11-28: nothing to build.** E12 (confidential
+  actions hardened) and C9 (Reporting) both left by Ben, each with its
+  findings on its backlog line. **THE PROGRAMME IS CLOSED**: all eight
+  tranches walked, 1 to 7 built. On dev and unreleased, no schema: R4,
+  R5, R6 and tranches 5, 6 and 7 (`v0.100.0-29-gb256a9c`). The second
+  release is ready to cut on Ben's word; the round's full resolution
+  CSV follows it.
 
 **v0.99.0 (2026-11-23, app-only):** tranche 1 of the programme
 (`backlog-programme-2026-11-22.md`) and tranche 1A, the 2026-11-23
@@ -865,7 +872,12 @@ did not look like the same metric's chart). Nothing here is built.
 Everything through v0.55.0 is built; these are the decisions and
 deferrals still open (details in leanboard-cascade-improvement-plan.md).
 
-- **P10 Reporting** — designed (plan §4), not built. Awaiting Ben's go.
+- **P10 Reporting** — designed (plan §4), not built. Walked 2026-11-28
+  (programme C9): LEFT by Ben. The September design predates the
+  status rule, the calendar year as the only period and the executive
+  summary — REFRESH THE DESIGN before it is walked again (about four
+  hours, with a harness picture); a first slice of four tiles is about
+  twelve.
 - **Simulate** — parked 2026-09-09 (button hidden, code kept). Reviving
   it needs a home for BASELINE again (its entry surface went with the
   period tiles). **Checked 2026-11-27 (programme E16): the parked code
