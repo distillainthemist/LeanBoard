@@ -1515,6 +1515,56 @@ reschedule/cancel history with a reason picklist.
   **Unexplained and still open:** report 1's own fault (a 2027 view
   with no pillar row, not reproduced) and why Approve failed on the
   edit request of report 16.
+- **2026-11-28 — released as v0.101.0** (app-only, no schema;
+  Utilities unchanged). The second release of the 2026-11-25 issue
+  round — **R4, R5 and R6** (`issue-review-2026-11-25.md`) — and
+  **tranches 5, 6 and 7 of the backlog programme**
+  (`backlog-programme-2026-11-22.md`), which closed on the same day
+  with tranche 8 building nothing. Each document holds the walk with
+  Ben, the as-built record and his test walks. The round's close-out
+  file, `issue-resolutions-2026-11-25.csv` (all 30 reports, read clean
+  by the app's own import reader), was written with this release.
+  **Production, in this order:** install the app; Settings →
+  Priorities → "Convert measures" once (a super admin); "Lock every
+  older build" — an older bundle misreads a priority's one list of
+  measures and drops it when it saves the priority, saves an action
+  without levelling its status with its PDCA state, and drops a
+  person's saved Documents columns when it saves their preferences.
+  **Tell the sites before it lands:** a card at Do that was never
+  dragged into Doing now reads Plan; a new action starts at Plan;
+  meeting boards read To do, Doing, Done; a department's page lists a
+  shared priority's initiatives only once they name the department in
+  "Also shown in"; an existing Document health card whose pasted view
+  carries words, people or dates now narrows by them.
+  **R4, controller tools:** Change properties on a filtered or ticked
+  set, with a preview and a report (N3); Rename and Correct effective
+  date (28); approving on behalf, with evidence (12); Document tasks
+  as a large panel with quick actions (10). **R5, boards and
+  priorities:** the kanban column follows the PDCA state, with a "By
+  PDCA state" view and the grouping select on the Gantt (21); a
+  department's part of a shared priority (22); one list of measures
+  on a priority, four at most, eight metrics on an initiative (20).
+  **R6, the Documents screen:** a person's saved columns (4, 26);
+  Library in the chooser (25); the Libraries card folds (9); the
+  Filters pane as tall as the window, larger arrows (8, 6).
+  **Tranche 5:** one search-picker builder (`shared/ui/typeAhead.ts`)
+  and the people and other searches moved onto it; organisation owners
+  through the app's one owner picker; the ingestion grid's editor keys
+  (report 3). **Tranche 6:** the board's doc cards level with the
+  register through shared feed rules (`docs/viewFeed.ts`); SQDPC and
+  the risk matrix fit a phone's board list and Fishbone reads as a
+  list there; a capture card's row typed into the table. **Tranche
+  7:** a KPI card on its own as good / bad or a status picklist.
+  **Tested on dev by Ben:** R4 (six of seven), R5 (all six), R6 (three
+  of four), tranche 5 (six of seven), tranche 6 (the add row), tranche
+  7 (E15). **Released unseen running, to UAT:** approving on behalf
+  (UAT-DOC-114), the Filters pane (UAT-DOC-119), the Users directory
+  search (UAT-SET-020), the doc cards (UAT-DOC-124), SQDPC and the
+  risk matrix on a phone (UAT-RIT-020), Fishbone's list (UAT-RIT-021)
+  — with reviewer seats and one Teams card per person still owed from
+  v0.100.0. **Held:** report 24 (the trend chart's minimum span; Ben
+  to talk to Sue). **Still owed by hand:** the BSL process-tree repair
+  and re-tagging (report 5), now that Change properties exists.
 - **2026-11-23 — released as v0.99.0** (app-only, no schema; Utilities
   unchanged). Tranche 1 of the backlog programme
   (`backlog-programme-2026-11-22.md`, thirteen small fixes) and tranche

@@ -700,10 +700,9 @@ whose backlog lines had never been struck (F6, F11, most of G1),
 conditional items nobody had asked for (E14, E12), a parked feature
 left parked (E16) and a stale design left for a refresh (C9).
 
-- **Released:** tranche 1 (v0.99.0); tranches 2, 3 and 4 (v0.100.0).
-- **On dev, unreleased, no schema:** tranches 5, 6 and 7, with R4, R5
-  and R6 of the 2026-11-25 issue round — dev build
-  `v0.100.0-29-gb256a9c`.
+- **Released:** tranche 1 (v0.99.0); tranches 2, 3 and 4 (v0.100.0);
+  tranches 5, 6 and 7 (v0.101.0, 2026-11-28, with R4, R5 and R6 of
+  the 2026-11-25 issue round; no schema).
 - **Owed in UAT:** reviewer seats (R1); one Teams card per person
   (R3); approving on behalf (R4); the Filters pane (R6); the Users
   directory search (tranche 5); the doc cards, SQDPC and the risk
@@ -1051,7 +1050,7 @@ new review process in `issue-review-prompt.md`, with one item of his
 own added to the round: a CSV import that prepares responses and
 closes issues in bulk.
 
-### Tranche 5 (built 2026-11-27, on dev, UNRELEASED) — no schema
+### Tranche 5 (built 2026-11-27, RELEASED in v0.101.0 on 2026-11-28) — no schema
 
 Six items, as walked. One new shared module carries all of it.
 
@@ -1160,7 +1159,7 @@ way.
 Tranche 5 stands tested on dev, with F2 owed in UAT. Next: tranche 6's
 walk.
 
-### Tranche 6 (built 2026-11-27, on dev, UNRELEASED) — no schema
+### Tranche 6 (built 2026-11-27, RELEASED in v0.101.0 on 2026-11-28) — no schema
 
 Three items built; F11 struck as already built.
 
@@ -1247,7 +1246,7 @@ seen against SharePoint since this change, and no card has been seen
 on a real phone. Next: tranche 7, each item checked against the code
 before it is walked.
 
-### Tranche 7 (built 2026-11-27, on dev, UNRELEASED) — no schema
+### Tranche 7 (built 2026-11-27, RELEASED in v0.101.0 on 2026-11-28) — no schema
 
 One item built; E14's two halves left in the backlog; E16 left parked.
 

@@ -531,6 +531,41 @@ workflow (the asset is replaced) and import again.
   review's summary tiles and the task banner heading removed) is
   SOLUTION-CARRYING for the Utilities app only: prod imports the managed
   solution; the LeanBoard app is unchanged. No schema change.
+  v0.101.0 (2026-11-28, app-only, no schema: R4, R5 and R6 of the
+  2026-11-25 issue round — `docs/issue-review-2026-11-25.md`, closed
+  with `docs/issue-resolutions-2026-11-25.csv` — and tranches 5, 6
+  and 7 of the backlog programme, which CLOSED that day —
+  `docs/backlog-programme-2026-11-22.md`. R4, Documents: bulk change
+  of properties (`docs/bulkChange.ts`, `bulkChangeModel.ts` — it
+  offers only the columns the form shows, `offeredFor`), Rename and
+  Correct effective date (`controllerCmds.ts`), approving on behalf
+  with evidence (`onBehalfModel.ts`), Document tasks with quick
+  actions. R5: `alignPdca` (`shared/schema/actions.ts`) is the ONE
+  rule levelling an action's status with its PDCA state, and the
+  kanban column follows it; a department's part of a shared priority
+  (`priorities/orgPart.ts`); a priority's ONE list of measures behind
+  `{list:1}` in the objectives column (`priorities/measures.ts`,
+  `MEASURE_CAP` 4, `INITIATIVE_METRIC_CAP` 8, "Convert measures" in
+  Settings → Priorities). R6: a person's saved Documents columns
+  (`DocUiPrefs.columns`, `columnsToShow`). Tranche 5:
+  `shared/ui/typeAhead.ts` `buildTypeAhead` is THE search-picker —
+  never hand-copy the pattern again; `docs/peopleField.ts` over it;
+  organisation owners through `pickOwner` + `directoryRoad`. Tranche
+  6: `docs/viewFeed.ts` is what a Documents view asks of one library,
+  shared by the register and the doc cards (`CARD_VIEW_PARTS` + its
+  test force a decision when `DocView` grows); the board stamps the
+  size tier ON a tile's own host, so a tile rule is written
+  `[data-ltk-tier="phone"].ltk-tile …` as well as the descendant form;
+  a capture card's row is added in the table
+  (`controls/CaptureCard/addRow.ts`). Tranche 7: a standalone KPI card
+  as good / bad or picklist (`controls/KpiTrendCard/tracking.ts`).
+  Prod: install the app, "Convert measures" once, then "Lock every
+  older build" — an older bundle drops a priority's measures list and
+  a person's saved columns when it saves. RELEASED PARTLY UNSEEN: six
+  checks go to UAT untested on dev (the ledger lists them).
+  LESSON (the programme's): a backlog line is checked against the code
+  and `git log` BEFORE it is sized or walked — three of tranche 6's
+  four entries had shipped months earlier.)
   v0.100.0 (2026-11-26, SOLUTION-CARRYING — `ben_assigneeorgs`,
   `ben_raisedorg` on `ben_ltkaction`, `ben_succeedsjson` on
   `ben_ltkpillar`: the backlog programme's tranches 2, 3 and 4 —

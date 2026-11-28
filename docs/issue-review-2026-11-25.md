@@ -73,16 +73,16 @@ work and release".
 |---|---|---|---|---|---|---|---|---|
 | 1 | 42db6c12-91e8-f111-84e9-7ced8da2c4f3 | Priority transition | Design gap | Build | Merge rule and a year-change panel, pillars and sub-pillars | A year change is row by row, cannot express a merge, and can be left half done | R2 | v0.100.0 — Resolved |
 | 2 | a51354a0-8fe8-f111-84e9-7c1e528a7790 | Adding pillars | Defect | Build | The new row gets the cursor; the page stays put | The cursor went to the last sub-pillar in the whole list | R2 | v0.100.0 — Resolved |
-| 3 | 9a809e66-88e8-f111-84e9-7c1e528a7790 | Ingestion task - use keyboard not mouse for data entry | Enhancement | Defer | Keyboard entry in the ingestion grid joins tranche 5 | Belongs with the type-ahead pickers; the spreadsheet round trip serves today | Tranche 5 | Answered — Deferred |
-| 4 | ff668fcd-87e8-f111-84e9-7c1e528a7790 | Custom columms reset | Defect | Build | The chosen columns are the person's, kept across library changes and visits | A library change rebuilt the screen without the view; columns were never saved for the person | R6 | Planned |
+| 3 | 9a809e66-88e8-f111-84e9-7c1e528a7790 | Ingestion task - use keyboard not mouse for data entry | Enhancement | Defer | Keyboard entry in the ingestion grid joins tranche 5 | Belongs with the type-ahead pickers; the spreadsheet round trip serves today | Tranche 5 | v0.101.0 — Resolved (built in programme tranche 5) |
+| 4 | ff668fcd-87e8-f111-84e9-7c1e528a7790 | Custom columms reset | Defect | Build | The chosen columns are the person's, kept across library changes and visits | A library change rebuilt the screen without the view; columns were never saved for the person | R6 | v0.101.0 — Resolved |
 | 5 | ee83abdd-86e8-f111-84e7-6045bdc41cd5 | Metal Delivery process areas incorrect | Not software? | Build + non-software | Terms read by id, never guessed by name; BSL tree repaired by Ben | The ingestion grid resolved a saved term by name alone; BSL's tree holds duplicates from the v0.83 copy | R1, then repair after R4 | v0.100.0 — Partially resolved |
-| 6 | 2c7da473-86e8-f111-84e9-7c1e528a7790 | Larger arrows to expand filter menus | Enhancement | Build | Covered by 8: larger arrows, whole-row expand | Arrows are small text and only the arrow expands | R6 | Planned |
-| 7 | 76457348-86e8-f111-84e9-7c1e528a7790 | Default select all three doc libraries | Design gap | Non-software + small build | A reply; a tooltip on a library's name | The app remembers the last selection; a click on a name selects that library alone | R6 | Planned |
-| 8 | ced74718-86e8-f111-84e9-7ced8da2c4f3 | Filter pane is small | Design gap | Build | Full-height Filters pane, larger arrows, whole-row expand | The pane is a small pop-over | R6 | Planned |
-| 9 | c3476cd8-85e8-f111-84e7-6045bdc41cd5 | Condense libraries panel | Enhancement | Build | The Libraries card folds to one line | Nothing folds the Libraries list alone | R6 | Planned |
-| 10 | 8b7517b2-85e8-f111-84e7-6045bdc41cd5 | Document tasks dashboard | New | Build | Document tasks as a larger screen with quick actions that open the same dialogs | Ben's choice, against a recommendation to defer | R4 | Planned |
+| 6 | 2c7da473-86e8-f111-84e9-7c1e528a7790 | Larger arrows to expand filter menus | Enhancement | Build | Covered by 8: larger arrows, whole-row expand | Arrows are small text and only the arrow expands | R6 | v0.101.0 — Partially resolved (to UAT) |
+| 7 | 76457348-86e8-f111-84e9-7c1e528a7790 | Default select all three doc libraries | Design gap | Non-software + small build | A reply; a tooltip on a library's name | The app remembers the last selection; a click on a name selects that library alone | R6 | Answered — Not a software issue |
+| 8 | ced74718-86e8-f111-84e9-7ced8da2c4f3 | Filter pane is small | Design gap | Build | Full-height Filters pane, larger arrows, whole-row expand | The pane is a small pop-over | R6 | v0.101.0 — Partially resolved (to UAT) |
+| 9 | c3476cd8-85e8-f111-84e7-6045bdc41cd5 | Condense libraries panel | Enhancement | Build | The Libraries card folds to one line | Nothing folds the Libraries list alone | R6 | v0.101.0 — Resolved |
+| 10 | 8b7517b2-85e8-f111-84e7-6045bdc41cd5 | Document tasks dashboard | New | Build | Document tasks as a larger screen with quick actions that open the same dialogs | Ben's choice, against a recommendation to defer | R4 | v0.101.0 — Resolved |
 | 11 | 44bce45a-83e8-f111-84e9-7ced8da2c4f3 | Documents open at the bottom | Defect | Build (a try) | The preview asks the PDF viewer for page 1 | Cause not found; cheap to try | R1 | v0.100.0 — Resolved |
-| 12 | e989517a-72e8-f111-84e9-6045bdc4133d | Evidence attachments for approvals on behalf | Enhancement | Build | "On behalf of" and "Attach evidence" in the Approve dialog | The record named the controller and held no proof | R4 | Planned |
+| 12 | e989517a-72e8-f111-84e9-6045bdc4133d | Evidence attachments for approvals on behalf | Enhancement | Build | "On behalf of" and "Attach evidence" in the Approve dialog | The record named the controller and held no proof | R4 | v0.101.0 — Partially resolved (to UAT) |
 | 13 | 89b02c2d-5ae8-f111-84e7-6045bdc41cd5 | Reviews not marking as complete | Defect | Build | The review check uses the history's three-place read | The review check read comments from one place; the history reads three | R1 | v0.100.0 — Resolved |
 | 14 | 549f68b2-59e8-f111-84e7-6045bdc41cd5 | Completion of review | Design gap | Build | Any step refused by Word's lock says so | Word's lock on an open file, read as an app fault | R1 | v0.100.0 — Resolved |
 | 15 | 442001a1-54e8-f111-84e9-7c1e528a7790 | Review status not updating | Defect | Duplicate of 13 | Follows 13; its message is the hand-over rule | Same fault, plus a message that waited for a second press | R1 | v0.100.0 — Duplicate |
@@ -90,21 +90,21 @@ work and release".
 | 17 | f74814d4-53e8-f111-84e7-6045bdc41cd5 | Tracked changes are not showing for the approver | Design gap | Build | A line and an "Open in Word" button on the review and approval card | The preview is a PDF with tracked changes applied | R1 | v0.100.0 — Resolved |
 | 18 | ceda461a-53e8-f111-84e9-70a8a5567eb6 | Message not sent to reviewer | Defect | Build | Every hand-over step sends its Teams card at once; added reviewers included | The plan was empty when the document had no reviewers before the dialog | R1 | v0.100.0 — Resolved |
 | 19 | 999d4611-47e8-f111-84e9-6045bdc4133d | UAT DOC-040: Cancel a revision | Defect? | Non-software | UAT-DOC-040 corrected; a reply | The app did the right thing; the script did not describe the case | R1 | v0.100.0 — Not a software issue |
-| 20 | b7667d42-d0e7-f111-84e9-7c1e528a7790 | Priority-Level Metrics and Initiative Roll-Up | Enhancement | Build | One list of measures on a priority | Three sources decided a priority's metrics; duplicates were possible | R5 | Planned |
-| 21 | e2732115-cfe7-f111-84e9-7ced8da2c4f3 | Action Phase Not Reflecting in Workflow Columns | Design gap | Build | The kanban column comes from the PDCA state; new actions start at Plan; a "By PDCA state" view | Two separate states on an action, set in different places | R5 | Planned |
-| 22 | 961b76b8-cee7-f111-84e9-6045bdc4133d | Department Filtering Across Initiatives and Actions | Design gap | Build | The priority popup follows "Also shown in" | The popup listed every initiative whatever org was in view | R5 | Planned |
+| 20 | b7667d42-d0e7-f111-84e9-7c1e528a7790 | Priority-Level Metrics and Initiative Roll-Up | Enhancement | Build | One list of measures on a priority | Three sources decided a priority's metrics; duplicates were possible | R5 | v0.101.0 — Resolved |
+| 21 | e2732115-cfe7-f111-84e9-7ced8da2c4f3 | Action Phase Not Reflecting in Workflow Columns | Design gap | Build | The kanban column comes from the PDCA state; new actions start at Plan; a "By PDCA state" view | Two separate states on an action, set in different places | R5 | v0.101.0 — Resolved |
+| 22 | 961b76b8-cee7-f111-84e9-6045bdc4133d | Department Filtering Across Initiatives and Actions | Design gap | Build | The priority popup follows "Also shown in" | The popup listed every initiative whatever org was in view | R5 | v0.101.0 — Resolved |
 | 23 | 11725f58-c4e7-f111-84e9-7c1e528a789c | Rolling over priority initiative to continue into another year fault | Defect | Build | "Extend" and "Complete" on a tile past its planned end; the form fixed | No direct step; a changed start year blanked the sub-pillar | R2 | v0.100.0 — Resolved |
-| 24 | e8853a1a-c1e7-f111-84e9-7ced8da2c4f3 | Metrics timeframe (dates selection) | Enhancement | **Held** (was Build) | Not built: the minimum span stays; Ben to discuss with Sue (2026-11-27) | The cause is the trend chart's minimum span, Ben's decision of 2026-10-28 — not the fixed page I named; starting at the first reading reverses it | — | Held |
-| 25 | 8674251b-bee7-f111-84e9-7ced8da2c4f3 | Library column keeps appearing | Design gap | Build | Library is an ordinary column in the chooser | The register added it and the chooser could not remove it | R6 | Planned |
-| 26 | 79d69ea6-bde7-f111-84e9-7c1e528a7790 | Custom columns disappear | Defect | Duplicate of 4 | Same fault, same fix | — | R6 | Planned |
+| 24 | e8853a1a-c1e7-f111-84e9-7ced8da2c4f3 | Metrics timeframe (dates selection) | Enhancement | **Held** (was Build) | Not built: the minimum span stays; Ben to discuss with Sue (2026-11-27) | The cause is the trend chart's minimum span, Ben's decision of 2026-10-28 — not the fixed page I named; starting at the first reading reverses it | — | Held — Deferred in the file |
+| 25 | 8674251b-bee7-f111-84e9-7ced8da2c4f3 | Library column keeps appearing | Design gap | Build | Library is an ordinary column in the chooser | The register added it and the chooser could not remove it | R6 | v0.101.0 — Resolved |
+| 26 | 79d69ea6-bde7-f111-84e9-7c1e528a7790 | Custom columns disappear | Defect | Duplicate of 4 | Same fault, same fix | — | R6 | v0.101.0 — Duplicate |
 | 27 | 8dafc340-94e7-f111-84e9-6045bdc4133d | Doc status update | Not software | Decline | Status changes go through the existing commands | Ben: use the existing workflows | — | Answered — Declined |
-| 28 | 5bcf3b53-92e7-f111-84e7-6045bdc41cd5 | Updating doc properties | Design gap | Build | Controller commands: Rename, Correct approval date | No rename existed; a wrong approval date from ingestion had no remedy | R4 | Planned |
+| 28 | 5bcf3b53-92e7-f111-84e7-6045bdc41cd5 | Updating doc properties | Design gap | Build | Controller commands: Rename, Correct approval date | No rename existed; a wrong approval date from ingestion had no remedy | R4 | v0.101.0 — Resolved |
 | 29 | 83cffed5-8ce7-f111-84e9-7c1e528a7790 | Can we have a link to directly open the Documents tab | Enhancement | Non-software | A reply: bookmark a view link | "Copy view link" already opens on Documents | — | Answered — Not a software issue |
 | 30 | bd8489ab-8be7-f111-84e9-7c1e528a7790 | Status filter - remove Awaiting Owner Approval | Not software | Non-software | A reply: two different steps | The statuses are distinct by design | — | Answered — Not a software issue |
-| N1 | none | CSV import and export for the Issues desk | New | Build | Import with three new statuses; one Teams card per person; preview then apply; export to CSV | Ben's item; this round's close-out needs it | R3 | Planned |
-| N2 | none | A version's comment under its row | Enhancement | Build | The comment shows under each version row in place of the tooltip | Ben's item, from question 1 of cluster A | R1 | Planned |
-| N3 | none | Bulk change of properties | New | Build | A controller changes one or more properties on a filtered or ticked set | Ben's item; a general need, and what makes the BSL repair practical | R4 | Planned |
-| N4 | none | A PDF file's preview shows one page | Defect | Build, in two steps | Say so under the fallback picture and add a readout; then choose the fix once the refusal is seen | Found on R1's walk: the bytes fetch is refused in the hosted app and the fallback is silent | R1 | Planned |
+| N1 | none | CSV import and export for the Issues desk | New | Build | Import with three new statuses; one Teams card per person; preview then apply; export to CSV | Ben's item; this round's close-out needs it | R3 | v0.100.0 — Built |
+| N2 | none | A version's comment under its row | Enhancement | Build | The comment shows under each version row in place of the tooltip | Ben's item, from question 1 of cluster A | R1 | v0.100.0 — Built |
+| N3 | none | Bulk change of properties | New | Build | A controller changes one or more properties on a filtered or ticked set | Ben's item; a general need, and what makes the BSL repair practical | R4 | v0.101.0 — Built |
+| N4 | none | A PDF file's preview shows one page | Defect | Build, in two steps | Say so under the fallback picture and add a readout; then choose the fix once the refusal is seen | Found on R1's walk: the bytes fetch is refused in the hosted app and the fallback is silent | R1 | v0.100.0 — Built |
 
 ## Clusters and systemic causes
 
@@ -1324,6 +1324,61 @@ card; "Send again". These were seen in the harness only, where Teams
 does not exist. Not run anywhere: Stop part-way through an apply, and
 a row whose step is refused.
 
+### Close-out (phase 4, 2026-11-28, v0.101.0)
+
+The second release, v0.101.0, carries R4, R5 and R6. With it the round
+is closed: `issue-resolutions-2026-11-25.csv` holds one row for each
+of the 30 reports, in the export's order, read clean by the app's own
+import reader. It repeats the sixteen rows of the first file, with two
+changed: report 3 (Deferred then, built since in tranche 5 of the
+backlog programme) and report 5 (its message now names the tool that
+shipped).
+
+| Status in the file | Reports | Count |
+|---|---|---|
+| Resolved | 1, 2, 3, 4, 9, 10, 11, 13, 14, 17, 18, 20, 21, 22, 23, 25, 28 | 17 |
+| Partially resolved | 5, 6, 8, 12, 16 | 5 |
+| Not a software issue | 7, 19, 29, 30 | 4 |
+| Duplicate | 15 (of 13), 26 (of 4) | 2 |
+| Deferred | 24 | 1 |
+| Declined | 27 | 1 |
+
+The rule held: a report reads **Resolved** only where the change was
+built AND Ben saw it pass on dev. Evidence for the rows new in this
+file:
+
+| # | Status | Evidence |
+|---|---|---|
+| 3 | Resolved | Tranche 5 test 7 (the ingestion grid's editor keys) |
+| 4, 26 | Resolved, Duplicate of 4 | R6 test 1 |
+| 25 | Resolved | R6 test 2 |
+| 9 | Resolved | R6 test 3 |
+| 8, 6 | Partially resolved | Built in R6; TO UAT, not seen running (UAT-DOC-119). Both messages say so |
+| 7 | Not a software issue | No build: the tooltip already existed and the app remembers the last selection |
+| 28 | Resolved | R4 tests 1 and 2 |
+| 10 | Resolved | R4 test 7 |
+| 12 | Partially resolved | Built in R4; TO UAT, not seen running (UAT-DOC-114). The message says so |
+| 21 | Resolved | R5 tests 1 to 3 |
+| 22 | Resolved | R5 test 4 |
+| 20 | Resolved | R5 tests 5 and 6 |
+| 24 | Deferred | HELD by Ben: the row is in the file so there is no gap, and its internal note says to delete it before importing if he has not yet spoken to Sue |
+
+**Still open after the round**
+
+- **In UAT, unseen running:** reviewer seats (13, 15 — UAT-DOC-103 to
+  108); one Teams card per person (N1 — UAT-ISS-009); approving on
+  behalf (12); the Filters pane (8, 6).
+- **By hand:** the BSL process-tree repair and the re-tagging of the
+  documents filed under the wrong area (5), with Change properties.
+- **Held:** report 24, until Ben has talked to Sue.
+- **Unexplained:** report 1's own fault (a 2027 view with no pillar
+  row, never reproduced); why Approve failed on the edit request of
+  report 16; whether report 11's fix holds in production.
+- **Never run anywhere:** Cancel revision on a document with two
+  approved versions (19).
+- **In production after the install:** "Convert measures" once, then
+  "Lock every older build".
+
 ### R4 walk (began 2026-11-27)
 
 **Item 1 — N3, choosing the documents.** Found: the register has no
@@ -1482,7 +1537,7 @@ wide, most of the screen high, full screen on a phone).
 
 **R4 as walked:** about 11.5 days (plan 10.5). No schema.
 
-### R4 as built (2026-11-27, on dev, NOT released)
+### R4 as built (2026-11-27, RELEASED in v0.101.0 on 2026-11-28)
 
 **No schema.** A third attachment parent kind, `docapproval`, is text
 in a column that already exists.
@@ -1690,7 +1745,7 @@ first ENTERED value, actual or plan.
 
 **R5 as walked:** about 7.5 days (plan 6.5). No schema.
 
-### R5 as built (2026-11-27, on dev, NOT released)
+### R5 as built (2026-11-27, RELEASED in v0.101.0 on 2026-11-28)
 
 **No schema.** One new kind of entry in a priority's objectives column
 (`{ list: 1 }`).
@@ -1850,7 +1905,7 @@ grows; "whole row expands" is dropped.
 **R6 as walked:** about 2 days (plan 2). Report 7's tooltip comes out
 (already there); the sort carry-over goes in. No schema.
 
-### R6 as built (2026-11-27, on dev, NOT released)
+### R6 as built (2026-11-27, RELEASED in v0.101.0 on 2026-11-28)
 
 **No schema.** Two more fields in a person's Documents preferences
 (`cols`, `lf` in `ben_docuijson`).

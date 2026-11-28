@@ -249,6 +249,18 @@ code-app `frame-src`, "Lock every older build". Owed from it:
   R5, R6 and tranches 5, 6 and 7 (`v0.100.0-29-gb256a9c`). The second
   release is ready to cut on Ben's word; the round's full resolution
   CSV follows it.
+- **v0.101.0 RELEASED 2026-11-28 (app-only, no schema; Utilities
+  unchanged):** R4, R5 and R6 of the 2026-11-25 issue round and
+  tranches 5, 6 and 7 of the programme. The round is CLOSED:
+  `issue-resolutions-2026-11-25.csv` holds all 30 reports (17
+  Resolved, 5 Partially resolved, 4 Not a software issue, 2
+  Duplicate, 1 Deferred — report 24, held — 1 Declined); its
+  close-out section is in `issue-review-2026-11-25.md`. Production:
+  install the app, "Convert measures" once, lock older builds. Owed
+  in UAT: reviewer seats, one Teams card per person, approving on
+  behalf, the Filters pane, the Users directory search, the doc
+  cards, SQDPC and the risk matrix on a phone, Fishbone's list. Owed
+  by hand: the BSL process-tree repair and re-tagging (report 5).
 
 **v0.99.0 (2026-11-23, app-only):** tranche 1 of the programme
 (`backlog-programme-2026-11-22.md`) and tranche 1A, the 2026-11-23
