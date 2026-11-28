@@ -881,6 +881,11 @@ deferrals still open (details in leanboard-cascade-improvement-plan.md).
   2026-11-25 (programme E11): the endorse review shows "📎 n".
 - **Confidential actions, hardened** — a separately secured table with
   per-record sharing if app-level hiding ever proves insufficient.
+  Walked 2026-11-28 (programme E12): LEFT by Ben. Every table is
+  organisation-owned, so it needs a NEW user-owned table, a User-depth
+  role and a share per person per action; the sharing call is unproven
+  from a code app; days, not 12–16 hours; actions only. A four-hour
+  spike on dev is the first step if it is ever wanted.
 - **Organisation-scope Actions read** — TO BUILD in tranche 4
   (programme E13, 2026-11-25): the org of an action's assignees, and
   the org it was raised at, go on the action row (two columns, SCHEMA-

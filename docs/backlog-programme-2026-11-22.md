@@ -647,6 +647,34 @@ separate things and is walked as two items.
 two halves stay in the backlog with their conditions; E16 stays
 parked. No schema.
 
+### Tranche 8
+
+The walk began 2026-11-28, after tranche 7's test. Both entries were
+checked against the code first: neither is built.
+
+- **E12** — **left** (Ben, 2026-11-28, choice 1, my recommendation;
+  it was the item to re-confirm before starting). Found: a confidential
+  action is hidden by the app (`visible()` in `store/actions.ts`); its
+  row sits in `ben_ltkaction` with every other action, and every
+  LeanBoard table is ORGANISATION-OWNED with the one role granted at
+  Global depth (`data/deploy-schema.mjs`), so Dataverse cannot secure
+  single rows — all or none. Hardening means a new USER-owned table
+  (ownership cannot be changed on an existing one), a role at User
+  depth, and a share per person per action. Why it is larger than
+  12–16 hours: the rule is wide (raiser, assignees, their leaders,
+  super admins — leaders change with the org chart, so shares go
+  stale); the sharing call (GrantAccess, a Dataverse ACTION) is
+  unproven from a code app — the SDK's `executeAsync` is private, and
+  it may need a flow or a plug-in; existing confidential actions
+  migrate and every action read and write gains a second source, with
+  comments, attachments and moves; proof needs two accounts in the
+  hosted app; and it covers actions only — confidential initiatives
+  and meetings stay app-level. The entry is conditional ("if app-level
+  hiding ever proves insufficient") and no report says it has. Offered:
+  a four-hour spike on dev to prove the sharing call and size the
+  build. It stays in the backlog with its condition, and the entry now
+  carries these findings.
+
 ## As built
 
 ### Tranche 1 (built 2026-11-22, RELEASED in v0.99.0 on 2026-11-23)
