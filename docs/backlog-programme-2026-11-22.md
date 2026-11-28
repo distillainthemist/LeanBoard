@@ -1217,6 +1217,15 @@ state card but still show in its settings. The kebab's "Link to a
 value driver" still offers itself on a state card; linking hands the
 tracking to the driver.
 
+#### Ben's test walk of tranche 7 on dev (2026-11-28, `v0.100.0-29-gb256a9c`)
+
+| # | Check | Result |
+|---|---|---|
+| 1 | E15 — a KPI card as good / bad, then as a picklist, then back to numbers (UAT-RIT-023) | Pass |
+
+Tranche 7 stands tested on dev. Next: tranche 8, checked against the
+code first; E12 is re-confirmed with Ben before any of it starts.
+
 ## Tranche 1A — the 2026-11-23 issue export (inserted by Ben, 2026-11-23)
 
 Nine reports from the DMS UAT re-run, reviewed in

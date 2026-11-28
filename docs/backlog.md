@@ -240,6 +240,8 @@ code-app `frame-src`, "Lock every older build". Owed from it:
   the programme's "Tranche 7" section. Next: tranche 8 (C9 Reporting,
   E12 confidential actions), each checked against the code first; E12
   is re-confirmed with Ben before any of it starts.
+- **Tranche 7's test walk (2026-11-28, dev `v0.100.0-29-gb256a9c`):
+  E15 passes.**
 
 **v0.99.0 (2026-11-23, app-only):** tranche 1 of the programme
 (`backlog-programme-2026-11-22.md`) and tranche 1A, the 2026-11-23
